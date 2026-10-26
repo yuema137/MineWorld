@@ -96,3 +96,33 @@ the wall-clock cadence of requests, never a world duration and never a pack read
 - **People are not planned round**, except the one who just stopped the walker: passing other people is
   the resolver's nudging and head-on bias (`ARC-39` notes).
 - **No overhead geometry, stairs or floors**; no travel between places not joined by passages.
+
+### Amendment 1, 2026-10-20 — a walk to a person ends where to stand, not at the person
+
+**Why.** The promo v2 review (B4, B8, B10) showed a visitor who chose "walk to Alice" end behind the café
+counter, beside the barista. Point 3's rule — plan the last leg to the person and stop within
+`PERSON_APPROACH` of them — makes the way round the counter's end the only way to arrive, because the
+counter's near edge is 1.5–1.7 m from someone standing behind it. A customer stops at the counter.
+
+**Rule.** The last leg of a walk to a person ends at a *stand point*, chosen by the routes the wayfinders
+answer and nothing else (movement still never knows what stands in a place):
+
+- candidates: the point `PERSON_APPROACH` short of them on the line from the walker (point 3's old aim),
+  then the point `PERSON_APPROACH` from them in each of sixteen fixed compass directions;
+- each is routed by the wayfinders, which move a point lying in furniture to the nearest free one — so a
+  point inside a counter becomes the counter's edge on one side or the other;
+- a route is kept when it ends within **`PERSON_REACH`, 2 100 mm** of them — the far limit of the close
+  phase of social distance (Hall 1966, 1.2–2.1 m), the distance of impersonal business across a counter;
+- the kept route with the least *walk + remaining gap* wins (route length from the walker, plus the
+  end's distance to them); ties go to the smaller gap, then the earlier candidate.
+
+With nothing between the two, the first candidate is the only one whose walk + gap equals the straight
+distance, so the walk is exactly the direct approach it was. Arrival is within `PERSON_APPROACH` of the
+person, or at the planned stand point while they are within `PERSON_REACH`. The leg is planned again
+when the person moves `TARGET_MOVED` from where they stood when it was planned; `Walking` records that
+point as `aimed_at` (omitted from a place walk's record, and absent in a walk saved before this
+amendment, which keeps the old aim and arrival).
+
+**Evidence.** `systems/bodies/tests/scenarios.rs`
+`a_walk_to_a_person_behind_a_counter_ends_on_the_walkers_side`: the café's counter and a generated room
+with a table across it; on `main` the café visitor ends at (4 811, 7 645), behind the counter.

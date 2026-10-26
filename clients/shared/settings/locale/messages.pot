@@ -692,6 +692,14 @@ msgstr ""
 msgid "action.put-down.done"
 msgstr ""
 
+#. Look over the prices
+msgid "action.survey"
+msgstr ""
+
+#. You looked over the prices
+msgid "action.survey.done"
+msgstr ""
+
 #. Put {item} up for sale
 msgid "action.list-for-sale"
 msgstr ""
@@ -994,6 +1002,30 @@ msgstr ""
 
 #. street
 msgid "place.street"
+msgstr ""
+
+#. station
+msgid "place.station"
+msgstr ""
+
+#. ticket office
+msgid "place.ticket-office"
+msgstr ""
+
+#. platform
+msgid "place.platform"
+msgstr ""
+
+#. No service yet
+msgid "station.no_service"
+msgstr ""
+
+#. Closed
+msgid "station.window_closed"
+msgstr ""
+
+#. Departures
+msgid "station.departures"
 msgstr ""
 
 #. Say to {target}:

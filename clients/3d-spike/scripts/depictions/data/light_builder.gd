@@ -4,7 +4,7 @@
 ## `SliceMain` calls these in place of the café's when the depiction has a `light` section, after the
 ## scene is built (a bake reads the built scene). The fixed sun and sky stay the slice's.
 ##
-## The bake's tuning is the slice's, shared by every world (`PRESENTATION.md` sec.6's schema defaults).
+## The bake's tuning is the slice's, shared by every world (`PRESENTATION.md` sec.7's schema defaults).
 ## Nothing here names a world, a place or a tag.
 class_name DepictionLight
 extends RefCounted

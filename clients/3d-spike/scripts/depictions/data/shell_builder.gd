@@ -3,7 +3,7 @@
 ## one of four forms, a chimney -- on the drawn ground. Interiors and furniture are never drawn here
 ## (S33-f; `ARC-307`).
 ##
-## The rules, all from the file or `PRESENTATION.md` sec.6's schema defaults:
+## The rules, all from the file or `PRESENTATION.md` sec.7's schema defaults:
 ##   - walls are `SliceBoxDepiction.WALL_T` thick (the disclosed walls' thickness), from the lowest ground
 ##     under the footprint to the eaves, `storeys` x `storey_m` higher: centred on the footprint's edge for
 ##     a shell that depicts a place (the place's floor edge, where the server's wall is), inside any other
@@ -22,7 +22,7 @@
 class_name DepictionShells
 extends RefCounted
 
-## A door leaf's timber and the dark interior card's colour (`PRESENTATION.md` sec.6's schema defaults).
+## A door leaf's timber and the dark interior card's colour (`PRESENTATION.md` sec.7's schema defaults).
 const LEAF_SLUG := "weathered_brown_planks"
 const DARK := Color(0.035, 0.035, 0.04)
 ## How far a sill, a head and a plinth stand proud of the wall, and a sill's and a head's depth, metres
