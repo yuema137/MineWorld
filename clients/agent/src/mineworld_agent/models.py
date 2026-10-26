@@ -77,6 +77,13 @@ the place (`systems/sleep`, 15 … 840 by default) refuses an out-of-bound lengt
 PRICE_WIRE_MAX = 2**64 - 1
 """A price's wire bound (economy's `u64`): the world answers its own range by name (`price-out-of-range`)."""
 
+PROPOSAL_WIRE_MAX = 2**64 - 1
+"""A proposal number's wire bound (economy's `ProposalId`, a `u64`)."""
+
+ProposalNumber = Annotated[int, Field(ge=1, le=PROPOSAL_WIRE_MAX)]
+"""A proposal, by the number economy gave it (`ProposalLine.proposal`): what `accept_proposal`,
+`decline_proposal` and `withdraw_proposal` name."""
+
 VALID_FOR_WIRE_MAX = 2**32 - 1
 """A notice validity's wire bound (the notices pack's `u32`): the topic's own bounds are the world's to answer."""
 
@@ -347,6 +354,41 @@ class NoticeLine(AgentModel):
     """A text notice's words, as its publisher wrote them; left out for a prices notice."""
 
 
+class ProposalLine(AgentModel):
+    """One live proposal to buy one unit at a price the buyer chose (economy's `proposals`, ARC-118)."""
+
+    proposal: ProposalNumber
+    """The proposal's number: what `accept_proposal`, `decline_proposal` and `withdraw_proposal` name."""
+    seller: Ref
+    """Who would sell: a person, or the organization that runs the shop."""
+    buyer: Ref
+    """Who proposes."""
+    item: Ref
+    """The item kind, by reference."""
+    name: WorldText | None = None
+    """The kind's name, from an `item-catalogue` this seat saw; `None` when none named it."""
+    price: Amount
+    """The proposed price of one."""
+    ask: Amount | None
+    """The seller's asking price for the kind now; `None` once the seller no longer asks one."""
+    valid_until: int
+    """The first world second at which the proposal is gone."""
+    status: Literal["open", "declined"]
+    """`open` while it waits for an answer; `declined` once the seller said no (kept until `valid_until`)."""
+    for_shop: bool
+    """Whether it is a shop's proposal (answered by a keeper standing in that shop)."""
+
+
+class ProposalsLine(AgentModel):
+    """The proposals I may answer and the ones I made, as economy discloses them to me alone."""
+
+    incoming: list[ProposalLine] = Field(default_factory=list[ProposalLine])
+    """Proposals I may accept or decline (as the seller, or as a keeper standing in the shop), in number
+    order."""
+    outgoing: list[ProposalLine] = Field(default_factory=list[ProposalLine])
+    """Proposals I made, in number order; a declined one stays until it expires."""
+
+
 class ItemCount(AgentModel):
     """A count of one kind of item (R-S27c-INFO). Items are never perceived entities, so `item` is a
     reference to the id a payload names; `name` is the kind's name from an `item-catalogue` this seat saw,
@@ -516,6 +558,9 @@ class MeLine(AgentModel):
     """My own asks: what I offer to sell and at what price, in item order. Paged like the other lists
     (`PageRef(list="asks")`); left out when empty. Always empty in a `ViewDelta`'s `me`: a change to it answers a
     whole view."""
+    proposals: ProposalsLine | None = Field(default=None, exclude_if=lambda value: value is None)
+    """The price proposals I may answer and the ones I made (economy's `proposals`, mine alone); left out when
+    there are none."""
     subscriptions: list[TopicName] = Field(
         default_factory=list[TopicName], exclude_if=lambda value: not value
     )
@@ -779,8 +824,33 @@ class TopicReading(AgentModel):
     """The topic subscribed to, or left."""
 
 
+class ProposalReading(AgentModel):
+    """economy's `price-proposed`, `proposal-accepted`, `proposal-declined` or `proposal-withdrawn` (the fact's
+    `event_type` says which): a price proposal was made, or ended."""
+
+    kind: Literal["proposal"] = "proposal"
+    """Always `proposal`."""
+    proposal: ProposalNumber
+    """The proposal's number."""
+    seller: Ref
+    """Who would sell: a person, or the organization that runs the shop."""
+    buyer: Ref
+    """Who proposed."""
+    item: Ref
+    """The item kind."""
+    name: WorldText | None = None
+    """The kind's name, from an `item-catalogue` this seat saw."""
+    price: Amount
+    """The proposed price of one."""
+    place: Ref | None = Field(default=None, exclude_if=lambda value: value is None)
+    """The shop, for a shop's proposal; left out otherwise (and on every fact but `price-proposed`)."""
+    valid_until: int | None = Field(default=None, exclude_if=lambda value: value is None)
+    """For `price-proposed`: the first world second at which the proposal is gone; left out otherwise."""
+
+
 type Reading = Annotated[
-    SaleReading | AskReading | NoticeReading | TopicReading, Field(discriminator="kind")
+    SaleReading | AskReading | NoticeReading | TopicReading | ProposalReading,
+    Field(discriminator="kind"),
 ]
 """A fact read by name: its payload as a typed line (pr-s31g §5.5)."""
 
@@ -796,8 +866,8 @@ class EventLine(AgentModel):
     words: WorldText | None
     """What was said, for a `spoke` fact (the conversation pack's utterance)."""
     reading: Reading | None = Field(default=None, exclude_if=lambda value: value is None)
-    """For a sale, an ask's change, a notice, or a subscription's change: the fact read by name; left out for
-    every other fact."""
+    """For a sale, an ask's change, a notice, a subscription's change, or a price proposal made or ended: the
+    fact read by name; left out for every other fact."""
     detail: Envelope | None = None
     """The fact's payload, when `events(detail=True)` asked for it, capped at 1 KiB."""
 
@@ -1071,6 +1141,39 @@ class Withdraw(AgentModel):
     """Withdraw the shop's ask, not my own."""
 
 
+class ProposePrice(AgentModel):
+    """`propose_price`: offer to buy one of `item` at a price I choose, from the person `to`, or, with no `to`,
+    from the shop I stand in. The seller accepts or declines; an accepted proposal settles as a sale at once."""
+
+    to: Ref | None = None
+    """The person seller, by reference; `None` for the shop I stand in."""
+    item: Ref
+    """The item kind, by reference, as the seller's asks list it."""
+    price: Annotated[int, Field(ge=1, le=PRICE_WIRE_MAX)]
+    """The price I offer for one, in minor units (with exponent 2, 450 is 4.50)."""
+
+
+class AcceptProposal(AgentModel):
+    """`accept_proposal`: accept a proposal made to me, or to the shop I keep and stand in; it settles at once."""
+
+    proposal: ProposalNumber
+    """The proposal, by its number in `me.proposals.incoming`."""
+
+
+class DeclineProposal(AgentModel):
+    """`decline_proposal`: decline a proposal made to me, or to the shop I keep and stand in."""
+
+    proposal: ProposalNumber
+    """The proposal, by its number in `me.proposals.incoming`."""
+
+
+class WithdrawProposal(AgentModel):
+    """`withdraw_proposal`: take back a proposal I made that still waits for an answer."""
+
+    proposal: ProposalNumber
+    """The proposal, by its number in `me.proposals.outgoing`."""
+
+
 class TextBody(AgentModel):
     """A text notice: one line of words, 1 to 280 UTF-8 bytes."""
 
@@ -1189,6 +1292,22 @@ class UnsubscribeArgs(Unsubscribe, Seated):
     """`unsubscribe`: stop receiving a topic's notices."""
 
 
+class ProposePriceArgs(ProposePrice, Seated):
+    """`propose_price`: offer to buy one of a kind at my price, from a person or the shop I stand in."""
+
+
+class AcceptProposalArgs(AcceptProposal, Seated):
+    """`accept_proposal`: accept a proposal I may answer."""
+
+
+class DeclineProposalArgs(DeclineProposal, Seated):
+    """`decline_proposal`: decline a proposal I may answer."""
+
+
+class WithdrawProposalArgs(WithdrawProposal, Seated):
+    """`withdraw_proposal`: take back a proposal I made."""
+
+
 # The MCP `act` tool's variants: the same bodies, tagged by `kind` (ARC-153, pr-s27d1 §3).
 
 
@@ -1276,6 +1395,34 @@ class UnsubscribeAct(Unsubscribe):
     """Always `unsubscribe`."""
 
 
+class ProposePriceAct(ProposePrice):
+    """Kind `propose_price`: offer to buy one of a kind at my price, from a person or the shop I stand in."""
+
+    kind: Literal["propose_price"]
+    """Always `propose_price`."""
+
+
+class AcceptProposalAct(AcceptProposal):
+    """Kind `accept_proposal`: accept a proposal I may answer; it settles at once."""
+
+    kind: Literal["accept_proposal"]
+    """Always `accept_proposal`."""
+
+
+class DeclineProposalAct(DeclineProposal):
+    """Kind `decline_proposal`: decline a proposal I may answer."""
+
+    kind: Literal["decline_proposal"]
+    """Always `decline_proposal`."""
+
+
+class WithdrawProposalAct(WithdrawProposal):
+    """Kind `withdraw_proposal`: take back a proposal I made."""
+
+    kind: Literal["withdraw_proposal"]
+    """Always `withdraw_proposal`."""
+
+
 type Act = Annotated[
     SayAct
     | WalkToAct
@@ -1288,7 +1435,11 @@ type Act = Annotated[
     | WithdrawAct
     | PublishNoticeAct
     | SubscribeAct
-    | UnsubscribeAct,
+    | UnsubscribeAct
+    | ProposePriceAct
+    | AcceptProposalAct
+    | DeclineProposalAct
+    | WithdrawProposalAct,
     Field(discriminator="kind"),
 ]
 """One act, chosen by `kind` (ARC-153 and its note: one typed kind per action an agent sends by name)."""

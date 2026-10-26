@@ -12,6 +12,7 @@ a component not disclosed to this observer, or a shape a newer pack writes. Noth
 | `wealth`         | economy        | the holder           | `MeLine.wealth`              |
 | `currency`       | economy        | every living person, about itself | `View.currency`; every `Amount.display`; `reference` |
 | `asks`           | economy        | anyone perceiving the seller | `MeLine.asks`, `PersonLine.asks` |
+| `proposals`      | economy        | the observer, about itself | `MeLine.proposals`     |
 | `subscriptions`  | notices        | the holder           | `MeLine.subscriptions`       |
 | `notice-board`   | notices        | the holder           | `View.notices`               |
 | `holdings`       | inventory      | the holder           | `MeLine.holdings`            |
@@ -75,6 +76,8 @@ from mineworld_agent.models import (
     NoticeLine,
     NoticePriceLine,
     PlansLine,
+    ProposalLine,
+    ProposalsLine,
     WealthLine,
     WeatherLine,
     WorldText,
@@ -209,6 +212,79 @@ def asks(refs: RefTable, entity: PerceivedEntity | None, lexicon: Lexicon) -> li
             )
         )
     return out
+
+
+PROPOSALS = "proposals"
+_PROPOSAL_STATUS = ("open", "declined")
+
+
+def _proposal(refs: RefTable, value: JsonValue, lexicon: Lexicon) -> ProposalLine | None:
+    """One line of economy's `proposals` record: `{ proposal, seller, buyer, item, price, ask, valid_until,
+    status, for_shop }` (`systems/economy/src/proposal.rs`)."""
+    line = _obj(value)
+    if line is None:
+        return None
+    number, seller, buyer, item = (
+        _int(line.get("proposal")),
+        any_entity(line.get("seller")),
+        any_entity(line.get("buyer")),
+        any_entity(line.get("item")),
+    )
+    price, until, status, for_shop = (
+        _minor(line.get("price")),
+        _int(line.get("valid_until")),
+        line.get("status"),
+        line.get("for_shop"),
+    )
+    raw_ask = line.get("ask")
+    ask = None if raw_ask is None else _minor(raw_ask)
+    if number is None or number < 1 or seller is None or buyer is None or item is None:
+        return None
+    if price is None or until is None or not isinstance(for_shop, bool):
+        return None
+    if status not in _PROPOSAL_STATUS or (raw_ask is not None and ask is None):
+        return None
+    return ProposalLine(
+        proposal=number,
+        seller=refs.ref(seller),
+        buyer=refs.ref(buyer),
+        item=refs.ref(item),
+        name=lexicon.name(item),
+        price=lexicon.amount(price),
+        ask=None if ask is None else lexicon.amount(ask),
+        valid_until=until,
+        status="open" if status == "open" else "declined",
+        for_shop=for_shop,
+    )
+
+
+def proposals(refs: RefTable, me: PerceivedEntity | None, lexicon: Lexicon) -> ProposalsLine | None:
+    """economy's `proposals` record on me: `{ incoming: [Line], outgoing: [Line] }`, each in number order; `None`
+    when it is not disclosed or both lists are empty. Read from my own entity only: the record is about the
+    observer itself (pr-s31h §5.9, I-h-5)."""
+    found = _obj(payload(me, PROPOSALS))
+    if found is None:
+        return None
+
+    def lines(name: str) -> list[ProposalLine]:
+        read = (_proposal(refs, entry, lexicon) for entry in _list(found.get(name)))
+        return [line for line in read if line is not None]
+
+    incoming, outgoing = lines("incoming"), lines("outgoing")
+    if not incoming and not outgoing:
+        return None
+    return ProposalsLine(incoming=incoming, outgoing=outgoing)
+
+
+def proposal_buyer(me: PerceivedEntity | None, proposal: int) -> EntityId | None:
+    """The buyer of the proposal numbered `proposal` among those I may answer (my record's `incoming`), or
+    `None`: `accept-proposal` is targeted at its buyer (pr-s31h §5.14). Encoding, not a rule."""
+    found = _obj(payload(me, PROPOSALS))
+    for entry in _list(None if found is None else found.get("incoming")):
+        line = _obj(entry)
+        if line is not None and _int(line.get("proposal")) == proposal:
+            return any_entity(line.get("buyer"))
+    return None
 
 
 _TOPIC = re.compile(TOPIC_PATTERN)
