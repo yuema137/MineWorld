@@ -43,6 +43,15 @@ pub struct Walking {
     /// Who moved the walker aside since their last stride, when somebody did (`ARC-333`): the re-plan
     /// that follows is not counted toward `REPLANS_MAX`.
     pub(crate) moved_by: Option<EntityId>,
+    /// For a walk to a person, where they stood when its last leg was planned to a stand point near
+    /// them (`ARC-75` amendment 1); the leg is planned again when they move [`TARGET_MOVED`] from it.
+    /// [`None`] for a place destination, and for a walk recorded before stand points, whose leg ends at
+    /// the person and is cut [`PERSON_APPROACH`] short.
+    ///
+    /// [`TARGET_MOVED`]: crate::TARGET_MOVED
+    /// [`PERSON_APPROACH`]: crate::PERSON_APPROACH
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) aimed_at: Option<LocalPosition>,
 }
 
 /// One stride as it was asked for.

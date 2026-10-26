@@ -543,6 +543,12 @@ msgstr "Put down {item}"
 msgid "action.put-down.done"
 msgstr "You put it down"
 
+msgid "action.survey"
+msgstr "Look over the prices"
+
+msgid "action.survey.done"
+msgstr "You looked over the prices"
+
 msgid "action.list-for-sale"
 msgstr "Put {item} up for sale"
 

@@ -651,7 +651,7 @@ func _route_to(link: SliceLink, goal: Dictionary, max_secs: float) -> void:
 	var to := {"place": {"place": {"entity": place, "entity_type": "place"},
 		"local": {"x": int(goal["x"]), "y": int(goal["y"]), "z": 0}, "facing": null}}
 	for round in 6:
-		var tok := link.client.submit("walk-to", null, {"to": to}, null)
+		var tok := link.intents.walk_to(link.client, to)
 		var next: Array = []
 		var waited := 0.0
 		while tok != "" and waited < 4.0:
