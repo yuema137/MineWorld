@@ -160,8 +160,16 @@ section  sleep:
 
 你需要装好 [Rust](https://rustup.rs)（版本会自己装对）和 [Godot 4.7](https://godotengine.org)，并且能在 `PATH` 里找到它们。
 
+3D 角色模型用 [Git LFS](https://git-lfs.com) 存放。先装一次：
+
+- macOS：`brew install git-lfs`
+- Linux（Debian 或 Ubuntu）：`sudo apt install git-lfs`
+- Windows：`winget install GitHub.GitLFS`
+
 ```sh
+git lfs install             # 每台电脑一次
 git clone https://github.com/yuema137/MineWorld && cd MineWorld
+git lfs pull                # 下载 3D 角色模型
 ./mineworld-2d               # 2D 的 market town：点地面走路，点一个人弹出菜单
 ./mineworld-slice --world    # 3D 走进咖啡馆，在柜台前按 E 和 Alice 说话
 ```
