@@ -25,5 +25,12 @@
     "nils-aaltonen": "nils-aaltonen"
   },
   "extras": [],
+  "casts": {
+    "social-cafe": ["vera-lindgren", "alice-moreau", "bob-achterberg", "carol-mensah", "dev-raman",
+      "erin-walsh", "felix-okafor", "grace-liu", "hana-sato", "ivan-petrov", "otto-brandt",
+      "wes-calloway"],
+    "lakeside": ["alba-ferreira", "bruno-lindqvist", "celia-okafor", "dario-russo", "elin-berg",
+      "finn-halvorsen", "greta-novak", "hugo-marchetti", "ines-duarte", "nils-aaltonen"]
+  },
   "default": "vera-lindgren"
 }

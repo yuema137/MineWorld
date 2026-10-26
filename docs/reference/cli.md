@@ -79,7 +79,8 @@ Run a World Pack headless — no renderer, no network, no model — every seat d
 | `--seed SEED` | yes | — | The controllers' seed. The same seed reproduces the run exactly. |
 | `--days DAYS` | yes | — | The age to run the world to, in simulated days since its genesis. |
 | `--save DIR` | no | — | Keep the world in DIR/world.sqlite; an existing save is resumed and run on to the same age, so re-running a killed command finishes the same world. |
-| `--pace SECONDS` | no | — | World seconds between a seat's consults (default 900). A measurement knob for FX-24 (`ARC-69` item 11): a multiple of the run's stride step, 30. |
+| `--pace SECONDS` | no | — | World seconds between a seat's consults (default 900). A measurement knob for FX-24 (`ARC-69` item 11): a multiple of the run's stride step (`--stride`) |
+| `--stride SECONDS` | no | — | World seconds between a walking seat's stride consults (default 30). A divisor of the pace; a run takes at most one seat fewer than the stride, so a larger world passes a larger one (`ARC-341`) |
 | `--decisions FILE` | no | — | A decision list to use instead of the pack's decisions.yaml. |
 | `--seat-model SEAT=MODEL` … | no | — | Drive that seat with that installed decision model; repeatable. |
 | `--packs DIR` … | no | — | A directory whose immediate subdirectories are packs, searched for the world's requires:. Repeat it for more; MINEWORLD_PACKS adds more after these. |

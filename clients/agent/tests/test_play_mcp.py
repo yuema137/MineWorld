@@ -424,7 +424,7 @@ async def play(town: Server, tmp_path: Path, launch: Launch) -> None:
             assert bought["outcome"]["kind"] == "accepted", bought["outcome"]
             after = (await call(session, transcript, "observe", {"handle": handle}))["view"]
             assert sum(item["count"] for item in after["me"]["holdings"]) == holdings + 1
-            assert after["me"]["wallet"] == wallet - buy["price"]
+            assert after["me"]["wallet"]["minor"] == wallet["minor"] - buy["price"]["minor"]
 
             # AC-d-3, the first half: the visitor grant alone does not seat alice.
             refusal = await refused(

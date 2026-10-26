@@ -4,6 +4,7 @@ use std::path::PathBuf;
 
 use crate::depiction::DepictionCode;
 use crate::far_field::{FarFieldCode, SlotName};
+use crate::shells::ShellsCode;
 
 /// A package fact that is refused. Never ignored: each variant names the value, the field or the
 /// file, so the person who wrote it can find it.
@@ -264,6 +265,16 @@ pub enum PackageError {
         pack: String,
         /// The world key, or [`crate::far_field::NO_DIRECTORY`].
         scope: String,
+    },
+    /// A Presentation Pack's `places/shells.yaml` refused by its named code (16f-b, `ARC-52`).
+    #[error("{code}: {path}: {detail}")]
+    Shells {
+        /// The shells file.
+        path: PathBuf,
+        /// The refusal's code.
+        code: ShellsCode,
+        /// What was wrong, naming the field.
+        detail: String,
     },
     /// A licence the policy does not allow (`ARC-55`).
     #[error(

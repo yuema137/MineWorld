@@ -73,6 +73,8 @@ const RESULT_KINDS := {
 const GENERIC_TAGS := ["public", "staff", "outdoor", "residential"]
 
 var client: MineWorldClient
+## The world instance the latest welcome named (`PROTOCOL.md` §5): which running world this is.
+var instance := ""
 var player: SlicePlayer
 var world_root: Node3D
 
@@ -102,6 +104,10 @@ var furnishings: SliceFurnishings = null
 ## Who is drawn seated where: the shared sit decision, drawn with the world's sit-point depictions
 ## (S33-f, ARC-145).
 var seating: SliceSeating = null
+## Every place no depiction draws, drawn plainly from its disclosure, styled by the pack (16f-b, ARC-52).
+var shells: SliceShells = null
+## The world instance the layout was learned in; a new one drops it (`ARC-45` point 2).
+var _instance := ""
 ## The drawn place's loose objects (SD-E7).
 var objects: SliceObjects
 ## When the drawn body must take the server's position (SD-E8, ARC-50). No
@@ -151,12 +157,13 @@ static func nickname_from_args() -> String:
 
 
 func start(address: String, seat: String, invite: String, nickname: String) -> void:
-	cast = SliceCast.load_pack(
-		ProjectSettings.globalize_path("res://").path_join(SliceMain.PACK_DIR).simplify_path())
-	furnishings = SliceFurnishings.load_pack(
-		ProjectSettings.globalize_path("res://").path_join(SliceMain.PACK_DIR).simplify_path())
-	seating = SliceSeating.new(
-		ProjectSettings.globalize_path("res://").path_join(SliceMain.PACK_DIR).simplify_path(), SliceWorlds.key())
+	cast = SliceCast.load_pack(SlicePack.select().dir)
+	# the extras this world's depiction asks for (step-26 E-2, S33-g): another world's people
+	if SliceWorlds.current != null:
+		cast.use_extras_from(SliceWorlds.current.extras_from(), SliceWorlds.current.key)
+	furnishings = SliceFurnishings.load_pack(SlicePack.select().dir)
+	shells = SliceShells.load_pack(SlicePack.select().dir)
+	seating = SliceSeating.new(SlicePack.select().dir, SliceWorlds.key())
 	_figures = SliceFigures.new()
 	_figures.name = "Figures"
 	_figures.world_root = world_root
@@ -198,6 +205,12 @@ func _say(log_line: String, key: String, args: Dictionary = {}, notice := false,
 
 
 func _on_welcomed(seat: String, observer: String, world: Dictionary) -> void:
+	# A new world instance: what was learned of the last one, and drawn from it, is dropped.
+	instance = String(world.get("instance", ""))
+	if _instance != "" and instance != _instance:
+		layout.forget()
+		shells.forget()
+	_instance = instance
 	_say("seated as %s" % seat, "link.seated", {"seat": seat}, true,
 		"observer %s, world %s" % [observer, world.get("instance", "?")])
 
@@ -290,6 +303,7 @@ func _on_observed(obs: MineWorldObservation) -> void:
 		return
 	var misses_before := layout.misses.size()
 	layout.learn(obs)
+	shells.observe(obs, layout, world_root)
 	things.learn(obs)
 	if layout.misses.size() != misses_before:
 		for p in layout.misses:
@@ -311,11 +325,10 @@ func _on_observed(obs: MineWorldObservation) -> void:
 	_hear(obs)
 	_wear(obs)
 	# Nothing can be drawn in a place the layout has not bound to the scene.
+	_observe_bodies(obs)
 	if not layout.is_drawn(place):
-		bodies.observe(obs, layout, world_root)
 		objects.observe(obs)
 		return
-	bodies.observe(obs, layout, world_root)
 	if furnishings.observe(obs, layout, world_root):
 		print("FURNISHED ", JSON.stringify(furnishings.furnished()))
 	objects.observe(obs)
@@ -332,6 +345,10 @@ func _on_observed(obs: MineWorldObservation) -> void:
 			player.global_position = to_scene(place, me) + Vector3(0, 0.02, 0)
 			player.velocity = Vector3.ZERO
 			_last_pos = player.global_position
+			# The facing it stands in is the baseline too: a body placed and never turned has
+			# nothing to report. Left at 0, any placed yaw over REPORT_TURN sent one spurious
+			# `move` whenever a physics frame ran before the first deliberate report.
+			_last_yaw = player.rotation.y
 			correction.adopted(_mm(me), place)
 			_say("placed where the world says you are", "link.placed", {}, false,
 				"%s %s" % [place, JSON.stringify(me)])
@@ -451,6 +468,14 @@ func _wear(obs: MineWorldObservation) -> void:
 			character if character != "" else "(town figure)", me, obs.display_name(me), look])
 
 
+## The current place's disclosed walls and solids (`SliceClientBodies`), and with them what stops the
+## body: where the place discloses its walls only they do, and the scene's art only decorates; where it
+## discloses none, art still blocks (16f-b, `ARC-52`).
+func _observe_bodies(obs: MineWorldObservation) -> void:
+	if bodies.observe(obs, layout, world_root) and player != null:
+		player.set_art_blocks(bodies.node == null)
+
+
 ## World millimetres in a bound place's frame -> a point in this scene.
 func to_scene(place: String, local: Variant) -> Vector3:
 	return layout.to_scene(place, local)
@@ -474,7 +499,8 @@ func _physics_process(delta: float) -> void:
 	# Which of the world's places the body is in, by this slice's volumes and the
 	# places the layout bound them to. In the door's reveal it is in no volume,
 	# and there is nothing to report.
-	var volume := SliceWorld.place_at(world_root, player.global_position)
+	var volume := SliceShells.keep(world_root, SliceWorld.place_at(world_root, player.global_position),
+		layout.volumes.get(here, ""), player.global_position)
 	var at := layout.place_of_volume(volume)
 	if at == "":
 		if volume != "" and not _unknown_said:
@@ -734,7 +760,8 @@ func nobody_to_offer() -> void:
 ## What this client shows of the world, for the parity test (S12 13a's `SHOWN`
 ## report; step-15 D-16c-7): the layout's bound places and doorways, and every
 ## drawn figure with the observer, each at the position it is DRAWN at -- so the
-## report is an instrument of the scene, not a copy of the observation.
+## report is an instrument of the scene, not a copy of the observation. Since PR 16e it also lists
+## every loose object drawn (`objects`, `{id, kind}` as `clients/protocol/ADOPTION.md` §7 says).
 func shown() -> Dictionary:
 	var people := []
 	if client != null and player != null:
@@ -743,7 +770,15 @@ func shown() -> Dictionary:
 	for id in figures:
 		people.append({"id": id, "label": display_label(id),
 			"at": (figures[id] as Node3D).global_position})
-	return layout.shown(here, people)
+	var report := layout.shown(here, people)
+	var drawn := []
+	if objects != null:
+		for id in objects.nodes:
+			var kind := objects.shape_of(id)
+			if kind != "":
+				drawn.append({"id": id, "kind": kind})
+	report["objects"] = drawn
+	return report
 
 
 ## The person the player is looking at, by the name the HUD shows, or "".

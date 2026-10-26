@@ -65,6 +65,9 @@ const WALK_CLIP_MPS := 1.063
 const JOG_CLIP_MPS := 2.660
 
 ## Body -> PackedScene, and Body -> AnimationLibrary.
+## Whether bodies built from now on get runtime foot grounding (PR S36-P4). The pose-sheet probe builds them
+## without it, so that S36-P2's G-4w judges the asset and not the IK that would hide its defects (F-P4-2).
+static var foot_grounding := true
 static var _scenes: Dictionary = {}
 static var _libs: Dictionary = {}
 static var _mats: Dictionary = {}
@@ -74,6 +77,8 @@ var _tree: AnimationTree
 var _posture: Posture
 ## Keeps the soles on the floor (`ground_contact.gd`); stood down while seated.
 var _ground: GroundContact
+## Each planted foot on its own ground (`foot_grounding.gd`, PR S36-P4); null when [member foot_grounding] was off.
+var _feet: FootGrounding
 var _speed := 0.0
 var _sitting := false
 var _seat_y := 0.45
@@ -428,6 +433,8 @@ func _stand_on_soles(inst: Node3D) -> void:
 	_ground.floor_node = self
 	skeleton.add_child(_ground)
 	inst.position.y = -_ground.sole_y
+	if foot_grounding:
+		_feet = FootGrounding.for_body(self, skeleton, _ground)
 
 
 ## A cast body's material: its own baked texture, the manifest's surface response (rough and barely
@@ -651,6 +658,8 @@ func set_gait(speed_mps: float) -> void:
 	if _ground:
 		# standing and walking, a foot is always on the floor: hold it there; a jog leaves the floor on purpose
 		_ground.pin = 1.0 - smoothstep(_walk_mps, _jog_mps, blend)
+	if _feet:
+		_feet.body_speed = maxf(speed_mps, 0.0)
 	if _posture:
 		_posture.tweak_weight = clampf(blend / _walk_mps, 0.0, 1.0)
 		if _body == Body.REFERENCE:
@@ -698,6 +707,8 @@ func sit(seat_y := 0.45) -> void:
 	if _ground:
 		# seated, the contact is the seat (`_place_on_seat`), not the floor
 		_ground.active = false
+	if _feet:
+		_feet.set_enabled(false)
 	if _tree:
 		_tree.set("parameters/Mode/transition_request", "sit")
 	if is_inside_tree():

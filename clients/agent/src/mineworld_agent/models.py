@@ -45,6 +45,13 @@ seat's authoring key: 1 to 64 of `[a-z0-9_-]`, no separator at an edge (`contrac
 Decimal = Annotated[str, StringConstraints(pattern=r"^-?[0-9]+(?:\.[0-9]+)?$", max_length=40)]
 """An exact decimal number written as text (`"1.660"`, `"-2"`): never a float, so no digit is lost."""
 
+TOPIC_PATTERN = r"^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*$"
+"""A notice topic's name: dot-separated segments of `[a-z0-9-]` (`systems/notices/src/topic.rs`)."""
+
+TopicName = Annotated[str, StringConstraints(pattern=TOPIC_PATTERN, max_length=64)]
+"""A notice topic, by the name its world author gave it (`news.daily`, `prices.ingredients`): what `subscribe`,
+`unsubscribe` and `publish_notice` take."""
+
 SeatName = Identifier
 """A seat, by its authoring key, as `world.yaml` lists it (`visitor`, `alice`)."""
 
@@ -66,6 +73,21 @@ NEED_LEVEL_MAX = 1000
 SLEEP_MINUTES_MAX = 1440
 """The schema's finite bound for `sleep`'s minutes, one day. The world decides the real bound: sleep's list for
 the place (`systems/sleep`, 15 … 840 by default) refuses an out-of-bound length, so this only keeps the schema finite."""
+
+PRICE_WIRE_MAX = 2**64 - 1
+"""A price's wire bound (economy's `u64`): the world answers its own range by name (`price-out-of-range`)."""
+
+VALID_FOR_WIRE_MAX = 2**32 - 1
+"""A notice validity's wire bound (the notices pack's `u32`): the topic's own bounds are the world's to answer."""
+
+BASIS_MAX = 65_535
+"""A notice price line's basis bound (the notices pack's `u16`)."""
+
+NOTICE_TEXT_MAX_BYTES = 280
+"""The notices pack's bound on a text notice, in UTF-8 bytes (`systems/notices/src/body.rs`)."""
+
+NOTICE_PRICE_LINES_MAX = 32
+"""The notices pack's bound on a prices notice's lines (`systems/notices/src/body.rs`)."""
 
 WorldTextKind = Literal["speech", "name", "label"]
 """What a `WorldText` is: words someone said, a display name, or a label a world author wrote (a tag)."""
@@ -167,7 +189,9 @@ class Point(AgentModel):
     z_mm: int | None = None
 
 
-ListName = Literal["people", "things", "offers", "acquaintances", "invitations", "attributes"]
+ListName = Literal[
+    "people", "things", "offers", "acquaintances", "invitations", "attributes", "asks", "notices"
+]
 """A paged list of a view."""
 
 
@@ -236,14 +260,103 @@ class WalkLine(AgentModel):
     """The next waypoint, when disclosed."""
 
 
+AmountDisplay = Annotated[str, StringConstraints(pattern=r"^[0-9]+(?:\.[0-9]+)?$", max_length=32)]
+"""An amount in major units as a plain decimal (`"4.50"`, `"300"`): no symbol, no locale, no separator."""
+
+
+class Amount(AgentModel):
+    """An amount of money: `minor`, the integer the world stores and a request carries, and `display`, the same
+    amount in major units formatted with the disclosed currency's exponent (450 at exponent 2 is `"4.50"`; at
+    exponent 0, `"450"`). The symbol and its side are in `View.currency`."""
+
+    minor: Annotated[int, Field(ge=0)]
+    """Minor units: what the world stores, and what `list_for_sale`, `set_price` and a notice's prices take."""
+    display: AmountDisplay | None
+    """`minor` in major units, from the disclosed exponent; `None` when this seat is told no currency."""
+
+
+class CurrencyLine(AgentModel):
+    """The world's currency, as economy discloses it to me: one per world, written by its author."""
+
+    name: WorldText
+    """The currency's name (`US dollar`, `crown`)."""
+    symbol: WorldText
+    """Its symbol (`$`, `cr`)."""
+    exponent: Annotated[int, Field(ge=0)]
+    """How many digits of an amount are minor units: 2 means 450 minor units are 4.50."""
+    symbol_at: Literal["before", "after"]
+    """Which side of an amount the symbol is written on: `$4.50` (`before`) or `300 cr` (`after`)."""
+
+
+class WealthLine(AgentModel):
+    """What I am worth, as economy discloses it to me alone: my wallet plus my holdings at their reference
+    values. Never a price: nothing is settled at it."""
+
+    amount: Amount
+    """Wallet plus, for each kind I hold that has a reference value, the count times that value."""
+    unvalued: Annotated[int, Field(ge=0)]
+    """How many units I hold of kinds with no reference value (left out of `amount`)."""
+
+
+class AskLine(AgentModel):
+    """One standing offer of a seller to sell one kind at one unit price (economy's `asks`)."""
+
+    item: Ref
+    """The item kind, by reference (items are never perceived entities)."""
+    name: WorldText | None = None
+    """The kind's name, from an `item-catalogue` this seat saw; `None` when none named it."""
+    price: Amount
+    """The asking price of one."""
+    available: bool
+    """Whether the seller holds one now; how many is never disclosed for another person."""
+    reference: Amount | None = Field(default=None, exclude_if=lambda value: value is None)
+    """The kind's reference value (its typical worth in this world), when the currency names one; left out
+    otherwise."""
+
+
+class NoticePriceLine(AgentModel):
+    """One line of a prices notice: what its publisher suggests one kind costs."""
+
+    item: Ref
+    """The item kind, by reference."""
+    name: WorldText | None = None
+    """The kind's name, from an `item-catalogue` this seat saw; `None` when none named it."""
+    price: Amount
+    """The suggested price of one."""
+    basis: Annotated[int, Field(ge=0)]
+    """How many observed prices the suggestion rests on, as the publisher states it."""
+
+
+class NoticeLine(AgentModel):
+    """One current notice on a topic I subscribe to or publish (the notices pack's `notice-board`), as it was
+    issued: either price lines or one line of text."""
+
+    topic: TopicName
+    """The topic it was published on."""
+    publisher: Ref
+    """Who published it."""
+    issued_at: int
+    """When it was published, in world seconds."""
+    valid_until: int
+    """Until when it is current, in world seconds; the world takes it off the board then."""
+    prices: list[NoticePriceLine] = Field(
+        default_factory=list[NoticePriceLine], exclude_if=lambda value: not value
+    )
+    """A prices notice's lines, in item order; left out for a text notice."""
+    text: WorldText | None = Field(default=None, exclude_if=lambda value: value is None)
+    """A text notice's words, as its publisher wrote them; left out for a prices notice."""
+
+
 class ItemCount(AgentModel):
     """A count of one kind of item (R-S27c-INFO). Items are never perceived entities, so `item` is a
-    reference to the id a payload names; `name` is the kind's name from the `item-catalogue` my place
-    discloses, or `None` when no catalogue names it. `inspect(item)` shows the same name."""
+    reference to the id a payload names; `name` is the kind's name from an `item-catalogue` this seat saw,
+    or `None` when no catalogue names it. `inspect(item)` shows the same name."""
 
     item: Ref
     name: WorldText | None = None
     count: int
+    reference: Amount | None = Field(default=None, exclude_if=lambda value: value is None)
+    """For my holdings: the kind's reference value, when the currency names one; left out otherwise."""
 
 
 class JobLine(AgentModel):
@@ -395,8 +508,18 @@ class MeLine(AgentModel):
     facing_deg: int | None
     walking: WalkLine | None
     doing: DoingLine | None = None
-    wallet: int | None = None
-    """My money in minor units (economy's `wallet`), when disclosed."""
+    wallet: Amount | None = None
+    """My money (economy's `wallet`), when disclosed."""
+    wealth: WealthLine | None = Field(default=None, exclude_if=lambda value: value is None)
+    """What I am worth (economy's `wealth`, mine alone), when disclosed; left out otherwise."""
+    asks: list[AskLine] = Field(default_factory=list[AskLine], exclude_if=lambda value: not value)
+    """My own asks: what I offer to sell and at what price, in item order. Paged like the other lists
+    (`PageRef(list="asks")`); left out when empty. Always empty in a `ViewDelta`'s `me`: a change to it answers a
+    whole view."""
+    subscriptions: list[TopicName] = Field(
+        default_factory=list[TopicName], exclude_if=lambda value: not value
+    )
+    """The notice topics I subscribe to (the notices pack's `subscriptions`, mine alone); left out when none."""
     holdings: list[ItemCount] = Field(default_factory=list[ItemCount])
     job: JobLine | None = None
     agenda: AgendaLine | None = None
@@ -435,6 +558,11 @@ class PersonLine(AgentModel):
     """How this person looks to me: the world's phrases for what an observer notices, most salient first,
     within 160 bytes (S30-f §5.4, "who I see"); left out when the world discloses none. `inspect` lists
     every phrase."""
+    asks: list[AskLine] = Field(default_factory=list[AskLine], exclude_if=lambda value: not value)
+    """What this person offers to sell, at most 8, in item order; left out when none. Each ask is also a `buy`
+    offer, so the rest are among `offers`."""
+    asks_total: int = Field(default=0, exclude_if=lambda value: value == 0)
+    """How many asks this person has in all; left out when none."""
 
 
 class ThingLine(AgentModel):
@@ -492,8 +620,13 @@ class OfferLine(AgentModel):
     """The name of each entity in `about`, in the same order: a person's or place's display name, an item
     kind's name from my place's `item-catalogue`; `None` where the world names none. Left out when none is
     named."""
-    price: int | None = None
-    """For an offer about an item my place's shop lists: its price, in minor units."""
+    price: Amount | None = None
+    """For a `buy`: the price its payload carries, the one the world settles at (a shop's or a person's).
+    `None` for every other offer."""
+    item_name: WorldText | None = Field(default=None, exclude_if=lambda value: value is None)
+    """For a `buy`: the name of the one item kind it sells, when a catalogue named it; left out otherwise."""
+    reference: Amount | None = Field(default=None, exclude_if=lambda value: value is None)
+    """For a `buy`: that kind's reference value, when the currency names one; left out otherwise."""
 
 
 class Here(AgentModel):
@@ -523,6 +656,14 @@ class View(Timed):
     me: MeLine
     here: Here
     offers: list[OfferLine]
+    currency: CurrencyLine | None = Field(default=None, exclude_if=lambda value: value is None)
+    """The world's currency, which every `Amount`'s `display` is formatted with; left out when none is
+    disclosed."""
+    notices: list[NoticeLine] = Field(
+        default_factory=list[NoticeLine], exclude_if=lambda value: not value
+    )
+    """The current notices on the topics I subscribe to or publish, as the world lists them; paged
+    (`PageRef(list="notices")`) and left out when none."""
     calendar: CalendarLine | None = None
     weather: WeatherLine | None = None
     inbox: InboxCounts
@@ -549,6 +690,10 @@ class ViewDelta(Timed):
     """`None` when unchanged."""
     offers: list[OfferLine] | None
     """The whole list when anything in it changed, else `None`."""
+    currency: CurrencyLine | None = Field(default=None, exclude_if=lambda value: value is None)
+    """The currency when it changed; left out when unchanged."""
+    notices: list[NoticeLine] | None = Field(default=None, exclude_if=lambda value: value is None)
+    """The whole list of current notices when it changed; left out when unchanged."""
     calendar: CalendarLine | None = None
     """`None` when unchanged."""
     weather: WeatherLine | None = None
@@ -576,6 +721,67 @@ class ComponentPayload(AgentModel):
     envelope: Envelope
 
 
+class SaleReading(AgentModel):
+    """economy's `sold`: a sale settled, at the price the buyer saw."""
+
+    kind: Literal["sale"] = "sale"
+    """Always `sale`."""
+    seller: Ref
+    """Who sold: a person, or the organization that runs a shop."""
+    buyer: Ref
+    """Who bought."""
+    item: Ref
+    """The item kind sold."""
+    name: WorldText | None = None
+    """The kind's name, from an `item-catalogue` this seat saw."""
+    count: int
+    """How many were sold."""
+    price: Amount
+    """The price of one."""
+    place: Ref | None
+    """Where the sale happened."""
+
+
+class AskReading(AgentModel):
+    """economy's `listed`, `price-set` or `withdrawn` (the fact's `event_type` says which): a seller's ask
+    began, moved or ended."""
+
+    kind: Literal["ask"] = "ask"
+    """Always `ask`."""
+    seller: Ref
+    """Whose ask it is: a person, or the organization that runs a shop."""
+    item: Ref
+    """The item kind asked for."""
+    name: WorldText | None = None
+    """The kind's name, from an `item-catalogue` this seat saw."""
+    price: Amount | None
+    """The asking price now: the listed price, or the new one; `None` once withdrawn."""
+    was: Amount | None
+    """The price before a `price-set`; `None` otherwise."""
+
+
+class NoticeReading(NoticeLine):
+    """The notices pack's `notice-published`: a notice issued on a topic I subscribe to or publish."""
+
+    kind: Literal["notice"] = "notice"
+    """Always `notice`."""
+
+
+class TopicReading(AgentModel):
+    """The notices pack's `subscribed` or `unsubscribed` (the fact's `event_type` says which)."""
+
+    kind: Literal["topic"] = "topic"
+    """Always `topic`."""
+    topic: TopicName
+    """The topic subscribed to, or left."""
+
+
+type Reading = Annotated[
+    SaleReading | AskReading | NoticeReading | TopicReading, Field(discriminator="kind")
+]
+"""A fact read by name: its payload as a typed line (pr-s31g §5.5)."""
+
+
 class EventLine(AgentModel):
     """One fact this seat perceived (step-27 §5.4)."""
 
@@ -586,6 +792,9 @@ class EventLine(AgentModel):
     place: Ref | None
     words: WorldText | None
     """What was said, for a `spoke` fact (the conversation pack's utterance)."""
+    reading: Reading | None = Field(default=None, exclude_if=lambda value: value is None)
+    """For a sale, an ask's change, a notice, or a subscription's change: the fact read by name; left out for
+    every other fact."""
     detail: Envelope | None = None
     """The fact's payload, when `events(detail=True)` asked for it, capped at 1 KiB."""
 
@@ -828,6 +1037,104 @@ class Sleep(AgentModel):
     an answer the world refuses says why."""
 
 
+class ListForSale(AgentModel):
+    """`list_for_sale`: start asking a price for a kind I hold, or, as a keeper standing in the shop, for the shop."""
+
+    item: Ref
+    """The item kind, by reference, as my holdings or a view lists it."""
+    price: Annotated[int, Field(ge=0, le=PRICE_WIRE_MAX)]
+    """The price of one, in minor units (with exponent 2, 450 is 4.50). The world refuses one out of its range."""
+    for_shop: bool = False
+    """Ask for the shop I keep and stand in, not for myself."""
+
+
+class SetPrice(AgentModel):
+    """`set_price`: change the asking price of a kind, mine or, as a keeper standing in the shop, the shop's."""
+
+    item: Ref
+    """The item kind, by reference."""
+    price: Annotated[int, Field(ge=0, le=PRICE_WIRE_MAX)]
+    """The new price of one, in minor units."""
+    for_shop: bool = False
+    """Change the shop's ask, not my own."""
+
+
+class Withdraw(AgentModel):
+    """`withdraw`: stop asking for a kind, mine or, as a keeper standing in the shop, the shop's."""
+
+    item: Ref
+    """The item kind, by reference."""
+    for_shop: bool = False
+    """Withdraw the shop's ask, not my own."""
+
+
+class TextBody(AgentModel):
+    """A text notice: one line of words, 1 to 280 UTF-8 bytes."""
+
+    kind: Literal["text"]
+    """Always `text`."""
+    text: str
+    """The notice's words, mine, 1 to 280 UTF-8 bytes."""
+
+    @model_validator(mode="after")
+    def _bounded(self) -> Self:
+        size = len(self.text.encode("utf-8"))
+        if not 1 <= size <= NOTICE_TEXT_MAX_BYTES:
+            raise ValueError(
+                f"a notice's text is 1 to {NOTICE_TEXT_MAX_BYTES} UTF-8 bytes, not {size}"
+            )
+        return self
+
+
+class PriceArg(AgentModel):
+    """One line of a prices notice: a kind, its suggested price, and how many observations it rests on."""
+
+    item: Ref
+    """The item kind, by reference."""
+    price: Annotated[int, Field(ge=0, le=PRICE_WIRE_MAX)]
+    """The suggested price of one, in minor units."""
+    basis: Annotated[int, Field(ge=0, le=BASIS_MAX)]
+    """How many observed prices the suggestion rests on."""
+
+
+class PricesBody(AgentModel):
+    """A prices notice: 1 to 32 lines, any order (they are sent in item order)."""
+
+    kind: Literal["prices"]
+    """Always `prices`."""
+    lines: Annotated[list[PriceArg], Field(min_length=1, max_length=NOTICE_PRICE_LINES_MAX)]
+    """The lines, 1 to 32; the world refuses a kind named twice."""
+
+
+type NoticeBodyArg = Annotated[TextBody | PricesBody, Field(discriminator="kind")]
+"""What a published notice carries, chosen by `kind`: `text` or `prices`, as the topic requires."""
+
+
+class PublishNotice(AgentModel):
+    """`publish_notice`: publish a notice on a topic I may publish on, current for `valid_for_s` world seconds."""
+
+    topic: TopicName
+    """The topic, by name, such as `news.daily`."""
+    valid_for_s: Annotated[int, Field(ge=0, le=VALID_FOR_WIRE_MAX)]
+    """How many world seconds the notice stays current; the topic's own bounds decide what is allowed."""
+    body: NoticeBodyArg
+    """The notice: `{kind: text, text}` or `{kind: prices, lines}`, as the topic requires."""
+
+
+class Subscribe(AgentModel):
+    """`subscribe`: receive the notices of a topic in my inbox and see them on my board."""
+
+    topic: TopicName
+    """The topic, by name, such as `news.daily`."""
+
+
+class Unsubscribe(AgentModel):
+    """`unsubscribe`: stop receiving a topic's notices."""
+
+    topic: TopicName
+    """The topic, by name."""
+
+
 # The library's argument models: each act's fields once (in its body above) and the handle (`ARC-96` item 2).
 
 
@@ -853,6 +1160,30 @@ class AttemptArgs(Attempt, Seated):
 
 class SleepArgs(Sleep, Seated):
     """`sleep`: lie down to sleep where I am, for `minutes` minutes."""
+
+
+class ListForSaleArgs(ListForSale, Seated):
+    """`list_for_sale`: start asking a price for a kind, for myself or for the shop I keep."""
+
+
+class SetPriceArgs(SetPrice, Seated):
+    """`set_price`: change the asking price of a kind, mine or the shop's."""
+
+
+class WithdrawArgs(Withdraw, Seated):
+    """`withdraw`: stop asking for a kind, mine or the shop's."""
+
+
+class PublishNoticeArgs(PublishNotice, Seated):
+    """`publish_notice`: publish a notice on a topic I may publish on."""
+
+
+class SubscribeArgs(Subscribe, Seated):
+    """`subscribe`: receive a topic's notices."""
+
+
+class UnsubscribeArgs(Unsubscribe, Seated):
+    """`unsubscribe`: stop receiving a topic's notices."""
 
 
 # The MCP `act` tool's variants: the same bodies, tagged by `kind` (ARC-153, pr-s27d1 §3).
@@ -900,17 +1231,71 @@ class SleepAct(Sleep):
     """Always `sleep`."""
 
 
+class ListForSaleAct(ListForSale):
+    """Kind `list_for_sale`: start asking a price for a kind, for myself or for the shop I keep."""
+
+    kind: Literal["list_for_sale"]
+    """Always `list_for_sale`."""
+
+
+class SetPriceAct(SetPrice):
+    """Kind `set_price`: change the asking price of a kind, mine or the shop's."""
+
+    kind: Literal["set_price"]
+    """Always `set_price`."""
+
+
+class WithdrawAct(Withdraw):
+    """Kind `withdraw`: stop asking for a kind, mine or the shop's."""
+
+    kind: Literal["withdraw"]
+    """Always `withdraw`."""
+
+
+class PublishNoticeAct(PublishNotice):
+    """Kind `publish_notice`: publish a notice on a topic I may publish on."""
+
+    kind: Literal["publish_notice"]
+    """Always `publish_notice`."""
+
+
+class SubscribeAct(Subscribe):
+    """Kind `subscribe`: receive a topic's notices."""
+
+    kind: Literal["subscribe"]
+    """Always `subscribe`."""
+
+
+class UnsubscribeAct(Unsubscribe):
+    """Kind `unsubscribe`: stop receiving a topic's notices."""
+
+    kind: Literal["unsubscribe"]
+    """Always `unsubscribe`."""
+
+
 type Act = Annotated[
-    SayAct | WalkToAct | MoveAct | StopAct | AttemptAct | SleepAct, Field(discriminator="kind")
+    SayAct
+    | WalkToAct
+    | MoveAct
+    | StopAct
+    | AttemptAct
+    | SleepAct
+    | ListForSaleAct
+    | SetPriceAct
+    | WithdrawAct
+    | PublishNoticeAct
+    | SubscribeAct
+    | UnsubscribeAct,
+    Field(discriminator="kind"),
 ]
-"""One act, chosen by `kind` (ARC-153)."""
+"""One act, chosen by `kind` (ARC-153 and its note: one typed kind per action an agent sends by name)."""
 
 
 class ActArgs(Seated):
-    """`act`: one act of the seat — `say`, `walk_to`, `move`, `stop`, `attempt` or `sleep` — chosen by `act.kind`."""
+    """`act`: one act of the seat, chosen by `act.kind`."""
 
     act: Act
-    """The act: `kind` names it (`say`, `walk_to`, `move`, `stop`, `attempt` or `sleep`); the other fields are that kind's."""
+    """The act: `kind` names it (the union lists every kind); the other fields are that kind's."""
 
 
 class ClockArgs(Seated):

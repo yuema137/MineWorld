@@ -14,7 +14,7 @@ extends SceneTree
 
 const Client := preload("res://mineworld/world_client.gd")
 const Cast := preload("res://scripts/slice/cast_binding.gd")
-const PACK := "../../presentation/mineworld-default/3D"
+const Pack := preload("res://scripts/pack/pack.gd")
 const BUDGET := 30.0
 
 var _lines := {}
@@ -36,7 +36,7 @@ func _initialize() -> void:
 			invite = a.substr(9)
 		elif a.begins_with("--seats="):
 			seats = a.substr(8).split(",", false)
-	_cast = Cast.load_pack(ProjectSettings.globalize_path("res://").path_join(PACK).simplify_path())
+	_cast = Cast.load_pack(Pack.select().dir)
 	if not _cast.problems.is_empty():
 		_fail("the 3D cast binding loads: %s" % [_cast.problems])
 	for seat in seats:

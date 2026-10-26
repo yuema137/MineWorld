@@ -25,8 +25,7 @@ func _init() -> void:
 		print("seat_check: cannot read %s" % fixture)
 		quit(2)
 		return
-	var pack := ProjectSettings.globalize_path("res://").path_join(SliceMain.PACK_DIR).simplify_path()
-	var seating := SliceSeating.new(pack, String(data["world"]))
+	var seating := SliceSeating.new(SlicePack.select().dir, String(data["world"]))
 	for frame in data["frames"]:
 		var seated := seating.observe(MineWorldObservation.new(frame), null, null)
 		var ids: Array = seated.keys()

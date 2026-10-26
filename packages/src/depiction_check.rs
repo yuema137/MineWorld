@@ -4,8 +4,8 @@
 
 use crate::depiction::DepictionCode;
 use crate::depiction_schema::{
-    Area, Building, Depiction, EdgeKind, Height, Interior, OpeningState, PointMm, RectMm, RoofForm,
-    ScatterArea, ScatterKind,
+    Area, Building, DecorPose, Depiction, EdgeKind, Height, Interior, OpeningState, PointMm,
+    RectMm, RoofForm, ScatterArea, ScatterKind,
 };
 
 /// A refusal's code and detail, before the file's path is attached.
@@ -34,6 +34,8 @@ const MAX_FITTINGS: usize = 32;
 /// A fitting's tallest, metres (a stair to a storey above).
 const MAX_FITTING_M: f64 = 10.0;
 const MAX_LIGHTS: usize = 8;
+/// Decor figures (`SliceDecor.MAX`, S33-g §5.3: step-33 §5's "few, ≤ 6").
+const MAX_DECOR: usize = 5;
 const GI_SUBDIV: [u32; 3] = [64, 128, 256];
 const MAX_VERTICES: usize = 64;
 /// A ramp's two lines are parallel within this, degrees.
@@ -150,6 +152,20 @@ fn check_shape(file: &Depiction) -> Result<(), Refusal> {
                     "{at}: exactly one of polygon_mm, or along_mm with width_m"
                 ));
             }
+        }
+    }
+    for (i, figure) in file.decor.iter().enumerate() {
+        let walking = figure.from_mm.is_some() && figure.to_mm.is_some();
+        let standing = figure.at_mm.is_some();
+        let fits = match figure.pose {
+            DecorPose::Walking => walking && !standing && figure.yaw_deg.is_none(),
+            DecorPose::Standing => standing && figure.from_mm.is_none() && figure.to_mm.is_none(),
+        };
+        if !fits {
+            return malformed(format!(
+                "decor[{i}]: a walking figure states from_mm and to_mm, a standing one at_mm and \
+                 optionally yaw_deg"
+            ));
         }
     }
     Ok(())
@@ -372,6 +388,7 @@ fn check_ranges(file: &Depiction) -> Result<(), Refusal> {
     for (i, p) in file.paths.iter().enumerate() {
         r.positive(|| format!("paths[{i}].width_m"), p.width_m, 20.0);
     }
+    r.cap("decor", file.decor.len(), MAX_DECOR);
     r.cap("buildings", file.buildings.len(), MAX_BUILDINGS);
     for (i, b) in file.buildings.iter().enumerate() {
         building_ranges(&mut r, i, b);

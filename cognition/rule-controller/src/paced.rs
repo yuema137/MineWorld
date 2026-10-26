@@ -62,8 +62,8 @@
 //! hours)`, so that a door is kept long enough to arrive at.
 
 use mineworld_contracts::{
-    Action, ActionRequest, ActionTypeId, EntityId, LocalPosition, Millimetres, Observation,
-    PerceivedEntity, PersonId, PlaceId, SimDuration,
+    Action, ActionRequest, ActionTypeId, Affordance, EntityId, LocalPosition, Millimetres,
+    Observation, PerceivedEntity, PersonId, PlaceId, SimDuration,
 };
 use mineworld_conversation::{Talk, Utterance};
 use mineworld_group_activity::{
@@ -323,7 +323,12 @@ impl PacedRuleController {
         // What the world offers complete — an action of a pack this controller was never compiled
         // against — sometimes (`offered.rs`, `ARC-34`). Nothing complete offered, nothing changes; what
         // the bands above decide by name is not drawn a second time (`ARC-151`).
-        if let Some(offered) = offered::attempt(observation, &draw, &DECIDED_BY_NAME) {
+        let beyond = |affordance: &Affordance<Value>| {
+            self.needs
+                .as_ref()
+                .is_some_and(|needs| needs.beyond_chance_budget(observation, affordance))
+        };
+        if let Some(offered) = offered::attempt(observation, &draw, &DECIDED_BY_NAME, &beyond) {
             return Some(offered);
         }
         // Heading for a door: never while part of an activity, never away from the agenda's place, and

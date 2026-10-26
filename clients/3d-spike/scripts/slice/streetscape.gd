@@ -199,19 +199,29 @@ static func _air_walls(g: Node3D) -> void:
 
 
 static func _planting(g: Node3D) -> void:
-	# Stone planters along the kerb, deep enough to be furniture
+	# Stone planters along the kerb, deep enough to be furniture. The north row
+	# stands at -4.62, 0.20 m back from the bollard line: at -4.42 the planters at
+	# 0.4 and 14.6 stood over the bollards at 0.35 and 14.45, a drawn bollard's base
+	# 0.185 m inside the planter's lip (S36-P5a, ARC-332; street.yaml moved with it)
 	for x in [-6.2, 0.4, 14.6, 22.2]:
-		_stone_planter(g, Vector3(x, WALK, -4.42), 1.55, 0.95)
+		_stone_planter(g, Vector3(x, WALK, -4.62), 1.55, 0.95)
 	for x in [-24.5, -10.0, 6.5]:
 		_stone_planter(g, Vector3(x, WALK, 4.42), 1.35, 0.90)
 	# the cafe's own pots, either side of its door
 	# 10.75, was 11.10: the florist's door (x 11.33-12.35) opens now, and the
 	# planter stood 0.22 m across its approach
 	for p in [Vector3(1.05, WALK, -7.35), Vector3(10.75, WALK, -7.35)]:
-		SliceProps.put_solid(g, "planter_box_01", p, 0.2, Color(0.96, 0.94, 0.90))
-		# one shrub out of the file's four, by name -- see dressing.gd
-		SliceProps.put(g, "shrub_02", p + Vector3(0, 0.44, 0), 0.7,
-			Color(0.90, 1.00, 0.84), 0.28, 0.86, ["_d"])
+		# one shrub out of the file's four, by name -- see dressing.gd -- planted in the box's soil,
+		# heaped 20 mm over the rim as a box in bloom is filled: lower, the shrub's spreading base
+		# ran 24 mm through the box's walls (S36-P5c, scratch nightly 39540403533)
+		var planted := SliceProps.potted(g, "planter_box_01", p, 0.2, Color(0.96, 0.94, 0.90),
+			"shrub_02", 0.7, Color(0.90, 1.00, 0.84), ["_d"], true, false, -0.02)
+		var box: Node3D = planted[0]
+		var shrub: Node3D = planted[1]
+		# the shrub spills 0.35 m past the box on every side, and a body meets it: the box's
+		# solid in street.yaml is the box and the shrub's drawn footprint, and so is this (S36-P5c)
+		var held := SliceProps.true_box(box).merge(SliceProps.true_box(shrub))
+		Build.box_blocker(g, held.get_center(), held.size)
 		# 03's planter box is in flower and spills over its front edge; a box of
 		# shrub alone read as a hedge
 		Props.flowerbed(g, p + Vector3(0, 0.42, 0), 0.80, 0.32, int(p.x * 97.0) + 11)
@@ -224,10 +234,13 @@ static func _planting(g: Node3D) -> void:
 	# the body stopped against 1.3 m short of the threshold.
 	for p in [Vector3(2.30, WALK, -7.62), Vector3(4.62, WALK, -7.62),
 			Vector3(8.70, WALK, -7.25)]:
-		SliceProps.put_solid(g, "planter_pot_clay", p, -0.4, Color(0.94, 0.90, 0.86))
-		SliceProps.put(g, "shrub_03", p + Vector3(0, 0.22, 0), 1.4,
-			Color(0.92, 1.00, 0.86), 0.28, 0.86, ["_a"])
+		SliceProps.potted(g, "planter_pot_clay", p, -0.4, Color(0.94, 0.90, 0.86), "shrub_03", 1.4,
+			Color(0.92, 1.00, 0.86), ["_a"], true)
 
+
+## shrub_02 `_b`'s turn that lays its long side along a planter: its footprint is then 1.37 m by
+## 0.84 m (the planters are 1.35-1.55 m by 0.90-0.95 m).
+const STONE_SHRUB_YAW := 2.53
 
 static func _stone_planter(g: Node3D, pos: Vector3, w: float, d: float) -> void:
 	var stone := SlicePalette.kerbstone()
@@ -239,8 +252,10 @@ static func _stone_planter(g: Node3D, pos: Vector3, w: float, d: float) -> void:
 	Props.flowerbed(g, Vector3(pos.x, WALK + 0.70, pos.z), w - 0.22, d - 0.22, seed_v)
 	Props.grass_patch(g, Vector3(pos.x, WALK + 0.62, pos.z), w - 0.26, d - 0.26,
 		seed_v + 3, 4.0)
-	SliceProps.put(g, "shrub_02", Vector3(pos.x - w * 0.22, WALK + 0.62, pos.z), 0.9,
-		Color(0.88, 0.98, 0.82), 0.28, 0.86, ["_b"])
+	# centred by its true footprint and turned with its long side along the planter: off centre by
+	# w x 0.22 and at 0.9 rad it spilled 0.21-0.38 m past the planter's solid (S36-P5c)
+	SliceProps.put(g, "shrub_02", Vector3(pos.x, WALK + 0.62, pos.z), STONE_SHRUB_YAW,
+		Color(0.88, 0.98, 0.82), 0.28, 0.86, ["_b"], true)
 
 
 # --- the cafe's pavement, and other seating ------------------------------------
@@ -260,17 +275,28 @@ static func _cafe_terrace(g: Node3D) -> Array[Node3D]:
 		# (worlds/social-cafe/places/street.yaml; `bodies` has no round solid), so
 		# the hidden collider is those boxes, not a 0.62 m cylinder that left the
 		# boxes' corners free (S15 PR 12e, §22.15 X12e-23)
-		Build.box_blocker(g, Vector3(x, WALK + 0.425, -6.30), Vector3(1.24, 0.85, 0.806))
+		# the east-west box widened to hold the set's two chairs, which stand east and west of the
+		# table, by their drawn footprints: street.yaml holds the same box (S36-P5c)
+		var held := AABB(Vector3(x - 0.62, WALK, -6.30 - 0.403), Vector3(1.24, 0.85, 0.806))
+		for chair in ["outdoor_table_chair_set_01_chair_01", "outdoor_table_chair_set_01_chair_02"]:
+			held = held.merge(SliceProps.true_box(sets[i], sets[i].find_child(chair, true, false) as Node3D))
+		Build.box_blocker(g, held.get_center(), held.size)
 		Build.box_blocker(g, Vector3(x, WALK + 0.425, -6.30), Vector3(0.806, 0.85, 1.24))
-	SliceProps.put(g, "potted_plant_02", Vector3(5.72, WALK + 0.735, -6.30), 0.4,
-		Color(0.92, 1.02, 0.88))
-	SliceProps.put(g, "tea_set_01", Vector3(7.80, WALK + 0.735, -6.22), 1.1,
-		Color.WHITE, 0.28, 0.86, ["_saucer_circular_03"])
-	SliceProps.put(g, "tea_set_01", Vector3(7.80, WALK + 0.751, -6.22), 1.7,
-		Color.WHITE, 0.28, 0.86, ["_cup_small_01"])
+	# a small potted plant on the first table, and a cup on its saucer on the third, each at the
+	# drawn table top's middle (read from the set's own mesh, as `_chair_seat` does): typed at
+	# 5.72 and 7.80 they stood between two tables, on a chair (S36-P5c)
+	var first := _table_top(sets[0])
+	SliceProps.put(g, "calathea_orbifolia_01", first, 0.4, Color(0.92, 1.02, 0.88), 0.28, 0.86, ["_b"])
+	var third := _table_top(sets[2]) + Vector3(0.12, 0.0, 0.04)
+	SliceProps.put(g, "tea_set_01", third, 1.1, Color.WHITE, 0.28, 0.86, ["_saucer_circular_03"])
+	SliceProps.put(g, "tea_set_01", third + Vector3(0, 0.016, 0), 1.7, Color.WHITE, 0.28, 0.86,
+		["_cup_small_01"])
 	# the A-boards
-	SliceProps.put_solid(g, "standing_chalkboard_01", Vector3(2.35, WALK, -6.55), 0.55,
+	var board := SliceProps.put_solid(g, "standing_chalkboard_01", Vector3(2.35, WALK, -6.55), 0.55,
 		Color(0.92, 0.90, 0.86))
+	# street.yaml holds this board by its whole drawn footprint (S36-P5c); so does its collider
+	var held := SliceProps.true_box(board)
+	Build.box_blocker(g, held.get_center(), held.size)
 	SliceProps.put_solid(g, "standing_chalkboard_01", Vector3(-27.2, WALK, -6.30), -0.42,
 		Color(0.92, 0.90, 0.86))
 	return sets
@@ -291,6 +317,13 @@ static func _chair_seat(set: Node3D, chair: String) -> Transform3D:
 	var seat := Vector3(c.x, WALK, c.z) + to_table * 0.06
 	# a body faces +z at yaw 0
 	return Transform3D(Basis(Vector3.UP, atan2(to_table.x, to_table.z)), seat)
+
+
+## The middle of a placed set's drawn table top, in `g`'s frame.
+static func _table_top(set: Node3D) -> Vector3:
+	var t := SliceProps.true_box(set, set.find_child("outdoor_table_chair_set_01_table", true, false)
+		as Node3D)
+	return Vector3(t.get_center().x, t.end.y, t.get_center().z)
 
 
 ## A named mesh of a placed asset, as bounds in the asset's parent's frame.
