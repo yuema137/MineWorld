@@ -16,6 +16,10 @@
 #   ./mineworld-slice --character     the character animates; every camera mode, as frames
 #   ./mineworld-slice --farfield      the rendered far-field check (RL-e0 sec.6): every direction
 #                                     closes on the far field; prints all farfield checks pass
+#   ./mineworld-slice --world=<key> --landmark   the rendered landmark check (S33-e sec.5.3): the
+#                                     landmark closes its view (LM-1) and is seen from afar (LM-2);
+#                                     prints all landmark checks pass. --landmark-category=station.
+#                                     hides another category (default landmark.)
 #   ./mineworld-slice --farfield-shots   the far-field regression views into
 #                                     clients/3d-spike/shots/social-cafe/farfield/
 #   ./mineworld-slice --farfield --far-field-file=<path>   the same check on another far-field
@@ -172,6 +176,9 @@ for a in "$@"; do
     # and a window the OS considers hidden is not drawn, so both keep their window on top.
     --farfield)                            args+=("--slice-farfield"); scripted=1; farfield=1; ontop=1 ;;
     --farfield-shots)                      args+=("--slice-farfield-shots"); scripted=1; ontop=1 ;;
+    # S33-e sec.5.3: the rendered landmark check, as the far-field check runs (GI off unless --gi=)
+    --landmark)                            args+=("--slice-landmark"); scripted=1; farfield=1; ontop=1 ;;
+    --landmark-category=*)                 args+=("--slice-landmark-category=${a#--landmark-category=}") ;;
     --far-field-file=*)                    args+=("--slice-far-field-file=${a#--far-field-file=}") ;;
     --depiction-file=*)                    args+=("--slice-depiction-file=${a#--depiction-file=}") ;;
     --settings=*)                          settings="$a"; args+=("$a") ;;

@@ -1208,13 +1208,11 @@
     "post_m": 0.2,
     "eaves_m": 2.6,
     "roof": {
-     "form": "mono",
+     "form": "gable",
      "ridge": "x",
-     "pitch_deg": 44,
+     "pitch_deg": 40,
      "overhang_m": 0.3,
-     "material": "roof_slates_03",
-     "tint": "#9a8f84",
-     "falls": "e"
+     "material": "roof_slates_03"
     },
     "lantern": {
      "post": 1,
@@ -1228,7 +1226,7 @@
       21300,
       -18500
      ],
-     "yaw_deg": 4.0,
+     "yaw_deg": 6.0,
      "length_m": 4.3,
      "beam_m": 1.35
     },
@@ -1238,7 +1236,17 @@
       21300,
       -13500
      ],
-     "yaw_deg": 0.0,
+     "yaw_deg": -4.0,
+     "length_m": 4.3,
+     "beam_m": 1.35
+    },
+    {
+     "kind": "rowing_boat",
+     "at_mm": [
+      14500,
+      -13500
+     ],
+     "yaw_deg": 7.0,
      "length_m": 4.3,
      "beam_m": 1.35
     }

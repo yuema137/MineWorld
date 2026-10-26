@@ -24,8 +24,9 @@ deterministically from the seed:
                 weights redrawn; every species' height range scaled by 0.7 ... 1.3
     scatter     every seed and count redrawn (reeds at most 40)
     decks       (ARC-178) footprint, surface, approach, rails and curb kept (the place's floor and the
-                pier's ADA heights); piles' bent count +-2, the shelter's roof walked one to three forms
-                round the cycle with a pitch in 25 ... 45 deg, every moored craft's heading +-10 deg and,
+                pier's ADA heights), and the shelter's roof form and ridge (the landmark's outline);
+                piles' bent count +-2, the shelter roof's pitch in 30 ... 45 deg and its covering swapped
+                among the file's roof slugs, every moored craft's heading +-10 deg and,
                 with two or more, the last one dropped half the time
 
 The output keeps the input's file name (a depiction file's scope must equal its stem). Standard library
@@ -183,19 +184,19 @@ def _scatter(scatter: list[dict], rng: random.Random) -> None:
         s["count"] = rng.randint(max(1, s["count"] // 2), cap)
 
 
-def _decks(decks: list[dict], rng: random.Random) -> None:
+def _decks(decks: list[dict], roofs: list[str], rng: random.Random) -> None:
     for d in decks:
         piles = d["piles"]
         piles["bents"] = rng.randint(max(2, piles["bents"] - 2), piles["bents"] + 2)
         shelter = d.get("shelter")
         if shelter:
+            # the shelter's roof form and ridge are the landmark's outline (S33-e §5.3: the ridge set so
+            # the slope faces the view), kept like the deck's ADA heights; its pitch and covering vary
             roof = shelter["roof"]
-            for _ in range(rng.randint(1, 3)):
-                roof["form"] = ROOF_CYCLE_ALL[roof["form"]]
-            roof.pop("falls", None)
-            if roof["form"] == "mono":
-                roof["falls"] = rng.choice(["n", "s", "e", "w"])
-            roof["pitch_deg"] = rng.randint(25, 45)
+            roof["pitch_deg"] = rng.randint(30, 45)
+            if roofs:
+                roof["material"] = rng.choice(roofs)
+                roof.pop("tint", None)
         moored = d.get("moored", [])
         for m in moored:
             m["yaw_deg"] = _round(m["yaw_deg"] + rng.uniform(-10.0, 10.0), 1.0)
@@ -218,7 +219,8 @@ def variant(data: dict, seed: int) -> dict:
     if out.get("scatter"):
         _scatter(out["scatter"], rng)
     if out.get("decks"):
-        _decks(out["decks"], rng)
+        roofs = sorted({b["roof"]["material"] for b in out.get("buildings", [])})
+        _decks(out["decks"], roofs, rng)
     return out
 
 

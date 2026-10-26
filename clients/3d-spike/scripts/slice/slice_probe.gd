@@ -113,7 +113,7 @@ func _physics_process(delta: float) -> void:
 
 ## The standalone modes; `SliceProbeWorld.WORLD_MODES` lists the connected ones.
 const MODES := ["shots", "drive", "measure", "threshold", "perf", "hud", "jumpshots", "doors",
-	"character", "farfield", "farfield-shots"]
+	"character", "farfield", "farfield-shots", "landmark"]
 
 
 ## The mode of `modes` the command line asks for, or "".
@@ -178,6 +178,7 @@ func _run(mode: String) -> void:
 		"character": await _character_check()
 		"farfield": await SliceFarFieldCheck.new(self).run()
 		"farfield-shots": await SliceFarFieldCheck.new(self).shots()
+		"landmark": await SliceLandmarkCheck.new(self).run()
 
 
 func _settle(frames := 10) -> void:
