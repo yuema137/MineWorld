@@ -143,10 +143,9 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-154](ARC-154.md) | Speed first: pull requests and main run `fast` only; the full matrix runs at milestones (amends `ARC-48` and `ARC-110`) |
 | [ARC-170](ARC-170.md) | Lakeside's lane stands 1.0 m above full pool, the pier deck 0.70 m |
 | [ARC-171](ARC-171.md) | No prop moves unless the world moves it |
-| [ARC-177](ARC-177.md) | A world's 3D look is a data file of its Presentation Pack, drawn by generic builders |
-| [ARC-178](ARC-178.md) | A deck on piles is depiction data: the `decks` section of format 1 |
 | [ARC-173](ARC-173.md) | A client draws an activity only when the world discloses it; an undisclosed Process is not drawn |
 | [ARC-177](ARC-177.md) | A world's 3D look is a data file of its Presentation Pack, drawn by generic builders |
+| [ARC-178](ARC-178.md) | A deck on piles is depiction data: the `decks` section of format 1 |
 | [ARC-192](ARC-192.md) | A station is drawn from a station kit, placed at a site, bound by role tag |
 | [ARC-266](ARC-266.md) | The world's date, time and sun reach a client through one shared world-time module that reads disclosure and computes no astronomy |
 | [ARC-267](ARC-267.md) | Host commands in the client: one shared host module, the token from the environment in memory only, and a World tab that shows only what the server said |
