@@ -1,0 +1,16 @@
+{
+  "format": 1,
+  "scope": {"world": "out-of-range-model"},
+  "frame": {"origin_m": [0, 0, 0]},
+  "street": {"tags": ["street"], "footprint_mm": [0, 0, 20000, 6000]},
+  "places": [
+    {"tags": ["house"], "label": "House", "footprint_mm": [2000, 6000, 6000, 8000], "doorway_mm": [5000, 5600]}
+  ],
+  "spawn": {"at_mm": [10000, 3000], "up_m": 0.1, "yaw_deg": 0},
+  "models": [
+    {"asset": "kiosk", "depicts": null, "anchor": {"at_mm": [15000, 9000], "yaw_deg": 400}}
+  ],
+  "viewpoints": {
+    "farfield": [{"id": "VP-1", "at_mm": [10000, 3000], "eye_m": 1.66, "roles": ["protected"]}]
+  }
+}

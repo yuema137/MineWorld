@@ -1,0 +1,10 @@
+# The world tiler's ruff settings: the same rules as the workspace members (sdk/python/pyproject.toml).
+line-length = 100
+target-version = "py312"
+
+[lint]
+select = ["E", "F", "I", "UP", "B", "ANN", "RUF"]
+ignore = ["E501"]
+
+[lint.isort]
+known-first-party = ["tile", "conftest"]

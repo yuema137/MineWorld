@@ -21,6 +21,7 @@ use std::path::{Path, PathBuf};
 pub use crate::depiction_schema::*;
 use crate::error::PackageError;
 use crate::far_field::{self, Dimension, FAR_FIELD_DIR, FAR_FIELD_EXTENSION};
+use crate::place_asset::PlaceAssets;
 
 /// The directory of a 3D Presentation Pack that holds its depiction files. Optional.
 pub const DEPICTIONS_DIR: &str = "depictions";
@@ -43,10 +44,11 @@ pub enum DepictionCode {
     /// A polygon with fewer than 3 or more than 64 vertices, or not simple; a ramp's lines not
     /// parallel within 1°.
     Polygon,
-    /// A name that names nothing in the file, or in the same pack's far field.
+    /// A name that names nothing in the file, or in the same pack's far field or place assets (a
+    /// model's asset or entrance).
     Reference,
-    /// An `open` door not at the doorway of a depicted place; `at_doorway` on a building that depicts
-    /// nothing.
+    /// An `open` door not at the doorway of a depicted place; `at_doorway` on a building or a model
+    /// that depicts nothing.
     Door,
     /// Something this file draws overlapping a place's floor by more than 50 mm, or a shell more than
     /// 50 mm off the footprint of the place it depicts.
@@ -97,6 +99,20 @@ impl fmt::Display for DepictionCode {
 /// [`PackageError::Unreadable`] when the file cannot be read; [`PackageError::Depiction`] with the
 /// first refusal's code otherwise.
 pub fn read(path: &Path, waters: Option<&[String]>) -> Result<Depiction, PackageError> {
+    read_with(path, waters, None)
+}
+
+/// As [`read`], and checks each `models` entry's asset and entrance against `assets`, a pack's place
+/// assets ([`crate::place_asset::check_pack`]); `None` checks only the tags a model depicts.
+///
+/// # Errors
+///
+/// As [`read`].
+pub fn read_with(
+    path: &Path,
+    waters: Option<&[String]>,
+    assets: Option<&PlaceAssets>,
+) -> Result<Depiction, PackageError> {
     let text = std::fs::read_to_string(path).map_err(|error| PackageError::Unreadable {
         path: path.to_path_buf(),
         reason: error.to_string(),
@@ -105,7 +121,7 @@ pub fn read(path: &Path, waters: Option<&[String]>) -> Result<Depiction, Package
         .file_stem()
         .and_then(std::ffi::OsStr::to_str)
         .unwrap_or_default();
-    crate::depiction_check::parse(&text, stem, waters).map_err(|(code, detail)| {
+    crate::depiction_check::parse(&text, stem, waters, assets).map_err(|(code, detail)| {
         PackageError::Depiction {
             path: path.to_path_buf(),
             code,
@@ -160,6 +176,7 @@ pub fn check_pack(dir: &Path) -> Result<Vec<String>, PackageError> {
         }
     }
     files.sort();
+    let assets = crate::place_asset::check_pack(dir)?;
     let mut keys = Vec::new();
     for path in files {
         let stem = path
@@ -168,7 +185,7 @@ pub fn check_pack(dir: &Path) -> Result<Vec<String>, PackageError> {
             .unwrap_or_default()
             .to_owned();
         let waters = waters_of(dir, &stem)?;
-        read(&path, Some(waters.as_slice()))?;
+        read_with(&path, Some(waters.as_slice()), Some(&assets))?;
         keys.push(stem);
     }
     Ok(keys)
