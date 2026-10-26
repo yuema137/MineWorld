@@ -82,6 +82,11 @@ func _ready() -> void:
 	_sun()
 	# connected or not is known from the arguments before anything is built
 	world = depiction.build(self, far_field, SliceLink.address_from_args() != "")
+	if depiction.refusal != "":
+		_refuse(depiction.refusal)   # a station kit or site refused by name (ARC-192)
+		world.queue_free()
+		world = null                 # nothing is played on a refused world (`_process`)
+		return
 	_decor()
 	_gi()
 	if not SliceTrial.apply(self):

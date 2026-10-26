@@ -484,7 +484,7 @@
               },
               "name": {
                 "$ref": "#/$defs/WorldText",
-                "description": "The currency's name (`US dollar`, `crown`)."
+                "description": "The currency's name, as the world's `currency` record states it."
               },
               "symbol": {
                 "$ref": "#/$defs/WorldText",
@@ -2393,7 +2393,7 @@
               },
               "name": {
                 "$ref": "#/$defs/WorldText",
-                "description": "The currency's name (`US dollar`, `crown`)."
+                "description": "The currency's name, as the world's `currency` record states it."
               },
               "symbol": {
                 "$ref": "#/$defs/WorldText",
@@ -6522,7 +6522,7 @@
               },
               "name": {
                 "$ref": "#/$defs/WorldText",
-                "description": "The currency's name (`US dollar`, `crown`)."
+                "description": "The currency's name, as the world's `currency` record states it."
               },
               "symbol": {
                 "$ref": "#/$defs/WorldText",

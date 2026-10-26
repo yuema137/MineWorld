@@ -36,6 +36,11 @@ class_name SliceBatch
 extends RefCounted
 
 const CELL := 24.0
+## Categories a merge keeps (S29-d F-S29d-6): a primitive under an ancestor whose `mw_category` begins with
+## one of these is merged only with primitives of that same category, and the merged mesh carries it, so
+## a check that hides a landmark by its category still hides it after batching. Every other primitive
+## is grouped exactly as before.
+const KEPT_PREFIXES := ["station.", "landmark."]
 
 ## Every primitive mesh class the slice builds through `build.gd`. A mesh that
 ## is not one of these is left alone rather than guessed at.
@@ -47,7 +52,7 @@ const MERGEABLE := ["BoxMesh", "CylinderMesh", "PrismMesh", "SphereMesh",
 static func merge(root: Node3D, cell: float = CELL) -> Dictionary:
 	var groups: Dictionary = {}          # key -> {mat, shadow, arrays: Array}
 	var victims: Array[MeshInstance3D] = []
-	_collect(root, root, groups, victims, cell)
+	_collect(root, root, groups, victims, cell, "")
 
 	var before := victims.size()
 	for v in victims:
@@ -69,19 +74,23 @@ static func merge(root: Node3D, cell: float = CELL) -> Dictionary:
 		mi.mesh = st.commit()
 		mi.material_override = g["mat"]
 		mi.cast_shadow = g["shadow"]
-		mi.set_meta("mw_category", _category(g))
+		mi.set_meta("mw_category", g["kept"] if g["kept"] != "" else _category(g))
 		root.add_child(mi)
 		made += 1
 	return {"merged_from": before, "merged_into": made, "triangles": tris}
 
 
 static func _collect(node: Node, root: Node3D, groups: Dictionary,
-		victims: Array[MeshInstance3D], cell: float) -> void:
+		victims: Array[MeshInstance3D], cell: float, kept: String) -> void:
 	# The far field keeps its own meshes (RL-e0): some follow the camera, none is a primitive.
-	if str(node.get_meta("mw_category", "")).begins_with("farfield."):
+	var category := str(node.get_meta("mw_category", ""))
+	if category.begins_with("farfield."):
 		return
+	for prefix in KEPT_PREFIXES:
+		if category.begins_with(prefix):
+			kept = category
 	for c in node.get_children():
-		_collect(c, root, groups, victims, cell)
+		_collect(c, root, groups, victims, cell, kept)
 	if not (node is MeshInstance3D):
 		return
 	var mi := node as MeshInstance3D
@@ -96,9 +105,11 @@ static func _collect(node: Node, root: Node3D, groups: Dictionary,
 	var at := (xf.origin / cell).floor()
 	var key := "%s|%d|%d,%d,%d" % [mi.material_override.get_instance_id(),
 		mi.cast_shadow, int(at.x), int(at.y), int(at.z)]
+	if kept != "":
+		key += "|" + kept
 	if not groups.has(key):
 		groups[key] = {"mat": mi.material_override, "shadow": mi.cast_shadow,
-			"items": [], "ground": 0}
+			"items": [], "ground": 0, "kept": kept}
 	groups[key]["items"].append([mi.mesh, xf])
 	# `Build.ground` names its plane "ground"; the name is lost in the merge, so
 	# the count is carried for the cell's category (RL-b M-7)
