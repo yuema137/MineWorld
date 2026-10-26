@@ -93,6 +93,7 @@ markers = [
     "live_model: calls a real model server on loopback; deselected by default, never in CI",
     "real_binary: runs the real mineworld binary; never skipped, only deselected by name",
     "slow: a heavy case of a harness whose reduced set runs per PR; the nightly `stability` layer runs these (pr-s28a D-a-15)",
+    "scale: a nightly scale gate (pr-s28g); the nightly memory-scale layer runs these",
 ]
 # The network guard (I-11, as sdk/python): pytest-socket blocks every `connect` to anything but the
 # loopback addresses, on every platform. It allows loopback, where a user's Ollama listens, which is why
@@ -101,4 +102,4 @@ markers = [
 # pr-s10-p5b AB-9) is shown to have run, by name, on the leg that owns it.
 # `slow` cases (pr-s28a D-a-15, primary ruling 2026-10-16) are deselected here, for every PR run, and run each
 # night by the `stability` layer (`scripts/ci_layer.py`), whose `-m slow` replaces this expression.
-addopts = ["--strict-markers", "--allow-hosts=127.0.0.1,::1", "-v", "-m", "not live_model and not slow"]
+addopts = ["--strict-markers", "--allow-hosts=127.0.0.1,::1", "-v", "-m", "not live_model and not slow and not scale"]

@@ -42,6 +42,7 @@ mod far_field_schema;
 mod found;
 mod identity;
 mod manifest;
+pub mod place_asset;
 mod policy;
 mod resolve;
 mod roots;
@@ -60,6 +61,7 @@ pub use manifest::{
     ENTITY_ITEM_EXTENSION, ENTITY_ITEMS, PACK_FILE, STYLE_FILE, check_entity_layout,
     check_style_manifest, pack_file_schema, read_pack_file, style_manifest_schema,
 };
+pub use place_asset::{AssetCode, MATERIAL_RULES_FILE, PLACE_ASSETS_DIR, PlaceAssets};
 pub use policy::LicencePolicy;
 pub use resolve::{
     CodePack, Composition, FoundPack, Installed, Resolved, Source, SystemPackUsed,

@@ -42,7 +42,6 @@ var _halt_door := -1
 
 
 func build(root: Node3D, far_field: MineWorldFarField, connected: bool) -> Node3D:
-	# the pack this run was given (`--presentation=`, else the default; ARC-51)
 	var pack := SlicePack.select().dir
 	_station = StationKit.open(STATION_SITE, pack)
 	if _station.has("refusal"):
