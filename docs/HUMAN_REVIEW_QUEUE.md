@@ -677,6 +677,32 @@ that.
 The rig, retarget, animation, cadence, footwear, ground-contact, garment-modelling, hair-modelling
 and texture work underneath it is unaffected and is kept.
 
+### `VIS-3D-GODOT-2` — RL-b2: 512 px small props, the two slow views (2026-10-14)
+
+**What changed** (PR RL-b2, `.structured-coding/plans/mvp1/pr-rl-b2-two-views-and-textures.md`):
+- on your ruling MS-Ra-2, small and distant props are imported at 512 px where they still meet a
+  texel-density floor (goods ≥ 1 024 px/m, the rest ≥ 512 px/m). Of the 21 proposed, 8 pass and are
+  downsized (29 textures): croissant, carrot cake, apples, clay planter pot, calathea, the pipe lamp, the
+  wall clock, the picture frame. The other 13 (cups, jugs, bottles, vases, pots, basket, crate, manhole
+  cover, two pendant lamps) measured under their floor and keep 1k, as do walls, paving, roofs,
+  furniture, the character and the sky;
+- the frame-cost trials for the cafe frontage and the doorway are built in; the lever is chosen from your
+  measurement session (pending, batched to the milestone).
+
+Before/after stills: branch `review/rl-b2-frames` (`base/` before, `c2/` after, `pairs/` side by side).
+
+**Checklist:**
+
+1. **Goods up close.** `26_counter_goods_close`, `10b_counter_goods_detail`, `21b_florist_shelf_detail`,
+   before and after: croissants, cake, apples, the florist's clay pots and calathea. No visible blur or
+   blockiness at a shopper's distance. Name any item that reads worse; it goes back to 1k.
+2. **Pipe lamp, clock, picture frame** in `05_interior_wide`, `12_back_wall`, `10_interior_counter`: the
+   same.
+3. **Walls, paving, roofs, chairs, tables, and the 13 props kept at 1k**: unchanged.
+4. **The chosen frame-cost lever**, once chosen: its side by side, if it changed any pixel.
+5. **Play**: `./mineworld-slice`; walk the street, enter the café, stand at the counter. No popping of
+   objects or shadows as you move.
+
 ### S29-d — the station's exterior (2026-10-20)
 
 **What changed** (`.structured-coding/plans/mvp0/pr-s29d-depot-exterior.md`; `docs/decisions/ARC-192.md`; the

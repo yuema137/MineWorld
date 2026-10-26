@@ -89,6 +89,9 @@ func _ready() -> void:
 		return
 	_decor()
 	_gi()
+	if not SliceTrial.apply(self):
+		get_tree().quit(2)
+		return
 	_reflections()
 	if low:
 		_cost_effects_off()
