@@ -545,8 +545,8 @@ place and no world, so another building -- a village halt -- draws the same piec
 | --- | --- | --- |
 | `bench_row` | length, depth, seat height | -- |
 | `kiosk` | footprint, height | `kiosk`: shutter down (shut) or up with papers (open) |
-| `window_bay` | width, counter height and depth, screen height, grilles | `window`: shutters down and the `station.window_closed` plate (shut), or up (open; no clerk -- a clerk is a disclosed person) |
-| `board` | width, height | `board`: `station.departures` over `station.no_service`, or one row per disclosed line |
+| `window_bay` | width, counter height and depth, screen height, grilles | `window`: shutters down and the `sign.window_closed` plate (shut), or up (open; no clerk -- a clerk is a disclosed person) |
+| `board` | width, height | `board`: `sign.departures` over `sign.no_service`, or one row per disclosed line |
 | `clock` | diameter | `clock`: hands at the disclosed time of day, or none |
 | `StationTrack.platform` | floor rectangle, edge side, top, depth, strip, coping | -- |
 | `StationTrack.track` | ends, gauge, tie, tie pitch, rail; end `through` or `buffer` | -- |

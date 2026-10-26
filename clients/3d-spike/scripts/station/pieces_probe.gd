@@ -95,10 +95,10 @@ static func _scale(root: Node3D, scale: String, p: Dictionary) -> int:
 	var counter := bay.get_child(0) as MeshInstance3D
 	fails += _row(scale, "counter height", counter.position.y + counter.get_aabb().end.y, COUNTER.x, COUNTER.y)
 	fails += _row(scale, "window bay width", _box(bay).size.x, p["bay"].x - TOL, p["bay"].x + 0.04 + TOL)
-	fails += _text(scale, "window plate key", bay, "station.window_closed")
+	fails += _text(scale, "window plate key", bay, "sign.window_closed")
 	var board := StationPieces.board(g, p["board"].x, p["board"].y, style)
 	fails += _row(scale, "board width", _box(board).size.x, p["board"].x, p["board"].x + 0.16 + TOL)
-	fails += _text(scale, "board heading key", board, "station.departures")
+	fails += _text(scale, "board heading key", board, "sign.departures")
 	var clock := StationPieces.clock(g, p["clock"], style)
 	fails += _row(scale, "clock diameter", _box(clock).size.x, p["clock"], p["clock"] + 0.08 + TOL)
 	var ts := StationTrack.style_of()
@@ -128,7 +128,7 @@ static func _scale(root: Node3D, scale: String, p: Dictionary) -> int:
 ## The depot's drawn fixtures as they show offline: the defaults (ARC-108).
 static func _fixtures() -> int:
 	var fails := 0
-	var want := {"board": MineWorldText.text("station.no_service"), "window": "shut", "kiosk": "shut",
+	var want := {"board": MineWorldText.text("sign.no_service"), "window": "shut", "kiosk": "shut",
 		"clock": "no hands"}
 	for r in StationFixtures.rows():
 		var ok: bool = r["shows"] == want.get(r["fixture"], "")

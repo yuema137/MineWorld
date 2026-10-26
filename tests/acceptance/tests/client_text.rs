@@ -38,10 +38,12 @@ use gdscript::lex;
 mod client_3d;
 
 /// The first segment of every catalog key (step-20 SD-SET-a-6, 13b's families). `place` is the name of
-/// a place a doorway leads to (R-PK-1, ARC-82); the 2D client builds `place.<tag>` from a tag.
-const KEY_FAMILIES: [&str; 17] = [
+/// a place a doorway leads to (R-PK-1, ARC-82); the 2D client builds `place.<tag>` from a tag. `sign` is
+/// the words a fixture shows — a departures board, a ticket window's plate (S29-e §5.2); `station.` names
+/// the 3D station's node categories, not text.
+const KEY_FAMILIES: [&str; 18] = [
     "action", "reason", "state", "ui", "panel", "suggest", "format", "hud", "hint", "camera",
-    "link", "note", "door", "language", "clock", "place", "word",
+    "link", "note", "door", "language", "clock", "place", "word", "sign",
 ];
 
 /// Every word a System Pack discloses for a need or a lateness level (S35 N-e, F-Ne-2): each must have a
@@ -863,9 +865,11 @@ fn shown_literals(text: &str) -> Vec<(usize, String)> {
             };
             let before = code[..start].trim_end();
             // A dictionary key — `data["name"]`, `get("name")`, `{"fps": n}` — names data; it shows nothing.
+            // So does a node's metadata name — `get_meta("text_key")`, `has_meta(…)`, `set_meta(…)`.
             let subscript = before.ends_with('[')
                 || before.ends_with("get(")
                 || before.ends_with("has(")
+                || before.ends_with("_meta(")
                 || code[start + 2..].trim_start().starts_with(':');
             if start < sink
                 || subscript
