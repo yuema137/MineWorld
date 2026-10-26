@@ -1,0 +1,181 @@
+{
+  "about": "The place-shape bodies states for a station place of social-cafe, with the place's tags: what the standalone 3D slice draws the station's furnishings from (ARC-307, S29-e). Written by tools/cli/tests/station_furnishings_fixture.rs; do not edit by hand.",
+  "format": 1,
+  "place": "station-platform",
+  "place-shape": {
+    "floor": {
+      "max": {
+        "x": 11000,
+        "y": 30000
+      },
+      "min": {
+        "x": 0,
+        "y": -30000
+      }
+    },
+    "furnishings": [
+      {
+        "at": {
+          "x": 10400,
+          "y": -9050
+        },
+        "facing": 270000,
+        "key": "bench.platform.s",
+        "kind": "bench.station"
+      },
+      {
+        "at": {
+          "x": 10400,
+          "y": 9050
+        },
+        "facing": 270000,
+        "key": "bench.platform.n",
+        "kind": "bench.station"
+      }
+    ],
+    "solids": [
+      {
+        "height": 4000,
+        "max": {
+          "x": 2800,
+          "y": -24000
+        },
+        "min": {
+          "x": 2200,
+          "y": -24600
+        }
+      },
+      {
+        "height": 4000,
+        "max": {
+          "x": 2800,
+          "y": -18600
+        },
+        "min": {
+          "x": 2200,
+          "y": -19200
+        }
+      },
+      {
+        "height": 4000,
+        "max": {
+          "x": 2800,
+          "y": -13200
+        },
+        "min": {
+          "x": 2200,
+          "y": -13800
+        }
+      },
+      {
+        "height": 4000,
+        "max": {
+          "x": 2800,
+          "y": -7800
+        },
+        "min": {
+          "x": 2200,
+          "y": -8400
+        }
+      },
+      {
+        "height": 4000,
+        "max": {
+          "x": 2800,
+          "y": -2400
+        },
+        "min": {
+          "x": 2200,
+          "y": -3000
+        }
+      },
+      {
+        "height": 4000,
+        "max": {
+          "x": 2800,
+          "y": 3000
+        },
+        "min": {
+          "x": 2200,
+          "y": 2400
+        }
+      },
+      {
+        "height": 4000,
+        "max": {
+          "x": 2800,
+          "y": 8400
+        },
+        "min": {
+          "x": 2200,
+          "y": 7800
+        }
+      },
+      {
+        "height": 4000,
+        "max": {
+          "x": 2800,
+          "y": 13800
+        },
+        "min": {
+          "x": 2200,
+          "y": 13200
+        }
+      },
+      {
+        "height": 4000,
+        "max": {
+          "x": 2800,
+          "y": 19200
+        },
+        "min": {
+          "x": 2200,
+          "y": 18600
+        }
+      },
+      {
+        "height": 4000,
+        "max": {
+          "x": 2800,
+          "y": 24600
+        },
+        "min": {
+          "x": 2200,
+          "y": 24000
+        }
+      },
+      {
+        "furnishing": "bench.platform.s",
+        "height": 450,
+        "max": {
+          "x": 10700,
+          "y": -8100
+        },
+        "min": {
+          "x": 10100,
+          "y": -10000
+        }
+      },
+      {
+        "furnishing": "bench.platform.n",
+        "height": 450,
+        "max": {
+          "x": 10700,
+          "y": 10000
+        },
+        "min": {
+          "x": 10100,
+          "y": 8100
+        }
+      }
+    ]
+  },
+  "tags": [
+    "outdoor",
+    "platform",
+    "public",
+    "station",
+    "stop"
+  ],
+  "world": "social-cafe"
+}

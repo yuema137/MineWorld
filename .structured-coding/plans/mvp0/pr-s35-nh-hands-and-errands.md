@@ -1,7 +1,8 @@
 # PR S35 N-h — full hands, empty shops and the lateness test (F-Ng-2, F-Ng-3, F-Nh-1 … F-Nh-4)
 
 ```text
-STATUS        DESIGN FROZEN 2026-10-20 (operator approved in the primary session: every question answered as recommended) — 2026-10-20; awaiting the operator's freeze (§9). Not frozen; no implementation.
+STATUS        DESIGN FROZEN 2026-10-20 (operator approved in the primary session: every question answered as
+              recommended). Implemented on mvp0/pr-s35-nh; READY FOR OPERATOR REVIEW once CI is green.
 step          35 (needs and sleep), step-35-needs-and-sleep.md; milestone-batch fix after N-f and N-g
 branch        mvp0/pr-s35-nh (implementation, after freeze); this design on docs/pr-design-s35-nh
 base          origin/main @ f92e3cad for the audit; implementation rebases on main after N-f (#370) and
@@ -10,7 +11,7 @@ owns          item-transfer (put-down, pick-up), inventory (a Place as a holder;
               needs (nourishment of offered kinds disclosed), economy (a shop's stock disclosed),
               rule-controller (the fetch band; commute reads the disclosed shift), tests
 touches no    kernel, contracts crate, movement, bodies, clients' rendering
-decision id   ARC-3xx, from the coordinator's range (placeholder until assigned)
+decision id   ARC-360 (picked above every id in use on 2026-10-20; the coordinator may renumber)
 parents       N-g design (#382, `pr-s35-ng-walkers.md` §2.3, §2.4, §8) traced F-Ng-2 and F-Ng-3
 ```
 
@@ -284,7 +285,7 @@ Generated variants, built at test time and never checked in, from the same files
 
 ```text
 worktree      /Users/yuema137/mineworld-worktrees/impl-s35-nh, branch mvp0/pr-s35-nh
-authority     DESIGN FROZEN <date>; Q-Nh-1 … Q-Nh-7 as ruled; decision id ARC-<n>
+authority     DESIGN FROZEN 2026-10-20; Q-Nh-1 … Q-Nh-7 as recommended; decision id ARC-360
 validation    speed-first: each commit runs its own tests and `fast`; AC-Nh-1 … -4, -6 in the milestone batch;
               heavy runs through cast-slots/with-slot.sh
 stop          any change to a frozen invariant, a public contract beyond §4 (Place holder, put-down/pick-up,
@@ -293,7 +294,61 @@ stop          any change to a frozen invariant, a public contract beyond §4 (Pl
 
 ### 6.2 Deviations and bounded discoveries
 
-(none yet)
+- **D-Nh-1 (bounded).** R3 named kinds offered where I stand; R5's walk rule needs the nourishment of kinds
+  stocked by shops elsewhere, so `needs` discloses `kinds`, every food kind of the world (a superset).
+- **D-Nh-2 (bounded).** R5 named "to anyone who perceives the shop's place"; perception lists only the place one
+  stands in, so `shop-stock` is disclosed to each living Person about itself (the currency-record pattern).
+- **D-Nh-3 (bounded).** A shop the observer keeps lists no stock in `shop-stock`: a keeper's `buy` is refused
+  there, and without it a shopkeeper walks back into his own shop for food he may not buy.
+- **D-Nh-4 (bounded).** With `shop-stock` disclosed and no shop anywhere stocking food for me, the one-door
+  rule does not fire either (else home ↔ street ping-pong); with food somewhere, it does.
+- **D-Nh-5 (bounded).** `put-down` / `pick-up` are decided by name only: excluded from the rule's offered band
+  (`DECIDED_BY_NAME`, `ARC-151`) and from the motivated model's generic option, so nobody drops things by chance.
+- **D-Nh-6 (bounded).** `punctuality.rs` asserted literal shift counts too (14 for Market Town; S29-b made it
+  21): it now derives parts and shifts from `routine-assigned` and `hired`, like `lateness.rs`.
+- **D-Nh-7 (bounded).** The second clause of AC-Nh-1 ("no `cannot-carry` refusal followed by a do-nothing
+  consult") is an observation fact, not a log fact; it is covered by the rule-controller scenario tests, and
+  the full-hands variant's milestone row measures its outcome (everyone eats, nobody famished > 24 h).
+- **D-Nh-8 (bounded).** Found on Market Town seed 1: from the street the station estimate was short enough that
+  the commute was no longer due, the fetch band sent a hungry Ivan to the store, and from the store it was due
+  again — to and fro until 07:00. `Commute::due` now stays due while my own walk already goes to the punctual
+  part's place (once set out, keep going), in every world.
+- **D-Nh-9 (bounded, after merge #429).** The milestone run 39509874835 failed AC-1 check 3: Ivan's Market Town
+  routine must equal Social Café's. The `punctual: true` content edit is reverted; R6 keeps his shift.
+- **D-Nh-10 (bounded, after merge #429).** The full-hands variant installs `item-transfer` (Commute Town has
+  none, so nobody could put a thing down: 0 meals); `punctuality.rs` saves are unique per run (two tests of
+  one binary collided on one scratch name).
+- **Findings (milestone, local macOS, 30 days):** AC-Nh-1 PASS (Market Town longest famished 7.5 / 6.5 / 9.2 h for
+  seeds 1/7/42, was 48 / 36 / 67 h; Commute Town 0.5 / 1.5 / 1.8 h; full-hands 1.8 h ×3). AC-Nh-2: Market Town
+  seed 1 0 too early; late-shop variant seed 1 **3 too early** (F-Nh-5, open: arrivals 1.2–2.5 h before a
+  punctual part with no errand). AC-S35-8 sleep rows FAIL on Market Town seeds 1, 7 (5.81 h, 6.89 h; 757 ‰
+  asleep at 03:00 on seed 1) — not N-h's rows; Social Café seed 1 one part +41 min (F-Nh-6, open).
+- **Round 3 (2026-10-21, `ARC-361`, PR #447).** The sleep rows and F-Nh-6 predate #429 (base 5.69 h / 4.78 h;
+  Social Café +41 min on the base too). Causes and generic fixes: an arrival placed in a sealed pocket (E3 now
+  reachable-only), a doorway deadlock (`DOORWAY_REACH`), a replan that avoided one person of a group (now
+  everybody present); CP-4's drained wallet from chance newspaper buys (`chance_spend_permille`).
+- **F-Nh-5 resolved (2026-10-26, bounded, `ARC-282` amendment, branch `fix/nh5-early-arrivals`).** Trace of
+  the late-shop variant, seed 1: the three early arrivals (Cy at 06:29 for 09:00 on two days, Ben at 06:20 for 07:30)
+  were fetch errands to the bakery, which is also their workplace. The disclosed stock had bread when they set
+  out; another baker bought the last loaf a minute before they reached the counter, so no item was received
+  and the arrival counted as a commute. They then stayed until `from` because `commute::holds` held anyone at
+  a punctual next part's place for the whole commute cap (120 min) plus a pace — twice AC-LE-3's one-hour
+  bound — and for Cy, whose arrival was 151 min early, two consults of replies and wandering bridged the gap
+  until the cap window opened. Not a planning error: departure was planned against the right `from`; the hold
+  window was too wide. Generic fix: the window is now the round trip to the part in force,
+  `min(cap, estimate(way back) + lead(way back))`, from the disclosed way to the agenda's place (the cap when
+  that way is not disclosed, or that part is here). A commute's own arrival always falls inside it, so
+  commuters wait as before; an early arrival for any other reason goes back while a round trip still fits.
+  Rule and motivated share it. No seed, world or slack was tuned. Evidence: AC-Nh-2 late-shop × {1, 7, 42} ×
+  30 days **PASS** (0 too early; 15 / 12 / 15 errands), the test is no longer `#[ignore]`d (3 s);
+  Market Town, Social Café, Commute Town × {1, 7, 42} × 30 days: every punctual part on time, 0 too early.
+- **F-Nh-7 (open, movement; exposed by F-Nh-5's fix, not caused by it).** Market Town seed 1 × 30 days, one
+  shift of 90 missed: day 19, Ivan 4 min late to the station. Everyone woke at 06:00 and four people (#15, #16,
+  #18, #21) stood on the street by the apartments' doorway, each `stopped-short` by another at the first
+  stride; each walk ended and was asked again only at the next consult (15 min), so Ivan lost 40 min. Nobody
+  in the jam was at a punctual place, so the hold rule took no part that morning; the changed trajectories of
+  earlier days only moved the jam onto this seed. It is the doorway-gridlock class of `ARC-361` and belongs to
+  movement's local avoidance (adopt a crowd-avoidance method, tools first), not to the commute.
 
 ## 7. Records
 

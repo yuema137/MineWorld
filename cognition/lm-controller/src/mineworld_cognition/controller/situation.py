@@ -15,6 +15,7 @@ states facts only and gives no advice about when to leave. `places` are the plac
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import NamedTuple
 
 from mineworld_sdk import ways
@@ -25,13 +26,17 @@ from pydantic import Field
 from mineworld_cognition.backend.model import CognitionModel
 from mineworld_cognition.controller.attributes import description
 from mineworld_cognition.memory.anchors import ANCHOR_KINDS, Anchor
-from mineworld_cognition.memory.names import NameBook
+from mineworld_cognition.memory.names import NameBook, tag_label
 
 DISPLAY_NAME_COMPONENT = "display-name"
+PASSAGES_COMPONENT = "passages"
+PLACE = "place"
 AGENDA_COMPONENT = "agenda"
 WALKING_COMPONENT = "walking"
 NEEDS_COMPONENT = "needs"
 ASLEEP_COMPONENT = "asleep"
+EMPLOYMENT_COMPONENT = "employment"
+SHIFT_LABEL = "work"
 SLEEP = ActionTypeId("sleep")
 TALK = ActionTypeId("talk")
 DAY_S = 86_400
@@ -251,6 +256,30 @@ def _feelings(observation: Observation) -> tuple[Feeling, ...]:
 def _next_part(
     observation: Observation, known: tuple[ways.Way, ...], stride_s: int
 ) -> NextPart | None:
+    following = _agenda_next(observation)
+    shift = _next_shift(observation)
+    if shift is not None:
+        # A disclosed shift is an appointment (S35 N-h R6), merged as the rule controller merges it: the
+        # earlier `from` at the workplace wins, an earlier punctual part comes first, else the shift.
+        if following is not None and following[1] == shift[1] and following[2] <= shift[2]:
+            following = (following[0], following[1], following[2], True)
+        elif following is None or not (following[3] and following[2] <= shift[2]):
+            following = shift
+    if following is None:
+        return None
+    label, entity, from_at, punctual = following
+    way = next((way for way in known if way.place == entity), None)
+    return NextPart(
+        label=label,
+        place=EntityId(entity),
+        from_at=from_at,
+        punctual=punctual,
+        minutes=None if way is None else ways.minutes(ways.estimate(way, stride_s)),
+    )
+
+
+def _agenda_next(observation: Observation) -> tuple[str, str, int, bool] | None:
+    """schedule's `agenda.next`: label, place, from, punctual."""
     agenda = _component(observation, AGENDA_COMPONENT)
     following = agenda.get("next") if isinstance(agenda, dict) else None
     if not isinstance(following, dict):
@@ -264,14 +293,28 @@ def _next_part(
         or isinstance(from_at, bool)
     ):
         return None
-    way = next((way for way in known if way.place == entity), None)
-    return NextPart(
-        label=label,
-        place=EntityId(entity),
-        from_at=from_at,
-        punctual=following.get("punctual") is True,
-        minutes=None if way is None else ways.minutes(ways.estimate(way, stride_s)),
-    )
+    return label, entity, from_at, following.get("punctual") is True
+
+
+def _next_shift(observation: Observation) -> tuple[str, str, int, bool] | None:
+    """The next start of my shift, as employment discloses my job to me, strictly after now; `None` without
+    one. Read by slug: no pack is named beyond its record."""
+    employment = _component(observation, EMPLOYMENT_COMPONENT)
+    job = employment.get("job") if isinstance(employment, dict) else None
+    if not isinstance(job, dict):
+        return None
+    workplace, start = job.get("workplace"), job.get("from")
+    entity = workplace.get("entity") if isinstance(workplace, dict) else None
+    if not isinstance(entity, str) or not isinstance(start, str) or ":" not in start:
+        return None
+    hours, minutes = start.split(":", 1)
+    if not (hours.isdigit() and minutes.isdigit()):
+        return None
+    now = observation.at
+    from_at = now - now % DAY_S + int(hours) * 3_600 + int(minutes) * 60
+    if from_at <= now:
+        from_at += DAY_S
+    return SHIFT_LABEL, entity, from_at, True
 
 
 def _places(
@@ -309,7 +352,9 @@ def _plans(next_part: NextPart | None, places: tuple[Place, ...]) -> tuple[str, 
 
 
 def _learn(observation: Observation, names: NameBook) -> None:
-    """Teaches every disclosed display name first (R-P6-2), in observation order."""
+    """Teaches every disclosed display name first (R-P6-2), in observation order; then labels each place that
+    has no name yet by its disclosed tags (D-P6-43): a perceived place's own tags, and each doorway's
+    `to_tags`. A display name always wins over a tag label, and a tag label never replaces a name."""
     for entity in observation.entities:
         for record in entity.components:
             if record.component_type != DISPLAY_NAME_COMPONENT:
@@ -317,6 +362,34 @@ def _learn(observation: Observation, names: NameBook) -> None:
             name = _display_name(record.payload)
             if name is not None:
                 names.learn(entity.id, name)
+    for entity in observation.entities:
+        if entity.entity_type == PLACE:
+            _learn_tags(names, entity.id, entity.tags)
+        for record in entity.components:
+            if record.component_type == PASSAGES_COMPONENT:
+                for place, tags in _doorway_tags(record.payload):
+                    _learn_tags(names, place, tags)
+
+
+def _learn_tags(names: NameBook, place: EntityId, tags: Sequence[str]) -> None:
+    label = tag_label(tags)
+    if label is not None and names.name(place) is None:
+        names.learn(place, label)
+
+
+def _doorway_tags(payload: JsonValue) -> list[tuple[EntityId, list[str]]]:
+    """movement's `passages` disclosure: each doorway's destination and that place's tags (`to_tags`, ARC-82).
+    An entry that is not one is skipped, so a newer shape is read as far as it is understood."""
+    leads = payload.get("leads_to") if isinstance(payload, dict) else None
+    found: list[tuple[EntityId, list[str]]] = []
+    for passage in leads if isinstance(leads, list) else []:
+        if not isinstance(passage, dict):
+            continue
+        to, tags = passage.get("to"), passage.get("to_tags")
+        entity = to.get("entity") if isinstance(to, dict) else None
+        if isinstance(entity, str) and isinstance(tags, list):
+            found.append((EntityId(entity), [tag for tag in tags if isinstance(tag, str)]))
+    return found
 
 
 def _display_name(payload: JsonValue) -> str | None:

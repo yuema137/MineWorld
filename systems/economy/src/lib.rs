@@ -86,7 +86,7 @@ pub use action::{
 pub use book::{PriceBookProcess, PriceBookState};
 pub use component::{
     Adjustment, Ask, AskLine, Asks, AsksView, Listed, Listing, MAX_KEEPERS, ReferenceValue, Shop,
-    Wallet, Wealth,
+    ShopStock, StockedShop, Wallet, Wealth,
 };
 pub use configuration::{
     Currency, EconomyConfiguration, Permille, PriceModifier, ResolvedModifier, SymbolAt,

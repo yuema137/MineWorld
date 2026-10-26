@@ -47,6 +47,9 @@ clients/shared/                  a Godot project: the shared modules' runnable h
   WORLD_TIME.md, HOST.md         the specifications of the two modules beside this one (TW-e, SET-c)
   world_time/                    the world-time module, res://mineworld_world_time (WORLD_TIME.md)
   host/                          the host module and the World tab, res://mineworld_host (HOST.md)
+  hud/                           MineWorldLineInput: the typed line both clients use, res://mineworld_hud
+                                 (PR 16g1 D-3DS-2; its words ui.talk.prompt and ui.input.hint are in
+                                 this module's locale/ layer)
   settings/                      THE MODULE — what a client takes, as res://mineworld_settings
     settings.gd                  MineWorldSettings       the typed settings value
     store.gd                     MineWorldSettingsStore  locate, load, validate, save (atomic)
@@ -87,6 +90,16 @@ config/custom_user_dir_name="MineWorld"
 
 With it, every client that sets it shares one settings file per user (§4). Without it, a client keeps a
 file of its own in its own user directory.
+
+**In an exported client, `--root=<dir>` (S23, `docs/DECISIONS.md` ARC-80).** An export has no folder
+behind `res://` (`ProjectSettings.globalize_path("res://")` is `""` in a release template), and Godot
+never packs the `.gdignore`'d `locale/` and `fonts/` (step-23 §18.2, P-1 and P-6). A bundle therefore
+ships them as plain files at the same repository-relative path under its `runtime/` folder
+(`runtime/clients/shared/settings/locale/*.po`, `…/fonts/NotoSansSC-Regular.otf`, `…/fonts/OFL.txt`), and
+the launcher passes `--root=<absolute runtime folder>`. `MineWorldText.module_dir()` reads that user
+argument itself (the store reads `--settings=` and `--extra-locale=` the same way) and returns
+`<root>/clients/shared/settings`; without it, the module's own folder, globalized, exactly as before.
+The argument changes where the files are read from, never what is read or in which order (§6.2).
 
 **The composition root's calls,** first in `_ready`, before it builds its own nodes:
 
@@ -309,6 +322,9 @@ ui.settings.*                       the settings menu, its tabs (General, Displa
                                     tab's key-map rows are `ui.settings.key.<action>` (SET-b, SD-SETb-12)
 hud.*  hint.*  camera.*  link.*     HUD lines and templates, the controls lines, camera titles,
 note.*  door.*                      3D connection messages, notes, door labels
+place.<tag>                         the name of a place a doorway leads to, by its tag (R-PK-1, ARC-82)
+sign.*                              the words a fixture shows: a departures board, a ticket window's plate
+                                    (S29-e §5.2)
 language.self_name                  how a language names itself ("English", "简体中文")
 clock.default                       the clock form a language prefers: "12h" or "24h"
 ```
@@ -330,7 +346,7 @@ Per key, the later layer wins:
 
 | Layer | Folder | Holds |
 | --- | --- | --- |
-| 1. shared | `settings/locale/` | keys both clients use: `action.*`, `reason.*` (moved verbatim from the 2D pack), `word.*` (S35 N-e), `ui.settings.*`, `hud.time.*`, `hud.ampm.*`, `state.*`, `language.*`, `clock.*`; and the 3D client's own keys until the 3D client reads a Presentation Pack (S14 16f), when they move, keys unchanged, to `presentation/mineworld-default/3D/i18n/` |
+| 1. shared | `settings/locale/` | keys both clients use: `action.*`, `reason.*` (moved verbatim from the 2D pack), `word.*` (S35 N-e), `ui.settings.*`, `hud.time.*`, `hud.ampm.*`, `state.*`, `language.*`, `clock.*`. The 3D client's own keys moved, keys unchanged, to `presentation/mineworld-default/3D/i18n/` when the 3D client began reading the pack it is given (S14 16f-a, `docs/decisions/ARC-51.md`) |
 | 2. pack | `presentation/<pack>/<2D or 3D>/i18n/` | the pack's own wording, and any override of a shared key, marked by an extracted comment `#. override` on the entry |
 | 3. user | `user://locale/` | a user's additions or corrections |
 | (checks) | each `--extra-locale=` folder | the marker catalog; never shipped |
@@ -365,7 +381,7 @@ its last data. Nothing needs a restart.
 
 | Translated (client UI text) | Never translated |
 | --- | --- |
-| the menu; HUD lines and their templates; the 2D hint and the 3D controls line; camera titles; toasts and notes; door labels' template; connection states; the readable form of a refusal code or rejection reason the server sent | world content: names, place names and tags, dialogue, activity kinds, anything an `Observation` carries (INV-SET-10); in-world signage art; what the player says (the 3D client's default utterance is the player's words and stays as written, so a request is the same in every language); stdout logs, `[link]` lines, `drive:`, `REQUEST`, `EVIDENCE`, `[PASS]`/`[FAIL]` lines and warnings (INV-SET-6) |
+| the menu; HUD lines and their templates; the 2D hint and the 3D controls line; camera titles; toasts and notes; door labels' template; connection states; the readable form of a refusal code or rejection reason the server sent | world content: names, place names and tags, dialogue, activity kinds, anything an `Observation` carries (INV-SET-10); in-world signage art; what the player says (typed in the shared line in both clients since PR 16g1, and sent as typed, so a request is the same in every language); stdout logs, `[link]` lines, `drive:`, `REQUEST`, `EVIDENCE`, `[PASS]`/`[FAIL]` lines and warnings (INV-SET-6) |
 
 Nodes that show world content join the group `mineworld_world_text` and set
 `auto_translate_mode = AUTO_TRANSLATE_MODE_DISABLED`.

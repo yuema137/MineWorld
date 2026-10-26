@@ -1,0 +1,28 @@
+{
+  "format": 1,
+  "scope": {"world": "lakeside"},
+  "about": "How the 3D client draws a person seated at each of Lakeside's sit points (ARC-145, rewritten to S34's shape; step-34 sec.8.2; pr-s33f sec.5.2). A point is bound by its place's tags and its key. seat_height_m: the drawn seat's surface above the floor. seat_offset_m: how far the pelvis moves from the point's `at`, against its facing (positive: back onto a bench behind the point; negative: forward onto a chair in front of it, Q-S34c-2). prop: the furnishing whose seat it is (the world's `body: furnishings` key). fallback: the point's `at` (mm, the place's frame) and `facing` (millidegrees), for the shared sit rule's fallback branch while the world does not disclose sit points (Q-S33f-1 (A)); S34-c copies them into the place files verbatim and deletes them here (R-S34c-f-1). The halt's points wait for S33-e2's benches (pr-s33f sec.2.3).",
+  "points": [
+    {"tags": ["pier"], "point": "pier-bench.1", "group": "pier-bench", "prop": "bench.head", "seat_height_m": 0.45, "seat_offset_m": 0.45, "fallback": {"at": {"x": 800, "y": 1010}, "facing": 0}},
+    {"tags": ["pier"], "point": "pier-bench.2", "group": "pier-bench", "prop": "bench.head", "seat_height_m": 0.45, "seat_offset_m": 0.45, "fallback": {"at": {"x": 1400, "y": 1010}, "facing": 0}},
+    {"tags": ["pier"], "point": "pier-bench.3", "group": "pier-bench", "prop": "bench.head", "seat_height_m": 0.45, "seat_offset_m": 0.45, "fallback": {"at": {"x": 2000, "y": 1010}, "facing": 0}},
+    {"tags": ["pier"], "point": "pier-bench.4", "group": "pier-bench", "prop": "bench.head", "seat_height_m": 0.45, "seat_offset_m": 0.45, "fallback": {"at": {"x": 2600, "y": 1010}, "facing": 0}},
+    {"tags": ["pier"], "point": "pier-bench.5", "group": "pier-bench", "prop": "bench.head", "seat_height_m": 0.45, "seat_offset_m": 0.45, "fallback": {"at": {"x": 3200, "y": 1010}, "facing": 0}},
+    {"tags": ["square"], "point": "tree-bench-north.1", "group": "tree-bench-north", "prop": "bench.west", "seat_height_m": 0.45, "seat_offset_m": 0.40, "fallback": {"at": {"x": 11200, "y": 10260}, "facing": 0}},
+    {"tags": ["square"], "point": "tree-bench-north.2", "group": "tree-bench-north", "prop": "bench.west", "seat_height_m": 0.45, "seat_offset_m": 0.40, "fallback": {"at": {"x": 11800, "y": 10260}, "facing": 0}},
+    {"tags": ["square"], "point": "tree-bench-north.3", "group": "tree-bench-north", "prop": "bench.west", "seat_height_m": 0.45, "seat_offset_m": 0.40, "fallback": {"at": {"x": 12400, "y": 10260}, "facing": 0}},
+    {"tags": ["square"], "point": "tree-bench-east.1", "group": "tree-bench-east", "prop": "bench.east", "seat_height_m": 0.45, "seat_offset_m": 0.40, "fallback": {"at": {"x": 13260, "y": 8400}, "facing": 90000}},
+    {"tags": ["square"], "point": "tree-bench-east.2", "group": "tree-bench-east", "prop": "bench.east", "seat_height_m": 0.45, "seat_offset_m": 0.40, "fallback": {"at": {"x": 13260, "y": 9000}, "facing": 90000}},
+    {"tags": ["square"], "point": "tree-bench-east.3", "group": "tree-bench-east", "prop": "bench.east", "seat_height_m": 0.45, "seat_offset_m": 0.40, "fallback": {"at": {"x": 13260, "y": 9600}, "facing": 90000}},
+    {"tags": ["bakery"], "point": "long-table.1", "group": "long-table.chair-1", "prop": "long-table.chair-1", "seat_height_m": 0.45, "seat_offset_m": -0.57, "fallback": {"at": {"x": 1660, "y": 1800}, "facing": 270000}},
+    {"tags": ["bakery"], "point": "long-table.2", "group": "long-table.chair-2", "prop": "long-table.chair-2", "seat_height_m": 0.45, "seat_offset_m": -0.57, "fallback": {"at": {"x": 1660, "y": 2400}, "facing": 270000}},
+    {"tags": ["bakery"], "point": "long-table.3", "group": "long-table.chair-3", "prop": "long-table.chair-3", "seat_height_m": 0.45, "seat_offset_m": -0.57, "fallback": {"at": {"x": 1660, "y": 3000}, "facing": 270000}},
+    {"tags": ["bakery"], "point": "long-table.4", "group": "long-table.chair-4", "prop": "long-table.chair-4", "seat_height_m": 0.45, "seat_offset_m": -0.57, "fallback": {"at": {"x": 1660, "y": 3600}, "facing": 270000}},
+    {"tags": ["bakery"], "point": "long-table.5", "group": "long-table.chair-5", "prop": "long-table.chair-5", "seat_height_m": 0.45, "seat_offset_m": -0.57, "fallback": {"at": {"x": 1660, "y": 4200}, "facing": 270000}}
+  ],
+  "sources": {
+    "seat_height_m": "0.45 m: within VISUAL_SLICE sec.3.4 (0.42-0.47 m) and the 2010 ADA Standards sec.903.5 (bench seat 17-19 in, 430-485 mm above the finish floor); measured against the drawn seat by `--seat` (AC-f-2)",
+    "seat_offset_m": "benches: the point 260 mm in front of the seat's front edge (SD-S34-3), the pelvis 0.45 / 0.40 m behind it, over the seat's middle (approximate); chairs: the point 260 mm behind the chair box's back face (Q-S34c-2, pr-s33f revision 2), the pelvis 0.57 m forward of it, over the seat's middle 60 mm toward the table from the box's centre (the pose sheet's seat middle, tools/character_pipeline/godot/pose_sheet.gd `_seated`)",
+    "spacing": "600 mm per person on a bench (SD-S34-4, Q-S34-8); every pair >= 510 mm (posture's SIT_POINT_SPACING)"
+  }
+}

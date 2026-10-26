@@ -12,6 +12,8 @@
 //! b  a copied rule: a const or var whose name holds REACH, RANGE, CLEARANCE, NUDGE, CAPACITY or
 //!    MAX_STRIDE, unless an entry of RULE_NAMES admits it
 //! c  a pack read directly: a string literal naming a path under worlds/ or systems/ (I-S14-6)
+//! e  a moved prop (ARC-171, S33-e X-7): a Tween, an AnimationPlayer or a per-frame callback in a
+//!    script that draws a depiction (`clients/3d-spike/scripts/depictions/`)
 //! ```
 //!
 //! Every `*.gd` under `clients/` is read, except `clients/*/tools/` (offline asset and capture tools),
@@ -36,8 +38,14 @@ use std::path::{Path, PathBuf};
 mod gdscript;
 use gdscript::lex;
 
+// The 3D client's directory, named once (16e D-e-3). Without the client (ARC-347's removal check), the
+// scans skip its scripts and its admissions and say so.
+#[macro_use]
+#[path = "support/client_3d.rs"]
+mod client_3d;
+
 /// The GDScript string literals that name an action: (file, literal, why it may be written there).
-const ACTION_LITERALS: [(&str, &str, &str); 22] = [
+const ACTION_LITERALS: [(&str, &str, &str); 24] = [
     (
         "clients/2d/scripts/intents.gd",
         "walk-to",
@@ -93,6 +101,12 @@ const ACTION_LITERALS: [(&str, &str, &str); 22] = [
         "composed by the 2D client's only submitter from the typed minutes (S35 N-e §4.3): sleep { for }",
     ),
     (
+        "clients/2d/scripts/intents.gd",
+        "throw",
+        "composed by the 2D client's only submitter as the offered complete throw with `toward` set to \
+         the clicked floor point (S12 PR 13d, ARC-342); the server decides the throw",
+    ),
+    (
         "clients/2d/scripts/harness/interact.gd",
         "sleep",
         "the scripted check's step that waits a number of seconds (step-13 §15.3); not an action",
@@ -105,54 +119,60 @@ const ACTION_LITERALS: [(&str, &str, &str); 22] = [
          from it",
     ),
     (
-        "clients/3d-spike/scripts/slice/slice_link.gd",
+        client_3d!("scripts/slice/slice_link.gd"),
         "move",
         "the slice's connection reports the body's strides (PROTOCOL.md §6.2); the one action it builds",
     ),
     (
-        "clients/3d-spike/scripts/slice/intents.gd",
+        client_3d!("scripts/slice/intents.gd"),
+        "walk-to",
+        "the 3D client's one request builder asks the server to plan a walk (ARC-75), as the 2D client's \
+         intents.gd does; a probe walks through it, never building the request itself",
+    ),
+    (
+        client_3d!("scripts/slice/intents.gd"),
         "talk",
         "intents.gd builds every interaction request of the 3D client (step-15 §4.4)",
     ),
     (
-        "clients/3d-spike/scripts/slice/intents.gd",
+        client_3d!("scripts/slice/intents.gd"),
         "kick",
         "built by the 3D client's one request builder when F is pressed at an object, or submitted as the \
          world's matching complete offer, unchanged (step-11 §22 SD-E6, S15 PR 12e)",
     ),
     (
-        "clients/3d-spike/scripts/slice/intents.gd",
+        client_3d!("scripts/slice/intents.gd"),
         "throw",
         "built by the 3D client's one request builder from G, G or G, aim, G, or submitted as the world's \
          matching complete offer, unchanged (step-11 §22 SD-E6, S15 PR 12e)",
     ),
     (
-        "clients/3d-spike/scripts/slice/intents.gd",
+        client_3d!("scripts/slice/intents.gd"),
         "shove",
         "built by the 3D client's one request builder when R is pressed at a person, or submitted as the \
          world's matching complete offer, unchanged (step-11 §22 SD-E6, S15 PR 12e)",
     ),
     (
-        "clients/3d-spike/scripts/human.gd",
+        client_3d!("scripts/human.gd"),
         "move",
         "the name of an AnimationNodeBlendTree input of the character's locomotion graph, not a request \
          (step-15 Q-16a-5)",
     ),
     (
-        "clients/3d-spike/scripts/human.gd",
+        client_3d!("scripts/human.gd"),
         "sit",
         "the name of the seated input of the character's AnimationNodeTransition, as `move` is of its \
          locomotion graph (step-15 Q-16a-5); it shares its spelling with posture's action type, and the \
          pose follows the server's posture state, never builds a request (S34-a)",
     ),
     (
-        "clients/3d-spike/scripts/slice/slice_probe_market.gd",
+        client_3d!("scripts/slice/slice_probe_market.gd"),
         "sleep",
         "a probe script's step key, a pause of that many seconds (16d C5); it shares its spelling with \
          sleep's action type (S35 N-a) and builds no request",
     ),
     (
-        "clients/3d-spike/scripts/shots.gd",
+        client_3d!("scripts/shots.gd"),
         "stand",
         "a capture phase's name in the offline body checks (standing still versus walking), written into \
          the shot's file name; it shares its spelling with posture's action type and builds no request",
@@ -360,6 +380,10 @@ fn no_client_script_names_an_action_copies_a_rule_or_reads_a_pack() {
         "the build's action types were not found (has the declaration changed?): {types:?}"
     );
 
+    let three_d = client_3d::present(
+        &root,
+        "the 3D client's scripts and their admissions (I-S14-1, I-S14-6)",
+    );
     let mut files = Vec::new();
     client_scripts(&root.join("clients"), &mut files);
     // The 3D client's 33 scripts after PR 16a (31 before it, plus targeting.gd and intents.gd) and
@@ -391,7 +415,7 @@ fn no_client_script_names_an_action_copies_a_rule_or_reads_a_pack() {
     for ((file, literal, reason), used) in ACTION_LITERALS.iter().zip(used_literals) {
         assert!(!reason.is_empty(), "{file}: an admission needs a reason");
         assert!(
-            used,
+            used || (!three_d && client_3d::holds(file)),
             "{file}: the admission of \"{literal}\" admits nothing; remove it"
         );
     }
@@ -406,7 +430,19 @@ fn no_client_script_names_an_action_copies_a_rule_or_reads_a_pack() {
 
 /// String literals in the 3D client that equal a place key and are not used as one, each reviewed:
 /// (file, literal, why). An entry for a literal compared with a place's key is forbidden (S33-c §5.6).
-const PLACE_KEY_LITERALS: [(&str, &str, &str); 8] = [
+const PLACE_KEY_LITERALS: [(&str, &str, &str); 10] = [
+    (
+        "clients/3d-spike/scripts/depictions/data/depiction_file.gd",
+        "street",
+        "the depiction file's section name (MODULE_SPEC.md §6.1.2: `street`, the binding of the street \
+         every place opens onto), a field of the Presentation Pack's format, never compared with a place",
+    ),
+    (
+        "clients/shared/checks/station_state_check.gd",
+        "station",
+        "the `station` role tag in the headless check's literal place tag lists and frames (S29-f §5.1, \
+         ARC-108), a tag the fixture rule receives as data, never a place key the client binds",
+    ),
     (
         "clients/shared/environment/far_field.gd",
         "station",
@@ -414,38 +450,38 @@ const PLACE_KEY_LITERALS: [(&str, &str, &str); 8] = [
          field of the Presentation Pack's format, never compared with a place",
     ),
     (
-        "clients/3d-spike/scripts/slice/far_field_view.gd",
+        client_3d!("scripts/slice/far_field_view.gd"),
         "station",
         "the far-field skyline slot name, read from the loaded file (MODULE_SPEC.md §6.1.1)",
     ),
     (
-        "clients/3d-spike/scripts/town.gd",
+        client_3d!("scripts/town.gd"),
         "cafe",
         "the promenade spike's own interior id in its building table, an offline scene that never \
          connects to a world (CLAUDE.md, mineworld-3d); not a place of any world",
     ),
     (
-        "clients/3d-spike/scripts/slice/slice_world.gd",
+        client_3d!("scripts/slice/slice_world.gd"),
         "street",
         "a build-timing stage label printed by SliceWorld._tick",
     ),
     (
-        "clients/3d-spike/scripts/slice/slice_world.gd",
+        client_3d!("scripts/slice/slice_world.gd"),
         "cafe",
         "a build-timing stage label printed by SliceWorld._tick",
     ),
     (
-        "clients/3d-spike/scripts/slice/slice_probe.gd",
+        client_3d!("scripts/slice/slice_probe.gd"),
         "street",
         "the name of a standalone review view (--measure's viewpoints), a file name, not a place",
     ),
     (
-        "clients/3d-spike/scripts/slice/slice_probe_town.gd",
+        client_3d!("scripts/slice/slice_probe_town.gd"),
         "street",
         "the --slice-street probe mode's name and its verdict label (16c), never compared with a place",
     ),
     (
-        "clients/3d-spike/scripts/slice/slice_layout.gd",
+        client_3d!("scripts/slice/slice_layout.gd"),
         "street",
         "SHOWN's drawn_as vocabulary (D-16c-7: room, door, street), how a place is drawn, not which",
     ),
@@ -530,11 +566,18 @@ fn the_3d_client_names_no_place_key() {
         keys.iter().any(|key| key == "cafe") && keys.iter().any(|key| key == "lane"),
         "the World Packs' place keys were not found: {keys:?}"
     );
+    let three_d = client_3d::present(
+        &root,
+        "the 3D client's place-key scan and its admissions (X-6)",
+    );
     let mut files = Vec::new();
-    client_scripts(&root.join("clients/3d-spike/scripts"), &mut files);
+    if three_d {
+        client_scripts(&root.join(client_3d!("scripts")), &mut files);
+    }
     client_scripts(&root.join("clients/shared"), &mut files);
+    // With the 3D client, its scripts and the shared modules; without it, the shared modules alone.
     assert!(
-        files.len() >= 40,
+        files.len() >= if three_d { 40 } else { 1 },
         "every 3D client script is scanned: {}",
         files.len()
     );
@@ -552,10 +595,133 @@ fn the_3d_client_names_no_place_key() {
     for ((file, literal, reason), used) in PLACE_KEY_LITERALS.iter().zip(used) {
         assert!(!reason.is_empty(), "{file}: an admission needs a reason");
         assert!(
-            used,
+            used || (!three_d && client_3d::holds(file)),
             "{file}: the admission of \"{literal}\" admits nothing; remove it"
         );
     }
+}
+
+/// The shared sit decision (S33-f I-f-6; `ARC-145`): the one file that holds it.
+const SIT_RULE: &str = "clients/shared/sitting/sit_rule.gd";
+/// The rule's own constants (step-33 SD-S33-7): the radius and the wait. Its other constants (a folder
+/// name, a rounding) are not the rule.
+const SIT_RULE_CONSTANTS: [&str; 2] = ["SIT_NEAR_M", "SIT_STILL_S"];
+
+/// I-f-6 (S33-f, step-34 §8.1): neither client holds a copy of the sit rule. Every constant the shared
+/// sit decision declares is declared nowhere else in the clients, so a client that decides sitting by
+/// itself — its own radius or its own wait — is a finding.
+#[test]
+fn no_client_holds_a_copy_of_the_sit_rule() {
+    let root = root();
+    let rule = std::fs::read_to_string(root.join(SIT_RULE)).expect("the shared sit rule reads");
+    let names: Vec<String> = lex(&rule)
+        .code
+        .iter()
+        .filter(|code| code.trim_start().starts_with("const "))
+        .filter_map(|code| declared(code).map(str::to_owned))
+        .filter(|name| SIT_RULE_CONSTANTS.contains(&name.as_str()))
+        .collect();
+    assert!(
+        names.len() == SIT_RULE_CONSTANTS.len(),
+        "the shared sit rule's constants were not found (has it moved?): {names:?}"
+    );
+    let mut files = Vec::new();
+    client_scripts(&root.join("clients"), &mut files);
+    let mut found = Vec::new();
+    for path in &files {
+        let file = relative(path);
+        if file == SIT_RULE {
+            continue;
+        }
+        let text = std::fs::read_to_string(path).expect("a client script reads");
+        for (index, code) in lex(&text).code.iter().enumerate() {
+            if let Some(name) = declared(code)
+                && names.iter().any(|n| n == name)
+            {
+                found.push(format!(
+                    "{file}:{}: `{name}` copies the shared sit rule ({SIT_RULE})",
+                    index + 1
+                ));
+            }
+        }
+    }
+    assert!(found.is_empty(), "I-f-6:\n{}", found.join("\n"));
+}
+
+/// The one 3D client script that may name a Presentation Pack's path: the class that resolves the pack
+/// it is given (`docs/decisions/ARC-51.md`). Every other reader asks it.
+const PACK_RESOLVER: &str = "clients/3d-spike/scripts/pack/pack.gd";
+
+/// Whether a string literal names a path under `presentation/`.
+fn names_a_presentation_path(literal: &str) -> bool {
+    let components: Vec<&str> = literal.split('/').collect();
+    components.len() > 1 && components[..components.len() - 1].contains(&"presentation")
+}
+
+/// What the pack scan refuses in one 3D client script: a literal naming a pack path, or a `PACK_DIR`.
+fn pack_path_findings(file: &str, text: &str) -> Vec<String> {
+    let lexed = lex(text);
+    let mut found = Vec::new();
+    for (line, literal) in &lexed.literals {
+        if names_a_presentation_path(literal) {
+            found.push(format!(
+                "{file}:{line}: \"{literal}\" names a Presentation Pack's path; ask SlicePack (ARC-51)"
+            ));
+        }
+    }
+    for (index, code) in lexed.code.iter().enumerate() {
+        if code.contains("PACK_DIR") {
+            found.push(format!(
+                "{file}:{}: `PACK_DIR`: the pack is the one the client is given; ask SlicePack (ARC-51)",
+                index + 1
+            ));
+        }
+    }
+    found
+}
+
+/// AC-16f-1 (ARC-51): the 3D client reads the Presentation Pack it is given. No 3D client script but
+/// `PACK_RESOLVER` writes a path under `presentation/`, and none writes `PACK_DIR`; the resolver itself
+/// does name the default pack, so the scan is seen to find what it looks for.
+#[test]
+fn the_3d_client_reads_its_pack_only_through_slice_pack() {
+    let root = root();
+    // The removability check (16e) runs this crate on a checkout with the 3D client removed.
+    if !client_3d::present(&root, "its pack reads through SlicePack (AC-16f-1)") {
+        return;
+    }
+    let mut files = Vec::new();
+    client_scripts(&root.join(client_3d!("scripts")), &mut files);
+    assert!(
+        files.len() >= 40,
+        "every 3D client script is scanned: {}",
+        files.len()
+    );
+    let mut found = Vec::new();
+    let mut resolver_names_the_default = false;
+    for path in &files {
+        let file = relative(path);
+        let text = std::fs::read_to_string(path).expect("a client script reads");
+        let findings = pack_path_findings(&file, &text);
+        if file == PACK_RESOLVER {
+            resolver_names_the_default = !findings.is_empty();
+        } else {
+            found.extend(findings);
+        }
+    }
+    assert!(
+        resolver_names_the_default,
+        "{PACK_RESOLVER} names the default pack's path, and the scan finds it"
+    );
+    assert!(
+        found.is_empty(),
+        "a 3D client script reads a pack by path:\n{}",
+        found.join("\n")
+    );
+    assert!(names_a_presentation_path(
+        "../../presentation/mineworld-default/3D"
+    ));
+    assert!(!names_a_presentation_path("the 3D presentation file %s"));
 }
 
 /// Check (d)'s exemption is exactly a `tag(…)` argument, by position on the line.
@@ -639,4 +805,86 @@ fn rule_names_and_pack_paths_are_recognised() {
     assert!(names_a_pack_path("systems/bodies/src/lib.rs"));
     assert!(!names_a_pack_path("res://scripts/slice/intents.gd"));
     assert!(!names_a_pack_path("worlds"));
+}
+
+/// What check (e) refuses in a depiction's script: a way of moving a prop the world does not move.
+const MOVERS: [&str; 5] = [
+    "create_tween",
+    "Tween",
+    "AnimationPlayer",
+    "func _process(",
+    "func _physics_process(",
+];
+
+/// Check (e) over one lexed file: each line of code that names a mover, by file and line.
+fn mover_findings(file: &str, text: &str) -> Vec<String> {
+    let lexed = lex(text);
+    let mut found = Vec::new();
+    for (i, line) in lexed.code.iter().enumerate() {
+        for mover in MOVERS {
+            let at = line.find(mover);
+            // `Tween` as a word, not inside `TweenSomething` or `between`
+            let word = at.is_some_and(|k| {
+                let before = line[..k].chars().next_back();
+                let after = line[k + mover.len()..].chars().next();
+                mover.ends_with('(')
+                    || (!before.is_some_and(|c| c.is_alphanumeric() || c == '_')
+                        && !after.is_some_and(|c| c.is_alphanumeric() || c == '_'))
+            });
+            if word {
+                found.push(format!(
+                    "{file}:{}: `{mover}` moves a drawn prop; nothing moves unless a disclosed Process \
+                     moves it (ARC-171): idle in a shader, or draw what the server discloses",
+                    i + 1
+                ));
+            }
+        }
+    }
+    found
+}
+
+/// Check (e), the honesty scan (S33-e §5.6, X-7; `DECISIONS.md` ARC-171): no script that draws a
+/// depiction — the generic data builders and every world's depiction script — animates what it draws. A
+/// landmark, a moored boat, a train or a ferry is static unless the world moves it; presentation idles in
+/// shaders, which are not scanned.
+#[test]
+fn no_depiction_moves_a_prop_the_world_does_not_move() {
+    let root = root();
+    // The removability check (16e) runs this crate on a checkout with the 3D client removed.
+    if !client_3d::present(&root, "no depiction moves a prop (S33-e X-7)") {
+        return;
+    }
+    let mut files = Vec::new();
+    client_scripts(&root.join(client_3d!("scripts/depictions")), &mut files);
+    assert!(
+        files
+            .iter()
+            .any(|f| f.ends_with("depictions/data/deck_builder.gd")),
+        "the deck builder is scanned: {files:?}"
+    );
+    let mut found = Vec::new();
+    for path in &files {
+        let text = std::fs::read_to_string(path).expect("a depiction script reads");
+        found.extend(mover_findings(&relative(path), &text));
+    }
+    assert!(
+        found.is_empty(),
+        "a depiction animates a prop:\n{}",
+        found.join("\n")
+    );
+}
+
+/// Check (e) names the file and line of a planted tween (X-7), and not a comment or a longer word.
+#[test]
+fn the_honesty_scan_names_a_tweened_boat() {
+    let planted = "var boat := Node3D.new()\n\
+                   # a Tween would be wrong here\n\
+                   var t := boat.create_tween()\n\
+                   var between := 1\n";
+    let found = mover_findings("deck_builder.gd", planted);
+    assert_eq!(found.len(), 1, "{found:?}");
+    assert!(
+        found[0].starts_with("deck_builder.gd:3: `create_tween`"),
+        "{found:?}"
+    );
 }

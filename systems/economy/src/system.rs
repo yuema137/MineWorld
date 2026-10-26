@@ -21,7 +21,7 @@ use crate::action::{Buy, ListForSale, SellerRequest, SetPrice, Withdraw, seller_
 use crate::book::{PriceBookProcess, PriceBookState};
 use crate::code::{self, CURRENCY_UNDECLARED};
 use crate::codec;
-use crate::component::{Ask, Asks, ReferenceValue, Shop, Wallet, Wealth};
+use crate::component::{Ask, Asks, ReferenceValue, Shop, ShopStock, Wallet, Wealth};
 use crate::configuration::EconomyConfiguration;
 use crate::currency::{self, CurrencyProcess, CurrencyRecord, currency_process};
 use crate::event::{
@@ -32,7 +32,7 @@ use crate::event::{
 use crate::haggle::{self, AcceptProposal, DeclineProposal, ProposePrice, WithdrawProposal};
 use crate::listing::{self, judge_listing, seller_offers};
 use crate::money::{admit_payment, balance, is_holder, pay, price_in_range};
-use crate::offer::{asks_of, asks_view, listing, living_person, wealth};
+use crate::offer::{asks_of, asks_view, listing, living_person, shop_stock, wealth};
 use crate::proposal::{self, Proposals};
 use crate::sale;
 
@@ -170,6 +170,7 @@ impl System for EconomySystem {
             .owning::<ReferenceValue>()
             .owning::<CurrencyRecord>()
             .owning::<Wealth>()
+            .owning::<ShopStock>()
             .providing::<Buy>()
             .providing::<ListForSale>()
             .providing::<SetPrice>()
@@ -226,6 +227,7 @@ impl System for EconomySystem {
         tables.component::<ReferenceValue>()?;
         tables.component::<CurrencyRecord>()?;
         tables.component::<Wealth>()?;
+        tables.component::<ShopStock>()?;
         tables.component::<Proposals>()
     }
 
@@ -687,6 +689,14 @@ impl PerceptionProvider for EconomySystem {
             disclosed.push(ComponentRecord::new::<Proposals>(
                 subject,
                 codec::to_value(&view),
+            ));
+        }
+        // Every shop's stocked kinds, to each living Person about itself (S35 N-h R5): only when the
+        // world has a shop, so a world without one discloses exactly as before.
+        if currency::tells(world, observer, subject) && world.component_count::<Shop>() > 0 {
+            disclosed.push(ComponentRecord::new::<ShopStock>(
+                subject,
+                codec::to_value(&shop_stock(world, observer)),
             ));
         }
         if let Some(view) = asks_view(world, subject) {

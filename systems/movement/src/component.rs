@@ -1,7 +1,7 @@
 //! The state this pack owns: which places open onto which, where the doorway is, and who is walking
 //! where.
 
-use mineworld_contracts::{EntityId, LocalPosition, Location, Millimetres, PlaceId};
+use mineworld_contracts::{EntityId, LocalPosition, Location, Millimetres, PlaceId, WorldTime};
 use mineworld_kernel::owned_component;
 use serde::{Deserialize, Serialize};
 
@@ -20,6 +20,9 @@ use crate::system::MovementSystem;
 #[serde(deny_unknown_fields)]
 pub struct Walking {
     pub(crate) destination: Destination,
+    /// The instant the walk began — its `walk-started` — which ranks it against other walks (`ARC-333`
+    /// R1: the earlier start ranks higher).
+    pub(crate) started: WorldTime,
     /// The places still to enter, in order; empty in the destination's own place.
     pub(crate) legs: Vec<PlaceId>,
     /// The current leg's waypoints not yet reached, in order.
@@ -33,8 +36,22 @@ pub struct Walking {
     pub(crate) stalls: u32,
     /// Re-plans made so far.
     pub(crate) replans: u32,
+    /// Consecutive steps spent waiting behind a walker of higher rank (`ARC-333` R2).
+    pub(crate) waits: u32,
     /// Who stopped the last stride short, when presence's `stopped-short` named somebody.
     pub(crate) stopped_by: Option<EntityId>,
+    /// Who moved the walker aside since their last stride, when somebody did (`ARC-333`): the re-plan
+    /// that follows is not counted toward `REPLANS_MAX`.
+    pub(crate) moved_by: Option<EntityId>,
+    /// For a walk to a person, where they stood when its last leg was planned to a stand point near
+    /// them (`ARC-75` amendment 1); the leg is planned again when they move [`TARGET_MOVED`] from it.
+    /// [`None`] for a place destination, and for a walk recorded before stand points, whose leg ends at
+    /// the person and is cut [`PERSON_APPROACH`] short.
+    ///
+    /// [`TARGET_MOVED`]: crate::TARGET_MOVED
+    /// [`PERSON_APPROACH`]: crate::PERSON_APPROACH
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) aimed_at: Option<LocalPosition>,
 }
 
 /// One stride as it was asked for.
@@ -49,13 +66,20 @@ owned_component! {
     component = Walking,
     owner = MovementSystem,
     component_type = "walking",
-    schema_version = 1,
+    // 2: `started`, `waits` and `moved_by` (ARC-333).
+    schema_version = 2,
 }
 
 impl Walking {
     /// Where the walk goes.
     pub const fn destination(&self) -> Destination {
         self.destination
+    }
+
+    /// The instant the walk began: its `walk-started`. Of two walks, the one that began earlier ranks
+    /// higher, and the lower walker's id breaks a tie (`ARC-333` R1).
+    pub const fn started(&self) -> WorldTime {
+        self.started
     }
 
     /// The places still to enter, in order.

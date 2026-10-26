@@ -1,0 +1,95 @@
+{
+  "id": "social-cafe-north-frontage",
+  "type": "place_visual",
+  "format": {
+    "model": "social-cafe-north-frontage.glb",
+    "rules": "materials/material_rules.yaml"
+  },
+  "semantic_bindings": {
+    "entrances": [
+      "door_00",
+      "door_01",
+      "door_02",
+      "door_03"
+    ],
+    "spaces": []
+  },
+  "doors": [
+    {
+      "name": "door_00",
+      "label": "RIVERSTONE BOOKS",
+      "space": null,
+      "depth_m": 0.35,
+      "floor_m": 0.0
+    },
+    {
+      "name": "door_01",
+      "label": "SUNRISE BAKERY",
+      "space": null,
+      "depth_m": 0.35,
+      "floor_m": 0.0
+    },
+    {
+      "name": "door_02",
+      "label": "house door",
+      "space": null,
+      "depth_m": 0.35,
+      "floor_m": 0.0
+    },
+    {
+      "name": "door_03",
+      "label": "MAPLE & CO.",
+      "space": null,
+      "depth_m": 0.35,
+      "floor_m": 0.0
+    }
+  ],
+  "presentation": {
+    "style_family": [
+      "mineworld-default-3d"
+    ]
+  },
+  "scale": {
+    "unit": "meter"
+  },
+  "license": {
+    "spdx": "MIT",
+    "sources": [
+      {
+        "what": "Poly Haven textures, referenced by path from the 3D client's library (clients/3d-spike/ASSETS.md)",
+        "spdx": "CC0-1.0",
+        "url": "https://polyhaven.com/license",
+        "files": [
+          "assets/textures/beige_wall_001/beige_wall_001_arm_1k.jpg",
+          "assets/textures/beige_wall_001/beige_wall_001_diff_1k.jpg",
+          "assets/textures/beige_wall_001/beige_wall_001_nor_gl_1k.jpg",
+          "assets/textures/clay_roof_tiles_02/clay_roof_tiles_02_arm_1k.jpg",
+          "assets/textures/clay_roof_tiles_02/clay_roof_tiles_02_diff_1k.jpg",
+          "assets/textures/clay_roof_tiles_02/clay_roof_tiles_02_nor_gl_1k.jpg",
+          "assets/textures/concrete/concrete_arm_1k.jpg",
+          "assets/textures/concrete/concrete_diff_1k.jpg",
+          "assets/textures/concrete/concrete_nor_gl_1k.jpg",
+          "assets/textures/red_bricks_04/red_bricks_04_arm_1k.jpg",
+          "assets/textures/red_bricks_04/red_bricks_04_diff_1k.jpg",
+          "assets/textures/red_bricks_04/red_bricks_04_nor_gl_1k.jpg",
+          "assets/textures/roof_slates_03/roof_slates_03_arm_1k.jpg",
+          "assets/textures/roof_slates_03/roof_slates_03_diff_1k.jpg",
+          "assets/textures/roof_slates_03/roof_slates_03_nor_gl_1k.jpg",
+          "assets/textures/sandstone_blocks_05/sandstone_blocks_05_arm_1k.jpg",
+          "assets/textures/sandstone_blocks_05/sandstone_blocks_05_diff_1k.jpg",
+          "assets/textures/sandstone_blocks_05/sandstone_blocks_05_nor_gl_1k.jpg",
+          "assets/textures/wood_table_worn/wood_table_worn_arm_1k.jpg",
+          "assets/textures/wood_table_worn/wood_table_worn_diff_1k.jpg",
+          "assets/textures/wood_table_worn/wood_table_worn_nor_gl_1k.jpg",
+          "assets/textures/yellow_bricks/yellow_bricks_arm_1k.jpg",
+          "assets/textures/yellow_bricks/yellow_bricks_diff_1k.jpg",
+          "assets/textures/yellow_bricks/yellow_bricks_nor_gl_1k.jpg"
+        ]
+      }
+    ]
+  },
+  "source": {
+    "tool": "tools/presentation/export_place_art.gd",
+    "authoring": "tools/presentation/social_cafe/source.gd"
+  }
+}

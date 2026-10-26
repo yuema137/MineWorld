@@ -67,11 +67,18 @@ pub struct Town {
     pub seats: Vec<String>,
     /// The people whose file carries a `job:` section, read from the files, not from the run.
     pub job_holders: BTreeSet<EntityId>,
+    /// The System Packs the world installs, by id: what a market check may require of it.
+    pub systems: BTreeSet<String>,
 }
 
 impl Town {
     pub fn read(pack: &Path) -> Self {
         let read = mineworld_worldpack::WorldPack::read(pack).expect("the World Pack reads");
+        let systems = read
+            .systems()
+            .iter()
+            .map(|system| system.id().as_str().to_owned())
+            .collect();
         let seats = read
             .seats()
             .iter()
@@ -111,6 +118,7 @@ impl Town {
             people,
             seats,
             job_holders,
+            systems,
         }
     }
 
@@ -463,7 +471,14 @@ pub fn wallet_balance(value: &Value) -> u64 {
 
 /// A `holdings` component (`{ held: [{ item, count }] }`), by item.
 pub fn holdings(value: &Value) -> BTreeMap<EntityId, u32> {
-    let map = exactly(value, "holdings", &["held"]);
+    // `capacity`: how many units a person can carry (N-h #429), present when the holder has one; this
+    // mirror reads `held` only.
+    let fields: &[&str] = if value.get("capacity").is_some() {
+        &["capacity", "held"]
+    } else {
+        &["held"]
+    };
+    let map = exactly(value, "holdings", fields);
     map["held"]
         .as_array()
         .expect("held is a list")
@@ -609,8 +624,9 @@ fn bucket_of(at: WorldTime, days: i64) -> i64 {
 /// ```text
 /// every bucket   ≥ 1 purchase (a money-transferred caused by an action); every job holder — exactly
 ///                two, read from `hired` — paid ≥ 1 wage (a money-transferred to them caused by a
-///                wage-due naming them); ≥ 1 items-produced; ≥ 1 items-consumed; every seat gave ≥ 1
-///                (an items-transferred from that seat caused by an action)
+///                wage-due naming them); ≥ 1 items-produced; ≥ 1 items-consumed (with `consumption`);
+///                every seat gave ≥ 1 (with `item-transfer`: an items-transferred from that seat caused by
+///                an action)
 /// the run        zero wage-unpaid; no wallet ever below the cheapest price any shop opened with;
 ///                no person ever carrying more than six
 /// ```
@@ -734,21 +750,24 @@ pub fn market_lives(town: &Town, facts: &[EventEnvelope], days: i64) -> (Ledger,
         }
     }
 
-    let mut required: Vec<String> = vec![
-        "purchase".to_owned(),
-        "items-produced".to_owned(),
-        "items-consumed".to_owned(),
-    ];
+    // What is required follows what the world installs: something is eaten only with `consumption`, and
+    // given only with `item-transfer` (a test world may leave either out).
+    let mut required: Vec<String> = vec!["purchase".to_owned(), "items-produced".to_owned()];
+    if town.systems.contains("consumption") {
+        required.push("items-consumed".to_owned());
+    }
     required.extend(
         holders
             .iter()
             .map(|holder| format!("wage paid to {}", town.key(*holder))),
     );
-    required.extend(
-        town.seat_ids()
-            .iter()
-            .map(|(seat, _)| format!("gave: {seat}")),
-    );
+    if town.systems.contains("item-transfer") {
+        required.extend(
+            town.seat_ids()
+                .iter()
+                .map(|(seat, _)| format!("gave: {seat}")),
+        );
+    }
     eprintln!("market facts per 30-day bucket ({days} days; a zero is shown, never omitted):");
     for (bucket, counts) in counted.iter().enumerate() {
         let shown: Vec<String> = required

@@ -741,6 +741,13 @@ Pack its own step**. Under the operator's principle "我们要发布就得把这
   data, which the System's seats can be bound to by tag; no S33 code needs to change when it lands except the
   rule's override branch.
 
+### 14.3 Open follow-ups (2026-10-26)
+
+- Extend `--slice-measure` beyond the café, so that Lakeside's AC-e-6 rails and curbs and AC-f-7's threshold
+  light are measured by the tool instead of a scratch script (coordinator, 2026-10-26). Today AC-e-6 is
+  measured by a scratch script (`pr-s33e-pier-halt.md` §15), and AC-f-7 is INCONCLUSIVE
+  (`pr-s33f-interiors-sit-points.md` §15).
+
 ---
 
 ## 15. Records (ids assigned 2026-10-15; written into `docs/DECISIONS.md` by the PR named)

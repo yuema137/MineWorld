@@ -646,7 +646,9 @@ STOP CONDITION:          S29-e MERGE-READY (READY FOR OPERATOR REVIEW) — DO NO
 
 ### 14.1 Rulings
 
-(none yet)
+Operator, 2026-10-19 (relayed by the lane lead with the freeze): **Q-S29e-1** yes, the tracks run on into a
+planted cutting; **Q-S29e-2** the last window state seen, "shut" if none was seen; **Q-S29e-3** the provisional
+`departures` shape `{lines: [{line, next: [s]}]}`.
 
 ---
 
@@ -654,18 +656,93 @@ STOP CONDITION:          S29-e MERGE-READY (READY FOR OPERATOR REVIEW) — DO NO
 
 ### Commit ledger
 
-| Commit | SHA | Implementation | Validation | Review |
+Executed under the lane charter's SPEED FIRST (2026-10-18): the commit plan C0 … C7 is folded into four
+semantic commits; no mutation runs and no independent reviewer (charter); the Opus frame review of C4/C5 is
+the implementing session's own look at the offline frames (recorded below); `fast` is the gate.
+
+| Commit | What | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C7 | — | [ ] | [ ] | [ ] |
+| 1 | records, words, the kit's `fitout` and `track` groups (C0, C1) | [x] | [x] decision ids, doc headings | [x] words say only what is true before trains |
+| 2 | the shared station state (C2): S29-f's module adopted, the clock added | [x] | [x] both shared checks headless: PASS | [x] no place key, no time source but `at` |
+| 3 | pieces, fit-out, platform, fixtures, furnishings binding (C3–C5) | [x] | [x] `--slice-station-kit` (depot and reduced-hall variant): all station kit and piece checks pass | [x] frames below |
+| 4 | shots `st_5`–`st_8`, ledger (C6, C7) | [x] | [x] `--slice-station-shots` | [x] `fast` on the exact head (PR body) |
 
 ### Evidence
 
-(none yet)
+- **Base.** Branch `mvp0/pr-s29e` stacked on S29-d (`origin/mvp0/pr-s29d` @ `6a099d7c`, PR #403, not merged: a
+  merge freeze holds main; `origin/main` @ `423c301b`). S29-b: not merged (Market Town's kiosk-open connected
+  case is N/A until it is; the table covers the rule). S29-f (#366): open, held for the operator. 12e: merged
+  (`slice_probe_geometry.gd` is on main) — AC-e-4 runs at the milestone.
+- **Shared checks** (`godot --headless --path clients/shared --script res://checks/…`, 2026-10-20, through
+  `with-slot.sh`): `station_state_check.gd` → `all station state checks pass` (S29-f's 13 cases);
+  `station_clock_check.gd` → `all station clock checks pass` (7 cases: no calendar → −1, calendar → time of day,
+  from an observation frame). PASS. `client_station.rs` runs both (`#[ignore]`, `GODOT_TESTS` += `client_station`).
+- **AC-e-2** (`./mineworld-slice --station-kit`, 2026-10-20): every `KIT` row ok; `PIECE` rows at depot scale and
+  at village scale (S33-e's sizes, timber style, one track with a `buffer` end): bench seat 0.447 m (0.42–0.47),
+  counter 1.050 m (1.00–1.10), window bay, board and clock within their sizes, warning strip 0.610 m, gauge
+  1.435 m, rail head 0.900 m under the platform, tie pitch 0.495 m; the plate's and the heading's text keys
+  `station.window_closed`, `station.departures`; the buffer stop drawn only at village scale. The depot's fixtures
+  offline: board "No service yet" (hall and platform), clock no hands, window shut. `all station piece checks
+  pass`, `all station kit checks pass`. The same on `tests/station_kits/variant-reduced-hall.yaml` (12 × 30 m hall):
+  PASS. The 34 bench instances are drawn from the world's furnishings (below), not from the kit.
+- **Static.** `cargo fmt --check`; `cargo clippy -p mineworld-cli --tests -D warnings`; `cargo test -p
+  mineworld-acceptance --test client_rules` 5/5; `check_decision_ids.py`; `check_doc_headings.py`. PASS.
+  `cargo test -p mineworld-cli --test furnishings`: 4/5 — `every_kind_every_world_names_is_bound_in_each_default_pack`
+  fails on **2D only** (`bench.station`, `kiosk.news` have no 2D role); the 3D half now passes (F-S29e-impl-3).
+- **Frames** (`./mineworld-slice --station-shots`, standalone, committed `shots/social-cafe/station/st_5`–`st_8`;
+  looked at by the implementing session): `st_5` the hall reads as a waiting room — rows of oak benches facing
+  north, eight redwood arches springing from pilasters between the clerestories, purlins, boarded ceiling, tiled
+  wainscot under a frieze course, nine chandeliers, the board on the north wall; `st_6` two brass grilles,
+  shutters down, "Closed" legible; `st_7` "Departures / No service yet" legible from 5 m; `st_8` the platform's
+  coping and yellow strip, two tracks on ballast in the sunken trackbed, the overbridge closing the line at the
+  far end. No train, no figure. The operator's look is queued at the milestone (AC-e-8).
+
+### Milestone rows (M) and their commands
+
+| Row | Command |
+| --- | --- |
+| AC-e-3 | `./mineworld-slice --world --station-walk` (Social Café; `--world=market-town`); the walk to the bay and the platform and the `FIXTURE` rows are to be added to the walk at the milestone (F-S29e-impl-5) |
+| AC-e-4 | `./mineworld-slice --world --geometry` (12e) over the hall, bay and platform |
+| AC-e-5 | X-5 on a planted Market Town copy (a newspaper shop at the ticket office), then a `ticket`-tagged kind |
+| AC-e-6 | `./mineworld-slice --perf` (views `station hall wide`, `station platform`) |
+| AC-e-7 | `./mineworld-slice --threshold` at the arch and the bay door |
 
 ### Mutations
 
-(none yet; X-5, X-7, M-e-1 … M-e-3 as §8.1 lists them)
+Not run (charter SPEED FIRST). X-7 and M-e-1 are pinned by named rows the checks print
+(`STATION of_observation lines2 open shut`, `CLOCK no calendar -> no hands -1`) and asserted in `client_station.rs`.
 
 ### Deviations and findings
 
 F-S29e-1 … F-S29e-7 (§3.3), recorded at design time.
+
+- **F-S29e-impl-1 (module race; bounded).** S29-f wrote `MineWorldStationState` first, on its branch (#366, not
+  merged). Its interface differs from §5.2 by name and shape (`of(observation)`, `evaluate(place_tags, departures,
+  shop, item_tags)`, `nothing_disclosed()`; no `clock`), and its window/kiosk rule reads the place's
+  `ticket-office` role tag (§5.2 said the rule reads none). As the dispatch instructed, S29-e adopts S29-f's file
+  and check **byte for byte** (so either PR merges cleanly over the other) and adds the clock as its own pure
+  module, `station_clock.gd` (`MineWorldStationClock`), instead of a `clock` key. No rule changes; I-e-3's "no role
+  tag" is relaxed to S29-f's use of one role tag to route a field (recorded in ARC-108's note).
+- **F-S29e-impl-2 (furnishings).** Per the dispatch, the hall's benches and kiosk and the platform's benches are
+  the world's `body.furnishings` (already on main, S29-a rev. 4), drawn through `furniture/furnishings.yaml`: the
+  binding gains `"piece"` (a `StationPieces` builder sized to the disclosed solids) beside `"model"`. Standalone,
+  they come from recorded station observations written by the new `station_furnishings_fixture.rs` from bodies'
+  own `place-shaped` facts (the café's Q-FD-5 rule). Each piece is merged by `SliceBatch` (its toggled parts are
+  surface-material meshes, which the batch leaves alone); the MultiMesh of §5.3 is used for the ties only.
+- **F-S29e-impl-3 (2D roles; for S29-f).** `bench.station` and `kiosk.news` have no 2D role in
+  `2D/renderer/godot.yaml` on main or on S29-f's branch, so `furnishings.rs`'s every-kind test fails on its 2D half
+  (deferred layer). The 2D binding is S29-f's.
+- **F-S29e-impl-4 (the near ground).** The far field's near ground (y −0.14) covered a trackbed 0.9 m below the
+  platform. `SliceFarFieldView.cut_near_ground(holes)` re-meshes the near-ground disc without the trackbed's
+  rectangle (Godot `Geometry2D.clip_polygons` + `triangulate_polygon`); the collider is unchanged. The far-field
+  rendered check runs at the milestone.
+- **F-S29e-impl-5 (scope deferred to the milestone).** The `--link` walk's extension to the bay and the platform,
+  `--slice-threshold` at the arch, perf counts and the X-5 planted copy are milestone rows (SPEED FIRST); their
+  commands are above.
+- **F-S29e-impl-6 (arches).** NRHP's "nine arched elements" are read as S29-d reads the clerestories: nine bays,
+  so the kit's `fitout.arches` is 8, standing between the windows, with one chandelier per bay (§5.4 said nine
+  arches and ten bays, which would put ribs across the clerestories).
+- **F-S29e-impl-7 (fit-out numbers).** `fitout` gains `counter_mm` (1 050, VISUAL_SLICE §3.4) and the board's
+  centre is 3.7 m (not 3.0 m) so the board clears the 2.59 m wainscot and its frieze; both cited in the kit.
+- **F-S29e-impl-8 (client rules).** Adding `clients/3d-spike/mineworld_station` brings S29-f's check under the 3D
+  place-key scan; its literal `station` tag lists are admitted in `client_rules.rs` with the reason.

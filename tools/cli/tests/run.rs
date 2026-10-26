@@ -89,12 +89,21 @@ fn three_hundred_days_with_the_real_systems_and_the_same_seed_is_the_same_world(
     // lowest-numbered place and never came back.
     let per_place = entries_per_place(&first_tables);
     eprintln!("person-entered-place by place: {per_place:?}");
-    assert_eq!(
-        per_place.len(),
-        6,
-        "every place the pack declares was counted"
-    );
-    for (place, count) in &per_place {
+    // Every place the pack declares is counted (the helper lists them all, entered or not), and every
+    // place a routine sends somebody to is entered: those are where a living town is seen walking. A
+    // place no routine names — a station's inner room, behind a second doorway — may stay unentered.
+    let routine = headless::routine_places(&first_tables);
+    assert!(!routine.is_empty(), "routines name places");
+    for place in &routine {
+        assert!(
+            per_place.contains_key(place),
+            "{place} is one of the pack's places"
+        );
+    }
+    for (place, count) in per_place
+        .iter()
+        .filter(|(place, _)| routine.contains(*place))
+    {
         assert!(*count > 0, "nobody ever entered {place}: {per_place:?}");
     }
     assert_eq!(
@@ -203,11 +212,15 @@ fn run_refuses_what_it_cannot_run_by_name_and_never_panics() {
 
 /// NW-10 (step-11 SD-N15, QN-13): a pack with 30 seats is refused naming `RUN_STEP`, because seat
 /// `k`'s step instants are `genesis + k + n·30` and a thirtieth seat would share an instant with the
-/// first. 29 seats run. The pack is `mineworld create`'s, with its population and seats widened.
+/// first. 29 seats run. With `--stride 36` (a divisor of the 900 s pace; `ARC-341`) the 30 seats run.
+/// The pack is `mineworld create`'s, with its population and seats widened.
 #[test]
 fn a_pack_with_thirty_seats_is_refused_naming_run_step_and_twenty_nine_run() {
-    for (count, refused) in [(30, true), (29, false)] {
-        let root = fresh(&format!("run-crowd-{count}"));
+    for (count, stride, refused) in [(30, None, true), (29, None, false), (30, Some("36"), false)] {
+        let root = fresh(&format!(
+            "run-crowd-{count}-{}",
+            stride.unwrap_or("default")
+        ));
         std::fs::create_dir_all(&*root).expect("the scratch directory");
         let pack = root.join("crowd");
         let pack_text = pack.to_str().expect("a printable path").to_owned();
@@ -239,7 +252,7 @@ fn a_pack_with_thirty_seats_is_refused_naming_run_step_and_twenty_nine_run() {
             std::fs::remove_file(pack.join("people").join(format!("{old}.yaml")))
                 .expect("create's people removed");
         }
-        let output = mineworld(&[
+        let mut arguments = vec![
             "run",
             &pack_text,
             "--headless",
@@ -247,16 +260,25 @@ fn a_pack_with_thirty_seats_is_refused_naming_run_step_and_twenty_nine_run() {
             "1",
             "--days",
             "1",
-        ]);
+        ];
+        if let Some(stride) = stride {
+            arguments.extend(["--stride", stride]);
+        }
+        let output = mineworld(&arguments);
         let complaint = stderr(&output);
         if refused {
             assert!(!output.status.success(), "30 seats must be refused");
             assert!(
-                complaint.contains("RUN_STEP") && complaint.contains("offers 30 seats"),
-                "the refusal names RUN_STEP and the count: {complaint}"
+                complaint.contains("RUN_STEP")
+                    && complaint.contains("offers 30 seats")
+                    && complaint.contains("--stride"),
+                "the refusal names RUN_STEP, the count and the flag: {complaint}"
             );
         } else {
-            assert!(output.status.success(), "29 seats run: {complaint}");
+            assert!(
+                output.status.success(),
+                "{count} seats run (stride {stride:?}): {complaint}"
+            );
         }
     }
 }

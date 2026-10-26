@@ -59,6 +59,35 @@ var leaves: Array = []
 var _goal := {}
 ## id -> { node, to, door, speed } -- a person out of view, walking into a door
 var _going := {}
+## id -> { at, yaw, height } -- a person drawn seated (`SliceSeating`): held on the seat, not walked
+var _seated := {}
+
+
+## Draw `id` seated: the pelvis over `at` (the floor under it), facing `yaw`, the body's own seat on a
+## surface `height` above the floor (`Human.sit_on`). Placed, not walked: the seat is where the shared
+## sit decision put them, and the person stands within NEAR of it.
+func seat(id: String, at: Vector3, yaw: float, height: float) -> void:
+	var n: NPC = nodes.get(id)
+	if n == null:
+		return
+	var was: Variant = _seated.get(id)
+	if was != null and (was["at"] as Vector3).is_equal_approx(at) and is_equal_approx(was["height"], height):
+		return
+	_seated[id] = {"at": at, "yaw": yaw, "height": height}
+	n.global_position = at
+	n.rotation.y = yaw
+	if n.body != null:
+		n.body.sit_on(height)
+
+
+## Stand `id` again if it was drawn seated.
+func unseat(id: String) -> void:
+	if not _seated.has(id):
+		return
+	_seated.erase(id)
+	var n: NPC = nodes.get(id)
+	if n != null and n.body != null:
+		n.body.stand()
 
 
 ## One observation of the observer's place. `seen`: id -> { at: scene point,
@@ -112,6 +141,7 @@ func clear() -> void:
 	nodes.clear()
 	_going.clear()
 	_goal.clear()
+	_seated.clear()
 
 
 ## Whether a person who left view is still being drawn walking into a door.
@@ -123,6 +153,8 @@ func _process(delta: float) -> void:
 	if delta <= 0.0:
 		return
 	for id in nodes:
+		if _seated.has(id):
+			continue
 		var g: Dictionary = _goal[id]
 		_walk(nodes[id], g["at"], g["speed"], delta, g["yaw"])
 	for id in _going.keys():
@@ -132,6 +164,11 @@ func _process(delta: float) -> void:
 			leaves.append({"id": id, "at": n.global_position, "door": w["door"], "walked": true})
 			n.queue_free()
 			_going.erase(id)
+	# names never cover one another: nearest first, a farther one lifted or faded (SliceLabelDeclutter)
+	var drawn: Array = nodes.values()
+	for id in _going:
+		drawn.append(_going[id]["node"])
+	SliceLabelDeclutter.settle(drawn, get_viewport().get_camera_3d(), delta)
 
 
 ## One frame of walking toward `to`; true once the figure stands on it.
@@ -157,6 +194,7 @@ func _walk(n: NPC, to: Vector3, speed: float, delta: float, rest_yaw: Variant) -
 ## A person no longer perceived: into the nearest bound door if one is close,
 ## else gone now.
 func _leave(id: String) -> void:
+	unseat(id)
 	var n: NPC = nodes[id]
 	nodes.erase(id)
 	var last: Vector3 = (_goal[id]["at"] as Vector3) if _goal.has(id) else n.global_position
