@@ -236,11 +236,7 @@ LAYERS.update({
         # S33-f (AC-f-2, AC-S33-3): every Lakeside sit point holds every body this checkout can build
         # within 20 mm of the drawn seat; bodies a checkout without LFS lacks are reported SKIP
         ["python3", "scripts/ci_godot.py", "slice", "--world=lakeside", "--seat"],
-        # S33-i (AC-i-4, ARC-175): the scripted MCP agent walks Lakeside while a real 3D client watches from
-        # the street; it needs the Python workspace, which the Linux and macOS jobs of this layer set up
-        ["uv", "sync", "--locked"],
-        ["cargo", "test", "-p", "mineworld-cli", "--test", "agent_with_3d_observer", "--", "--ignored",
-         "--test-threads=1"],
+        # S33-i's agent + 3D observer pair is its own layer, `agent-observer`, so that Windows runs it too.
         # S15 12e: bodies in the 3D client (step-11 §22.4; the QE-9 requirement on 13c's clients job)
         ["python3", "scripts/ci_godot.py", "slice", "--world", "--geometry"],
         ["python3", "scripts/ci_godot.py", "slice", "--world", "--bodies"],
@@ -277,13 +273,23 @@ LAYERS.update({
          "artifacts/nightly/props"],
         ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
     ],
+    # S33-i (AC-i-4, ARC-175): the scripted MCP agent walks Lakeside while a real 3D client watches from the
+    # street. It needs Godot and the Python workspace and no bash launcher, so unlike `clients-probes` it runs
+    # in all three `clients-<os>` jobs, after their `clients` layer, each of which sets up uv.
+    "agent-observer": [
+        ["uv", "sync", "--locked"],
+        ["cargo", "build", "-p", "mineworld-cli"],
+        ["cargo", "test", "-p", "mineworld-cli", "--test", "agent_with_3d_observer", "--", "--ignored",
+         "--test-threads=1"],
+        ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
+    ],
 })
 # The nightly's layers record how they ended (artifacts/nightly/layer-<layer>.txt): `started`, then
 # `passed` or `failed at: <command>`. The night's verdict reads it, so that a layer that never started is
 # INCONCLUSIVE and one that ran and failed is FAIL (I-13c-3). Per-PR layers write nothing.
 NIGHTLY_LAYERS = {
-    "parity-long", "stability", "core-repeat", "clients", "clients-probes", "farfield-3d", "memory-scale",
-    "speech",
+    "parity-long", "stability", "core-repeat", "clients", "clients-probes", "agent-observer", "farfield-3d",
+    "memory-scale", "speech",
 }
 
 # The Python workspace (sdk/python; DECISIONS.md DEP-26, ARC-48's note of 2026-10-08). Its tests never
