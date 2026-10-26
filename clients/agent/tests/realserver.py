@@ -168,6 +168,18 @@ def market_town(*flags: str) -> tuple[str, ...]:
     return ("--town", "--agent", "alice", *flags)
 
 
+def lakeside(*flags: str) -> tuple[str, ...]:
+    """Lakeside's server flags (S33-i): the pack roots every command on that world names (its world.yaml), so
+    its Entity Pack and Presentation Packs resolve."""
+    return (
+        "--packs",
+        str(REPOSITORY / "entities"),
+        "--packs",
+        str(REPOSITORY / "presentation" / "mineworld-default"),
+        *flags,
+    )
+
+
 def _export(command: str, world: str, save: Path, person: str) -> list[str]:
     done = subprocess.run(
         [
