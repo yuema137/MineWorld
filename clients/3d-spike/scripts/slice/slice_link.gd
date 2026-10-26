@@ -402,6 +402,41 @@ func _on_observed(obs: MineWorldObservation) -> void:
 	for id in change["left"]:
 		_say("%s is no longer in view" % display_label(id), "link.left_view",
 			{"who": shown_label(id)}, false, "lose %s at %s" % [id, gone[id]])
+	_log_drawn(obs, place)
+
+
+## `--observe-log=<file>` (S33-i, ARC-175): one JSON line per observation drawn -- the world's clock, the
+## place the body is in, and each figure drawn now with its entity id, the place it is bound to and where
+## it is drawn, in that place's frame (mm). A log only: nothing reads it back, and nothing drawn or sent
+## changes with it.
+var _observe_log: FileAccess = null
+var _observe_log_opened := false
+
+
+static func observe_log_from_args() -> String:
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--observe-log="):
+			return a.substr(14)
+	return ""
+
+
+func _log_drawn(obs: MineWorldObservation, place: String) -> void:
+	if not _observe_log_opened:
+		_observe_log_opened = true
+		var path := observe_log_from_args()
+		if path != "":
+			_observe_log = FileAccess.open(path, FileAccess.WRITE)
+			if _observe_log == null:
+				push_error("the observe log %s cannot be written: %s" % [path, FileAccess.get_open_error()])
+	if _observe_log == null:
+		return
+	var drawn := []
+	for id in figures:
+		var at := to_world(place, (figures[id] as Node3D).global_position)
+		drawn.append({"id": id, "place": place, "x": int(round(float(at.get("x", 0)))),
+			"y": int(round(float(at.get("y", 0))))})
+	_observe_log.store_line(JSON.stringify({"at": obs.at(), "place": place, "figures": drawn}))
+	_observe_log.flush()
 
 
 ## A figure carries a Zz while the world discloses it asleep (S35 N-e, AC-S35-10). The sleeping state is decided here,
