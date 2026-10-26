@@ -146,6 +146,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-171](ARC-171.md) | No prop moves unless the world moves it |
 | [ARC-172](ARC-172.md) | Lakeside's sit points are fixed in S33-f and written into world data by S34-c |
 | [ARC-173](ARC-173.md) | A client draws an activity only when the world discloses it; an undisclosed Process is not drawn |
+| [ARC-175](ARC-175.md) | Every world that ships a 3D depiction ships one recorded MCP scenario with a 3D observer, run in CI |
 | [ARC-177](ARC-177.md) | A world's 3D look is a data file of its Presentation Pack, drawn by generic builders |
 | [ARC-178](ARC-178.md) | A deck on piles is depiction data: the `decks` section of format 1 |
 | [ARC-192](ARC-192.md) | A station is drawn from a station kit, placed at a site, bound by role tag |
