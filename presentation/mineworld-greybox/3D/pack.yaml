@@ -1,0 +1,9 @@
+# The package identity of the greybox 3D Presentation Pack (docs/decisions/ARC-51.md,
+# docs/PACKAGE_FORMAT.md §5.0). Not the style manifest: manifest.yaml beside it describes the style.
+id: mineworld-greybox-3d
+type: presentation-pack
+version: 0.1.0
+mineworld: "^0.1"
+license: MIT
+authors: [Yue Ma]
+repository: https://github.com/yuema137/MineWorld

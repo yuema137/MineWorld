@@ -1,0 +1,8 @@
+{
+  "id": "kiosk",
+  "type": "prop_visual",
+  "format": {"model": "kiosk.glb", "rules": "materials/material_rules.yaml"},
+  "semantic_bindings": {"entrances": ["front_door"], "spaces": ["room"]},
+  "scale": {"unit": "meter"},
+  "license": {"spdx": "MIT"}
+}

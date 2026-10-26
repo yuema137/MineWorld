@@ -43,6 +43,8 @@ population:
   - ben
 seats:
   - ben
+settlement:
+  kind: none
 systems:
   - presence
   - movement

@@ -1,0 +1,176 @@
+{
+  "id": "social-cafe-cafe",
+  "type": "place_visual",
+  "format": {
+    "model": "social-cafe-cafe.glb",
+    "rules": "materials/material_rules.yaml"
+  },
+  "semantic_bindings": {
+    "entrances": [
+      "front_door"
+    ],
+    "spaces": [
+      "cafe_room"
+    ]
+  },
+  "doors": [
+    {
+      "name": "front_door",
+      "label": "The Daily Bean -- enterable",
+      "space": "cafe_room",
+      "depth_m": 0.34,
+      "floor_m": 0.15
+    }
+  ],
+  "presentation": {
+    "style_family": [
+      "mineworld-default-3d"
+    ]
+  },
+  "scale": {
+    "unit": "meter"
+  },
+  "license": {
+    "spdx": "MIT",
+    "sources": [
+      {
+        "what": "Poly Haven models and their textures, referenced by path from the 3D client's library (clients/3d-spike/ASSETS.md)",
+        "spdx": "CC0-1.0",
+        "url": "https://polyhaven.com/license",
+        "files": [
+          "assets/models/antique_ceramic_vase_01/antique_ceramic_vase_01.gltf",
+          "assets/models/antique_ceramic_vase_01/textures/antique_ceramic_vase_01_arm_1k.jpg",
+          "assets/models/antique_ceramic_vase_01/textures/antique_ceramic_vase_01_diff_1k.jpg",
+          "assets/models/antique_ceramic_vase_01/textures/antique_ceramic_vase_01_nor_gl_1k.jpg",
+          "assets/models/brass_pot_01/brass_pot_01.gltf",
+          "assets/models/brass_pot_01/textures/brass_pot_01_arm_1k.jpg",
+          "assets/models/brass_pot_01/textures/brass_pot_01_diff_1k.jpg",
+          "assets/models/brass_pot_01/textures/brass_pot_01_nor_gl_1k.jpg",
+          "assets/models/calathea_orbifolia_01/calathea_orbifolia_01.gltf",
+          "assets/models/calathea_orbifolia_01/textures/calathea_orbifolia_01_arm_1k.jpg",
+          "assets/models/calathea_orbifolia_01/textures/calathea_orbifolia_01_diff_1k.jpg",
+          "assets/models/calathea_orbifolia_01/textures/calathea_orbifolia_01_nor_gl_1k.jpg",
+          "assets/models/carrot_cake/carrot_cake.gltf",
+          "assets/models/carrot_cake/textures/carrot_cake_arm_1k.jpg",
+          "assets/models/carrot_cake/textures/carrot_cake_diff_1k.jpg",
+          "assets/models/carrot_cake/textures/carrot_cake_nor_gl_1k.jpg",
+          "assets/models/ceramic_vase_02/ceramic_vase_02.gltf",
+          "assets/models/ceramic_vase_02/textures/ceramic_vase_02_diff_1k.jpg",
+          "assets/models/ceramic_vase_02/textures/ceramic_vase_02_nor_gl_1k.jpg",
+          "assets/models/ceramic_vase_02/textures/ceramic_vase_02_rough_1k.jpg",
+          "assets/models/croissant/croissant.gltf",
+          "assets/models/croissant/textures/croissant_arm_1k.jpg",
+          "assets/models/croissant/textures/croissant_diff_1k.jpg",
+          "assets/models/croissant/textures/croissant_nor_gl_1k.jpg",
+          "assets/models/fancy_picture_frame_01/fancy_picture_frame_01.gltf",
+          "assets/models/fancy_picture_frame_01/textures/fancy_picture_frame_01_canvas_diff_1k.jpg",
+          "assets/models/fancy_picture_frame_01/textures/fancy_picture_frame_01_canvas_nor_gl_1k.jpg",
+          "assets/models/fancy_picture_frame_01/textures/fancy_picture_frame_01_canvas_rough_1k.jpg",
+          "assets/models/fancy_picture_frame_01/textures/fancy_picture_frame_01_diff_1k.jpg",
+          "assets/models/fancy_picture_frame_01/textures/fancy_picture_frame_01_nor_gl_1k.jpg",
+          "assets/models/fancy_picture_frame_01/textures/fancy_picture_frame_01_rough_1k.jpg",
+          "assets/models/food_apple_01/food_apple_01.gltf",
+          "assets/models/food_apple_01/textures/food_apple_01_diff_1k.jpg",
+          "assets/models/food_apple_01/textures/food_apple_01_nor_gl_1k.jpg",
+          "assets/models/food_apple_01/textures/food_apple_01_rough_1k.jpg",
+          "assets/models/hanging_industrial_lamp/hanging_industrial_lamp.gltf",
+          "assets/models/hanging_industrial_lamp/textures/hanging_industrial_lamp_arm_1k.jpg",
+          "assets/models/hanging_industrial_lamp/textures/hanging_industrial_lamp_diff_1k.jpg",
+          "assets/models/hanging_industrial_lamp/textures/hanging_industrial_lamp_emissive_1k.jpg",
+          "assets/models/hanging_industrial_lamp/textures/hanging_industrial_lamp_glass_nor_gl_1k.jpg",
+          "assets/models/hanging_industrial_lamp/textures/hanging_industrial_lamp_nor_gl_1k.jpg",
+          "assets/models/industrial_pipe_lamp/industrial_pipe_lamp.gltf",
+          "assets/models/industrial_pipe_lamp/textures/industrial_pipe_lamp_arm_1k.jpg",
+          "assets/models/industrial_pipe_lamp/textures/industrial_pipe_lamp_diff_1k.jpg",
+          "assets/models/industrial_pipe_lamp/textures/industrial_pipe_lamp_emission_1k.jpg",
+          "assets/models/industrial_pipe_lamp/textures/industrial_pipe_lamp_nor_gl_1k.jpg",
+          "assets/models/jug_01/jug_01.gltf",
+          "assets/models/jug_01/textures/jug_01_arm_1k.jpg",
+          "assets/models/jug_01/textures/jug_01_diff_1k.jpg",
+          "assets/models/jug_01/textures/jug_01_nor_gl_1k.jpg",
+          "assets/models/modern_ceiling_lamp_01/modern_ceiling_lamp_01.gltf",
+          "assets/models/modern_ceiling_lamp_01/textures/modern_ceiling_lamp_01_arm_1k.jpg",
+          "assets/models/modern_ceiling_lamp_01/textures/modern_ceiling_lamp_01_diff_1k.jpg",
+          "assets/models/modern_ceiling_lamp_01/textures/modern_ceiling_lamp_01_nor_gl_1k.jpg",
+          "assets/models/pot_enamel_01/pot_enamel_01.gltf",
+          "assets/models/pot_enamel_01/textures/pot_enamel_01_arm_1k.jpg",
+          "assets/models/pot_enamel_01/textures/pot_enamel_01_diff_1k.jpg",
+          "assets/models/pot_enamel_01/textures/pot_enamel_01_nor_gl_1k.jpg",
+          "assets/models/steel_frame_shelves_02/steel_frame_shelves_02.gltf",
+          "assets/models/steel_frame_shelves_02/textures/steel_frame_shelves_02_arm_1k.jpg",
+          "assets/models/steel_frame_shelves_02/textures/steel_frame_shelves_02_diff_1k.jpg",
+          "assets/models/steel_frame_shelves_02/textures/steel_frame_shelves_02_nor_gl_1k.jpg",
+          "assets/models/tea_set_01/tea_set_01.gltf",
+          "assets/models/tea_set_01/textures/tea_set_01_arm_1k.jpg",
+          "assets/models/tea_set_01/textures/tea_set_01_diff_1k.jpg",
+          "assets/models/tea_set_01/textures/tea_set_01_nor_gl_1k.jpg",
+          "assets/models/wall_clock/textures/wall_clock_arm_1k.jpg",
+          "assets/models/wall_clock/textures/wall_clock_diff_1k.jpg",
+          "assets/models/wall_clock/textures/wall_clock_glass_arm_1k.jpg",
+          "assets/models/wall_clock/textures/wall_clock_nor_gl_1k.jpg",
+          "assets/models/wall_clock/wall_clock.gltf",
+          "assets/models/wicker_basket_01/textures/wicker_basket_01_arm_1k.jpg",
+          "assets/models/wicker_basket_01/textures/wicker_basket_01_diff_1k.jpg",
+          "assets/models/wicker_basket_01/textures/wicker_basket_01_nor_gl_1k.jpg",
+          "assets/models/wicker_basket_01/wicker_basket_01.gltf",
+          "assets/models/wine_bottles_01/textures/wine_bottles_01_arm_1k.jpg",
+          "assets/models/wine_bottles_01/textures/wine_bottles_01_diff_1k.jpg",
+          "assets/models/wine_bottles_01/textures/wine_bottles_01_label_clearwater_crystals_01_arm_1k.jpg",
+          "assets/models/wine_bottles_01/textures/wine_bottles_01_label_clearwater_crystals_01_diff_1k.jpg",
+          "assets/models/wine_bottles_01/textures/wine_bottles_01_label_ftero_vinea_01_arm_1k.jpg",
+          "assets/models/wine_bottles_01/textures/wine_bottles_01_label_ftero_vinea_01_diff_1k.jpg",
+          "assets/models/wine_bottles_01/textures/wine_bottles_01_label_ftero_vinea_02_arm_1k.jpg",
+          "assets/models/wine_bottles_01/textures/wine_bottles_01_label_ftero_vinea_02_diff_1k.jpg",
+          "assets/models/wine_bottles_01/textures/wine_bottles_01_label_intertwine_01_arm_1k.jpg",
+          "assets/models/wine_bottles_01/textures/wine_bottles_01_label_intertwine_01_diff_1k.jpg",
+          "assets/models/wine_bottles_01/textures/wine_bottles_01_nor_gl_1k.jpg",
+          "assets/models/wine_bottles_01/textures/wine_bottles_01_paper_nor_gl_1k.jpg",
+          "assets/models/wine_bottles_01/wine_bottles_01.gltf",
+          "assets/models/wooden_bowl_01/textures/wooden_bowl_01_arm_1k.jpg",
+          "assets/models/wooden_bowl_01/textures/wooden_bowl_01_diff_1k.jpg",
+          "assets/models/wooden_bowl_01/textures/wooden_bowl_01_nor_gl_1k.jpg",
+          "assets/models/wooden_bowl_01/wooden_bowl_01.gltf",
+          "assets/models/wooden_crate_01/textures/wooden_crate_01_arm_1k.jpg",
+          "assets/models/wooden_crate_01/textures/wooden_crate_01_diff_1k.jpg",
+          "assets/models/wooden_crate_01/textures/wooden_crate_01_nor_gl_1k.jpg",
+          "assets/models/wooden_crate_01/wooden_crate_01.gltf"
+        ]
+      },
+      {
+        "what": "Poly Haven textures, referenced by path from the 3D client's library (clients/3d-spike/ASSETS.md)",
+        "spdx": "CC0-1.0",
+        "url": "https://polyhaven.com/license",
+        "files": [
+          "assets/textures/brown_planks_09/brown_planks_09_arm_1k.jpg",
+          "assets/textures/brown_planks_09/brown_planks_09_diff_1k.jpg",
+          "assets/textures/brown_planks_09/brown_planks_09_nor_gl_1k.jpg",
+          "assets/textures/concrete/concrete_arm_1k.jpg",
+          "assets/textures/concrete/concrete_diff_1k.jpg",
+          "assets/textures/concrete/concrete_nor_gl_1k.jpg",
+          "assets/textures/long_white_tiles/long_white_tiles_arm_1k.jpg",
+          "assets/textures/long_white_tiles/long_white_tiles_diff_1k.jpg",
+          "assets/textures/long_white_tiles/long_white_tiles_nor_gl_1k.jpg",
+          "assets/textures/painted_plaster_wall/painted_plaster_wall_arm_1k.jpg",
+          "assets/textures/painted_plaster_wall/painted_plaster_wall_diff_1k.jpg",
+          "assets/textures/painted_plaster_wall/painted_plaster_wall_nor_gl_1k.jpg",
+          "assets/textures/red_bricks_04/red_bricks_04_arm_1k.jpg",
+          "assets/textures/red_bricks_04/red_bricks_04_diff_1k.jpg",
+          "assets/textures/red_bricks_04/red_bricks_04_nor_gl_1k.jpg",
+          "assets/textures/sandstone_blocks_05/sandstone_blocks_05_arm_1k.jpg",
+          "assets/textures/sandstone_blocks_05/sandstone_blocks_05_diff_1k.jpg",
+          "assets/textures/sandstone_blocks_05/sandstone_blocks_05_nor_gl_1k.jpg",
+          "assets/textures/wood_floor_worn/wood_floor_worn_arm_1k.jpg",
+          "assets/textures/wood_floor_worn/wood_floor_worn_diff_1k.jpg",
+          "assets/textures/wood_floor_worn/wood_floor_worn_nor_gl_1k.jpg",
+          "assets/textures/wood_table_worn/wood_table_worn_arm_1k.jpg",
+          "assets/textures/wood_table_worn/wood_table_worn_diff_1k.jpg",
+          "assets/textures/wood_table_worn/wood_table_worn_nor_gl_1k.jpg"
+        ]
+      }
+    ]
+  },
+  "source": {
+    "tool": "tools/presentation/export_place_art.gd",
+    "authoring": "tools/presentation/social_cafe/source.gd"
+  }
+}

@@ -1,0 +1,16 @@
+# employment.occupation (S30-f §5.10; step-30 §9.4, the named exception; Q-S30a-2, Q-S30f-3): the holder's
+# job title, projected from employment's own `Employment { job }`. Shipped with the pack (ships_data!);
+# it exists only where a world enables `attributes`. A derived value is never handed or stated.
+format: 1
+attributes:
+  occupation:
+    group: background
+    facets: [prompt]
+    prompt_rank: 205
+    kind: { text: { max_bytes: 40 } }
+    visibility: learnable
+    mutability: derived
+    derive: projection
+    owner: employment
+    label: Occupation
+    phrase: "works as {value}"

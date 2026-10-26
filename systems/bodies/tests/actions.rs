@@ -249,7 +249,10 @@ fn shoved_facts(moved: &Moved) -> Vec<String> {
         .iter()
         .map(|event| {
             let kind = event.event_type().as_str().to_owned();
-            if kind != "object-moved" && kind != "person-entered-place" {
+            if !matches!(
+                kind.as_str(),
+                "object-moved" | "person-entered-place" | "gave-way"
+            ) {
                 assert_eq!(*event.caused_by(), Causation::Action(moved.id), "{kind}");
                 assert_eq!(event.provenance().emitted_by().as_str(), "bodies", "{kind}");
             }

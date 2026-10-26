@@ -6,23 +6,26 @@ For one body and its registered template T_P, and an outfit's parts (garments an
 1. each part's neutral-rest `garment.glb` is placed on T_P by the `.mhclo` formula (`binding.bin`), the same rule
    as `mwcast/wardrobe/garment_format.py` `fit` and `godot/wardrobe/fit_at_load.gd`; the raw fitted positions are
    written per part (`<part>_blender.bin`, body mesh frame) for W-9;
-2. body push-out (L-b, ARC-138 ruling 2026-10-19): a part vertex inside the body or less than 2 mm outside it
-   moves to 2 mm outside the nearest body surface point (within 100 mm);
-   then layer push-out in slot order (inner first): a vertex of an outer part lying less than 2 mm outside the
-   outermost inner surface along its normal is moved to 2 mm outside it;
+2. the push-out (L-b, ARC-138; S36-P3) runs between two phases. `"phase": "fit"` does step 1, the stretched-face
+   drop and the plants for every part, writes each part's and the body's arrays (`<id>_fitted.npy`,
+   `<id>_faces.npy`, `body_region.npy`) and stops. Python (`mwcast/wardrobe/pushout.py`, by winding number,
+   inner layer to outer) writes `<id>_pushed.npy`. `"phase": "finish"` repeats the deterministic fit, loads the
+   pushed positions (a count mismatch is refused by name) and goes on with steps 3-5;
 3. skin weights by the part's rule: `inherit` (the template's weights, combined with the record's barycentric
    weights, negatives clamped, four largest, normalised) or `rigid <bone>`;
 4. the body loses every triangle whose three vertices map (`corr.bin`) to template vertices all hidden by the
    worn parts' `hides.bin`;
 5. export: one armature, the body (`Body`, material `MW_Cast`), one skinned mesh per part named `part_<id>` with
-   one material `MW_Cast_<id>` (F-S32p-4, F-S32p-5); scene extras carry each part's provenance.
+   one material `MW_Cast_<id>` (F-S32p-4, F-S32p-5); scene extras carry each part's provenance. Beside them,
+   never drawn: `BodyCheck` (the unmasked body) and `PartCheck_<id>` (each part before the inner-face removal),
+   the uncut shells C-2 and W-4w judge (S36-P3b).
 
 The body mask of step 4 also removes a face with any vertex inside a worn part (generalized winding number,
 libigl through `mwcast/contact.py`) within 15 mm of it (D-impl-22); that query runs in the
 pipeline's Python (`contact_python`, `pipeline_root`), since Blender's cannot load libigl.
 
-Params: {"body": glb, "template": bin, "weights": bin, "corr": bin, "out": glb, "out_dir": dir,
-         "contact_python": path, "pipeline_root": dir,
+Params: {"phase": "fit" | "finish", "body": glb, "template": bin, "weights": bin, "corr": bin, "out": glb,
+         "out_dir": dir, "regions": json, "contact_python": path, "pipeline_root": dir,
          "parts": [{"id", "dir", "layer", "weights": "inherit" | "rigid <bone>", "provenance": {...}}]}
 """
 
@@ -41,10 +44,6 @@ import numpy as np  # noqa: E402 - bundled with Blender
 from mathutils import Vector  # noqa: E402
 from mathutils.bvhtree import BVHTree  # noqa: E402
 
-PUSH_M = 0.002  # 2 mm, ≈ cloth thickness (step-32 §6.2 layer push-out; W-4's 2 mm)
-REACH_M = 0.05  # how far outside an outer vertex the inward ray starts
-BODY_REACH_M = 0.10  # L-b: the inward ray starts this far outside the part vertex
-SINK_MAX_M = 0.04  # L-b: a part vertex at most 40 mm under the skin is pushed out; deeper means another limb
 STRETCH_MAX = 3.0  # L-b: a fitted edge longer than 3x its rest length (G-9's stretch bound) ...
 STRETCH_MIN_M = 0.02  # ... and longer than 20 mm drops its triangle
 COVER_INSIDE_M = 0.015  # L-b: skin with a worn part up to 15 mm beneath it is hidden as well
@@ -172,6 +171,58 @@ def inside_parts(p, out_dir, tag, points, objs):
     return np.load(answer)
 
 
+def shrink_chest(obj, mm):
+    """M-p-1 / X-S32-5: the upper front of the shell moved inward along its normals by `mm`."""
+    zs = [v.co.z for v in obj.data.vertices]
+    chest_lo = min(zs) + 0.55 * (max(zs) - min(zs))
+    front = sorted(v.co.y for v in obj.data.vertices)[len(obj.data.vertices) // 4]
+    shrunk = 0
+    for v in obj.data.vertices:
+        if v.co.z >= chest_lo and v.co.y <= front:  # upper front (the body faces -Y in Blender)
+            v.co -= v.normal.normalized() * (mm / 1000.0)
+            shrunk += 1
+    obj.data.update()
+    return shrunk
+
+
+def world_positions(obj):
+    mw = obj.matrix_world
+    return [tuple(mw @ v.co) for v in obj.data.vertices]
+
+
+def triangles_of(obj):
+    """The mesh's faces as triangles (a fan per polygon), vertex indices unchanged."""
+    out = []
+    for poly in obj.data.polygons:
+        ids = list(poly.vertices)
+        out += [(ids[0], ids[k], ids[k + 1]) for k in range(1, len(ids) - 1)]
+    return out
+
+
+def write_arrays(out_dir, name, positions, faces, region=None):
+    """The fit phase's hand-off to the Python push-out: `<name>_fitted.npy` (float64, Blender world frame),
+    `<name>_faces.npy` (int32) and, for the body, `<name>_region.npy` (int32, -1 where none)."""
+    np.save(out_dir / f"{name}_fitted.npy", np.asarray(positions, dtype=np.float64).reshape(-1, 3))
+    np.save(out_dir / f"{name}_faces.npy", np.asarray(faces, dtype=np.int32).reshape(-1, 3))
+    if region is not None:
+        np.save(out_dir / f"{name}_region.npy", np.asarray(region, dtype=np.int32))
+
+
+def read_pushed(path, count, name):
+    if not path.exists():
+        raise SystemExit(f"{name}: {path} is missing (run the push-out between the fit and finish phases)")
+    pushed = np.load(path)
+    if pushed.shape != (count, 3):
+        raise SystemExit(f"{name}: {path} holds {pushed.shape[0]} positions for {count} vertices")
+    return [tuple(float(c) for c in row) for row in pushed]
+
+
+def body_regions(corr, regions_path):
+    """Each body vertex's region index (of its corresponding template triangle), -1 where none."""
+    region_of = json.loads(Path(regions_path).read_text(encoding="utf-8"))["vertex_region"]
+    return [next((region_of[t] for t in tri if region_of[t] >= 0), -1) for tri in corr]
+
+
 def import_glb(path):
     before = set(bpy.data.objects)
     bpy.ops.import_scene.gltf(filepath=str(path))
@@ -195,9 +246,14 @@ def main():
     corr = read_corr(p["corr"])
     report = {"parts": {}, "hidden_template_vertices": 0, "body_triangles_removed": 0}
 
-    body_bvh = BVHTree.FromPolygons(
-        [to_world @ v.co for v in body.data.vertices], [tuple(f.vertices) for f in body.data.polygons]
-    )
+    phase = p.get("phase")
+    if phase not in ("fit", "finish"):
+        raise SystemExit(f"assemble: 'phase' must be 'fit' or 'finish', got {phase!r}")
+    if phase == "fit":
+        # the unmasked body (the future BodyCheck) and each vertex's region: the push-out's under surface
+        write_arrays(
+            out_dir, "body", world_positions(body), triangles_of(body), body_regions(corr, p["regions"])
+        )
     parts = sorted(p["parts"], key=lambda part: part["layer"])
     placed = []  # (part, object) inner first
     hidden = set()
@@ -242,67 +298,41 @@ def main():
         # A planted mutation (test only, never a deliverable): M-p-1 / X-S32-5, the shell shrunk on the chest.
         plant = part.get("plant_shrink_chest_mm")
         if plant:
-            chest_lo = min(v.co.z for v in obj.data.vertices) + 0.55 * (
-                max(v.co.z for v in obj.data.vertices) - min(v.co.z for v in obj.data.vertices)
-            )
-            front = sorted(v.co.y for v in obj.data.vertices)[len(obj.data.vertices) // 4]
-            shrunk = 0
-            for v in obj.data.vertices:
-                if v.co.z >= chest_lo and v.co.y <= front:  # upper front (the body faces -Y in Blender)
-                    v.co -= v.normal.normalized() * (float(plant) / 1000.0)
-                    shrunk += 1
-            obj.data.update()
+            shrunk = shrink_chest(obj, float(plant))
             report.setdefault("planted", {})[part["id"]] = {"shrink_mm": plant, "vertices": shrunk}
             mc.log("PLANTED", part["id"], "chest shrunk", plant, "mm on", shrunk, "vertices")
-        # L-b (ARC-138 ruling 2026-10-19): the body is the innermost layer. A part vertex inside the body, or
-        # less than 2 mm outside it, moves to 2 mm outside the body surface met by a ray cast inward along the
-        # part's own normal from 100 mm outside (rest pose): the outermost body surface along the normal, so a
-        # vertex sunk deep in a thigh still finds the skin above it (a nearest-point test did not).
-        moved = 0
-        body_pushed = 0
-        mw = obj.matrix_world
-        inv = mw.inverted()
-        n3 = mw.to_3x3()
-        for v in obj.data.vertices:
-            world = mw @ v.co
-            normal = (n3 @ v.normal).normalized()
-            hit, skin_n, _i, _d = body_bvh.ray_cast(world + normal * BODY_REACH_M, -normal, BODY_REACH_M * 2)
-            if hit is None:
-                continue
-            gap = (world - hit).dot(normal)
-            if -SINK_MAX_M < gap < PUSH_M:  # a deeper "sink" is another limb in the ray's way, not this skin
-                # out along the skin's normal (the part's own normals are noisy and crumple the shell)
-                out_n = skin_n if skin_n.dot(normal) > 0 else -skin_n
-                v.co = inv @ (hit + out_n * PUSH_M)
-                body_pushed += 1
-        obj.data.update()
-        # Layer push-out against the parts already placed (inner layers).
-        if placed:
-            deps = bpy.context.evaluated_depsgraph_get()
-            verts, polys = [], []
-            for _inner, inner_obj in placed:
-                mesh = inner_obj.evaluated_get(deps).to_mesh()
-                base = len(verts)
-                verts += [inner_obj.matrix_world @ v.co for v in mesh.vertices]
-                polys += [tuple(base + i for i in poly.vertices) for poly in mesh.polygons]
-                inner_obj.evaluated_get(deps).to_mesh_clear()
-            bvh = BVHTree.FromPolygons(verts, polys)
-            mw = obj.matrix_world
-            inv = mw.inverted()
+        # A planted mutation (test only, S36-P3): the whole shell scaled about its centroid by this percentage.
+        scale_pct = part.get("plant_scale_pct")
+        if scale_pct:
+            centre = sum((v.co for v in obj.data.vertices), Vector()) / len(obj.data.vertices)
             for v in obj.data.vertices:
-                world = mw @ v.co
-                normal = (mw.to_3x3() @ v.normal).normalized()
-                hit, inner_n, _i, _d = bvh.ray_cast(world + normal * REACH_M, -normal, REACH_M * 2)
-                if hit is None:
-                    continue
-                gap = (world - hit).dot(normal)
-                if gap < PUSH_M and gap > -REACH_M:
-                    # along the inner surface's normal (L-b): the part's own normals are noisy at hems and
-                    # openings, and pushing along them drew spikes on the hoodie's edges
-                    out_n = inner_n if inner_n.dot(normal) > 0 else -inner_n
-                    v.co = inv @ (hit + out_n * PUSH_M)
-                    moved += 1
+                v.co = centre + (v.co - centre) * (1.0 + float(scale_pct) / 100.0)
             obj.data.update()
+            report.setdefault("planted", {})[part["id"] + "_scale"] = {"scale_pct": scale_pct}
+            mc.log("PLANTED", part["id"], "scaled", scale_pct, "%")
+        # The push-out (S36-P3; L-b's rule, ARC-138) runs in Python between the two phases, by winding number
+        # (`mwcast/wardrobe/pushout.py`): the fit phase writes each part's fitted positions and faces, and the
+        # finish phase loads the pushed positions. Nothing is installed into Blender (I-P3-2).
+        if phase == "fit":
+            write_arrays(out_dir, part["id"], world_positions(obj), triangles_of(obj))
+            report["parts"][part["id"]] = {
+                "vertices": len(records),
+                "stretched_triangles_dropped": len(stretched),
+            }
+            continue
+        pushed = read_pushed(out_dir / f"{part['id']}_pushed.npy", len(obj.data.vertices), part["id"])
+        inv = obj.matrix_world.inverted()
+        for v, world in zip(obj.data.vertices, pushed):
+            v.co = inv @ Vector(world)
+        obj.data.update()
+        # A planted mutation (test only, never a deliverable): the chest shrunk after the push-out, so the
+        # push-out cannot repair it and C-2 / W-4w must see it.
+        late = part.get("plant_after_pushout_mm")
+        if late:
+            shrunk = shrink_chest(obj, float(late))
+            entry = {"shrink_mm": late, "vertices": shrunk}
+            report.setdefault("planted", {})[part["id"] + "_after_pushout"] = entry
+            mc.log("PLANTED", part["id"], "chest shrunk after the push-out", late, "mm on", shrunk)
         # Weights.
         for vg in list(obj.vertex_groups):
             obj.vertex_groups.remove(vg)
@@ -326,12 +356,15 @@ def main():
         placed.append((part, obj))
         report["parts"][part["id"]] = {
             "vertices": len(records),
-            "pushed_out": moved,
-            "pushed_out_of_body": body_pushed,
             "stretched_triangles_dropped": len(stretched),
             "layer": part["layer"],
         }
-        mc.log("part", part["id"], "vertices", len(records), "pushed out", moved)
+        mc.log("part", part["id"], "vertices", len(records))
+
+    if phase == "fit":
+        mc.write_result(out_dir / "assemble_fit.json", report)
+        mc.log("fit phase done", out_dir)
+        return
 
     # W-4's reference body: the whole body, unmasked, exported beside the drawn one as `BodyCheck` (never drawn:
     # the pose sheet hides it and judges with it; the static gates skip it). The mask hides skin; W-4 asks
@@ -340,6 +373,17 @@ def main():
     check.data = body.data.copy()
     check.name = "BodyCheck"
     bpy.context.scene.collection.objects.link(check)
+    # S36-P3b (Q-S36-P3-4): each part as it stands before the inner-face removal below, exported beside the drawn
+    # one as `PartCheck_<id>` (never drawn, never part of a cover or mask computation). C-2 and W-4w read these
+    # uncut shells, so a poke under an outer layer stays visible where the drawn inner shell has been cut.
+    uncut = []
+    for part, part_obj in placed:
+        copy = part_obj.copy()
+        copy.data = part_obj.data.copy()
+        copy.name = f"PartCheck_{part['id']}"
+        copy.data.name = copy.name
+        bpy.context.scene.collection.objects.link(copy)
+        uncut.append((part, copy))
     # L-b, the fitted cover: a body vertex is also hidden when the ray along its outward normal meets a worn
     # (non-rigid) part within 50 mm in the assembled rest pose. The template hidden sets are computed on each
     # garment's own clay; this one is computed on the fit actually drawn, so skin under a close garment does not
@@ -438,11 +482,7 @@ def main():
     # Each body vertex's region (of its corresponding template triangle) rides in a second UV map, `u` = region
     # index + 0.5 (glTF TEXCOORD_1, Godot ARRAY_TEX_UV2), so the pose sheet's W-4 knows a vertex's region however
     # the exporter and the importer order the vertices. Parts carry u = -1 (no region).
-    region_of = json.loads(Path(p["regions"]).read_text(encoding="utf-8"))["vertex_region"]
-    body_region = []
-    for tri in corr:
-        found = next((region_of[t] for t in tri if region_of[t] >= 0), -1)
-        body_region.append(found)
+    body_region = body_regions(corr, p["regions"])
 
     # `v` says whether the vertex lies under an outer layer in the rest pose (v = 1.5) or not (v = 0.5): its
     # outward normal meets a part of a higher layer (any part, for the body) within 50 mm. W-4 judges only
@@ -467,7 +507,7 @@ def main():
             flags.append(bvh.ray_cast(mw @ v.co + n * 0.0005, n, 0.05)[0] is not None)
         return flags
 
-    targets = [(body, None, -1.0), (check, None, -1.0)] + [(o, -1, prt["layer"]) for prt, o in placed]
+    targets = [(body, None, -1.0), (check, None, -1.0)] + [(o, -1, prt["layer"]) for prt, o in placed + uncut]
     for obj, values, layer_value in targets:
         flags = under_flags(obj, layer_value)
         layer = obj.data.uv_layers.new(name="region")
@@ -482,7 +522,7 @@ def main():
     arm.select_set(True)
     body.select_set(True)
     check.select_set(True)
-    for _part, obj in placed:
+    for _part, obj in placed + uncut:
         obj.select_set(True)
     bpy.context.view_layer.objects.active = arm
     bpy.ops.export_scene.gltf(

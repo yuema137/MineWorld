@@ -187,3 +187,70 @@ fn the_same_observation_and_seed_decide_the_same() {
         decide(&settings, 7, PACE, STRIDE, &observation)
     );
 }
+
+/// The observer alone in the cafe, its own `traits` disclosing `chronotype` as `value` (a level), or
+/// nothing when `None`.
+fn with_chronotype(value: Option<&str>) -> Observation<Value> {
+    use mineworld_attributes_model::Traits;
+    use mineworld_contracts::ComponentRecord;
+    let mut me = PerceivedEntity::new(id(ME), EntityType::Person).at(here());
+    if let Some(value) = value {
+        let block = serde_json::json!({ "schema": 2, "entries": [ { "attribute": "town.chronotype",
+            "kind": "level", "label": "Chronotype", "facets": ["decision"],
+            "value": { "level": value, "rank": 0 }, "text": "an early riser" } ] });
+        me = me.with_components(vec![ComponentRecord::new::<Traits>(id(ME), block)]);
+    }
+    Observation::new(id(ME), WorldTime::from_seconds(NOON))
+        .at_location(here())
+        .perceiving(vec![me])
+        .offering(Vec::new())
+}
+
+/// Settings whose `attributes` entry scores `stay` by the observer's own chronotype.
+fn chronotype_settings() -> Settings {
+    use mineworld_decision::ModelParameters;
+    let text = r#"{"attributes": [{"attribute": "town.chronotype", "option": "stay",
+        "by": {"early-bird": 1000, "night-owl": 450}}]}"#;
+    let mut deserializer = serde_json::Deserializer::from_str(text);
+    crate::MotivatedParameters::decode(&mut deserializer)
+        .expect("accepted")
+        .settings()
+        .clone()
+}
+
+/// AC-f-6 (S30-f §5.7): a disclosed, named value adds the `Attribute` consideration with its value; an
+/// absent value adds nothing — not a neutral 1 000 (M-f-6) — so the score is what it was.
+#[test]
+fn an_attribute_consideration_is_added_only_when_my_value_is_disclosed_and_named() {
+    use crate::considerations::Consideration;
+    let settings = chronotype_settings();
+    let stay_of = |observation: &Observation<Value>, settings: &Settings| {
+        crate::explain(settings, observation)
+            .expect("in the observation")
+            .into_iter()
+            .find(|scored| scored.choice == Choice::Stay)
+            .expect("stay is offered")
+    };
+    let early = stay_of(&with_chronotype(Some("early-bird")), &settings);
+    assert!(
+        early
+            .considerations
+            .contains(&(Consideration::Attribute(0), 1_000)),
+        "{:?}",
+        early.considerations
+    );
+    let late = stay_of(&with_chronotype(Some("night-owl")), &settings);
+    assert!(
+        late.considerations
+            .contains(&(Consideration::Attribute(0), 450)),
+        "{:?}",
+        late.considerations
+    );
+    let defaults = Settings::defaults();
+    for value in [None, Some("neutral")] {
+        let observation = with_chronotype(value);
+        let absent = stay_of(&observation, &settings);
+        let without = stay_of(&observation, &defaults);
+        assert_eq!(absent, without, "{value:?}: nothing is appended");
+    }
+}

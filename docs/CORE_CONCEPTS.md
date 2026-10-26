@@ -589,7 +589,8 @@ Solid.furnishing   optional key: the furnishing this solid belongs to
   could put it elsewhere: tables, chairs, stools, shelf units, potted plants, benches, lamp posts. It is
   the place's **shell** when it is part of the building: walls, a fitted counter, a built-in bench, a
   dresser built into the wall, a door leaf. A shell solid names no furnishing and is drawn by the
-  client's depiction of the place.
+  Presentation Pack's depiction of the place, or, where the pack has none, plainly from disclosure
+  (`ARC-52`).
 - **"Fixture" is not the term.** The repository uses it for test fixtures and sample worlds.
 
 A furnishing is disclosed inside the place's `place-shape`, to whoever perceives the place: today the
@@ -645,6 +646,10 @@ of forks, plates, and coins.
 In MVP-0, an Item authored in a World Pack is an item kind, and what anybody holds of it is a count
 of that kind: stacked items only ([`DECISIONS.md`](DECISIONS.md) `ARC-36`).
 
+An item kind may carry an authored **reference value**, its typical worth in the world's currency. It is never a
+price: nobody is charged it, and what a kind costs is always the asking price of the seller one buys from
+(`ARC-113`, `ARC-112`).
+
 ---
 
 # 8. Organization
@@ -675,6 +680,10 @@ Alice         --employee---> Lakeside Cafe
 Lakeside Cafe --occupies---> Building_12
 Bob           --student----> UCSD
 ```
+
+An Organization sells through a shop: a Place where its asking prices are on display and can be bought without
+the Organization being present. The Persons its shop names as keepers change those prices while standing in the
+shop (`ARC-112`). A Person sells for itself, face to face.
 
 ---
 

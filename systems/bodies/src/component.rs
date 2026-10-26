@@ -98,6 +98,22 @@ pub struct Solid {
 }
 
 impl Solid {
+    /// A solid from its footprint, its height and the furnishing it belongs to, unchecked: the
+    /// `body:` section builds one per authored solid and hands them all to [`PlaceShape::checked`].
+    pub(crate) const fn authored(
+        min: Corner,
+        max: Corner,
+        height: Millimetres,
+        furnishing: Option<FurnishingKey>,
+    ) -> Self {
+        Self {
+            min,
+            max,
+            height,
+            furnishing,
+        }
+    }
+
     /// The furnishing this solid belongs to, if it names one.
     pub const fn furnishing(&self) -> Option<&FurnishingKey> {
         self.furnishing.as_ref()

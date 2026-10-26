@@ -44,6 +44,8 @@ var gi_mode := GI.VOXEL
 var _env: Environment
 var hud: ControlsHud = null
 var _hud_place: Label = null
+## The depiction's note (Q-S33c-1), worded again when the language changes; null without one.
+var _hud_note: Label = null
 
 ## The player's settings (S20, `res://mineworld_settings`, `clients/shared/SETTINGS.md`): read and
 ## applied first, before anything is drawn; the menu opens with Esc.
@@ -55,6 +57,8 @@ var _look_before := [true, false]
 var _holds := 0                    ## menus open now (`_hold_input`)
 ## Connected only: your menu (B) and the menu of the person you look at (Tab) (PR 16d).
 var offer_menu: SliceOfferMenu = null
+## Connected only: the typed line E opens to say something to the person you look at (PR 16g1).
+var talk_line: SliceTalkLine = null
 ## The world clock, the sun rig and the host module (TW-e, SET-c; `slice_clock.gd`).
 var clock: SliceClock
 
@@ -63,15 +67,31 @@ func _ready() -> void:
 	var low := _low_render_cost()
 	if low:
 		MineWorldDisplay.render_scale_factor = LOW_RENDER_SCALE
+	# the pack before anything reads it, the wording included (ARC-51)
+	if not SlicePack.select().ok():
+		_refuse(SlicePack.current.refusal_line())
+		return
 	_settings()
+	# the depiction before the far field, so a missing depiction is named as such (ARC-146)
+	if not _open_depiction():
+		return
 	if not _load_far_field():
 		return
 	gi_mode = GI.NONE if low else _gi_from_args()
 	_environment()
 	_sun()
 	# connected or not is known from the arguments before anything is built
-	world = SliceWorld.build(self, far_field, SliceLink.address_from_args() != "")
+	world = depiction.build(self, far_field, SliceLink.address_from_args() != "")
+	if depiction.refusal != "":
+		_refuse(depiction.refusal)   # a station kit or site refused by name (ARC-192)
+		world.queue_free()
+		world = null                 # nothing is played on a refused world (`_process`)
+		return
+	_decor()
 	_gi()
+	if not SliceTrial.apply(self):
+		get_tree().quit(2)
+		return
 	_reflections()
 	if low:
 		_cost_effects_off()
@@ -81,7 +101,7 @@ func _ready() -> void:
 	clock.setup(settings_store, self, _env, _scripted() or SliceSun.fixed_requested())
 	_hud()
 	if not _wording():
-		MineWorldText.load_layers("", PackedStringArray(), false)  # the HUD loads catalogs if none are
+		MineWorldText.load_layers(SlicePack.current.dir, PackedStringArray(), false)  # the HUD loads catalogs if none are
 	_link()
 
 	if _scripted():
@@ -89,6 +109,8 @@ func _ready() -> void:
 			probe = SliceProbeMarket.new()
 		elif SliceProbeBodies.requested():
 			probe = SliceProbeBodies.new()
+		elif SliceProbeProps.requested():
+			probe = SliceProbeProps.new()
 		elif SliceProbeGeometry.requested():
 			probe = SliceProbeGeometry.new()
 		elif SliceProbeTown.requested():
@@ -102,38 +124,39 @@ func _ready() -> void:
 		add_child(probe)
 
 
-## The world this scene presents: the slice *is* `social-cafe`'s street (RL-e0 SD-FF-7; 16f
-## generalises the 3D pack), so its far field is that world's.
-const WORLD_KEY := "social-cafe"
-## The 3D Presentation Pack, from this project's folder. The only part of the pack the slice reads
-## before 16f is `far_field/` (RL-e0 SD-FF-6).
-const PACK_DIR := "../../presentation/mineworld-default/3D"
-
+## The world this scene presents, by its key (`SliceWorlds.key()`), and the depiction that draws it
+## (ARC-144). "" when a join named no world: the far-field loader then refuses, unchanged.
+var world_key := ""
+var depiction: SliceDepiction = null
 ## The Presentation Pack's far field for this world (`docs/MODULE_SPEC.md` sec.6.1.1).
 var far_field: MineWorldFarField = null
 
 
-## Reads the far field before anything is drawn. A missing or faulty one is refused by name: printed,
-## shown, and in a scripted or harness run the process exits 3. There is no fallback (ARC-102).
-##
-## `--slice-far-field-file=<path>` draws another far-field file on this street instead -- another
-## world's, or a generated variant -- validated exactly as the pack's own (its scope must equal its
-## file's stem). It is how the rendered check is proven not to depend on one world's numbers
-## (RL-e0b; `scripts/far_field_variant.py` writes rotated variants).
-func _load_far_field() -> bool:
-	var dir := ProjectSettings.globalize_path("res://").path_join(PACK_DIR).simplify_path()
-	var file := ""
-	for arg in OS.get_cmdline_user_args():
-		if arg.begins_with("--slice-far-field-file="):
-			file = arg.trim_prefix("--slice-far-field-file=")
-	if file == "":
-		far_field = MineWorldFarField.load_for(dir, WORLD_KEY, "3d")
-	else:
-		far_field = MineWorldFarField.load_file(file, PackedStringArray(["3d"]))
-		print("far field from %s" % file)
-	if far_field.ok():
+## Opens the world's depiction: its own, or the plain drawing from disclosure (16f-b, ARC-52). A key
+## that is no world key is refused by name (PRESENTATION_WORLD_MISSING, ARC-146): printed, shown, and in
+## a scripted or harness run the process exits 3.
+func _open_depiction() -> bool:
+	world_key = SliceWorlds.key()
+	if world_key == "":
 		return true
-	var line := far_field.refusal_line("slice")
+	depiction = SliceWorlds.open(world_key)
+	if depiction is SliceDataDepiction:
+		# drawn from a depiction file (ARC-177): a refused file refuses the run by name
+		var data := depiction as SliceDataDepiction
+		if not data.loaded():
+			_refuse(data.refusal_line())
+			return false
+		print("[slice] world %s, drawn by SliceDataDepiction from %s" % [world_key, data.resolved_path()])
+		return true
+	if depiction != null:
+		print("[slice] world %s, drawn by %s" % [world_key, SliceWorlds.source])
+		return true
+	_refuse(SliceWorlds.refusal_line(world_key))
+	return false
+
+
+## A refusal by name: printed, shown full-screen, and in a scripted or harness run the process exits 3.
+func _refuse(line: String) -> void:
 	printerr(line)
 	print(line)
 	var layer := CanvasLayer.new()
@@ -150,6 +173,40 @@ func _load_far_field() -> bool:
 		harness = harness or arg.begins_with("--slice-")
 	if harness:
 		get_tree().quit(3)
+
+
+## The depiction's decorative figures (S33-g §5.3), drawn from the extras it asks for; none for a
+## depiction that states none (Social Café's street keeps its own, D-16c-6).
+func _decor() -> void:
+	if depiction.decor().is_empty():
+		return
+	var cast := SliceCast.load_pack(SlicePack.current.dir)
+	cast.use_extras_from(depiction.extras_from(), depiction.key)
+	SliceDecor.build(world, depiction, cast)
+
+
+## Reads the far field before anything is drawn. A missing or faulty one is refused by name: printed,
+## shown, and in a scripted or harness run the process exits 3. There is no fallback (ARC-102).
+##
+## `--slice-far-field-file=<path>` draws another far-field file on this street instead -- another
+## world's, or a generated variant -- validated exactly as the pack's own (its scope must equal its
+## file's stem). It is how the rendered check is proven not to depend on one world's numbers
+## (RL-e0b; `scripts/far_field_variant.py` writes rotated variants).
+func _load_far_field() -> bool:
+	var dir := SlicePack.current.dir
+	var file := ""
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--slice-far-field-file="):
+			file = arg.trim_prefix("--slice-far-field-file=")
+	if file == "":
+		far_field = MineWorldFarField.load_for(dir, depiction.far_field_key() if depiction != null else "",
+			"3d")
+	else:
+		far_field = MineWorldFarField.load_file(file, PackedStringArray(["3d"]))
+		print("far field from %s" % file)
+	if far_field.ok():
+		return true
+	_refuse(far_field.refusal_line("slice"))
 	return false
 
 
@@ -157,23 +214,25 @@ func _load_far_field() -> bool:
 static func _scripted() -> bool:
 	return SliceProbe.scripted() or SliceProbeWorld.requested() or SliceProbeTown.requested() \
 		or SliceProbeMarket.requested() \
-		or SliceProbeGeometry.requested() or SliceProbeBodies.requested()
+		or SliceProbeGeometry.requested() or SliceProbeBodies.requested() or SliceProbeProps.requested()
 
 
 ## Every probe mode is a harness flag: a scripted run never reads the player's settings (INV-SET-5).
 static func harness_flags() -> PackedStringArray:
 	var out := PackedStringArray()
 	for mode in SliceProbe.MODES + SliceProbeWorld.WORLD_MODES + SliceProbeTown.TOWN_MODES \
-			+ SliceProbeMarket.MARKET_MODES + SliceProbeGeometry.GEOMETRY_MODES + SliceProbeBodies.BODIES_MODES:
+			+ SliceProbeMarket.MARKET_MODES + SliceProbeGeometry.GEOMETRY_MODES + SliceProbeBodies.BODIES_MODES \
+			+ SliceProbeProps.PROPS_MODES:
 		out.append("slice-" + mode)
 	return out
 
 
-## The settings, the shared catalogs (the 3D client has no Presentation Pack yet, S14 16f), the CJK
-## font, the clock, the language and the display, with the render scale this client offers.
+## The settings, the wording's layers -- the shared module's, the pack's `i18n/` (ARC-51), the user's
+## -- the CJK font, the clock, the language and the display, with the render scale this client offers.
 func _settings() -> void:
 	settings_store = MineWorldSettingsStore.open(OS.get_cmdline_user_args(), harness_flags())
-	for problem in MineWorldText.load_layers("", settings_store.extra_locale_dirs, _wording()):
+	for problem in MineWorldText.load_layers(SlicePack.current.dir, settings_store.extra_locale_dirs,
+			_wording()):
 		push_warning(problem)
 	settings_store.settle_language(MineWorldText.locales())
 	MineWorldText.install_font_fallback()
@@ -264,6 +323,7 @@ const KEY_MAP := [
 	["jump", "ui.settings.key.jump"],
 	["jog", "ui.settings.key.jog"],
 	["camera_cycle", "ui.settings.key.camera_cycle"],
+	["inspect", "ui.settings.key.inspect"],
 	["ui_cancel", "ui.settings.key.menu"],
 ]
 
@@ -284,11 +344,16 @@ static func key_rows() -> Array[MineWorldKeyRow]:
 
 ## Esc opens and closes the menu, before the player's own Esc (which released the mouse) sees it. An
 ## open interaction menu is closed first (PR 16d, D-16d-9; 12e's throw aim goes before it, A16d-18).
+## The order: throw aim → the talk line (PR 16g1, sending nothing) → interaction menu → settings menu.
 func _input(event: InputEvent) -> void:
 	if not event.is_action_pressed("ui_cancel"):
 		return
 	# Esc during a throw's aim drops the aim (step-11 §22 SD-E6) and opens nothing.
 	if link != null and link.cancel_aim():
+		get_viewport().set_input_as_handled()
+		return
+	if talk_line != null and talk_line.is_open() and not settings_menu.is_open():
+		talk_line.cancel()
 		get_viewport().set_input_as_handled()
 		return
 	if offer_menu != null and offer_menu.is_open() and not settings_menu.is_open():
@@ -603,7 +668,8 @@ func _spawn_player() -> void:
 	player.name = "Player"
 	player.look_enabled = not _scripted()
 	add_child(player)
-	player.place(SliceWorld.SPAWN, SliceWorld.SPAWN_YAW, -2.0)
+	var spawn := depiction.spawn()
+	player.place(spawn["position"], spawn["yaw"], -2.0)
 	player.set_look(settings_store.settings.look_scale(), settings_store.settings.invert_y)
 
 
@@ -625,6 +691,28 @@ func _process(_d: float) -> void:
 	if _hud_looking != null and link != null:
 		_hud_looking.text = _looking_line()
 		hud.set_aiming(link.aiming != "")
+	if _hud_glance != null and link != null:
+		_hud_glance.text = MineWorldAttributes.glance(_aimed_record())
+	if _inspect != null and link != null:
+		if Input.is_action_pressed("inspect") and not (talk_line != null and talk_line.is_open()):
+			var aimed := _aimed_person()
+			_inspect.present(link.shown_text(aimed) if aimed != "" else MineWorldText.text("hud.inspect.self"),
+				SliceInspectPanel.lines_for(link.client.latest, aimed))
+		else:
+			_inspect.hide_panel()
+
+
+## The person the aim meets, or "".
+func _aimed_person() -> String:
+	var a := link.aim()
+	return String(a["entity"]) if a["kind"] == "person" else ""
+
+
+## The perceived record of the person the aim meets, or {} (S30-f: who I see).
+func _aimed_record() -> Dictionary:
+	var aimed := _aimed_person()
+	var obs: MineWorldObservation = link.client.latest if link.client != null else null
+	return {} if aimed == "" or obs == null else obs.entity(aimed)
 
 
 ## The key that sends each interaction (step-11 §22 SD-E6, QE-5): an input
@@ -668,6 +756,9 @@ func _looking_line() -> String:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_TRANSLATION_CHANGED:
 		_render_world()
+		if _hud_note != null:
+			var note := depiction.hud_note()
+			_hud_note.text = MineWorldText.text(note["key"], note["args"])
 		if _hud_connected != null:
 			_hud_connected.text = MineWorldText.text("hint.connected")
 
@@ -675,6 +766,10 @@ func _notification(what: int) -> void:
 func _hud() -> void:
 	if not (_scripted() and not (SliceProbeWorld.with_hud() or SliceProbeMarket.requested())):
 		hud = ControlsHud.attach(self, player, true)
+		# what this depiction is, when it is not the finished world (Q-S33c-1)
+		var note := depiction.hud_note()
+		if not note.is_empty():
+			_hud_note = hud.add_line(MineWorldText.text(note["key"], note["args"]))
 		_hud_place = hud.add_line(MineWorldText.text("hud.place", {"place": "-"}))
 		_hud_world = hud.add_line("")
 		_render_world()
@@ -694,6 +789,9 @@ var _needs: SliceNeedsHud = null
 var link: SliceLink = null
 var _hud_world: Label = null
 var _hud_looking: Label = null
+## Who I see, under the looking line, and the inspect panel (S30-f §5.9).
+var _hud_glance: Label = null
+var _inspect: SliceInspectPanel = null
 var _hud_time: Label = null
 var _hud_connected: Label = null
 ## The world line's last message, as a key and its arguments ("" while offline).
@@ -738,6 +836,11 @@ func _link() -> void:
 	if hud != null:
 		hud.add_reticle()
 		_hud_looking = hud.add_line(MineWorldText.text("hud.looking_at", {"who": "-"}))
+		_hud_glance = hud.add_line("")
+		_hud_glance.name = "Glance"
+		_inspect = SliceInspectPanel.new()
+		_inspect.name = "InspectPanel"
+		add_child(_inspect)
 		# The world's date and time, in the clock form the settings choose (S20 SD-SET-a-7, TW-e).
 		_hud_time = hud.add_line("")
 		_hud_time.name = "Clock"
@@ -759,3 +862,23 @@ func _offers() -> void:
 	link.client.observed.connect(offer_menu.refresh)
 	offer_menu.opened.connect(func() -> void: _hold_input(true))
 	offer_menu.closed.connect(func() -> void: _hold_input(false))
+	_talk_line()
+
+
+## The typed talk line (PR 16g1): while it is open the one gate holds walking, looking, the `move`
+## report and every action key, B and Tab included, so typing "wasd" walks nowhere; the mouse is free
+## to reach the line and is captured again when it closes.
+func _talk_line() -> void:
+	talk_line = SliceTalkLine.new(link, _menu_theme())
+	talk_line.name = "TalkLine"
+	add_child(talk_line)
+	talk_line.opened.connect(func() -> void:
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		_hold_input(true)
+		offer_menu.set_process_unhandled_input(false))
+	talk_line.closed.connect(func() -> void:
+		_hold_input(false)
+		if _holds == 0:
+			offer_menu.set_process_unhandled_input(true)
+			if player.look_enabled:
+				Input.mouse_mode = Input.MOUSE_MODE_CAPTURED)

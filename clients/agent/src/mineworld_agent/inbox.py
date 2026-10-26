@@ -5,9 +5,11 @@ server's queue ever fills (INV-S27-6). The inbox holds at most `bound` facts (51
 fact arrives at the bound, the oldest is dropped and counted (`dropped`). Each fact gets an `EventRef`,
 `F1`, `F2`, … in arrival order, and its subjects and place get the handle's own entity references.
 
-Two payloads are read by name, as a client knows them (pr-s27c C-8): conversation's `spoke`
-(`speaker`, `listener`, `utterance`) and movement's `walk-ended` (`person`). Every other fact shows its
-type and its participants; `detail` adds its payload as an envelope, capped at 1 KiB.
+Payloads read by name, as a client knows them (pr-s27c C-8): conversation's `spoke` (`speaker`, `listener`,
+`utterance`) and movement's `walk-ended` (`person`); and, as `EventLine.reading` (pr-s31g §5.5), economy's
+`sold`, `listed`, `price-set` and `withdrawn`, and the notices pack's `notice-published`, `subscribed` and
+`unsubscribed`. A payload that does not read gives no reading; the fact is still listed. Every other fact shows
+its type and its participants; `detail` adds its payload as an envelope, capped at 1 KiB.
 """
 
 from __future__ import annotations
@@ -16,16 +18,24 @@ import asyncio
 from collections import deque
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
+from functools import partial
 
 from mineworld_sdk.wire.contract import ActionCause, Observation, PerceivedEvent
 from mineworld_sdk.wire.ids import ActionId, EntityId, JsonValue
 
+from mineworld_agent import disclosed
+from mineworld_agent.lexicon import Lexicon
 from mineworld_agent.models import (
     AnyEvent,
+    AskReading,
     EventLine,
     EventRef,
+    NoticeReading,
     OfferAvailable,
+    Reading,
+    SaleReading,
     SpokenTo,
+    TopicReading,
     ViewChanged,
     WaitFor,
     WalkEnded,
@@ -41,6 +51,8 @@ INBOX_BOUND = 512
 DETAIL_BYTES = 1024
 SPOKE = "spoke"
 WALK_ENDED = "walk-ended"
+SOLD, LISTED, PRICE_SET, WITHDRAWN = "sold", "listed", "price-set", "withdrawn"
+NOTICE_PUBLISHED, SUBSCRIBED, UNSUBSCRIBED = "notice-published", "subscribed", "unsubscribed"
 
 
 @dataclass(slots=True)
@@ -66,13 +78,69 @@ def _field(event: PerceivedEvent, name: str) -> JsonValue:
     return payload.get(name) if isinstance(payload, dict) else None
 
 
+def _minor(value: JsonValue) -> int | None:
+    return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else None
+
+
+def reading(event: PerceivedEvent, refs: RefTable, lexicon: Lexicon) -> Reading | None:
+    """The fact read by name, for the economy and notices facts an agent trades and reads by; `None` for any
+    other fact and for a payload that does not read (pr-s31g §5.5). The values are the payload's."""
+    kind = event.event_type
+    field = partial(_field, event)
+    if kind == SOLD:
+        seller, buyer = disclosed.any_entity(field("seller")), disclosed.any_entity(field("buyer"))
+        item, where = disclosed.any_entity(field("item")), disclosed.any_entity(field("place"))
+        count, price = _minor(field("count")), _minor(field("price"))
+        if seller is None or buyer is None or item is None or count is None or price is None:
+            return None
+        return SaleReading(
+            seller=refs.ref(seller),
+            buyer=refs.ref(buyer),
+            item=refs.ref(item),
+            name=lexicon.name(item),
+            count=count,
+            price=lexicon.amount(price),
+            place=None if where is None else refs.ref(where),
+        )
+    if kind in (LISTED, PRICE_SET, WITHDRAWN):
+        seller, item = disclosed.any_entity(field("seller")), disclosed.any_entity(field("item"))
+        now = _minor(field("price" if kind == LISTED else "to"))
+        was = _minor(field("from")) if kind == PRICE_SET else None
+        if seller is None or item is None or (kind != WITHDRAWN and now is None):
+            return None
+        if kind == PRICE_SET and was is None:
+            return None
+        return AskReading(
+            seller=refs.ref(seller),
+            item=refs.ref(item),
+            name=lexicon.name(item),
+            price=None if kind == WITHDRAWN or now is None else lexicon.amount(now),
+            was=None if was is None else lexicon.amount(was),
+        )
+    if kind == NOTICE_PUBLISHED:
+        notice = disclosed.notice_line(refs, field("notice"), lexicon)
+        return None if notice is None else NoticeReading.model_validate(notice.model_dump())
+    if kind in (SUBSCRIBED, UNSUBSCRIBED):
+        topic = disclosed.topic(field("topic"))
+        return None if topic is None else TopicReading(topic=topic)
+    return None
+
+
 class Inbox:
     """The bounded inbox of one handle."""
 
-    def __init__(self, refs: RefTable, me: EntityId, bound: int = INBOX_BOUND) -> None:
+    def __init__(
+        self,
+        refs: RefTable,
+        me: EntityId,
+        bound: int = INBOX_BOUND,
+        lexicon: Lexicon | None = None,
+    ) -> None:
         if not 1 <= bound <= INBOX_BOUND:
             raise ValueError(f"an inbox holds 1 to {INBOX_BOUND} facts, not {bound}")
         self._refs = refs
+        self._lexicon = Lexicon() if lexicon is None else lexicon
+        """The handle's own lexicon: names and the currency for readings, as the views learned them."""
         self._me = me
         self._bound = bound
         self._entries: deque[_Entry] = deque()
@@ -140,6 +208,7 @@ class Inbox:
             subjects=[self._refs.ref(subject) for subject in event.subjects],
             place=None if event.place is None else self._refs.ref(event.place.entity),
             words=words,
+            reading=reading(event, self._refs, self._lexicon),
             detail=envelope(event.payload.payload, DETAIL_BYTES) if detail else None,
         )
 

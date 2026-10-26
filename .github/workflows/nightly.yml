@@ -480,6 +480,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # S36-P5: clients-probes ends with `uv run --locked python tools/character_pipeline/cast.py contact-scene`
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.12.5"
+          python-version: "3.12"
+          enable-cache: false
       - uses: ./.github/actions/godot
       - id: clients
         uses: ./.github/actions/native
@@ -502,6 +508,39 @@ jobs:
           path: artifacts/nightly/
           if-no-files-found: warn
 
+  # PR 16g1: typed speech in the two Godot clients, with Alice on her `lm` seat and Milestone D's scripted
+  # model (no live model). It needs Godot and the Python workspace together, so it has a job of its own.
+  speech-linux:
+    name: speech-linux
+    needs: gate
+    if: needs.gate.outputs.run == 'true' && contains(needs.gate.outputs.groups, ',clients,')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/godot
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.12.5"
+          python-version: "3.12"
+          enable-cache: false
+      - uses: ./.github/actions/native
+        with:
+          layer: speech
+      - name: Verdict
+        if: always()
+        env:
+          STATUS: ${{ job.status }}
+        run: python3 scripts/ci_nightly.py verdict --job speech-linux --outcome "$STATUS" --layer speech
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: nightly-speech-linux
+          path: artifacts/nightly/
+          if-no-files-found: warn
+
   # 120 minutes, not 75 (ARC-149): a night whose import cache is cold imports the 3D client for 45 minutes on
   # this runner, and nightly 38919486641 was still in its Godot tests at 65 (the job was cancelled at 75).
   clients-mac:
@@ -514,6 +553,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # S36-P5: clients-probes ends with `uv run --locked python tools/character_pipeline/cast.py contact-scene`
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.12.5"
+          python-version: "3.12"
+          enable-cache: false
       - uses: ./.github/actions/godot
       # ARC-291 (F-13c-impl-5 P-3): Godot's shader and pipeline caches, in the 3D project's user directory
       # (custom_user_dir MineWorld), kept between nights. A cold runner compiled every Forward+ material
@@ -775,6 +820,7 @@ jobs:
       - clients-mac
       - clients-windows
       - farfield-windows
+      - speech-linux
       - repeat-linux
       - repeat-mac
       - repeat-windows-1

@@ -148,6 +148,21 @@ pub trait Wayfinder: Send + Sync {
 
     /// The route for `ask`, or [`None`] when this wayfinder knows nothing about its place.
     fn route(&self, world: &WorldRead<'_>, ask: &RouteAsk) -> Option<RouteAnswer>;
+
+    /// Where a walk to `place` as a whole — a destination with no position — should end, for
+    /// `person`, who just entered it at `entered_at` (`ARC-330` R1): a point clear of the place's
+    /// doorways, so that people who arrive do not stand on the threshold. [`None`] when this
+    /// wayfinder knows nothing about the place, or no such point is free; the walk then ends on
+    /// entering, as it did before. Pure, like [`Wayfinder::route`].
+    fn arrival_spot(
+        &self,
+        _world: &WorldRead<'_>,
+        _person: PersonId,
+        _place: PlaceId,
+        _entered_at: LocalPosition,
+    ) -> Option<LocalPosition> {
+        None
+    }
 }
 
 /// The build's wayfinders, sorted by id: written once per process, by [`register_wayfinders`].
@@ -234,4 +249,19 @@ pub(crate) fn route(world: &WorldRead<'_>, ask: &RouteAsk) -> Option<RouteAnswer
         .map_or(&[][..], Vec::as_slice)
         .iter()
         .find_map(|wayfinder| wayfinder.route(world, ask))
+}
+
+/// The first registered wayfinder's arrival spot for `person` entering `place` at `entered_at`, or
+/// [`None`] when none answers — the walk then ends on entering (`ARC-330` R1).
+pub(crate) fn arrival_spot(
+    world: &WorldRead<'_>,
+    person: PersonId,
+    place: PlaceId,
+    entered_at: LocalPosition,
+) -> Option<LocalPosition> {
+    CATALOG
+        .get()
+        .map_or(&[][..], Vec::as_slice)
+        .iter()
+        .find_map(|wayfinder| wayfinder.arrival_spot(world, person, place, entered_at))
 }

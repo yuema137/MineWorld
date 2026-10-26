@@ -8,6 +8,15 @@ use crate::codec;
 use crate::component::Wallet;
 use crate::event::MoneyTransferred;
 
+/// The highest price, or reference value, an ask or a kind may carry: 10^12 minor units, so that a
+/// holder's wealth (`ARC-114`) cannot overflow `u64` for any count a person or shop could hold.
+pub const PRICE_MAX: u64 = 1_000_000_000_000;
+
+/// Whether `price` is a price this pack takes: `1 ..= PRICE_MAX`.
+pub const fn price_in_range(price: u64) -> bool {
+    price >= 1 && price <= PRICE_MAX
+}
+
 /// Whether `entity` may hold money: a living Person or Organization.
 pub(crate) fn is_holder(world: &WorldRead<'_>, entity: EntityId) -> bool {
     world.entity(entity).is_some_and(|record| {

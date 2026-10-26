@@ -340,7 +340,7 @@ needed), not by calling the view's code.
 | **FF-CREST** | D-2 (and D-5's sightlines) | Judged columns: every column whose expected top far-field angle `A(b) = max over bands of α_eff(b) − rise/d` lies inside the frame and is not covered within ±3 rows. Measured: the topmost row decoding to any far-field ID. It must decode to a **band** (massing over the crest fails) and lie within **±0.10°** (3 rows) of A(b) | ≥ 95 % of judged columns |
 | **FF-SEAM** | D-3 | For each adjacent column pair, the longest vertical run of rows (elevation ≥ `e_h − 1.0°`) where the two columns decode to **different** IDs, neither is massing, neither is covered, and at least one is a band, the sea ribbon or water. A run of **≥ 6 rows** (0.22°) is a seam | **0 seams** in every I render; each seam is printed with its column's bearing and the two IDs |
 | **FF-RELIEF** | D-4 | For each band of layer `near` with ≥ 2 000 decoded, uncovered pixels lying ≥ 3 rows below its measured crest: in the S render, the 8-bit luma (Rec. 709) of those pixels, per row, in windows of 29 columns (1°); the mean over windows of the luma's standard deviation | **≥ 2.5 / 255** per band per render |
-| **FF-RING** | D-5 | In each G render: each decoded ground pixel (near disc, foreground, massing) is given its ground radius by ray–ground intersection; radii binned in 20 m bins from `reach_m + 20` to 400 m, per 45° sector. A bin with ≥ 200 pixels and < 50 % water | massing ≥ **15 %** of the bin's pixels in every judged bin |
+| **FF-RING** | D-5 | In each G render: each decoded ground pixel (near disc, foreground, massing) is given its ground radius by ray–ground intersection; radii binned in 20 m bins from `reach_m + 20` to 400 m, per 45° sector. A bin with ≥ 200 pixels and < 50 % water | massing ≥ **15 %** of the bin's pixels in every judged bin. *Restated 2026-10-20 (D-0b-2):* massing ≥ **half the bin's mean declared density** (per pixel, from the file's sectors, slots and the sightline cap); a bin with < 200 buildable pixels is exempt |
 | **FF-BAY** (guard for SD-5) | — | VP-west, azimuths 225° and 270° only: columns whose bearing is inside the water sector, uncovered between the expected shore row and the horizon row | ≥ 90 % of those columns show ≥ 1 row of water or sea ribbon |
 
 **Why these, and why these numbers.** FF-ORDER asks the exact question D-1 answers wrongly: is nearer land in
@@ -718,6 +718,46 @@ D-0b-1  DEVIATION (needs the operator's ruling; R-3's material stop) — SD-5.2 
         RULED    2026-10-19, the operator (relayed by the primary session): far-side rule accepted;
                  near-edge alternative rejected. SD-5.2 reads "the water's far side" from this date
                  (ARC-290's ruling note). PR #304 merged with it.
+D-0b-2  DEVIATION (operator direction relayed by the primary session on PR #398's finding, 2026-10-20)
+                 S29 moved Social Café's reach_m to 100 m, its massing to 110 m and filled the station
+                 slot. The milestone run 39407544864 (job farfield) then failed FF-RING at VP-high S
+                 120-140 m (12.4 %) and SW 120-140 m (0.0 %): in those bay bearings, near the street's
+                 ends, the sightline cap leaves the smallest box under 1 m, so SD-5.2 builds nothing
+                 there by rule, and one 15 % for every bin cannot tell that from a drawing defect.
+                 Restated rule (same for every world, no per-world number): each G pixel's ground point
+                 carries the declared `density` of the skyline sector that holds it (from_m <= r <
+                 to_m), or 0 where the file leaves no room for the smallest building (8 x 8 m, A-6's
+                 least box) centred there -- its footprint would reach into a reserved or filled
+                 slot's, or the sightline cap (SD-5.2 as ruled, restated in the judge from the file,
+                 I-4, across every bearing the footprint covers) is under CAP_FLOOR_M 1 m from some
+                 protected eye. A bin (>= 200 px, < 50 % water, unchanged) is judged when at least half
+                 of its pixels are buildable (RING_OPEN_MIN 0.5, the water rule's own half), else
+                 printed `exempt`; it needs massing >= RING_SHARE 0.5 x its pixels' mean density.
+                 0.5 restates the frozen 15 % as a ratio (0.43-0.60 of the shipped 0.25-0.35): the
+                 generator covers each sector's declared plan share and moves refused boxes onto
+                 allowed ground, and the oblique view adds walls to roofs, so a built bin shows at
+                 least its density. Found by running: judging a bin with a buildable sliver (SW
+                 120-140 m, 15 % buildable, i.e. room for < 1 expected box) failed by chance, hence
+                 the half rule rather than a pixel count.
+F-0b-7  bounded  (PR #398's finding, follow-up 2026-10-21) D-0b-2 states that the generator covers each
+                 sector's declared share and moves refused boxes onto allowed ground; it sampled the
+                 whole sector at once, so a 20 m bin could stay bare by chance while the sector total
+                 was met. The generator now fills each sector cell by cell, RING_CELL_M 20 m deep (the
+                 judge's bin) and about RING_CELL_ARC_M 40 m wide, each to its declared share, and a
+                 cell the cap or a slot refuses passes its unmet share (at most one cell's own) to the
+                 next cell. No schema, judge number or world file changes; the judge's exemption of
+                 bins the cap leaves unbuildable (D-0b-2, RING_OPEN_MIN) is unchanged and already
+                 covers the capped sightline corridors. Evidence (2026-10-21, with-slot.sh, as
+                 client_far_field.rs): social-cafe "all farfield checks pass" (112 ring lines, 10 816
+                 boxes); lakeside every ring line ok or exempt (60 lines; 100 boxes, 68 before). Lakeside's
+                 6 order/seam/crest FAILs are identical on origin/main without this change (pre-existing;
+                 the crest one is PR #458's).
+E-0b-3  2026-10-20  macOS, through with-slot.sh, the slice's --slice-farfield run (as client_far_field.rs):
+                 social-cafe -> all farfield checks pass (112 ring lines; S and SW 120-140 m exempt,
+                 4669 and 2326 of 15562 px buildable; W 120-140 m judged 26.2 % >= 7.9 %);
+                 --world-key=lakeside -> all farfield checks pass (77 ring lines).
+                 Planted mutation (far_field_view.gd's _build_skyline() call removed, massing
+                 dropped): social-cafe 110 FAIL farfield-ring (every judged bin), lakeside 75.
 ```
 
 ---

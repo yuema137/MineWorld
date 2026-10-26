@@ -78,7 +78,11 @@ state      IDLE | OPENING | JOINING | SEATED | CLOSED | RECONNECTING
 reconnect  opt-in, false by default. When the socket drops without a `closing`, rejoin the same seat
            with the stored resume at 1 s, 2 s, 4 s … while within hold_seconds of the drop, then once
            without it; emits reconnecting(attempt), then the usual welcomed (took_over "held" if the
-           seat was still held). A `closing` or disconnect_from_world never triggers it
+           seat was still held). A `closing` or disconnect_from_world never triggers it, with one
+           exception: `closing { reason: "lagged" }` (the perceived stream overflowed, PROTOCOL.md
+           §5.8) resumes exactly like a drop, because the protocol says a lagged client rejoins with
+           its resume and its cursor (PR 13e M-8). With reconnect off, lagged ends the connection as
+           before
 seat       the seat asked for
 observer   the identity the SERVER resolved it to. A string. Empty until the welcome arrives.
 world      the welcome's world summary: instance, at, time_scale, entities, systems, seats, clients,
@@ -139,6 +143,20 @@ submitted_request(token, request)            what this client just sent, for a l
 
 `address` may be `host:port`, `ws://host:port` or a full `ws://host:port/ws`. The module appends the
 route.
+
+### `MineWorldStatus` — `GET /status`, before joining (PR 13e)
+
+```text
+fetch(address)                 asks `address` (host:port, ws://host:port or ws://…/ws) for its summary;
+                               a request still in flight is abandoned
+answered(ok, world)            ok false when unreachable or not a summary; world is the summary as the
+                               server wrote it (seats, instance, systems, …, PROTOCOL.md §5.7)
+url(address) -> String         static: the /status URL of an address
+```
+
+It is credential-free and names no player: a client lists `world.seats` to choose from, and the
+join's answer says whether a seat is taken. It is here, not in a client, because a client's scripts
+make no HTTP request of their own (`AC-WC-15`: `HTTPRequest` lives only in the shared modules).
 
 ### `MineWorldObservation` — a reader, never a model
 
@@ -427,9 +445,73 @@ once that gives up. What a client's own policy must get right, as the 2D referen
                       allocates identity, so a retry could do the thing twice (INV-6)
 ```
 
+From PR 13e the 2D client sets `reconnect = true` and keeps points 1–5 as the fallback for when the
+module gives up (a restarted server holds no seat, so a plain join is granted there). Since S11-B
+seats are exclusive, and the codes a client ends on grew (`docs/decisions/ARC-344.md`):
+
+```text
+6  ended for good     refused unauthorized, unknown_seat, seat_not_in_world, invalid_nickname,
+                      protocol_mismatch, already_joined, not_granted, seat_occupied; closing left,
+                      taken_over, superseded, kicked. Asking again would get the same answer, so
+                      the client stops and shows the code (the 2D client returns to its join screen)
+7  seat_occupied      another connection holds the seat, or it is held for a dropped one. A client
+                      never takes it over by itself: it offers the player "Take over", which sends
+                      the same join with take_over: true (PROTOCOL.md §4.2 rule 4). A later
+                      automatic rejoin never carries take_over
+8  welcome.took_over  "hosted" and "connection" are worth telling the player (they now drive a
+                      Person the town, or another player, was driving); "held" is their own seat
+                      coming back and says nothing
+```
+
 Point 5 is the one that matters most. Reconnecting is safe because a client's whole state is
 replaced by the next observation (§3.4); resubmitting is not, because the world may already have
 done what was asked.
 
 A future protocol revision raises `MineWorldClient.PROTOCOL`. This module refuses to continue when a
 server answers with a number it does not recognize, rather than guessing at a frame it cannot read.
+
+## 7. What a client reports it shows
+
+A reference client that takes part in the "one world, two views" parity test (`tools/cli/tests/shown_parity.rs`,
+S14 PR 16e, `ARC-174`) prints, from its scripted checks, one line per moment:
+
+```text
+SHOWN {"place", "places", "doorways", "doorway_labels", "people", "objects", "affordances"}
+IDENTITY_WORLD {"instance", "revision", "people", "events_seen"}
+```
+
+Each key is read from what the client **draws or built**, never copied from the observation: a doorway
+is listed because the scene drew its anchor, a person because a figure stands there, an offer because
+the menu would list it. Removing a doorway from one client's scene (the harness flag
+`--drop-doorway=<from>,<to>`, never on the play path) therefore removes it from that client's report.
+
+| Key | Entry | Meaning |
+| --- | --- | --- |
+| `place` | id | the observer's place |
+| `places` | `{place, drawn_as, tags}` | every place drawn; `tags` as disclosed |
+| `doorways` | `{from, to, here, there}` | every doorway drawn, once per drawn anchor; `here`/`there` the passage's disclosed local millimetres |
+| `doorway_labels` | `{to, text}` | the wording a doorway of the observer's place carries |
+| `people` | `{id, label, local, …}` | every person drawn, at the position drawn, in the observer's place frame |
+| `objects` | `{id, kind}` | every loose object drawn; `kind` is the disclosed shape's name (`ball`, `box`) |
+| `affordances` | `{subject, action_type, target, about, complete, available, reason}` | each offer the observer's own menu and each drawn person's menu would list, in the server's order, with the server's verdict |
+| `IDENTITY_WORLD.instance`, `.revision` | | the world instance from the welcome; the persisted revision of the newest frame |
+| `IDENTITY_WORLD.people` | id → disclosed name | every person the newest observation lists |
+| `IDENTITY_WORLD.events_seen` | `EventId` | every fact the client learned from `observation.events`, in arrival order |
+
+**Presentation-only keys.** These describe how a client draws, so two correct clients may differ in
+them, and a parity comparison ignores them:
+
+```text
+places[].drawn_as      people[].label       people[].look      people[].role
+people[].activity      people[].local       doorway_labels     a menu entry's label and enabled
+```
+
+Every other key of `SHOWN` must be equal between two clients seated on the same seat of the same paused
+world: places by id and tags, doorways by `{from, to, here, there}`, people by id (and, through
+`IDENTITY_WORLD.people`, by disclosed name), objects by `{id, kind}`, affordances by all seven fields.
+For places and doorways the comparison covers the **observer's own place**: its id and tags, and the
+doorways out of it. A client learns a place where it stands, and how far beyond that place a client
+draws is presentation. The 3D scene binds the street it sees through a café door, with no tags
+disclosed. The 2D map draws only the place the seat stands in, and the two clients draw the ways back
+from other places differently (`ARC-347`; PR 16e ledger D-e-1, D-e-5).
+A key added to `SHOWN` is semantic unless it is added to this list.

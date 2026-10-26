@@ -248,7 +248,7 @@ impl System for MovementSystem {
             let Some(walking) = read.component::<Walking>(person.entity_id()).cloned() else {
                 return Ok(Vec::new());
             };
-            if !walk::arrived(&read, &walking, &arrived.location()) {
+            if !walk::arrived(&read, person, &walking, &arrived.location()) {
                 return Ok(Vec::new());
             }
             world.remove::<Walking>(person.entity_id())?;

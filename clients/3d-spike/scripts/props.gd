@@ -81,6 +81,11 @@ static func gltf(slug: String) -> Node3D:
 	var n := src.duplicate() as Node3D
 	# the slice's frame-cost breakdown finds props by this (RL-b M-7)
 	n.set_meta("mw_category", "gltf")
+	# the texel-density check (RL-b2 SD-B2-6) finds each prop's texture size by slug
+	n.set_meta("mw_slug", slug)
+	# S36-P5: every drawn prop is tagged here, the one function that loads them, so the props probe
+	# (`slice_probe_props.gd`) finds each one and the model it was drawn from
+	n.set_meta("mw_prop", slug)
 	return n
 
 
@@ -122,6 +127,7 @@ static func place(parent: Node3D, slug: String, pos: Vector3, yaw := 0.0,
 	parent.add_child(n)
 	if tint != Color.WHITE:
 		retint(n, tint)
+	Build.camera_hull(parent, n.transform * Build.drawn_aabb(n))
 	return n
 
 

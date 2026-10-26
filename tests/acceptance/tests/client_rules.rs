@@ -36,8 +36,26 @@ use std::path::{Path, PathBuf};
 mod gdscript;
 use gdscript::lex;
 
+// The 3D client's directory, named once (16e D-e-3). Without the client (ARC-347's removal check), the
+// scans skip its scripts and its admissions and say so.
+#[macro_use]
+#[path = "support/client_3d.rs"]
+mod client_3d;
+
 /// The GDScript string literals that name an action: (file, literal, why it may be written there).
-const ACTION_LITERALS: [(&str, &str, &str); 20] = [
+const ACTION_LITERALS: [(&str, &str, &str); 24] = [
+    (
+        "clients/2d/scripts/intents.gd",
+        "walk-to",
+        "composed by the 2D client's only submitter: a click on the floor asks the server to plan the \
+         walk (walk-to, ARC-75); the server routes and the client paces, as every client does",
+    ),
+    (
+        "clients/2d/scripts/intents.gd",
+        "walk-step",
+        "composed by the 2D client's only submitter: a click on the floor asks the server to plan the \
+         walk (walk-step, ARC-75); the server routes and the client paces, as every client does",
+    ),
     (
         "clients/2d/scripts/intents.gd",
         "move",
@@ -81,6 +99,12 @@ const ACTION_LITERALS: [(&str, &str, &str); 20] = [
         "composed by the 2D client's only submitter from the typed minutes (S35 N-e §4.3): sleep { for }",
     ),
     (
+        "clients/2d/scripts/intents.gd",
+        "throw",
+        "composed by the 2D client's only submitter as the offered complete throw with `toward` set to \
+         the clicked floor point (S12 PR 13d, ARC-342); the server decides the throw",
+    ),
+    (
         "clients/2d/scripts/harness/interact.gd",
         "sleep",
         "the scripted check's step that waits a number of seconds (step-13 §15.3); not an action",
@@ -93,54 +117,60 @@ const ACTION_LITERALS: [(&str, &str, &str); 20] = [
          from it",
     ),
     (
-        "clients/3d-spike/scripts/slice/slice_link.gd",
+        client_3d!("scripts/slice/slice_link.gd"),
         "move",
         "the slice's connection reports the body's strides (PROTOCOL.md §6.2); the one action it builds",
     ),
     (
-        "clients/3d-spike/scripts/slice/intents.gd",
+        client_3d!("scripts/slice/intents.gd"),
+        "walk-to",
+        "the 3D client's one request builder asks the server to plan a walk (ARC-75), as the 2D client's \
+         intents.gd does; a probe walks through it, never building the request itself",
+    ),
+    (
+        client_3d!("scripts/slice/intents.gd"),
         "talk",
         "intents.gd builds every interaction request of the 3D client (step-15 §4.4)",
     ),
     (
-        "clients/3d-spike/scripts/slice/intents.gd",
+        client_3d!("scripts/slice/intents.gd"),
         "kick",
         "built by the 3D client's one request builder when F is pressed at an object, or submitted as the \
          world's matching complete offer, unchanged (step-11 §22 SD-E6, S15 PR 12e)",
     ),
     (
-        "clients/3d-spike/scripts/slice/intents.gd",
+        client_3d!("scripts/slice/intents.gd"),
         "throw",
         "built by the 3D client's one request builder from G, G or G, aim, G, or submitted as the world's \
          matching complete offer, unchanged (step-11 §22 SD-E6, S15 PR 12e)",
     ),
     (
-        "clients/3d-spike/scripts/slice/intents.gd",
+        client_3d!("scripts/slice/intents.gd"),
         "shove",
         "built by the 3D client's one request builder when R is pressed at a person, or submitted as the \
          world's matching complete offer, unchanged (step-11 §22 SD-E6, S15 PR 12e)",
     ),
     (
-        "clients/3d-spike/scripts/human.gd",
+        client_3d!("scripts/human.gd"),
         "move",
         "the name of an AnimationNodeBlendTree input of the character's locomotion graph, not a request \
          (step-15 Q-16a-5)",
     ),
     (
-        "clients/3d-spike/scripts/human.gd",
+        client_3d!("scripts/human.gd"),
         "sit",
         "the name of the seated input of the character's AnimationNodeTransition, as `move` is of its \
          locomotion graph (step-15 Q-16a-5); it shares its spelling with posture's action type, and the \
          pose follows the server's posture state, never builds a request (S34-a)",
     ),
     (
-        "clients/3d-spike/scripts/slice/slice_probe_market.gd",
+        client_3d!("scripts/slice/slice_probe_market.gd"),
         "sleep",
         "a probe script's step key, a pause of that many seconds (16d C5); it shares its spelling with \
          sleep's action type (S35 N-a) and builds no request",
     ),
     (
-        "clients/3d-spike/scripts/shots.gd",
+        client_3d!("scripts/shots.gd"),
         "stand",
         "a capture phase's name in the offline body checks (standing still versus walking), written into \
          the shot's file name; it shares its spelling with posture's action type and builds no request",
@@ -348,6 +378,10 @@ fn no_client_script_names_an_action_copies_a_rule_or_reads_a_pack() {
         "the build's action types were not found (has the declaration changed?): {types:?}"
     );
 
+    let three_d = client_3d::present(
+        &root,
+        "the 3D client's scripts and their admissions (I-S14-1, I-S14-6)",
+    );
     let mut files = Vec::new();
     client_scripts(&root.join("clients"), &mut files);
     // The 3D client's 33 scripts after PR 16a (31 before it, plus targeting.gd and intents.gd) and
@@ -379,7 +413,7 @@ fn no_client_script_names_an_action_copies_a_rule_or_reads_a_pack() {
     for ((file, literal, reason), used) in ACTION_LITERALS.iter().zip(used_literals) {
         assert!(!reason.is_empty(), "{file}: an admission needs a reason");
         assert!(
-            used,
+            used || (!three_d && client_3d::holds(file)),
             "{file}: the admission of \"{literal}\" admits nothing; remove it"
         );
     }
@@ -390,6 +424,274 @@ fn no_client_script_names_an_action_copies_a_rule_or_reads_a_pack() {
             "{file}: the admission of `{name}` admits nothing; remove it"
         );
     }
+}
+
+/// String literals in the 3D client that equal a place key and are not used as one, each reviewed:
+/// (file, literal, why). An entry for a literal compared with a place's key is forbidden (S33-c §5.6).
+const PLACE_KEY_LITERALS: [(&str, &str, &str); 10] = [
+    (
+        "clients/3d-spike/scripts/depictions/data/depiction_file.gd",
+        "street",
+        "the depiction file's section name (MODULE_SPEC.md §6.1.2: `street`, the binding of the street \
+         every place opens onto), a field of the Presentation Pack's format, never compared with a place",
+    ),
+    (
+        "clients/shared/checks/station_state_check.gd",
+        "station",
+        "the `station` role tag in the headless check's literal place tag lists and frames (S29-f §5.1, \
+         ARC-108), a tag the fixture rule receives as data, never a place key the client binds",
+    ),
+    (
+        "clients/shared/environment/far_field.gd",
+        "station",
+        "the far-field file's skyline slot name (MODULE_SPEC.md §6.1.1: slots station and landmark), a \
+         field of the Presentation Pack's format, never compared with a place",
+    ),
+    (
+        client_3d!("scripts/slice/far_field_view.gd"),
+        "station",
+        "the far-field skyline slot name, read from the loaded file (MODULE_SPEC.md §6.1.1)",
+    ),
+    (
+        client_3d!("scripts/town.gd"),
+        "cafe",
+        "the promenade spike's own interior id in its building table, an offline scene that never \
+         connects to a world (CLAUDE.md, mineworld-3d); not a place of any world",
+    ),
+    (
+        client_3d!("scripts/slice/slice_world.gd"),
+        "street",
+        "a build-timing stage label printed by SliceWorld._tick",
+    ),
+    (
+        client_3d!("scripts/slice/slice_world.gd"),
+        "cafe",
+        "a build-timing stage label printed by SliceWorld._tick",
+    ),
+    (
+        client_3d!("scripts/slice/slice_probe.gd"),
+        "street",
+        "the name of a standalone review view (--measure's viewpoints), a file name, not a place",
+    ),
+    (
+        client_3d!("scripts/slice/slice_probe_town.gd"),
+        "street",
+        "the --slice-street probe mode's name and its verdict label (16c), never compared with a place",
+    ),
+    (
+        client_3d!("scripts/slice/slice_layout.gd"),
+        "street",
+        "SHOWN's drawn_as vocabulary (D-16c-7: room, door, street), how a place is drawn, not which",
+    ),
+];
+
+/// Every place key of every World Pack in the checkout: the stems of `worlds/*/places/*.yaml`.
+fn place_keys(worlds: &Path) -> Vec<String> {
+    let mut keys = Vec::new();
+    let packs = std::fs::read_dir(worlds)
+        .unwrap_or_else(|error| panic!("the World Packs' root is missing: {worlds:?}: {error}"));
+    for pack in packs {
+        let places = pack.expect("a directory entry").path().join("places");
+        let Ok(entries) = std::fs::read_dir(&places) else {
+            continue;
+        };
+        for entry in entries {
+            let path = entry.expect("a directory entry").path();
+            if path
+                .extension()
+                .is_some_and(|extension| extension == "yaml")
+            {
+                let stem = path
+                    .file_stem()
+                    .expect("a stem")
+                    .to_string_lossy()
+                    .into_owned();
+                if !keys.contains(&stem) {
+                    keys.push(stem);
+                }
+            }
+        }
+    }
+    keys.sort();
+    keys
+}
+
+/// Check (d): the place-key literals of one file, except a `tag("…")` argument and the admitted ones.
+/// A literal is matched to its blanked `""` in the lexed code by its order on the line it starts on.
+fn place_key_findings(file: &str, text: &str, keys: &[String], used: &mut [bool]) -> Vec<String> {
+    let lexed = lex(text);
+    let mut found = Vec::new();
+    let mut seen_on_line = std::collections::BTreeMap::<usize, usize>::new();
+    for (line, literal) in &lexed.literals {
+        let nth = {
+            let count = seen_on_line.entry(*line).or_insert(0);
+            *count += 1;
+            *count - 1
+        };
+        if !keys.iter().any(|key| key == literal) {
+            continue;
+        }
+        let code = lexed.code.get(line - 1).map(String::as_str).unwrap_or("");
+        let in_tag = code
+            .match_indices("\"\"")
+            .nth(nth)
+            .is_some_and(|(at, _)| code[..at].trim_end().ends_with("tag("));
+        if in_tag {
+            continue;
+        }
+        match PLACE_KEY_LITERALS
+            .iter()
+            .position(|(admitted_file, admitted, _)| *admitted_file == file && admitted == literal)
+        {
+            Some(entry) => used[entry] = true,
+            None => found.push(format!(
+                "{file}:{line}: \"{literal}\" is a place key; the 3D client keeps no list of a world's \
+                 place keys (SC-4, I-S33-3): bind by tag with `SliceDepiction.tag()`"
+            )),
+        }
+    }
+    found
+}
+
+/// X-6 (S33-c §5.6): the 3D client and the shared client modules name no place key. They bind a
+/// world's places by disclosed tags and doorway coincidence (`DECISIONS.md` ARC-144); a tag is written
+/// only as `SliceDepiction.tag("…")`.
+#[test]
+fn the_3d_client_names_no_place_key() {
+    let root = root();
+    let keys = place_keys(&root.join("worlds"));
+    assert!(
+        keys.iter().any(|key| key == "cafe") && keys.iter().any(|key| key == "lane"),
+        "the World Packs' place keys were not found: {keys:?}"
+    );
+    let three_d = client_3d::present(
+        &root,
+        "the 3D client's place-key scan and its admissions (X-6)",
+    );
+    let mut files = Vec::new();
+    if three_d {
+        client_scripts(&root.join(client_3d!("scripts")), &mut files);
+    }
+    client_scripts(&root.join("clients/shared"), &mut files);
+    // With the 3D client, its scripts and the shared modules; without it, the shared modules alone.
+    assert!(
+        files.len() >= if three_d { 40 } else { 1 },
+        "every 3D client script is scanned: {}",
+        files.len()
+    );
+    let mut found = Vec::new();
+    let mut used = [false; PLACE_KEY_LITERALS.len()];
+    for path in &files {
+        let text = std::fs::read_to_string(path).expect("a client script reads");
+        found.extend(place_key_findings(&relative(path), &text, &keys, &mut used));
+    }
+    assert!(
+        found.is_empty(),
+        "a place key in the 3D client:\n{}",
+        found.join("\n")
+    );
+    for ((file, literal, reason), used) in PLACE_KEY_LITERALS.iter().zip(used) {
+        assert!(!reason.is_empty(), "{file}: an admission needs a reason");
+        assert!(
+            used || (!three_d && client_3d::holds(file)),
+            "{file}: the admission of \"{literal}\" admits nothing; remove it"
+        );
+    }
+}
+
+/// The one 3D client script that may name a Presentation Pack's path: the class that resolves the pack
+/// it is given (`docs/decisions/ARC-51.md`). Every other reader asks it.
+const PACK_RESOLVER: &str = "clients/3d-spike/scripts/pack/pack.gd";
+
+/// Whether a string literal names a path under `presentation/`.
+fn names_a_presentation_path(literal: &str) -> bool {
+    let components: Vec<&str> = literal.split('/').collect();
+    components.len() > 1 && components[..components.len() - 1].contains(&"presentation")
+}
+
+/// What the pack scan refuses in one 3D client script: a literal naming a pack path, or a `PACK_DIR`.
+fn pack_path_findings(file: &str, text: &str) -> Vec<String> {
+    let lexed = lex(text);
+    let mut found = Vec::new();
+    for (line, literal) in &lexed.literals {
+        if names_a_presentation_path(literal) {
+            found.push(format!(
+                "{file}:{line}: \"{literal}\" names a Presentation Pack's path; ask SlicePack (ARC-51)"
+            ));
+        }
+    }
+    for (index, code) in lexed.code.iter().enumerate() {
+        if code.contains("PACK_DIR") {
+            found.push(format!(
+                "{file}:{}: `PACK_DIR`: the pack is the one the client is given; ask SlicePack (ARC-51)",
+                index + 1
+            ));
+        }
+    }
+    found
+}
+
+/// AC-16f-1 (ARC-51): the 3D client reads the Presentation Pack it is given. No 3D client script but
+/// `PACK_RESOLVER` writes a path under `presentation/`, and none writes `PACK_DIR`; the resolver itself
+/// does name the default pack, so the scan is seen to find what it looks for.
+#[test]
+fn the_3d_client_reads_its_pack_only_through_slice_pack() {
+    let root = root();
+    let mut files = Vec::new();
+    client_scripts(&root.join("clients/3d-spike/scripts"), &mut files);
+    assert!(
+        files.len() >= 40,
+        "every 3D client script is scanned: {}",
+        files.len()
+    );
+    let mut found = Vec::new();
+    let mut resolver_names_the_default = false;
+    for path in &files {
+        let file = relative(path);
+        let text = std::fs::read_to_string(path).expect("a client script reads");
+        let findings = pack_path_findings(&file, &text);
+        if file == PACK_RESOLVER {
+            resolver_names_the_default = !findings.is_empty();
+        } else {
+            found.extend(findings);
+        }
+    }
+    assert!(
+        resolver_names_the_default,
+        "{PACK_RESOLVER} names the default pack's path, and the scan finds it"
+    );
+    assert!(
+        found.is_empty(),
+        "a 3D client script reads a pack by path:\n{}",
+        found.join("\n")
+    );
+    assert!(names_a_presentation_path(
+        "../../presentation/mineworld-default/3D"
+    ));
+    assert!(!names_a_presentation_path("the 3D presentation file %s"));
+}
+
+/// Check (d)'s exemption is exactly a `tag(…)` argument, by position on the line.
+#[test]
+fn a_tag_argument_is_exempt_and_nothing_else() {
+    let keys = vec!["bakery".to_owned(), "pier".to_owned()];
+    let mut used = [false; PLACE_KEY_LITERALS.len()];
+    let ok = place_key_findings(
+        "x.gd",
+        "var a := [tag(\"bakery\"), SliceDepiction.tag(\"pier\")]\n",
+        &keys,
+        &mut used,
+    );
+    assert!(ok.is_empty(), "{ok:?}");
+    let bad = place_key_findings(
+        "x.gd",
+        "var a := tag(\"pier\") + \"bakery\"\nif p == 'pier':\n",
+        &keys,
+        &mut used,
+    );
+    assert_eq!(bad.len(), 2, "{bad:?}");
+    assert!(bad[0].starts_with("x.gd:1: \"bakery\""), "{bad:?}");
+    assert!(bad[1].starts_with("x.gd:2: \"pier\""), "{bad:?}");
 }
 
 /// The lexer: a comment is not read, a `#` inside a string does not start one, escapes and triple

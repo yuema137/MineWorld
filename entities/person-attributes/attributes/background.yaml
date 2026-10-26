@@ -24,6 +24,7 @@ attributes:
   age-years:
     group: background
     facets: [prompt, decision]
+    prompt_rank: 210
     kind: { quantity: { unit: year, scale: 0, min: 0, max: 130 } }
     visibility: private
     mutability: derived
@@ -34,6 +35,7 @@ attributes:
   age-band:
     group: background
     facets: [casting, observed]
+    prompt_rank: 10
     kind: { level: [child, teen, 20s, 30s, 40s, 50s, 60s, 70s, 80-plus] }
     visibility: perceivable
     mutability: derived
@@ -54,6 +56,7 @@ attributes:
   pronouns:
     group: background
     facets: [prompt, observed, speech]
+    prompt_rank: 200
     kind: { category: [she-her, he-him, they-them] }
     visibility: perceivable
     mutability: evolving
@@ -73,6 +76,7 @@ attributes:
   native-language:
     group: background
     facets: [prompt, speech]
+    prompt_rank: 220
     kind: { category: { vocabulary: core.languages } }
     visibility: learnable
     mutability: fixed
@@ -82,6 +86,7 @@ attributes:
   languages-spoken:
     group: background
     facets: [prompt, speech]
+    prompt_rank: 230
     kind: { set: { vocabulary: core.languages, max: 8 } }
     visibility: learnable
     mutability: evolving
@@ -91,6 +96,7 @@ attributes:
   hometown:
     group: background
     facets: [prompt]
+    prompt_rank: 280
     kind: { text: { max_bytes: 80 } }
     visibility: learnable
     mutability: fixed
@@ -100,6 +106,7 @@ attributes:
   years-in-town:
     group: background
     facets: [prompt, decision]
+    prompt_rank: 270
     kind: { quantity: { unit: year, scale: 0, min: 0, max: 100 } }
     visibility: learnable
     mutability: evolving
@@ -109,6 +116,7 @@ attributes:
   education-level:
     group: background
     facets: [speech]
+    prompt_rank: 550
     kind: { level: [none, primary, secondary, vocational, some-college, bachelor, master, doctorate] }
     visibility: learnable
     mutability: evolving
@@ -119,6 +127,7 @@ attributes:
   marital-status:
     group: background
     facets: [prompt]
+    prompt_rank: 250
     kind: { category: [single, partnered, married, separated, divorced, widowed] }
     visibility: learnable
     mutability: evolving
@@ -128,6 +137,7 @@ attributes:
   household:
     group: background
     facets: [prompt, decision]
+    prompt_rank: 240
     kind: { category: [alone, partner, family, parents, roommates, extended-family] }
     visibility: learnable
     mutability: evolving
@@ -144,6 +154,7 @@ attributes:
   children:
     group: background
     facets: [prompt, decision]
+    prompt_rank: 260
     kind: { quantity: { unit: count, scale: 0, min: 0, max: 20 } }
     visibility: learnable
     mutability: evolving
@@ -153,6 +164,7 @@ attributes:
   religion:
     group: background
     facets: [prompt]
+    prompt_rank: 465
     kind: { category: [none, christian, muslim, jewish, hindu, buddhist, sikh, other] }
     visibility: private
     mutability: evolving

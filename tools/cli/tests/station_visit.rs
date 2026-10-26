@@ -223,10 +223,12 @@ fn shaped_towns() -> Vec<String> {
         .collect()
 }
 
-fn copy_of(town: &str, name: &str) -> Scratch {
-    let copy = fresh(name);
+/// A copy of the reference world `town` in scratch, under its own name (a pack's id is its directory's).
+fn copy_of(town: &str, name: &str) -> (Scratch, PathBuf) {
+    let scratch = fresh(name);
+    let copy = scratch.join(town);
     bodies::copy_dir(&world(town), &copy);
-    copy
+    (scratch, copy)
 }
 
 fn replace_in(file: &Path, from: &str, to: &str) {
@@ -260,33 +262,46 @@ fn the_station_places_lay_out_without_overlap() {
     }
 
     // A generated variant: the hall joins the street 2 m further north. The check reads the frames.
-    let moved = copy_of("market-town", "station-layout-moved");
+    let (_moved, moved) = copy_of("market-town", "station-layout-moved");
     replace_in(
         &moved.join("places/station.yaml"),
         "there: { x: -62050, y: -4900 }",
         "there: { x: -62050, y: -2900 }",
     );
-    layout(&WorldPack::read(&*moved).expect("the variant reads")).expect("the variant lays out");
+    layout(&WorldPack::read(&moved).expect("the variant reads")).expect("the variant lays out");
 
     // Revision 3's frames, planted: each is refused, naming the place.
-    let bay = copy_of("market-town", "station-layout-bay");
+    let (_bay, bay) = copy_of("market-town", "station-layout-bay");
     replace_in(
         &bay.join("places/station-tickets.yaml"),
         "here: { x: 3000, y: 4200 }",
         "here: { x: 3000, y: 400 }",
     );
-    let refused = layout(&WorldPack::read(&*bay).expect("reads")).expect_err("a misfacing door");
+    // bodies refuses this door at genesis already (`bodies-doorway`); the layout check holds it for a world
+    // whose places carry no bodies as well. Either refusal names the place.
+    let pack = WorldPack::read(&bay).expect("reads");
+    let refused = match pack.load(WorldTime::EPOCH) {
+        Err(error) => error.to_string(),
+        Ok(_) => layout(&pack).expect_err("a misfacing door"),
+    };
     assert!(refused.contains("station-tickets"), "{refused}");
 
-    let platform = copy_of("market-town", "station-layout-platform");
+    let (_platform, platform) = copy_of("market-town", "station-layout-platform");
     let file = platform.join("places/station-platform.yaml");
     replace_in(
         &file,
         "floor: { min: { x: 0, y: -30000 }, max: { x: 11000, y: 30000 } }",
         "floor: { min: { x: -30000, y: 0 }, max: { x: 30000, y: 11000 } }",
     );
-    let refused = layout(&WorldPack::read(&*platform).expect("reads"))
-        .expect_err("a platform across the hall");
+    // bodies refuses the shape as it is read (a furnishing off the floor) or at genesis (a door on its
+    // edge); the layout check holds the frame when the shape alone would pass. Each refusal names the place.
+    let refused = match WorldPack::read(&platform) {
+        Err(error) => format!("{error:?}"),
+        Ok(pack) => match pack.load(WorldTime::EPOCH) {
+            Err(error) => error.to_string(),
+            Ok(_) => layout(&pack).expect_err("a platform across the hall"),
+        },
+    };
     assert!(refused.contains("station-platform"), "{refused}");
 }
 
@@ -378,7 +393,7 @@ fn a_broken_town_is_refused_by_run_as_by_validate() {
         ),
     ];
     for (name, file, from, to, code, key) in cases {
-        let copy = copy_of("market-town", name);
+        let (_copy, copy) = copy_of("market-town", name);
         replace_in(&copy.join(file), from, to);
         let path = copy.to_str().expect("a printable path");
         for command in [

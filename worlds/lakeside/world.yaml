@@ -50,6 +50,11 @@ systems:
   - relationships
   - naming
   - schedule
+  # `bodies` owns every place's `body:` (`ARC-39`, `ARC-307`): the floor a person stands on and the
+  # solids they meet, so the server, not the scene, decides where anybody can be — a stride into the
+  # lake, off the pier's deck or through a wall stops at it (step-33 F-S33-3). After `schedule`,
+  # before `item`, as in Market Town.
+  - bodies
   - item
   - inventory
   - item-transfer

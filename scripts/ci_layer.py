@@ -66,6 +66,8 @@ LAYERS: dict[str, list[list[str]]] = {
         ["python3", "scripts/check_cast.py"],
         ["python3", "scripts/check_cast.py", "--self-test"],
         ["python3", "scripts/ci_changes.py", "--self-test"],
+        # The packaging script's A-R3 exclusions, A-R4 budget and archive determinism (S23 R-a).
+        ["python3", "scripts/package.py", "--self-test"],
         # The nightly's classifiers (ARC-83), each under a second: a verdict rule that fails open would
         # otherwise be found only by a red night that never comes.
         ["python3", "scripts/ci_nightly.py", "--self-test"],
@@ -187,6 +189,16 @@ LAYERS.update({
         ["python3", "scripts/ci_godot.py", "coverage"],
         ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
     ],
+    # PR 16g1 (AC-3DS-1 … -4, -6): typed speech in both Godot clients, and Alice on her `lm` seat with
+    # Milestone D's scripted model recalling a line told in the other view. It needs Godot and the Python
+    # workspace at once, so it is its own nightly job (`speech-linux`), never part of `clients`.
+    "speech": [
+        ["uv", "sync", "--locked"],
+        ["cargo", "build", "-p", "mineworld-cli"],
+        ["cargo", "test", "-p", "mineworld-cli", "--test", "speech_both_ways", "--", "--ignored",
+         "--test-threads=1"],
+        ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
+    ],
     # RL-e0 (Q-FF-5, operator 2026-10-15): the far-field checks per PR on Linux, when ci_changes.py says
     # a client, a Presentation Pack or a launcher changed (the `farfield` job of ci.yml) -- the hosted Linux
     # run of the 3D check; the nightly `farfield-3d` layer runs the 3D check on Windows, and the `clients`
@@ -212,9 +224,16 @@ LAYERS.update({
         ["python3", "scripts/ci_godot.py", "slice", "--drive"],
         ["python3", "scripts/ci_godot.py", "slice", "--world", "--link"],
         ["python3", "scripts/ci_godot.py", "slice", "--world", "--target"],
+        # S33-c (ARC-144): Lakeside on the same server path, drawn by its labelled stub depiction
+        ["python3", "scripts/ci_godot.py", "slice", "--world=lakeside", "--link"],
         # S15 12e: bodies in the 3D client (step-11 §22.4; the QE-9 requirement on 13c's clients job)
         ["python3", "scripts/ci_godot.py", "slice", "--world", "--geometry"],
         ["python3", "scripts/ci_godot.py", "slice", "--world", "--bodies"],
+        # S14 16f-b (ARC-52): a world with no depiction, drawn plainly from the server's walls and walked
+        # through its doorways; the art held to the disclosure with the greybox pack too
+        ["python3", "scripts/ci_godot.py", "slice", "--world=bodies-yard", "--link"],
+        ["python3", "scripts/ci_godot.py", "slice", "--world", "--geometry",
+         "--presentation=presentation/mineworld-greybox/3D"],
         ["bash", "clients/protocol/run.sh", "evidence"],
         ["bash", "clients/protocol/run.sh", "affordances"],
         ["bash", "clients/protocol/run.sh", "reconnect"],
@@ -222,6 +241,25 @@ LAYERS.update({
         ["bash", "clients/protocol/run.sh", "deltas"],
         ["bash", "clients/protocol/run.sh", "admin"],
         ["cargo", "test", "-p", "mineworld-cli", "--test", "ac13_semantic_parity"],
+        # S36-P4: runtime foot grounding (pr-s36-p4-foot-grounding.md §4 commit 4). Its own checks gate: the per-side
+        # lift, flat on = off, the step straddle, the cost. Every body the client draws over the seed-1 course and
+        # across the slice street's kerb is measured and recorded, not yet judged: the course's residual frames stay
+        # record-only (Q-S36-P4-3); on the street, since S36-P4b's drawn-step colliders (Q-S36-P4-4) every body's
+        # straddles pass and only the walker's touchdown frames remain (pr-s36-p4b-colliders-jog.md §7).
+        ["python3", "tools/character_pipeline/cast.py", "feet", "--self-test", "artifacts/nightly/feet-selftest"],
+        ["python3", "tools/character_pipeline/cast.py", "feet", "--run", "artifacts/nightly/feet-seed1",
+         "--seed", "1", "--record-only"],
+        ["python3", "tools/character_pipeline/cast.py", "feet", "--run", "artifacts/nightly/feet-street",
+         "--scene", "street", "--record-only"],
+        # S36-P5: every drawn prop of both towns' café, street and store, dumped by the slice, then judged
+        # against the disclosed solids and its drawn support (`cast.py contact-scene`, PIPELINE.md §18).
+        # Last, so a scene failure never hides the probes above; the dumps are uploaded with the night.
+        ["python3", "scripts/ci_godot.py", "slice", "--world", "--props",
+         "--props-dump=artifacts/nightly/props/social-cafe"],
+        ["python3", "scripts/ci_godot.py", "slice", "--world=market-town", "--props",
+         "--props-dump=artifacts/nightly/props/market-town"],
+        ["uv", "run", "--locked", "python", "tools/character_pipeline/cast.py", "contact-scene",
+         "artifacts/nightly/props"],
         ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
     ],
 })
@@ -230,6 +268,7 @@ LAYERS.update({
 # INCONCLUSIVE and one that ran and failed is FAIL (I-13c-3). Per-PR layers write nothing.
 NIGHTLY_LAYERS = {
     "parity-long", "stability", "core-repeat", "clients", "clients-probes", "farfield-3d", "memory-scale",
+    "speech",
 }
 
 # The Python workspace (sdk/python; DECISIONS.md DEP-26, ARC-48's note of 2026-10-08). Its tests never
@@ -310,8 +349,12 @@ LAYERS["python"] = [
 ]
 # IC-7 (S10 P7): a copy of the checkout without `cognition/lm-controller/` and its workspace line still
 # syncs, builds and passes — the SDK, the agent library, and the whole Rust workspace, Milestone D's
-# unplugged run among it (`scripts/ci_removability.py`, `pr-s10-p7-milestone-d.md` D-P7-3).
+# unplugged run among it (`scripts/ci_removability.py`, `pr-s10-p7-milestone-d.md` D-P7-3). And ARC-347
+# (16e D-e-3): a copy without the 3D client formats, lints and passes every Rust test. The 3D check runs
+# first, so its verdict is in the log whatever IC-7's is; without Godot in the container, its 2D drive is
+# left out by name (`--no-godot`).
 LAYERS["removability"] = [
+    [sys.executable, "scripts/ci_removability.py", "--target", "3d", "--no-godot"],
     [sys.executable, "scripts/ci_removability.py"],
 ]
 # No Rust build: the tests that need the binary — the SDK's real_server tests and the cognition

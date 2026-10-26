@@ -19,9 +19,9 @@
 ```console
 $ mineworld run corner-shop --headless --seed 1 --days 3
 ...
-requests   talk accepted 335
+requests   talk accepted 327
 ...
-activity   days 1-3  ana move 145 talk 108  ben move 157 talk 120  cai move 158 talk 107
+activity   days 1-3  ana move 150 talk 100  ben move 163 talk 120  cai move 156 talk 107
 ...
 ```
 
@@ -29,7 +29,7 @@ activity   days 1-3  ana move 145 talk 108  ben move 157 talk 120  cai move 158 
 
 ### Step 7.2 — 告诉世界它有配置文件
 
-**照着做。** 用下面这整份文件替换 `corner-shop/world.yaml`。新加的是最后的 `configure`：
+**照着做。** 用下面这整份文件替换 `corner-shop/world.yaml`。新加的是最后 `configure` 下面的 `classes` 和 `conversation`：
 
 ```yaml file=corner-shop/world.yaml
 # Corner Shop: the world this guide builds.
@@ -76,10 +76,11 @@ seats:
   - cai
 
 configure:
+  - economy
   - classes
   - conversation
 
-# 不是小镇：小镇要写明车站大厅和地标（docs/MODULE_SPEC.md §4.3）。
+# Not a town: a town names its station hall and its landmark (docs/MODULE_SPEC.md §4.3).
 settlement:
   kind: none
 ```
@@ -99,7 +100,7 @@ $ mineworld validate corner-shop
 规则不会点某一个人的名，它点的是一个 **class**：带同一个 tag 的一组人或东西。
 Ana 从第 02 章起就带着 `shopkeeper` 这个 tag。
 
-**照着做。** 新建文件夹 `corner-shop/configure`，在里面写 `classes.yaml`：
+**照着做。** 在 `corner-shop/configure` 里写 `classes.yaml`：
 
 ```yaml file=corner-shop/configure/classes.yaml
 - class: shopkeeper
@@ -208,9 +209,9 @@ class    tea              item
 ```console
 $ mineworld run corner-shop --headless --seed 1 --days 3
 ...
-requests   talk accepted 298
+requests   talk accepted 285
 ...
-activity   days 1-3  ana move 155 talk 81  ben move 159 talk 118  cai move 170 talk 99
+activity   days 1-3  ana move 161 talk 71  ben move 167 talk 110  cai move 169 talk 104
 ...
 ```
 
