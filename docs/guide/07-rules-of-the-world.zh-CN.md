@@ -19,13 +19,13 @@
 ```console
 $ mineworld run corner-shop --headless --seed 1 --days 3
 ...
-requests   talk accepted 327
+requests   talk accepted 324
 ...
-activity   days 1-3  ana move 150 talk 100  ben move 163 talk 120  cai move 156 talk 107
+activity   days 1-3  ana move 150 talk 99  ben move 156 talk 116  cai move 152 talk 109
 ...
 ```
 
-**你应该看到**这几个数字。三天里 Ana 说了 108 次话。seed 一样，每次跑的结果都一样，所以下一次可以拿来跟这次比。
+**你应该看到**这几个数字。三天里 Ana 说了 99 次话。seed 一样，每次跑的结果都一样，所以下一次可以拿来跟这次比。
 
 ### Step 7.2 — 告诉世界它有配置文件
 
@@ -209,9 +209,9 @@ class    tea              item
 ```console
 $ mineworld run corner-shop --headless --seed 1 --days 3
 ...
-requests   talk accepted 285
+requests   talk accepted 280
 ...
-activity   days 1-3  ana move 161 talk 71  ben move 167 talk 110  cai move 169 talk 104
+activity   days 1-3  ana move 161 talk 72  ben move 165 talk 106  cai move 170 talk 102
 ...
 ```
 
@@ -219,8 +219,8 @@ activity   days 1-3  ana move 161 talk 71  ben move 167 talk 110  cai move 169 t
 
 | | 第 7.1 步 | 第 7.6 步 |
 | --- | --- | --- |
-| 所有人的 `talk accepted` | 335 | 298 |
-| Ana 的 `talk` | 108 | 81 |
+| 所有人的 `talk accepted` | 324 | 280 |
+| Ana 的 `talk` | 99 | 72 |
 
 Ana 说话少了：在店里她一句也不说，只在家里说。Ben 和 Cai 在店里还是可以跟她说话。
 另外两个人的数字也变了一点，因为大家的一天都跟着有点不一样了。变的是世界，System Pack 一点没改。
