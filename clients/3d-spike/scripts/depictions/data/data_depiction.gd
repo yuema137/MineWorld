@@ -36,7 +36,8 @@ func build(root: Node3D, far_field: MineWorldFarField, _connected: bool) -> Node
 	root.add_child(g)
 	var d := _data()
 	if d.get("terrain") != null:
-		terrain = DepictionTerrain.build(g, d["terrain"], d.get("water"), _section("paths"), frame_origin())
+		terrain = DepictionTerrain.build(g, d["terrain"], d.get("water"), _section("paths"), frame_origin(),
+			_section("decks"))
 		# the far field's flat ground inside the boundary goes under the file's terrain (D-S33d-12)
 		draw_far_field(g, far_field, SliceFarFieldView.GROUND_Y - (terrain.lowest() - NEAR_GROUND_BELOW))
 	else:
@@ -52,6 +53,8 @@ func build(root: Node3D, far_field: MineWorldFarField, _connected: bool) -> Node
 		DepictionEdges.build(g, _section("edges"), self)
 	if not _section("scatter").is_empty():
 		DepictionScatter.build(g, _section("scatter"), self)
+	if not _section("decks").is_empty():
+		DepictionDecks.build(g, _section("decks"), self)
 	if d.get("trees") != null:
 		DepictionWoods.build(g, d["trees"], self)
 	_root = g
@@ -61,6 +64,23 @@ func build(root: Node3D, far_field: MineWorldFarField, _connected: bool) -> Node
 ## The height of the drawn ground under a plan point (mm), 0 with no terrain.
 func ground_at(mm: Vector2) -> Vector3:
 	return terrain.on_ground(mm) if terrain != null else to_scene(mm)
+
+
+## The height (scene y) a body stands at over scene point (x, z): a deck's surface where a deck covers it
+## (ARC-178), else the drawn terrain, else the street's surface.
+func ground_height(x: float, z: float) -> float:
+	var o := frame_origin()
+	var mm := Vector2((x - o.x) * 1000.0, (o.z - z) * 1000.0)
+	for deck in _section("decks"):
+		if DepictionDecks.rect_of(deck).has_point(mm):
+			return o.y + DepictionDecks.surface_at(deck, mm)
+	return terrain.height_at(x, z) if terrain != null else o.y
+
+
+## The near water's surface (scene y), or the street's surface with no water.
+func water_level() -> float:
+	var w: Variant = _data().get("water")
+	return frame_origin().y + (float(w["level_m"]) if w != null else 0.0)
 
 
 ## The places' drawing: the file's shells when it has `buildings` (and then nothing of the stub); else
@@ -142,8 +162,21 @@ func places() -> Array:
 	var out := []
 	for p in _data()["places"]:
 		out.append({"tags": _tags(p["tags"]), "label": p["label"], "footprint": _rect(p["footprint_mm"]),
-			"doorway": _point(p["doorway_mm"])})
+			"doorway": _point(p["doorway_mm"]), "floor_m": _floor_of(p["tags"])})
 	return out
+
+
+## A place's floor height in the scene (metres above the street): the surface of the deck that depicts it
+## (ARC-178), else the street's surface.
+func _floor_of(tags: Array) -> float:
+	for deck in _section("decks"):
+		var all := true
+		for t in deck["depicts"]:
+			if not (t in tags):
+				all = false
+		if all:
+			return float(deck["surface_m"])
+	return 0.0
 
 
 func spawn() -> Dictionary:

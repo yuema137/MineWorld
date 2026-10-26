@@ -121,8 +121,9 @@ MINEWORLD_INVITE=<the server's invite> python -m mineworld_cognition --config co
   identifier, so a seat name that two worlds share is not told apart (`F-P6b-21`).
 - `--hold` (the server's seat hold, default 30 s; `QP6-9`) is the time a killed process's seat stays held
   before Alice's fallback drives her again. The examples use 3 s so that a test can see it.
-- Ctrl-C leaves every seat within 5 s and deletes its resume secret; a killed process leaves nothing
-  behind, and the seat returns to its fallback after the hold. Each seat prints one status line at exit,
+- Ctrl-C or SIGTERM leaves every seat within 5 s and deletes its resume secret, even while the server is
+  down or a model call is in flight; a second Ctrl-C, or a stop still running after 15 s, exits at once. A killed
+  process leaves nothing behind, and the seat returns to its fallback after the hold. Each seat prints one status line at exit,
   from its decision log's last counters line.
 - When the server's per-seat request budget refuses a request (`rate_limited`), the controller waits at least
   the time the server names and sends the same request again; the model is not asked again (`D-P6b-35`).

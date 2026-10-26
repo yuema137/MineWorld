@@ -55,7 +55,9 @@ pub(crate) fn entry(here: &Here, target: Point) -> Answer {
             &scene,
             standing,
             &in_scene,
-            &here.anchored,
+            &(0..standing.len())
+                .map(|index| !here.anchored.get(index).copied().unwrap_or(false))
+                .collect::<Vec<_>>(),
             target,
             Point::new(1, 0),
             Against::Walls,

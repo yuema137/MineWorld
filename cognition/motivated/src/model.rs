@@ -75,7 +75,7 @@ pub fn decide(
     context.hosted(&settings.commute, pace, stride);
     // Arrived early at a punctual next part's place, I wait there: the part in force no longer calls me
     // away, as if I were where my day says.
-    if commute::holds(observation, &settings.commute, pace) {
+    if commute::holds(observation, &settings.commute, pace, stride) {
         context.at_agenda = true;
     }
     let draw = Draw::salted(MOTIVATED_SALT, seed, observation);

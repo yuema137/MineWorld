@@ -228,10 +228,11 @@ LAYERS.update({
         ["python3", "scripts/ci_godot.py", "slice", "--drive"],
         ["python3", "scripts/ci_godot.py", "slice", "--world", "--link"],
         ["python3", "scripts/ci_godot.py", "slice", "--world", "--target"],
-        # S33-c (ARC-144): Lakeside on the same server path, drawn from its depiction file (S33-d). Its
-        # `--geometry` run joins this layer when S33-e and S33-f draw the pier and the bakery's room, whose
-        # disclosed solids it would otherwise report missing (S33-d sec.15, C11)
+        # S33-c (ARC-144): Lakeside on the same server path, drawn from its depiction file (S33-d); its
+        # scene walls against the server's along the whole probe route, now that S33-e draws the pier and
+        # S33-f the bakery's and the boat shed's rooms (S33-d sec.15, C11; D-S33d-16)
         ["python3", "scripts/ci_godot.py", "slice", "--world=lakeside", "--link"],
+        ["python3", "scripts/ci_godot.py", "slice", "--world=lakeside", "--geometry"],
         # S33-f (AC-f-2, AC-S33-3): every Lakeside sit point holds every body this checkout can build
         # within 20 mm of the drawn seat; bodies a checkout without LFS lacks are reported SKIP
         ["python3", "scripts/ci_godot.py", "slice", "--world=lakeside", "--seat"],

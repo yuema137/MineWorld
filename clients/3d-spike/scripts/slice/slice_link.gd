@@ -383,7 +383,7 @@ func _on_observed(obs: MineWorldObservation) -> void:
 		if String(loc["place"].get("entity", "")) != place:
 			continue
 		# a name disclosed later replaces the role on the label
-		seen[id] = {"at": to_scene(place, loc.get("local")),
+		seen[id] = {"at": on_drawn_ground(to_scene(place, loc.get("local"))),
 			"yaw": MineWorldSpace.yaw_to_3d_radians(loc.get("facing")) + PI, "label": shown_text(id)}
 		seen[id]["look"] = obs.look(id)
 		seen[id]["name"] = obs.display_name(id)
@@ -471,6 +471,31 @@ func _wear(obs: MineWorldObservation) -> void:
 			character if character != "" else "(town figure)", me, obs.display_name(me), look])
 
 
+## How far above and below its place's floor a person is looked for on the drawn ground, metres.
+## (A presentation tolerance, not a rule: the server's floor is planar and decides nothing here.)
+const GROUND_SEARCH_M := 1.0
+
+
+## A person stands on what is drawn (`DECISIONS.md` ARC-178): the depiction's ground colliders (the group
+## `SliceProbeGeometry.GROUND_GROUP`: its terrain and its decks) under `at`, within GROUND_SEARCH_M. Where
+## the depiction draws no such ground (Social Café's floors), `at` is unchanged.
+func on_drawn_ground(at: Vector3) -> Vector3:
+	if world_root == null or not world_root.is_inside_tree():
+		return at
+	var space := world_root.get_world_3d().direct_space_state
+	var q := PhysicsRayQueryParameters3D.create(at + Vector3.UP * GROUND_SEARCH_M,
+		at - Vector3.UP * GROUND_SEARCH_M, Build.LAYER_WORLD)
+	var skip: Array[RID] = []
+	for i in 8:
+		q.exclude = skip
+		var hit := space.intersect_ray(q)
+		if hit.is_empty():
+			return at
+		var c := hit["collider"] as Node
+		if c != null and c.is_in_group(SliceProbeGeometry.GROUND_GROUP) and (hit["normal"] as Vector3).y > 0.7:
+			return Vector3(at.x, (hit["position"] as Vector3).y, at.z)
+		skip.append(hit["rid"])
+	return at
 ## The current place's disclosed walls and solids (`SliceClientBodies`), and with them what stops the
 ## body: where the place discloses its walls only they do, and the scene's art only decorates; where it
 ## discloses none, art still blocks (16f-b, `ARC-52`).

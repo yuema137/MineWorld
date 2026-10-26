@@ -1675,6 +1675,7 @@
                 "type": "array"
               },
               "offers": {
+                "description": "What you may attempt, ordered by the kind of act each pack declares: social acts such as `talk` first,\nthen other interactions, then commerce.",
                 "items": {
                   "$ref": "#/$defs/OfferLine"
                 },
@@ -3584,6 +3585,7 @@
                 "type": "array"
               },
               "offers": {
+                "description": "What you may attempt, ordered by the kind of act each pack declares: social acts such as `talk` first,\nthen other interactions, then commerce.",
                 "items": {
                   "$ref": "#/$defs/OfferLine"
                 },
@@ -3744,7 +3746,7 @@
                     "type": "null"
                   }
                 ],
-                "description": "The whole list when anything in it changed, else `None`."
+                "description": "The whole list when anything in it changed, else `None`; ordered as in a view: social acts first, then\nother interactions, then commerce."
               },
               "paused": {
                 "type": "boolean"
@@ -8167,6 +8169,7 @@
                 "type": "array"
               },
               "offers": {
+                "description": "What you may attempt, ordered by the kind of act each pack declares: social acts such as `talk` first,\nthen other interactions, then commerce.",
                 "items": {
                   "$ref": "#/$defs/OfferLine"
                 },

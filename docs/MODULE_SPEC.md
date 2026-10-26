@@ -972,6 +972,16 @@ beside presence's `arrived`, whose participants then name both. A re-plan round 
 stride that finds no way plans once more without them before the walk ends `no-route`. A sleeper moved
 aside by another person's arrival keeps sleeping; their own arrival wakes them as before.
 
+Walkers yield by priority (`DECISIONS.md` `ARC-333`). A walk ranks by when it started — `Walking::started()`,
+the instant of its `walk-started` — and then by the walker's entity id, lower first; a person with no walk
+in progress ranks below every walker. The give-way above moves every person in a blocked stride's way who
+ranks lower than the walker, walkers included, and never one who ranks higher; a walker's nudge, likewise,
+moves only people who rank lower (a direct `move` still nudges anyone). A stride stopped short, or a walker
+moved aside, by a walker who ranks higher is waiting, not a stall: it counts toward neither `STALLS_MAX`
+nor `REPLANS_MAX`, and 20 consecutive waiting steps (`WAITS_MAX`) end the walk `stalled`. Being moved
+aside by anybody never counts as one of the walk's own re-plans. A stride along a planned route is
+always clear by the resolver's own test, so it is never stopped short by a solid the planner went round.
+
 **Sections: content a System Pack owns** (`DECISIONS.md` `ARC-31`). Besides the fields above, a person,
 place, item or organization file may carry **sections** (`ARC-36` extends `ARC-31` to the last two). A section is a top-level key of a content file that a System
 Pack declares as its own, and nothing else is a section. The pack that declares it:
@@ -3115,7 +3125,11 @@ field's path:
 | `DEPICTION_POLYGON` | a polygon with fewer than 3 or more than 64 vertices, or not simple; a ramp's lines not parallel within 1° |
 | `DEPICTION_REFERENCE` | a name that names nothing: a terrain layer, a species, a tag no place carries, a perf view, a water the world's far field lacks, a model's asset the pack's `assets/places/` lacks or an entrance its asset lacks; in the client also a texture slug, tree form or card its library lacks |
 | `DEPICTION_DOOR` | an `open` door not at the doorway of a depicted place; `at_doorway` on a building or a model that depicts nothing; a `glazed` opening in a building without an `interior` |
-| `DEPICTION_ON_FLOOR` | a stand, scatter area or undepicting building overlapping a place's floor by more than 50 mm; a depicting shell more than 50 mm off its place's footprint |
+| `DEPICTION_ON_FLOOR` | a stand, scatter area, undepicting building or moored craft overlapping a place's floor by more than 50 mm; a depicting shell or deck more than 50 mm off its place's footprint; a deck's shelter post off the deck |
+
+A deck (the optional `decks` section, `ARC-178`) is a walked floor on piles — a pier, a jetty, a boardwalk, a
+platform — that depicts a place: its footprint is that place's floor and its surface is that place's floor height
+in the scene. Its approach ramp is no steeper than 1:12 (`DEPICTION_OUT_OF_RANGE`).
 
 The 3D client refuses by the same names for what it checks — `MALFORMED`, `SCOPE_MISMATCH`, and
 `REFERENCE` for the names only it knows — and trusts a validated pack for the geometry codes. A refused

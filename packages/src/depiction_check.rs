@@ -3,6 +3,7 @@
 //! with the field's path.
 
 use crate::depiction::DepictionCode;
+use crate::depiction_deck;
 use crate::depiction_schema::{
     Area, Building, DecorPose, Depiction, EdgeKind, Height, Interior, OpeningState, PointMm,
     RectMm, RoofForm, ScatterArea, ScatterKind,
@@ -185,7 +186,7 @@ fn check_shape(file: &Depiction) -> Result<(), Refusal> {
             ));
         }
     }
-    Ok(())
+    depiction_deck::shape(&file.decks).or_else(malformed)
 }
 
 fn check_height(height: &Height, at: &str) -> Result<(), Refusal> {
@@ -275,6 +276,7 @@ fn check_citations(file: &Depiction) -> Result<(), Refusal> {
     for (i, s) in file.scatter.iter().enumerate() {
         cited.push((format!("scatter[{i}] \"{}\"", s.name.as_str()), &s.source));
     }
+    cited.extend(depiction_deck::citations(&file.decks));
     match cited
         .into_iter()
         .find(|(_, source)| source.trim().is_empty())
@@ -541,7 +543,10 @@ fn check_ranges(file: &Depiction) -> Result<(), Refusal> {
             );
         }
     }
-    match r.0 {
+    match r
+        .0
+        .or_else(|| depiction_deck::ranges(&file.decks, HEIGHT_M, EXTENT_MM))
+    {
         Some(detail) => refuse(DepictionCode::OutOfRange, detail),
         None => Ok(()),
     }
@@ -854,7 +859,10 @@ fn check_references(file: &Depiction, waters: Option<&[String]>) -> Result<(), R
             ));
         }
     }
-    Ok(())
+    match depiction_deck::references(&file.decks, |tags| depicted(file, tags).is_some()) {
+        Some(detail) => missing(detail),
+        None => Ok(()),
+    }
 }
 
 fn joined(tags: &[crate::depiction_schema::Key]) -> String {
@@ -1005,7 +1013,15 @@ fn check_floors(file: &Depiction) -> Result<(), Refusal> {
             }
         }
     }
-    Ok(())
+    match depiction_deck::floors(
+        &file.decks,
+        |tags| depicted(file, tags).map(|p| p.footprint_mm),
+        &places,
+        FLOOR_TOLERANCE_MM,
+    ) {
+        Some(detail) => refuse(DepictionCode::OnFloor, detail),
+        None => Ok(()),
+    }
 }
 
 fn shell_on_footprint(at: &str, footprint: &[PointMm], rect: RectMm) -> Result<(), Refusal> {

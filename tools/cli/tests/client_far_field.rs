@@ -188,6 +188,44 @@ fn three_d_lakeside_far_field_closes_every_open_sector() {
     judge(&lines, "farfield", 7 * 8 + 3 * 8 * 2, "[farfield");
 }
 
+/// S33-e AC-e-1 (`DECISIONS.md` ARC-178): Lakeside's pier, drawn from its depiction file's `decks`, is a
+/// landmark by the rendered check — it closes the southward view from the lane (LM-1 at VP-L-2) and is
+/// seen from the shore and from above (LM-2 at VP-L-4 and VP-L-7) — on Lakeside and on the generated
+/// variant `lakeside-v7`, drawn from data alone.
+#[test]
+#[ignore = "needs Godot 4.7: cargo test -p mineworld-cli --test client_far_field -- --ignored"]
+fn three_d_lakeside_pier_is_a_landmark() {
+    import(CLIENT_3D);
+    let variant =
+        repository("packages/tests/fixtures/depiction/variants/lakeside-v7/lakeside.yaml");
+    let variant = format!("--slice-depiction-file={}", variant.display());
+    for extra in [None, Some(variant.as_str())] {
+        let mut arguments = vec![
+            "--always-on-top",
+            "--resolution",
+            "1600x900",
+            "--path",
+            CLIENT_3D,
+            "res://scenes/slice.tscn",
+            "--",
+            "--slice-landmark",
+            "--slice-landmark-prefix=landmark.",
+            "--world-key=lakeside",
+            "--gi=none",
+            "--settings=none",
+            "--aniso=off",
+        ];
+        arguments.extend(extra);
+        let (done, lines) = godot(&arguments, SLICE_LIMIT);
+        assert!(
+            done.is_some(),
+            "INCONCLUSIVE: the slice did not finish in {SLICE_LIMIT:?}; it printed:\n{}",
+            lines.join("\n")
+        );
+        judge(&lines, "landmark", 3, "PASS landmark VP-");
+    }
+}
+
 /// S33-c AC-c-5 (`DECISIONS.md` ARC-146), as amended by S14 16f-b (`ARC-52`, Q-16f-1 (A)): a world the
 /// 3D client has no depiction for is drawn plainly from disclosure, so a world key the pack has no far
 /// field for is refused by the far-field loader by name (`FAR_FIELD_MISSING`), exit 3, before anything

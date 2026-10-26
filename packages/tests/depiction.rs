@@ -86,7 +86,25 @@ fn every_corpus_file_gives_the_code_its_name_says() {
 /// tells an author which field to fix, so it is asserted, not only the code.
 #[test]
 fn each_refusal_names_the_field_at_fault() {
-    let rows: [(&str, DepictionCode, &[&str]); 17] = [
+    let rows: [(&str, DepictionCode, &[&str]); 20] = [
+        // S33-e §5.1.1 (ARC-178): a deck's approach steeper than ADA §405.2's 1:12.
+        (
+            "out-of-range-deck-approach",
+            DepictionCode::OutOfRange,
+            &["decks[0]", "jetty", "approach"],
+        ),
+        // a deck depicts a place by its tags
+        (
+            "reference-deck",
+            DepictionCode::Reference,
+            &["decks[0]", "depicts", "wharf"],
+        ),
+        // a moored craft stands on no place's floor (ARC-307)
+        (
+            "on-floor-deck-moored",
+            DepictionCode::OnFloor,
+            &["decks[0]", "moored[0]", "jetty"],
+        ),
         // AC-d-12: the file has no field for furniture (ARC-307).
         ("malformed", DepictionCode::Malformed, &["furnishings"]),
         (

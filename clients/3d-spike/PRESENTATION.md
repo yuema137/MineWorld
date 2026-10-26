@@ -329,6 +329,7 @@ corner. Every block marked *cited* needs a non-empty `source`.
 | `buildings` | no | `[building]` (≤ 64) |
 | `trees` | no | `{"species": [species] (≤ 16), "stands"?: [stand], "singles"?: [{"species", "at_mm", "height_m"}], "keep_clear": {"places", "paths_m"}, "lod_m", "air_walls"?: [{"ring": {"centre_mm", "radius_m"}} \| {"line_mm"}], "source"}` |
 | `scatter` | no | `[{"name", "kind": "boulder" \| "reeds" \| "grass" \| "wildflower", "area": {"polygon_mm"} \| {"along_mm", "width_m"}, "count" (reeds ≤ 40), "size_m": {"min", "max"}, "seed", "range_m"?, "source"}]` |
+| `decks` | no | `[deck]`: walked floors on piles — a pier, a jetty, a boardwalk, a platform (`ARC-178`) |
 | `light` | no | `{"gi"?: [{"box_mm": rect, "height_m", "subdiv": 64 \| 128 \| 256}] (≤ 4), "probes"?: [{"box_mm", "height_m", "centre_up_m", "update": "once"}]}` |
 | `models` | no (none) | `[model]` (≤ 64): place assets of the same pack (§8), placed in the scene (16f-d1; `ARC-177` amended) |
 | `extras_from` | no (the pack's own) | a world key: whose extras draw a person the pack does not bind and every decor figure (step-26 E-2, S33-g §5.2; `SliceCast.use_extras_from`) |
@@ -406,6 +407,29 @@ corner. Every block marked *cited* needs a non-empty `source`.
   `offset_m` counts from the facade's left end seen from outside. The roof covers the footprint's bounding
   rectangle with `overhang_m` eaves. Every shell collides on `Build.LAYER_ART` (`ARC-52`), with a gap at least the stub's
   door width (1.4 m) at each `at_doorway` opening; a leaf never collides (the server decides who passes). While a file has `buildings`, nothing of the stub is drawn.
+- **deck** (*cited*, `ARC-178`): `{"name", "depicts": [tag, ...], "footprint_mm": rect, "surface_m",
+  "thickness_m" (0.05…1), "boards": {"material", "tint"?, "across": "x" | "y", "width_mm" (50…400), "gap_mm"
+  (0…20)}, "approach"?: {"side": "n" | "s" | "e" | "w", "length_m", "from_m"}, "piles": {"bents" (2…64),
+  "diameter_m" (0.1…1), "inset_m", "to_m", "bracing": bool, "material"}, "rails"?: {"sides": [side], "height_m"
+  (0.3…1.5), "rail_m", "post_m", "posts_m", "material"}, "curb"?: {"height_m" (0…0.3), "width_m"}, "shelter"?:
+  {"posts_mm": [p, ...] (≤ 16), "post_m", "eaves_m" (1.8…6), "roof": roof, "lantern"?: {"post": index, "up_m"}},
+  "moored"?: [{"kind": "rowing_boat", "at_mm", "yaw_deg", "length_m" (2…12), "beam_m" (0.8…4)}] (≤ 16)}`. A deck
+  is the floor of the place it depicts: its footprint lies within 50 mm of that place's, and that place's floor
+  height in the scene is `surface_m` (its door's in-point, its frame origin, the server's solids and its
+  furnishings stand there). The boards cover the footprint at `surface_m`, `thickness_m` deep; an `approach` is a
+  ramp inside the footprint from its `side` edge at `from_m` to the surface over `length_m`, no steeper than 1:12
+  (2010 ADA Standards §405.2; `DEPICTION_OUT_OF_RANGE`). Piles stand in `bents` pairs `inset_m` in from the
+  sides, evenly from `inset_m` of each end, from `to_m` up to the underside, with a cap beam and, with `bracing`,
+  an X-brace each. Rails are round, `height_m` above the surface (on an approach, above the ramp), on each listed
+  side except across the approach's edge; posts every `posts_m`; a curb runs under each railed side. A shelter's
+  posts must stand on the deck (`DEPICTION_ON_FLOOR`); its roof covers the posts' bounding box like a building's
+  roof, eaves `eaves_m` above the surface. `moored` craft are static (`ARC-171`), each tied by a line to its
+  nearest pile, and may not stand on any place's floor (`DEPICTION_ON_FLOOR`). The deck's surface and approach
+  collide as ground (the group `mw_depiction_ground`); rails, curb and shelter posts collide as drawn. The terrain
+  under a deck, and within one cell of its sides other than the approach's, stays `thickness_m` below the
+  surface there and below `surface_m`. Nodes are tagged `mw_category` `landmark.<name>` (craft `landmark.<name>.boat`) when the depicted
+  place is tagged `landmark`, else `deck.<name>`. A drawn person stands on the depiction's ground colliders
+  under its observed position. There is no field for a bench or any other furniture (`ARC-307`).
 - **scatter** is placed by its seed, uniformly in its polygon or in its strip, on the ground: boulders are the
   client's procedural granite boulder at the drawn size; reeds, grass and wildflowers are cards in one
   `MultiMesh` per entry (reeds half as wide as tall), hidden beyond `range_m`.
