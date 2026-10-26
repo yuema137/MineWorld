@@ -509,6 +509,15 @@ not apply. S33-e2 NOT merged: the halt's thirteen rows are **deferred** to a bou
 | AC-f-7 threshold exposure | INCONCLUSIVE | `--slice-measure` measures the café only; the lamp is placed, its band unmeasured |
 | AC-f-8 bytes | PASS | no binary asset added |
 
+**After merging the base (2026-10-26, `mvp0/pr-s33d` @ `8112883a`, with main).** Bounded corrections:
+`SliceMain.PACK_DIR` is gone (ARC-51): the seating, its check, and — because the base no longer parsed —
+S33-d's `data_depiction.gd` and the café's depiction now read `SlicePack.select().dir` (D-S33f-10); the sit
+rule's constants are `SIT_NEAR_M` / `SIT_STILL_S`, since main brought unrelated `NEAR_M`s that I-f-6 took for
+copies (D-S33f-11); PRESENTATION.md's sit-point section is §9 after main's §8 stations. Re-run: depiction 5,
+packs 7, `lakeside_sit_points` 3, `client_rules` 7 — all PASS; Godot import clean; AC-f-4 both clients
+`SEATED 102/103 7 long-table.3`; `--link` "all link checks pass" (125 moves accepted, bakery, boathouse,
+square, pier entered); `--seat` 368 rows "all seat checks pass".
+
 **Design review (2026-10-18).** One independent Opus reviewer, verdict REQUEST CHANGES, no blockers; §5.2's
 clearances and spacings confirmed point by point. Applied before the PR opened: the bakery's facing reads "along
 the table" (no window on the party wall); the chairs' pelvis offset 0.15 m (F-S33f-7); the spacing basis made a
