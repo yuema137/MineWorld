@@ -46,6 +46,9 @@ roles:
 - `subscribe { topic }` and `unsubscribe { topic }`: a person's own choice. Nobody else sees it.
 - The **board** shows a person the notices that are current now on the topics they subscribe to or
   publish. A notice leaves the board at its end time, with nothing recorded. The inbox and memory keep it.
+- The **topics** record lists every topic the world declares, so a person knows what there is to follow.
+  For each topic it says what notices carry, how long they stay valid, the daily limit, whether this
+  person may post on it, and whether they follow it. Each person sees only their own.
 
 Every action is offered without a ready-made payload, so a generic NPC never posts or subscribes at
 random. A refusal is always named: `unknown-topic`, `body-mismatch`, `body-too-large`, `body-invalid`,
