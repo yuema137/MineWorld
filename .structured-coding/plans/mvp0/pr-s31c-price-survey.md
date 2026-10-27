@@ -1194,6 +1194,22 @@ Bounded, recorded during implementation (none touches a frozen invariant, contra
 - `cargo fmt`, `cargo clippy -p mineworld-cli --test price_survey -D warnings`: **PASS**.
 - Left for the milestone: the four 30-day W2/W3/W4 runs, X-7 and M-c-1 … M-c-6 (now also against W5).
 
+### Milestone fd-1026 finding (2026-10-26, branch `fix/ms-price-survey`)
+
+- **F-S31c-ms-1.** Milestone run 40403074977 failed AC-c-7 ("no store sale in Carol's book", W3). Cause, read
+  from the W3 log: Carol, hungry, walks into the store on an errand of her own (rule's fetch band, ARC-286,
+  S35 N-h) and buys an apple there at 08:22 on day 0, so she perceives store sales although her routine
+  sends her to the park. The fixture's premise "only the routine brings Carol to the store" stopped holding
+  when needs and the fetch band reached Market Town; S27-g (#413) reordered the offers, which moved the
+  paced rule's seeded draws onto a trajectory that exposes it. The book itself is correct: AC-c-6's equality
+  holds in W3.
+- **Bounded correction of AC-c-7's oracle (to be acknowledged by the operator).** AC-S31-10's sentence
+  "moving the reporter's routine away from the store removes store sales from its book" is now checked
+  against W2, independent of offer order and of any one trajectory: (a) in W2 Carol notes store sales while
+  her agenda (`agenda-changed`) names the store; (b) in W3 none of her store notes falls while her agenda
+  names the store; (c) W3's store notes are fewer than W2's; plus the unchanged AC-c-6 equality and "the
+  store still sells". **PASS** locally (65 s, both 30-day runs).
+
 ---
 
 ## 16. Proposed edits elsewhere (made by the PR or owner named)

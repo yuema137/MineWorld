@@ -349,6 +349,16 @@ stop          any change to a frozen invariant, a public contract beyond §4 (Pl
   in the jam was at a punctual place, so the hold rule took no part that morning; the changed trajectories of
   earlier days only moved the jam onto this seed. It is the doorway-gridlock class of `ARC-361` and belongs to
   movement's local avoidance (adopt a crowd-avoidance method, tools first), not to the commute.
+  **Re-checked after S35 N-f/N-g (#370, #453, #475), 2026-10-26:** seed 1 is 90 of 90, 0 late; the jam is
+  gone. Seeds 7 and 42 now each had one late shift, and neither is a jam: both are Ivan on a hungry fetch
+  errand. At 06:15 (day 10, seed 7; day 26, seed 42), not yet due for his 07:00 shift from where he stood,
+  the fetch band walked him to the shop at the far end of the street; at 06:30 the commute fell due from
+  there, and the walk back took 30 min 8 s (seed 7) and 33 min (seed 42). The due test asks whether waiting
+  one pace *here* could make me late, and an errand moves me first. **Bounded correction (rule fetch band
+  row 10, `commute::errand_fits`):** a fetch walk away is judged as a round trip, like `holds`' window —
+  allowed only while the commute is not due at `pace + min(cap, estimate + lead)` of the way to the errand.
+  Purchases here are never held back. Market Town and Commute Town × seeds 1, 7, 42 × 30 days: every shift
+  present, 0 late. Generic: names no place, person or world.
 
 ## 7. Records
 
