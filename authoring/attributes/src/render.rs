@@ -22,7 +22,7 @@ use crate::declaration::{Declaration, Visibility};
 use crate::derive::band_index;
 use crate::id::{QualifiedId, ValueSlug};
 use crate::kind::{Kind, KindName};
-use crate::value::AttributeValue;
+use crate::value::{AttributeValue, ScaledInt};
 
 /// The schema of a disclosed payload: 2 adds each entry's `label`, `facets` and `rank`, and orders
 /// entries by rank (S30-f, Q-S30f-1).
@@ -136,12 +136,22 @@ pub fn words(declaration: &Declaration, value: &AttributeValue) -> String {
     }
 }
 
-/// The phrase with `words` in it, bounded; `None` when the words are empty.
-pub fn phrase(declaration: &Declaration, words: &str) -> Option<String> {
+/// The phrase with `words` in it, bounded; `None` when the words are empty. A quantity of exactly
+/// one unit takes `phrase_one` when the declaration has one.
+pub fn phrase(declaration: &Declaration, value: &AttributeValue, words: &str) -> Option<String> {
     if words.is_empty() {
         return None;
     }
-    Some(bounded(declaration.phrase.replacen("{value}", words, 1)))
+    let template = match (value, &declaration.phrase_one) {
+        (AttributeValue::Quantity(quantity), Some(one)) if is_one_unit(*quantity) => one,
+        _ => &declaration.phrase,
+    };
+    Some(bounded(template.replacen("{value}", words, 1)))
+}
+
+/// Whether `quantity` is exactly one unit: 1 at scale 0, 1.000 at scale 3, and so on.
+fn is_one_unit(quantity: ScaledInt) -> bool {
+    10_i64.checked_pow(u32::from(quantity.scale())) == Some(quantity.value())
 }
 
 /// `text` cut to [`TEXT_BOUND`] bytes at a character boundary, with "…".
@@ -184,7 +194,7 @@ pub fn entry(declaration: &Declaration, value: &AttributeValue, view: View) -> O
     }
     Some(shell(
         Some(value.clone()),
-        phrase(declaration, &words(declaration, value)),
+        phrase(declaration, value, &words(declaration, value)),
     ))
 }
 

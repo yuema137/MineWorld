@@ -31,6 +31,7 @@ attributes:
     derive: { age: { from: core.birth } }
     label: Age
     phrase: "{value} years old"
+    phrase_one: "{value} year old"
     since: 1.0.0
   age-band:
     group: background
@@ -112,6 +113,7 @@ attributes:
     mutability: evolving
     label: Years in town
     phrase: "{value} years in town"
+    phrase_one: "{value} year in town"
     since: 1.0.0
   education-level:
     group: background
@@ -160,6 +162,7 @@ attributes:
     mutability: evolving
     label: Children
     phrase: "{value} children"
+    phrase_one: "{value} child"
     since: 1.0.0
   religion:
     group: background

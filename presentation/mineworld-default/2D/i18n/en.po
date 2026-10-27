@@ -195,6 +195,9 @@ msgstr "{amount} in all"
 msgid "ui.row.wealth.unvalued"
 msgstr "{count} things without a price"
 
+msgid "ui.row.wealth.unvalued.one"
+msgstr "{count} thing without a price"
+
 msgid "ui.row.currency"
 msgstr "{name} ({symbol})"
 
