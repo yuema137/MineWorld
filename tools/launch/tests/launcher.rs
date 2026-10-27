@@ -546,6 +546,11 @@ fn play_joins_with_working_arguments_stops_gracefully_and_resumes() {
         "the client is told the bundle's runtime folder (step-23 §6.5)"
     );
     assert_eq!(client.user("seat"), "visitor", "launch.toml's seat");
+    assert_eq!(
+        client.user("world-key"),
+        "social-cafe",
+        "the client is told the world it draws (RL-e0: a joining client refuses without it)"
+    );
     let address = client.user("server").to_owned();
     assert!(
         address.starts_with("127.0.0.1:"),

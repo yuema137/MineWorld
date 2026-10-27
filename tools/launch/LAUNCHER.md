@@ -131,7 +131,9 @@ seat is not checked by the launcher: the server refuses an unknown seat to the c
    space. The server exiting first, or no line within 60 s, is an error naming the server's log.
 5  start each client of the mode:
      <the runtime> [--headless]
-              -- --client=<2d|3d> --root=<root>/runtime --server=<address> --seat=<seat> --invite=<token> [probe]
+              -- --client=<2d|3d> --root=<root>/runtime --server=<address> --seat=<seat> --invite=<token>
+                 --world-key=<world> [probe]
+     (--world-key names the world the client draws; a joining client refuses to enter without it, RL-e0)
      standard output and error: logs/<run>-client-<2d|3d>.log
 6  wait until every client has exited
 7  stop the server (§8)
