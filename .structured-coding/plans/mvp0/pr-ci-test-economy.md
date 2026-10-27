@@ -1,6 +1,6 @@
 # PR design — CI test economy: a full suite that sees every failure, runs once, and is not the only gate
 
-**Lifecycle: DRAFT (2026-10-27). Not frozen. Docs only; no code changes in this PR.**
+**Lifecycle: DESIGN FROZEN 2026-10-27 (operator approved in the primary session: every question answered as recommended) (2026-10-27). Not frozen. Docs only; no code changes in this PR.**
 Requested by the operator through the coordinator on 2026-10-27: "is running the full milestone suite
 every round necessary, or wasteful? Shard the work and check for over-testing."
 
@@ -362,6 +362,8 @@ seed or world changes**; a test only moves tier or reads a shared save.
 ---
 
 ## 6. Operator questions (with recommendations)
+
+**Ruled 2026-10-27 (operator, primary session):** every question below is answered as recommended.
 
 - **Q-1. Per-PR `impact` job.** The speed-first rule (ARC-154) runs no tests per PR. Add `impact`
   (Linux only, ≤ 25 min, tests the change can reach), and make the auto-merger wait for it?
