@@ -8,6 +8,12 @@ PR to the commit (Markdown only, in §17's PR section), and the primary session 
 code begins. **R-b and R-d** stay at medium scope (§13) and are frozen on their own later. Nothing here
 authorizes a merge: every PR merges only after the primary session's review and the operator's
 authorization (`CLAUDE.md` §3.1). Progress, evidence and bounded corrections stay writable.
+**Note of 2026-10-26 (operator ruling QB-14, `overall.md` §5).** The packaged clients are published
+publicly: the macOS, Windows and Linux bundles of §3 go to GitHub Releases, with the itch.io mirror and the
+Zenodo archive of §4 (ARC-79). The operator's words: "要不要公开发布打包好的客户端 当然要啊，要不然别人玩不了".
+This settles QB-14, which this step listed as a binding parent. It changes no scope, invariant or
+criterion here; the timing of the first tag stays QR-12's, and nothing is published before the operator's
+go-ahead after milestone acceptance.
 **Author:** the release planning session, 2026-10-10. Draft: worktree
 `/Users/yuema137/mineworld-worktrees/plan-release`, branch `docs/release-design`, from
 `origin/main @ 5ccc402`, merged as PR #136 (`a926fbf`). Freeze: branch `docs/s23-freeze` from
