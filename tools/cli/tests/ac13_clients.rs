@@ -32,7 +32,7 @@ use std::path::Path;
 
 use godot2d::worlds::id;
 use godot2d::{MARKET_TOWN, World};
-use godot3d::{depiction, interactions, result_kind, world_key};
+use godot3d::{LOCOMOTION, depiction, interactions, result_kind, world_key};
 use headless::Tables;
 use mineworld_contracts::{ActionResult, Causation, EventEnvelope};
 use mineworld_persistence::{JournalEntry, Outcome, WorldInput, format};
@@ -359,7 +359,9 @@ fn caused(save: &SaveDir, actor: &str) -> Vec<(String, String, Vec<String>)> {
         let WorldInput::Dispatch { intent, .. } = &entry.input else {
             continue;
         };
-        if intent.actor().raw().to_string() != actor || intent.action_type().as_str() == "move" {
+        if intent.actor().raw().to_string() != actor
+            || LOCOMOTION.contains(&intent.action_type().as_str())
+        {
             continue;
         }
         let kind = match &entry.outcome {
