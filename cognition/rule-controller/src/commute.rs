@@ -257,6 +257,36 @@ pub fn holds(
         })
 }
 
+/// Whether an errand walk to `to` still lets me set out in time for a punctual next part (F-Nh-7).
+///
+/// The due test asks whether waiting one pace *here* could make me late; an errand moves me first. So
+/// the errand is judged as a round trip, as [`holds`] judges a walk back to the part in force:
+///
+/// ```text
+/// fits(to)  ⇔  ¬ due at t with pace + window          no punctual next part, or at-boundary: fits
+/// window     = min(cap, estimate(way to) + lead(way to))   the walk there, and back again at most
+/// window     = cap                                       no way to `to` disclosed
+/// ```
+///
+/// By the triangle inequality the commute from `to` is at most the commute from here plus the way
+/// back, so an errand that fits leaves the commute due no earlier than a later consult. Nothing names
+/// a place, a person or a world: a hungry passer-by 15 minutes before a shift no longer walks to the
+/// far end of the street for breakfast and back (Market Town seeds 7 and 42).
+pub fn errand_fits(
+    observation: &Observation<Value>,
+    commute: &Commute,
+    pace: SimDuration,
+    stride: SimDuration,
+    to: PlaceId,
+) -> bool {
+    let cap = commute.cap_minutes * 60;
+    let window = way_to(observation, to).map_or(cap, |way| {
+        cap.min(estimate(&way, stride).saturating_add(commute.lead(Some(&way), stride)))
+    });
+    let ahead = SimDuration::from_seconds(pace.seconds().saturating_add(window));
+    commute.due(observation, ahead, stride).is_none()
+}
+
 /// [`holds`]' window, in world seconds: the round trip to the part in force, at most the cap.
 fn hold_window(
     observation: &Observation<Value>,

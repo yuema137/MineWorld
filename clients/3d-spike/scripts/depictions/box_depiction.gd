@@ -87,10 +87,15 @@ func register(g: Node3D) -> void:
 		frame_origin()))
 	var i := 0
 	for p in places():
-		var volume := _volume(g, "stub.%d" % i, p["footprint"])
+		var volume := _volume(g, place_volume(i), p["footprint"])
 		var door := _door(g, p, volume)
 		_entries.append(SliceDepiction.entry(p["tags"], volume, SliceLayout.ROOM, door))
 		i += 1
+
+
+## The scene volume's name of the `i`-th place of `places()`.
+static func place_volume(i: int) -> String:
+	return "stub.%d" % i
 
 
 ## The stub's drawing: a floor on the street and a walled grey box on every place, each wall with a

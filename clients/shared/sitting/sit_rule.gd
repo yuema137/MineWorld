@@ -12,7 +12,7 @@
 ##             already (ties by entity id); each person at their nearest such point
 ##
 ## The depiction file (`presentation/mineworld-default/3D/sit_points/<world>.yaml`) binds a point by its
-## place's tags and its key, and gives the drawn seat (`seat_height_m`, `seat_offset_m`, `prop`) and,
+## place's tags (every one of `tags`, none of `unless`, ARC-179) and its key, and gives the drawn seat (`seat_height_m`, `seat_offset_m`, `prop`) and,
 ## until S34-c writes the points into world data, the fallback `at` / `facing` (Q-S33f-1 (A)).
 ##
 ## Both clients call [method decide] with what they were told: it reads no clock, no scene and no
@@ -67,7 +67,8 @@ static func load_for(pack_dir: String, world_key: String) -> MineWorldSitRule:
 		if typeof(fb) == TYPE_DICTIONARY:
 			at = Vector2(float(fb["at"]["x"]), float(fb["at"]["y"]))
 			facing = int(fb.get("facing", 0))
-		rule.points.append({"tags": PackedStringArray(p.get("tags", [])), "point": String(p["point"]),
+		rule.points.append({"tags": PackedStringArray(p.get("tags", [])),
+			"unless": PackedStringArray(p.get("unless", [])), "point": String(p["point"]),
 			"group": String(p.get("group", "")), "prop": String(p.get("prop", "")),
 			"seat_height_m": float(p.get("seat_height_m", 0.45)),
 			"seat_offset_m": float(p.get("seat_offset_m", 0.45)), "at": at, "facing": facing})
@@ -77,7 +78,7 @@ static func load_for(pack_dir: String, world_key: String) -> MineWorldSitRule:
 ## The depiction of `point` in a place carrying `place_tags`, or {}.
 func depiction(place_tags: PackedStringArray, point: String) -> Dictionary:
 	for p in points:
-		if p["point"] == point and _tagged(p["tags"], place_tags):
+		if p["point"] == point and binds(p, place_tags):
 			return p
 	return {}
 
@@ -112,7 +113,7 @@ func decide(place_tags: PackedStringArray, disclosed: Variant, people: Array, no
 		return seated
 	var candidates := []
 	for p in points:
-		if p["at"] != null and _tagged(p["tags"], place_tags):
+		if p["at"] != null and binds(p, place_tags):
 			candidates.append(p)
 	var order := people.duplicate()
 	order.sort_custom(func(a, b): return _before(String(a["id"]), String(b["id"])))
@@ -170,6 +171,18 @@ func decide_observed(observation) -> Dictionary:
 		return {}
 	return decide(tags_of(observation), observation.component_value(here, "sit-points"),
 		people_of(observation), float(observation.at()))
+
+
+## Whether point `p` (of [member points]) binds to a place carrying `place_tags`: every one of its `tags`
+## is among them and none of its `unless` is -- so a waiting room tagged [station] is told apart from the
+## ticket office and the platform off it, tagged [station, ticket-office] and [station, platform].
+static func binds(p: Dictionary, place_tags: PackedStringArray) -> bool:
+	if not _tagged(p["tags"], place_tags):
+		return false
+	for t in p.get("unless", PackedStringArray()):
+		if place_tags.has(t):
+			return false
+	return true
 
 
 ## Every tag of `wanted` is among `have`.

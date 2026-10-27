@@ -100,6 +100,22 @@ func reconcile(observation: MineWorldObservation) -> void:
 			_people.erase(id)
 
 
+## Sets a drawn person's price tag (S31-e §5.8); the composition root words it from the disclosed asks.
+func set_tag(id: String, said: String) -> void:
+	if _people.has(id):
+		_people[id]["tag"].text = said
+
+
+## Every drawn tag that says something, `[{subject, text}]`, for the harness's HUD report.
+func tags() -> Array:
+	var out: Array = []
+	for id in _people:
+		var said: String = _people[id]["tag"].text
+		if said != "":
+			out.append({"subject": id, "text": said})
+	return out
+
+
 ## The walker's body for the observer: drawn there, whatever the last observation said.
 func set_player(plan: Vector2) -> void:
 	if _people.has(observer):
@@ -346,9 +362,21 @@ func _make(id: String, plan: Vector2, look: String) -> Dictionary:
 	zz.position = Vector2(-80, -top - 56)
 	zz.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	node.add_child(zz)
+	# A seller's price tag, under the figure (S31-e §5.8): the disclosed asks, formatted; "" for none.
+	var tag := Label.new()
+	tag.name = "tag"
+	tag.add_theme_font_size_override("font_size", 12)
+	tag.add_theme_color_override("font_color", Color("2f5a2a"))
+	tag.add_theme_color_override("font_outline_color", Color(1, 0.98, 0.93, 0.9))
+	tag.add_theme_constant_override("outline_size", 5)
+	tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tag.size = Vector2(200, 16)
+	tag.position = Vector2(-100, 6)
+	tag.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	node.add_child(tag)
 	world.add_child(node)
 	var height_m: Variant = null if views.is_empty() else views["front"].get("height_m")
-	return {"node": node, "body": body, "label": label, "marker": marker, "zz": zz, "plan": plan, "target": plan,
+	return {"node": node, "body": body, "label": label, "marker": marker, "zz": zz, "tag": tag, "plan": plan, "target": plan,
 		"phase": float(posmod(id.hash(), 628)) / 100.0, "away": false, "snap": true,
 		"height_m": height_m, "top": top, "activity": null, "drift": Vector2.ZERO, "walked": 0.0,
 		"turns": [], "shown": {"away": false, "side": 1.0, "view": 1}, "still_s": 0.0, "asleep": false,

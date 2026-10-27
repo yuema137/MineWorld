@@ -294,11 +294,13 @@ impl PacedRuleController {
         // (`needs.rs`, Q-S35-OP1 (b)) — while waiting at a punctual part's place for it to begin, only a
         // purchase here, never a walk away (D-Nc2-5, F-Nd-8), so that an errand does not make me late.
         // No `needs` disclosed, nothing here changes.
-        if let Some(decided) = self
-            .needs
-            .as_ref()
-            .and_then(|needs| needs.fetch(observation, waiting))
-        {
+        if let Some(decided) = self.needs.as_ref().and_then(|needs| {
+            needs.fetch_within(observation, waiting, |to| {
+                self.commute.is_none_or(|(commute, stride)| {
+                    crate::commute::errand_fits(observation, &commute, self.pace, stride, to)
+                })
+            })
+        }) {
             return decided;
         }
         let at_agenda = waiting

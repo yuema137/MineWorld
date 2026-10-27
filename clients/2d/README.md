@@ -33,6 +33,12 @@ what you can do on your own — buy, eat, drink, leave an activity. Every entry 
 offered; a greyed one says why not, and you may still try it. I shows your things, H your
 conversations.
 
+Where people trade, a panel opens beside the menu: what that person sells, with *Buy*; on yourself, what
+the shop here sells, and your stall — put what you carry up for sale, change a price, withdraw it. Prices
+are in the world's own money, and the money line under the status shows what you have. Sellers wear a
+price tag, and a shop's board shows its prices at the door. N shows the notice board: the current notices
+on the topics you follow, with a "new" count on the status line until you look.
+
 Balls and boxes lying in a room are drawn where the world says, and move the way it says. Click one
 for what you can do with it — kick it, throw it, or "Throw the ball at…" and then click the floor where
 it should go (Esc or a right click cancels). Try it in `worlds/bodies-yard`:

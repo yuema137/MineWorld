@@ -330,11 +330,12 @@ corner. Every block marked *cited* needs a non-empty `source`.
 | `trees` | no | `{"species": [species] (≤ 16), "stands"?: [stand], "singles"?: [{"species", "at_mm", "height_m"}], "keep_clear": {"places", "paths_m"}, "lod_m", "air_walls"?: [{"ring": {"centre_mm", "radius_m"}} \| {"line_mm"}], "source"}` |
 | `scatter` | no | `[{"name", "kind": "boulder" \| "reeds" \| "grass" \| "wildflower", "area": {"polygon_mm"} \| {"along_mm", "width_m"}, "count" (reeds ≤ 40), "size_m": {"min", "max"}, "seed", "range_m"?, "source"}]` |
 | `decks` | no | `[deck]`: walked floors on piles — a pier, a jetty, a boardwalk, a platform (`ARC-178`) |
+| `stations` | no | `[station]` (≤ 4): a station's fixtures, its platform and its track, drawn by the shared station pieces (§9.1; `ARC-179`) |
 | `light` | no | `{"gi"?: [{"box_mm": rect, "height_m", "subdiv": 64 \| 128 \| 256}] (≤ 4), "probes"?: [{"box_mm", "height_m", "centre_up_m", "update": "once"}]}` |
 | `models` | no (none) | `[model]` (≤ 64): place assets of the same pack (§8), placed in the scene (16f-d1; `ARC-177` amended) |
 | `extras_from` | no (the pack's own) | a world key: whose extras draw a person the pack does not bind and every decor figure (step-26 E-2, S33-g §5.2; `SliceCast.use_extras_from`) |
 | `decor` | no (none) | `[{"pose": "walking", "from_mm", "to_mm"} \| {"pose": "standing", "at_mm", "yaw_deg"?}]` (≤ 5): decorative figures with no world entity, on the street, on the drawn ground; a walker goes out and back (S33-g §5.3) |
-| `viewpoints` | yes | `{"farfield": [{"id", "at_mm", "eye_m", "roles"?: ["protected" \| "judged" \| "high"]}], "farfield_shots"?: [view], "perf"?: [view], "perf_breakdown"?: [perf view name], "probe_route"?: [[tag, ...], ...]}`; a view is `{"name", "at_mm", "eye_m", "yaw_deg", "pitch_deg"}` |
+| `viewpoints` | yes | `{"farfield": [{"id", "at_mm", "eye_m", "roles"?: ["protected" \| "judged" \| "high"]}], "farfield_shots"?: [view], "perf"?: [view], "perf_breakdown"?: [perf view name], "probe_route"?: [step, ...]}`; a view is `{"name", "at_mm", "eye_m", "yaw_deg", "pitch_deg"}`. A route step is `[tag, ...]` (the link probe walks into the entry with those tags) or `{"tags": [tag, ...], "at_mm": [x, y]}` (into the entry with exactly those tags, then to that point and back; `at_mm` is in the place's frame, millimetres from the entry's footprint's south-west corner, and lies on the footprint, else `DEPICTION_OUT_OF_RANGE`; tags that are no entry's exactly are `DEPICTION_REFERENCE`) |
 
 - **region** (*cited*): `{"name", "polygon_mm", "height", "layer"}`. A `height` is exactly one of
   `{"flat_m", "crown_m"?, "crown_along"?: "x" | "y"}` (crown and axis together) or
@@ -351,11 +352,15 @@ corner. Every block marked *cited* needs a non-empty `source`.
   (2.4…4.0), "plinth_m", "walls": {"material", "tint"?}, "roof": {"form": "gable" | "hip" | "mono" | "flat",
   "ridge"?: "x" | "y", "falls" (mono only): "n" | "s" | "e" | "w", "pitch_deg" (0…60), "overhang_m"?, "material",
   "tint"?}, "openings"?: [{"side", "kind": "door" | "double_door" | "window" | "shop_window", "storey",
-  "offset_m" | "at_doorway": true, "width_m", "height_m", "sill_m"?, "state": "closed" | "open" | "dark" |
-  "glazed"}], "chimney"?: {"at_mm", "size_m": [w, d], "above_ridge_m"}, "interior"?: interior}`.
-  `depicts: null` is a shell nobody enters; it may not stand on any place's floor. A door may be `open` only
-  `at_doorway` of a building that depicts a place; an opening may be `glazed` only in a building with an
-  `interior` (`DEPICTION_DOOR`).
+  "offset_m" | "at_doorway": true | "doorway_of": [tag, ...], "width_m", "height_m", "sill_m"?, "state": "closed" |
+  "open" | "dark" | "glazed"}], "chimney"?: {"at_mm", "size_m": [w, d], "above_ridge_m"}, "interior"?: interior}`.
+  An opening states exactly one of `offset_m`, `at_doorway: true` and `doorway_of` (`DEPICTION_MALFORMED`).
+  `doorway_of` (`ARC-179`) puts a door on the doorway of the one place its tags name — the place tagged exactly
+  so, else the only place carrying them all (`DEPICTION_REFERENCE` otherwise) — for a room that opens off this
+  building's place rather than off the street: a waiting room's doors into its ticket office and onto its
+  platform. `depicts: null` is a shell nobody enters; it may not stand on any place's floor. A door may be `open`
+  only at a doorway (`at_doorway` or `doorway_of`) of a building that depicts a place; an opening may be `glazed`
+  only in a building with an `interior` (`DEPICTION_DOOR`).
 - **interior** (*cited*; S33-f): the room inside a shell that depicts a place, drawn by
   `scripts/depictions/data/interior_builder.gd` (`DepictionInteriors`): `{"floor": surface, "ceiling": surface,
   "fittings"?: [{"name", "box_mm": rect, "height_m" (0…10], "material", "tint"?, "source"}] (≤ 32),
@@ -406,7 +411,7 @@ corner. Every block marked *cited* needs a non-empty `source`.
   glass in the wall's middle, `open` with nothing.
   `offset_m` counts from the facade's left end seen from outside. The roof covers the footprint's bounding
   rectangle with `overhang_m` eaves. Every shell collides on `Build.LAYER_ART` (`ARC-52`), with a gap at least the stub's
-  door width (1.4 m) at each `at_doorway` opening; a leaf never collides (the server decides who passes). While a file has `buildings`, nothing of the stub is drawn.
+  door width (1.4 m) at each door at a doorway (`at_doorway` or `doorway_of`); a leaf never collides (the server decides who passes). While a file has `buildings`, nothing of the stub is drawn.
 - **deck** (*cited*, `ARC-178`): `{"name", "depicts": [tag, ...], "footprint_mm": rect, "surface_m",
   "thickness_m" (0.05…1), "boards": {"material", "tint"?, "across": "x" | "y", "width_mm" (50…400), "gap_mm"
   (0…20)}, "approach"?: {"side": "n" | "s" | "e" | "w", "length_m", "from_m"}, "piles": {"bents" (2…64),
@@ -430,6 +435,39 @@ corner. Every block marked *cited* needs a non-empty `source`.
   surface there and below `surface_m`. Nodes are tagged `mw_category` `landmark.<name>` (craft `landmark.<name>.boat`) when the depicted
   place is tagged `landmark`, else `deck.<name>`. A drawn person stands on the depiction's ground colliders
   under its observed position. There is no field for a bench or any other furniture (`ARC-307`).
+- **station** (*cited*, `ARC-179`; S33-e §5.2): `{"name", "style": "timber" | "oak", "fixtures"?: [fixture]
+  (≤ 16), "platform"?: platform}`, drawn by `scripts/depictions/data/station_builder.gd` (`DepictionStations`)
+  with the shared station pieces (§9.1) in the style's materials. The station's building is a `buildings` shell
+  whose doors into the places off it are `doorway_of` openings; its benches and kiosk are the world's
+  furnishings (§5, `ARC-307`).
+  - **fixture**: `{"piece": "board" | "clock" | "window_bay", "in": [tag, ...], "at_mm", "up_m" (0…6),
+    "facing_deg" (−360…360, clockwise from north), "size_m": [a, b] (0.1…10 each), "post_m"? (0.05…0.5),
+    "counter_m"?, "screen_m"?, "grilles"?}`. `size_m` is a board's width and height, a clock's diameter (twice),
+    a window bay's width and depth. A window bay states `counter_m` (0.6…1.5), `screen_m` (at least
+    `counter_m` + 1, at most 4) and `grilles` (1…8) and no `post_m`; a board or a clock states none of the three
+    (`DEPICTION_MALFORMED`). `in` names one place as `doorway_of` does (`DEPICTION_REFERENCE`), and `at_mm` lies
+    on its footprint (`DEPICTION_ON_FLOOR`). The piece's centre (a window bay's base) stands `up_m` above that
+    place's floor, its face toward `facing_deg`; a `post_m` post stands at `at_mm` from the floor to the piece's
+    top edge, the piece on its face, and collides; a window bay's counter collides (it is the world's counter
+    solid). Each fixture is registered with `StationFixtures` by the place's scene volume, so it shows only what
+    the world disclosed about that place (`ARC-108`): offline, or for a place never observed, the board reads
+    `station.no_service`, the window is shut and the clock has no hands.
+  - **platform**: `{"depicts": [tag, ...], "edge": side, "surface_m", "height_m" (0…1.5, above the rail head),
+    "coping_mm", "strip_mm" (0…1000), "end_fence_m" (0.6…2), "canopy"?: {"along_mm": [a, b], "depth_m"
+    (0.5…5), "eaves_m" (2.1…6), "pitch_deg" (0…45), "material", "tint"?}, "track": {"gauge_mm" (500…2000),
+    "near_mm" (gauge / 2…5000, edge to centreline), "tie_mm": [length, width], "tie_pitch_mm" (300…1500),
+    "rail_mm": [width, height], "buffer"?: side, "beyond_m" (0…100), "cutting_m" (0…100), "bank_m"
+    (0.5…10)}}`. `depicts` names one place as `doorway_of` does; its footprint is the platform, and that
+    place's floor height is `surface_m`. The slab covers the footprint with a coping and a warning strip on
+    its `edge`, the edge's air wall, and a fence with a closed gate across each end; the slab's top is ground
+    (the group `mw_depiction_ground`). The track runs along the edge `near_mm` out; with `buffer` it stops at
+    that end of the platform at a buffer stop and runs on `beyond_m` past the other end into a `cutting_m`
+    cutting (none at 0); without `buffer`, at both ends. The trackbed beside the edge may lie on no place's floor
+    (`DEPICTION_ON_FLOOR`). A canopy is cantilevered from the platform's back edge over `along_mm` (plan
+    millimetres on the platform's long axis, within it) on brackets: no post stands on the floor. The terrain
+    is cut strictly inside the platform's footprint and along the trackbed to just under the ballast, and the
+    woods keep off the trackbed. Nodes are categorized `station.<name>` (the pieces keep their `station.*`
+    categories). No train, no signal aspect, nothing moves (step-29 §5.2, `ARC-171`).
 - **scatter** is placed by its seed, uniformly in its polygon or in its strip, on the ground: boulders are the
   client's procedural granite boulder at the drawn size; reeds, grass and wildflowers are cards in one
   `MultiMesh` per entry (reeds half as wide as tall), hidden beyond `range_m`.
@@ -592,6 +630,7 @@ place's tags and the point's key. YAML's JSON subset, read by the shared sit dec
 | Field | Meaning |
 | --- | --- |
 | `tags`, `point` | the place's disclosed tags (all must be the place's) and the point's key |
+| `unless` | optional: tags the place must not carry (`ARC-179`), so a point of a room tagged `[station]` is not bound to the ticket office or the platform off it, which carry `station` too |
 | `seat_height_m` | the drawn seat's surface above the floor; a seated body's own seat rests on it (`Human.sit_on`), and `--seat` measures it against the drawn seat within 20 mm |
 | `seat_offset_m` | signed: the pelvis is drawn at the point's `at` moved this far **against** its facing — positive back onto a bench behind a point in front of it, negative forward onto a chair in front of a point behind it (Q-S34c-2) |
 | `prop` | the key of the furnishing whose seat it is (`body: furnishings`) |

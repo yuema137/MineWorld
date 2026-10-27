@@ -163,6 +163,7 @@ msgstr "当班中"
 msgid "panel.ways"
 msgstr "从这里出发"
 
+#. override
 msgid "panel.wealth"
 msgstr "你的身家"
 

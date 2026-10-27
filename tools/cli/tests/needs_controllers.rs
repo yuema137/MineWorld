@@ -235,8 +235,10 @@ fn with_motivated_seats_every_shift_is_still_present() {
 
 /// AC-Nc-3 (and, with every seat `motivated`, AC-Nc3-4): 30 days × seeds 1, 7, 42, every shift present.
 fn every_shift_is_present(decisions: Option<&str>) {
-    // AC-LE2-1's literal counts: Market Town two shifts a day, Commute Town four.
-    for (world, per_day) in [(MARKET, 2), (COMMUTE, 4)] {
+    // AC-LE2-1's literal counts: Market Town three shifts a day (Alice's and Felix's, and since S29-b
+    // Ivan's 07:00 morning shift at the station newsstand, `pr-s29b-newsstand.md` §2 item 4), Commute
+    // Town four.
+    for (world, per_day) in [(MARKET, 3), (COMMUTE, 4)] {
         for seed in [1, 7, 42] {
             let tag = if decisions.is_some() {
                 "motivated"

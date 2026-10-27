@@ -469,7 +469,11 @@ jobs:
   # -------------------------------------------------------------------------------------- clients
   # The 25 ignored Godot tests on every OS (DEP-45); on Linux and macOS also the bash launchers' probes,
   # which run if the setup succeeded, even when a Godot test failed. Windows has no clients-probes until
-  # a portable launcher exists (S23 R-c; ARC-83).
+  # a portable launcher exists (S23 R-c; ARC-83). The S33-i agent + 3D observer pair (layer agent-observer)
+  # needs Godot and uv but no bash launcher, so every OS runs it, on the same condition, after the probes.
+  # Linux runs the Godot tests as two shards (ci_godot.py GODOT_WEIGHTS): unsharded, the tests (60 min) and
+  # the probes outran this job's 75 minutes (nightly 40412844680). Shard 1 carries the probes and the
+  # agent-observer pair; shard 2, `clients-linux-2`, the other half of the tests alone.
   clients-linux:
     name: clients-linux
     needs: gate
@@ -491,20 +495,51 @@ jobs:
         uses: ./.github/actions/native
         with:
           layer: clients
+          shard: 1/2
       - name: Run layer clients-probes
         if: success() || steps.clients.outcome == 'failure'
         run: python3 scripts/ci_layer.py clients-probes
+      - name: Run layer agent-observer
+        if: ${{ !cancelled() && (steps.clients.outcome == 'success' || steps.clients.outcome == 'failure') }}
+        run: python3 scripts/ci_layer.py agent-observer
       - name: Verdict
         if: always()
         env:
           STATUS: ${{ job.status }}
         run: >-
           python3 scripts/ci_nightly.py verdict --job clients-linux --outcome "$STATUS"
-          --layer clients --layer clients-probes
+          --layer clients --layer clients-probes --layer agent-observer
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: nightly-clients-linux
+          path: artifacts/nightly/
+          if-no-files-found: warn
+
+  clients-linux-2:
+    name: clients-linux-2
+    needs: gate
+    if: needs.gate.outputs.run == 'true' && contains(needs.gate.outputs.groups, ',clients,')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/godot
+      - uses: ./.github/actions/native
+        with:
+          layer: clients
+          shard: 2/2
+      - name: Verdict
+        if: always()
+        env:
+          STATUS: ${{ job.status }}
+        run: python3 scripts/ci_nightly.py verdict --job clients-linux-2 --outcome "$STATUS" --layer clients
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: nightly-clients-linux-2
           path: artifacts/nightly/
           if-no-files-found: warn
 
@@ -581,6 +616,9 @@ jobs:
       - name: Run layer clients-probes
         if: success() || steps.clients.outcome == 'failure'
         run: python3 scripts/ci_layer.py clients-probes
+      - name: Run layer agent-observer
+        if: ${{ !cancelled() && (steps.clients.outcome == 'success' || steps.clients.outcome == 'failure') }}
+        run: python3 scripts/ci_layer.py agent-observer
       - name: Save Godot's shader cache
         if: always() && steps.shader-cache.outcome == 'success'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -595,7 +633,7 @@ jobs:
           STATUS: ${{ job.status }}
         run: >-
           python3 scripts/ci_nightly.py verdict --job clients-mac --outcome "$STATUS"
-          --layer clients --layer clients-probes
+          --layer clients --layer clients-probes --layer agent-observer
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -608,7 +646,8 @@ jobs:
     needs: gate
     if: needs.gate.outputs.run == 'true' && contains(needs.gate.outputs.groups, ',clients,')
     runs-on: windows-2025
-    timeout-minutes: 75
+    # 100, not 75: the agent-observer layer follows the Godot tests, which took 40-56 of the 75 minutes.
+    timeout-minutes: 100
     steps:
       # The clients' shared modules are symbolic links (W-11); without this they check out as text files.
       - name: Check symbolic links out as links
@@ -620,22 +659,40 @@ jobs:
         shell: bash
         run: |
           for module in clients/2d/mineworld clients/3d-spike/mineworld \
-                        clients/2d/mineworld_environment clients/3d-spike/mineworld_environment; do
+                        clients/2d/mineworld_environment clients/3d-spike/mineworld_environment \
+                        clients/2d/mineworld_trade clients/3d-spike/mineworld_trade; do
             if [ ! -d "$module" ]; then
               echo "$module is not a directory: the symbolic link was checked out as a file (W-11)"
               exit 1
             fi
           done
+      # The agent-observer layer runs the Python workspace, set up as the Linux and macOS jobs do.
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.12.5"
+          python-version: "3.12"
+          enable-cache: false
       - uses: ./.github/actions/godot
-      - uses: ./.github/actions/native
+      - id: clients
+        uses: ./.github/actions/native
         with:
           layer: clients
+      - name: Run layer agent-observer
+        if: ${{ !cancelled() && (steps.clients.outcome == 'success' || steps.clients.outcome == 'failure') }}
+        shell: bash
+        # The native action's build settings, so that the clients layer's build is reused, not redone.
+        env:
+          CARGO_INCREMENTAL: "0"
+          CARGO_PROFILE_DEV_DEBUG: line-tables-only
+        run: python scripts/ci_layer.py agent-observer
       - name: Verdict
         if: always()
         shell: bash
         env:
           STATUS: ${{ job.status }}
-        run: python scripts/ci_nightly.py verdict --job clients-windows --outcome "$STATUS" --layer clients
+        run: >-
+          python scripts/ci_nightly.py verdict --job clients-windows --outcome "$STATUS"
+          --layer clients --layer agent-observer
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -663,7 +720,8 @@ jobs:
         shell: bash
         run: |
           for module in clients/2d/mineworld clients/3d-spike/mineworld \
-                        clients/2d/mineworld_environment clients/3d-spike/mineworld_environment; do
+                        clients/2d/mineworld_environment clients/3d-spike/mineworld_environment \
+                        clients/2d/mineworld_trade clients/3d-spike/mineworld_trade; do
             if [ ! -d "$module" ]; then
               echo "$module is not a directory: the symbolic link was checked out as a file (W-11)"
               exit 1
@@ -817,6 +875,7 @@ jobs:
       - stability-mac
       - stability-windows
       - clients-linux
+      - clients-linux-2
       - clients-mac
       - clients-windows
       - farfield-windows

@@ -217,7 +217,10 @@ def main(arguments: list[str]) -> int:
     def say(step: str, facts: dict[str, Any]) -> None:
         print(f"LAKESIDE {json.dumps({'step': step, **facts}, sort_keys=True)}", flush=True)
 
-    with tempfile.TemporaryDirectory(prefix="lakeside-agent-") as scratch:
+    # A file the adapter process still holds on Windows must not turn a passed walk into a crash on cleanup.
+    with tempfile.TemporaryDirectory(
+        prefix="lakeside-agent-", ignore_cleanup_errors=True
+    ) as scratch:
         try:
             run_default(
                 run_once(options.server, options.http, grant, Path(scratch), say), timeout_s=600

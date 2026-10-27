@@ -32,6 +32,7 @@ const CARDS := Props.CARDS
 ##   num   a number                    str   a string                bool  a boolean
 ##   key   1-48 of a-z 0-9 -           name  1-64 of a-z 0-9 _ -     colour  #rrggbb
 ##   ["list", spec]  ["tuple", n, spec]  ["obj", type]  ["enum", [values]]  ["null_or", spec]
+##   ["list_or", item, spec]  a list of `item`, or else `spec`
 ## Each object type: { field: [spec, required] }.
 const POINT := ["tuple", 2, "int"]
 const RECT := ["tuple", 4, "int"]
@@ -47,7 +48,26 @@ const TYPES := {
 		"light": [["obj", "light"], false], "models": [["list", ["obj", "model"]], false],
 		"extras_from": ["key", false], "decor": [["list", ["obj", "decor"]], false],
 		"viewpoints": [["obj", "viewpoints"], true], "decks": [["list", ["obj", "deck"]], false],
+		"stations": [["list", ["obj", "station_entry"]], false],
 	},
+	# `stations` (ARC-179; S33-e sec.5.2): fixtures, a platform and its track, from S29-e's station pieces
+	"station_entry": {"name": ["key", true], "style": [["enum", ["timber", "oak"]], true],
+		"fixtures": [["list", ["obj", "fixture"]], false], "platform": [["obj", "platform"], false],
+		"source": ["str", false]},
+	"fixture": {"piece": [["enum", ["board", "clock", "window_bay"]], true], "in": [["list", "key"], true],
+		"at_mm": [POINT, true], "up_m": ["num", true], "facing_deg": ["num", true],
+		"size_m": [["tuple", 2, "num"], true], "post_m": ["num", false], "counter_m": ["num", false],
+		"screen_m": ["num", false], "grilles": ["uint", false]},
+	"platform": {"depicts": [["list", "key"], true], "edge": [["enum", ["n", "s", "e", "w"]], true],
+		"surface_m": ["num", true], "height_m": ["num", true], "coping_mm": ["uint", true],
+		"strip_mm": ["uint", true], "end_fence_m": ["num", true], "canopy": [["obj", "canopy"], false],
+		"track": [["obj", "track"], true]},
+	"canopy": {"along_mm": [["tuple", 2, "int"], true], "depth_m": ["num", true], "eaves_m": ["num", true],
+		"pitch_deg": ["num", true], "material": ["name", true], "tint": ["colour", false]},
+	"track": {"gauge_mm": ["uint", true], "near_mm": ["uint", true], "tie_mm": [["tuple", 2, "uint"], true],
+		"tie_pitch_mm": ["uint", true], "rail_mm": [["tuple", 2, "uint"], true],
+		"buffer": [["enum", ["n", "s", "e", "w"]], false], "beyond_m": ["num", true], "cutting_m": ["num", true],
+		"bank_m": ["num", true]},
 	# 16f-d1: a place asset of the pack (`assets/places/<asset>/`), placed by an anchor (ARC-177 amended).
 	"model": {"asset": ["key", true], "depicts": [["null_or", ["list", "key"]], false],
 		"anchor": [["obj", "anchor"], true]},
@@ -130,7 +150,7 @@ const TYPES := {
 	"opening": {"side": [["enum", ["n", "s", "e", "w"]], true],
 		"kind": [["enum", ["door", "double_door", "window", "shop_window"]], true],
 		"storey": ["uint", true], "offset_m": ["num", false], "at_doorway": ["bool", false],
-		"width_m": ["num", true], "height_m": ["num", true], "sill_m": ["num", false],
+		"doorway_of": [["list", "key"], false], "width_m": ["num", true], "height_m": ["num", true], "sill_m": ["num", false],
 		"state": [["enum", ["closed", "open", "dark", "glazed"]], true]},
 	"chimney": {"at_mm": [POINT, true], "size_m": [["tuple", 2, "num"], true],
 		"above_ridge_m": ["num", true]},
@@ -166,7 +186,9 @@ const TYPES := {
 		"update": [["enum", ["once"]], true]},
 	"viewpoints": {"farfield": [["list", ["obj", "farfield_viewpoint"]], true],
 		"farfield_shots": [["list", ["obj", "view"]], false], "perf": [["list", ["obj", "view"]], false],
-		"perf_breakdown": [["list", "str"], false], "probe_route": [["list", ["list", "key"]], false]},
+		"perf_breakdown": [["list", "str"], false],
+		"probe_route": [["list", ["list_or", "key", ["obj", "route_point"]]], false]},
+	"route_point": {"tags": [["list", "key"], true], "at_mm": [POINT, true]},
 	"farfield_viewpoint": {"id": ["str", true], "at_mm": [POINT, true], "eye_m": ["num", true],
 		"roles": [["list", ["enum", ["protected", "judged", "high", "landmark_near", "landmark_far"]]], false]},
 	"view": {"name": ["str", true], "at_mm": [POINT, true], "eye_m": ["num", true],
@@ -258,6 +280,8 @@ static func _check(value: Variant, spec: Variant, at: String) -> String:
 			return ""
 		"null_or":
 			return "" if value == null else _check(value, spec[1], at)
+		"list_or":
+			return _check(value, ["list", spec[1]], at) if value is Array else _check(value, spec[2], at)
 		"obj":
 			return _object(value, TYPES[spec[1]], at, where)
 	return "%s: the schema has no spec %s" % [where, str(spec)]
@@ -372,8 +396,11 @@ static func _shape(root: Dictionary) -> String:
 			return "%s.roof: falls is stated for a mono roof, and only for it" % at
 		var openings: Array = b.get("openings", [])
 		for j in openings.size():
-			if bool(openings[j].get("at_doorway", false)) == openings[j].has("offset_m"):
-				return "%s.openings[%d]: exactly one of offset_m and at_doorway: true" % [at, j]
+			var o: Dictionary = openings[j]
+			var placed := int(bool(o.get("at_doorway", false))) + int(o.has("offset_m")) \
+				+ int(o.get("doorway_of") != null)
+			if placed != 1:
+				return "%s.openings[%d]: exactly one of offset_m, at_doorway: true and doorway_of" % [at, j]
 		if b.get("interior") != null and b.get("depicts") == null:
 			return "%s.interior: a room is drawn only inside a shell that depicts a place" % at
 	if root.get("trees") != null:
@@ -417,6 +444,17 @@ static func _shape(root: Dictionary) -> String:
 		if s.get("lantern") != null and int(s["lantern"]["post"]) >= (s["posts_mm"] as Array).size():
 			return "decks[%d].shelter.lantern.post: %d names no post (there are %d)" \
 				% [i, int(s["lantern"]["post"]), (s["posts_mm"] as Array).size()]
+	var stations: Array = _list(root, "stations")
+	for i in stations.size():
+		var fixtures: Array = stations[i].get("fixtures", []) if stations[i].get("fixtures") != null else []
+		for j in fixtures.size():
+			var f: Dictionary = fixtures[j]
+			var at := "stations[%d] \"%s\".fixtures[%d]" % [i, stations[i]["name"], j]
+			var bay := [f.has("counter_m"), f.has("screen_m"), f.has("grilles")]
+			if f["piece"] == "window_bay" and (bay != [true, true, true] or f.has("post_m")):
+				return "%s: a window bay states counter_m, screen_m and grilles, and no post_m" % at
+			if f["piece"] != "window_bay" and bay != [false, false, false]:
+				return "%s: counter_m, screen_m and grilles are a window bay's, not a %s's" % [at, f["piece"]]
 	return ""
 
 
@@ -456,6 +494,11 @@ static func _names(root: Dictionary) -> String:
 			materials.append(["decks[%d].rails.material" % i, d["rails"]["material"]])
 		if d.get("shelter") != null:
 			materials.append(["decks[%d].shelter.roof.material" % i, d["shelter"]["roof"]["material"]])
+	var stations := _list(root, "stations")
+	for i in stations.size():
+		var p: Variant = stations[i].get("platform")
+		if p != null and p.get("canopy") != null:
+			materials.append(["stations[%d].platform.canopy.material" % i, p["canopy"]["material"]])
 	for m in materials:
 		if not has_texture(m[1]):
 			return "%s: this client's texture library has no %s" % [m[0], m[1]]

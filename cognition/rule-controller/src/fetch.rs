@@ -26,6 +26,8 @@
 //!    shop-stock does not list)                                             → walk there (lowest PlaceId)
 //! 8  shop-tagged doorways, none stocking food for me                       → nothing (F-Ng-3)
 //! 9  a place with one doorway                                              → walk out through it
+//! 10 (7 or 9) the walk would make me miss setting out for a punctual next
+//!    part (`commute::errand_fits`, F-Nh-7)                                 → nothing: stay on my day
 //! ```
 //!
 //! "Nourishes me" reads `needs`' `kinds`; a world whose `needs` record does not carry it decides as
@@ -243,6 +245,18 @@ impl NeedsPolicy {
         observation: &Observation<Value>,
         waiting: bool,
     ) -> Option<Option<ActionRequest>> {
+        self.fetch_within(observation, waiting, |_| true)
+    }
+
+    /// [`Self::fetch`], walking away (rows 7 and 9) only to a place for which `errand_fits` holds:
+    /// the caller's test that the errand still leaves time to set out for a punctual next part
+    /// (`commute::errand_fits`). A purchase or pick-up here is never held back by it.
+    pub fn fetch_within(
+        &self,
+        observation: &Observation<Value>,
+        waiting: bool,
+        errand_fits: impl Fn(PlaceId) -> bool,
+    ) -> Option<Option<ActionRequest>> {
         if !self.fetch_food {
             return None;
         }
@@ -324,6 +338,10 @@ impl NeedsPolicy {
                 only.to()
             }
         };
+        // 10: the walk away must still let me set out in time for a punctual next part (F-Nh-7).
+        if !errand_fits(to) {
+            return None;
+        }
         Some(head_for(observation, to)?.request())
     }
 

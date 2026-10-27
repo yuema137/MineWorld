@@ -298,7 +298,8 @@ header, a duplicate key, and an `action.*` or `reason.*` key that is not well fo
 | `ui.seat.*` | seat messages (PR 13e): `ui.seat.hosted` and `ui.seat.connection` after a welcome that took the Person over (`{who}` the observer's display name), `ui.seat.ended` when the server ended the seat (`{reason}`, worded as `reason.<code>`) | as each key's English shows |
 | `ui.event.<event_type>` | a notice for a fact the `events` table (§4.1) shows as a notice; built from data, so the client holds no event type | `{who}` the subjects' names; every top-level string or whole-number payload field by its name |
 | `suggest.invite-kind` | suggestions offered when typing an activity kind, comma-separated | none |
-| `format.*` | formats: `format.money` (an amount of the wallet's minor units, `{amount}` already divided by 100 with two decimals), `format.clock` | as each key's English shows |
+| `format.*` | formats: `format.money.plain`, `.before`, `.after`, `.group_mark`, `.decimal_mark` (an amount in the currency the world discloses, written by the shared trade module, `clients/shared/TRADE.md` §3; S31-e retired 13b's `format.money`, which assumed two decimals), `format.clock` | `{amount}` the grouped number with its decimals, `{symbol}` the world's symbol |
+| `trade.*`, `board.*` | the sale panel, the stall, price tags and the notice board (`clients/shared/TRADE.md` §5), in the shared layer | as each key's English shows |
 
 Arguments are substituted after the lookup (`{name}` placeholders, Godot's `String.format`).
 

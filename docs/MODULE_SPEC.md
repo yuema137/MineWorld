@@ -3130,13 +3130,21 @@ field's path:
 | `DEPICTION_UNCITED` | a physical block without a non-empty `source` |
 | `DEPICTION_OUT_OF_RANGE` | a value outside its range, or a cap exceeded |
 | `DEPICTION_POLYGON` | a polygon with fewer than 3 or more than 64 vertices, or not simple; a ramp's lines not parallel within 1° |
-| `DEPICTION_REFERENCE` | a name that names nothing: a terrain layer, a species, a tag no place carries, a perf view, a water the world's far field lacks, a model's asset the pack's `assets/places/` lacks or an entrance its asset lacks; in the client also a texture slug, tree form or card its library lacks |
-| `DEPICTION_DOOR` | an `open` door not at the doorway of a depicted place; `at_doorway` on a building or a model that depicts nothing; a `glazed` opening in a building without an `interior` |
-| `DEPICTION_ON_FLOOR` | a stand, scatter area, undepicting building or moored craft overlapping a place's floor by more than 50 mm; a depicting shell or deck more than 50 mm off its place's footprint; a deck's shelter post off the deck |
+| `DEPICTION_REFERENCE` | a name that names nothing: a terrain layer, a species, a tag no place carries, a perf view, a water the world's far field lacks, a model's asset the pack's `assets/places/` lacks or an entrance its asset lacks; a `doorway_of`, a station fixture's `in` or a station platform's `depicts` that names no one place (none tagged exactly so, and not exactly one carrying them all); in the client also a texture slug, tree form or card its library lacks |
+| `DEPICTION_DOOR` | an `open` door not at a doorway (`at_doorway` or `doorway_of`) of a depicted place; a door at a doorway on a building or a model that depicts nothing; a `glazed` opening in a building without an `interior` |
+| `DEPICTION_ON_FLOOR` | a stand, scatter area, undepicting building, moored craft or station trackbed overlapping a place's floor by more than 50 mm; a depicting shell or deck more than 50 mm off its place's footprint; a deck's shelter post off the deck; a station fixture off its place's footprint; a platform canopy beyond its platform's length |
 
 A deck (the optional `decks` section, `ARC-178`) is a walked floor on piles — a pier, a jetty, a boardwalk, a
 platform — that depicts a place: its footprint is that place's floor and its surface is that place's floor height
 in the scene. Its approach ramp is no steeper than 1:12 (`DEPICTION_OUT_OF_RANGE`).
+
+A station (the optional `stations` section, `ARC-179`) places the shared station pieces — a departures board, a
+clock, a ticket window bay — in the places its building depicts, and draws its platform over the floor of the
+place it depicts with one track beside the platform's edge, stopped at a buffer stop or running on into a
+cutting. A fixture shows only what the world disclosed about the place it stands in (`ARC-108`); the file says
+where a board hangs, never what it reads. The building is a `buildings` shell; a door from its place into a
+place that opens off it is an opening with `doorway_of`. A fixture, a platform and a `doorway_of` name one place:
+the place tagged exactly so, else the only place carrying every tag.
 
 The 3D client refuses by the same names for what it checks — `MALFORMED`, `SCOPE_MISMATCH`, and
 `REFERENCE` for the names only it knows — and trusts a validated pack for the geometry codes. A refused

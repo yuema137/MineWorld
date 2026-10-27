@@ -6,8 +6,9 @@ use crate::depiction::DepictionCode;
 use crate::depiction_deck;
 use crate::depiction_schema::{
     Area, Building, DecorPose, Depiction, EdgeKind, Height, Interior, OpeningState, PointMm,
-    RectMm, RoofForm, ScatterArea, ScatterKind,
+    RectMm, RoofForm, RouteStep, ScatterArea, ScatterKind,
 };
+use crate::depiction_station;
 use crate::place_asset::PlaceAssets;
 
 /// A refusal's code and detail, before the file's path is attached.
@@ -115,9 +116,14 @@ fn check_shape(file: &Depiction) -> Result<(), Refusal> {
             ));
         }
         for (j, opening) in building.openings.iter().enumerate() {
-            if opening.at_doorway == opening.offset_m.is_some() {
+            let placed = [
+                opening.at_doorway,
+                opening.offset_m.is_some(),
+                opening.doorway_of.is_some(),
+            ];
+            if placed.iter().filter(|p| **p).count() != 1 {
                 return malformed(format!(
-                    "{at}.openings[{j}]: exactly one of offset_m and at_doorway: true"
+                    "{at}.openings[{j}]: exactly one of offset_m, at_doorway: true and doorway_of"
                 ));
             }
         }
@@ -186,7 +192,8 @@ fn check_shape(file: &Depiction) -> Result<(), Refusal> {
             ));
         }
     }
-    depiction_deck::shape(&file.decks).or_else(malformed)
+    depiction_deck::shape(&file.decks).or_else(malformed)?;
+    depiction_station::shape(&file.stations).or_else(malformed)
 }
 
 fn check_height(height: &Height, at: &str) -> Result<(), Refusal> {
@@ -277,6 +284,7 @@ fn check_citations(file: &Depiction) -> Result<(), Refusal> {
         cited.push((format!("scatter[{i}] \"{}\"", s.name.as_str()), &s.source));
     }
     cited.extend(depiction_deck::citations(&file.decks));
+    cited.extend(depiction_station::citations(&file.stations));
     match cited
         .into_iter()
         .find(|(_, source)| source.trim().is_empty())
@@ -543,9 +551,29 @@ fn check_ranges(file: &Depiction) -> Result<(), Refusal> {
             );
         }
     }
+    for (i, step) in v.probe_route.iter().enumerate() {
+        // a point in a named entry lies on its footprint; an entry that names nothing is the
+        // references' fault
+        if let RouteStep::Point(point) = step
+            && let Some(rect) = route_entry(file, &point.tags)
+            && r.0.is_none()
+        {
+            let [x, y] = point.at_mm;
+            if !((0..=rect[2]).contains(&x) && (0..=rect[3]).contains(&y)) {
+                r.0 = Some(format!(
+                    "viewpoints.probe_route[{i}].at_mm: ({x}, {y}) lies outside the {} × {} mm \
+                     footprint of the entry tagged {}",
+                    rect[2],
+                    rect[3],
+                    joined(&point.tags)
+                ));
+            }
+        }
+    }
     match r
         .0
         .or_else(|| depiction_deck::ranges(&file.decks, HEIGHT_M, EXTENT_MM))
+        .or_else(|| depiction_station::ranges(&file.stations, HEIGHT_M))
     {
         Some(detail) => refuse(DepictionCode::OutOfRange, detail),
         None => Ok(()),
@@ -845,10 +873,18 @@ fn check_references(file: &Depiction, waters: Option<&[String]>) -> Result<(), R
     let street_or_place =
         |tag: &str| file.street.tags.iter().any(|t| t.as_str() == tag) || tagged(tag);
     for (i, step) in file.viewpoints.probe_route.iter().enumerate() {
-        if let Some(tag) = step.iter().find(|t| !street_or_place(t.as_str())) {
+        if let Some(tag) = step.tags().iter().find(|t| !street_or_place(t.as_str())) {
             return missing(format!(
                 "viewpoints.probe_route[{i}]: neither the street nor any place is tagged {}",
                 tag.as_str()
+            ));
+        }
+        if let RouteStep::Point(point) = step
+            && route_entry(file, &point.tags).is_none()
+        {
+            return missing(format!(
+                "viewpoints.probe_route[{i}].tags: no entry is tagged exactly {}",
+                joined(&point.tags)
             ));
         }
     }
@@ -859,10 +895,57 @@ fn check_references(file: &Depiction, waters: Option<&[String]>) -> Result<(), R
             ));
         }
     }
-    match depiction_deck::references(&file.decks, |tags| depicted(file, tags).is_some()) {
+    for (i, b) in file.buildings.iter().enumerate() {
+        for (j, o) in b.openings.iter().enumerate() {
+            if let Some(tags) = &o.doorway_of
+                && resolve(file, tags).is_none()
+            {
+                return missing(format!(
+                    "buildings[{i}] \"{}\".openings[{j}].doorway_of: no one place is tagged exactly, \
+                     or alone, {}",
+                    b.name.as_str(),
+                    joined(tags)
+                ));
+            }
+        }
+    }
+    match depiction_deck::references(&file.decks, |tags| depicted(file, tags).is_some()).or_else(
+        || depiction_station::references(&file.stations, |tags| resolve(file, tags).is_some()),
+    ) {
         Some(detail) => missing(detail),
         None => Ok(()),
     }
+}
+
+/// The one place `tags` name (`ARC-179`): the place whose tags are exactly these, else the only place
+/// carrying them all. `None` when no place, or several and none exactly, carry them — so a fixture in
+/// a room tagged `[station]` is not taken for one in its ticket office tagged `[station, ticket-office]`.
+fn resolve<'a>(
+    file: &'a Depiction,
+    tags: &[crate::depiction_schema::Key],
+) -> Option<&'a crate::depiction_schema::PlaceBinding> {
+    let carrying: Vec<_> = file
+        .places
+        .iter()
+        .filter(|p| tags.iter().all(|t| p.tags.iter().any(|pt| pt == t)))
+        .collect();
+    carrying
+        .iter()
+        .find(|p| p.tags.len() == tags.len())
+        .or_else(|| (carrying.len() == 1).then(|| &carrying[0]))
+        .copied()
+}
+
+/// The footprint of the entry a route point walks in: the street, or the `places` entry, whose tags
+/// are exactly `tags` (the probe binds a step the same way).
+fn route_entry(file: &Depiction, tags: &[crate::depiction_schema::Key]) -> Option<RectMm> {
+    if file.street.tags.as_slice() == tags {
+        return Some(file.street.footprint_mm);
+    }
+    file.places
+        .iter()
+        .find(|p| p.tags.as_slice() == tags)
+        .map(|p| p.footprint_mm)
 }
 
 fn joined(tags: &[crate::depiction_schema::Key]) -> String {
@@ -934,13 +1017,14 @@ fn check_doors(file: &Depiction) -> Result<(), Refusal> {
     for (i, b) in file.buildings.iter().enumerate() {
         for (j, o) in b.openings.iter().enumerate() {
             let at = format!("buildings[{i}] \"{}\".openings[{j}]", b.name.as_str());
-            if o.at_doorway && b.depicts.is_none() {
+            let door = o.at_doorway || o.doorway_of.is_some();
+            if door && b.depicts.is_none() {
                 return refuse(
                     DepictionCode::Door,
-                    format!("{at}: at_doorway on a building that depicts no place"),
+                    format!("{at}: a door at a doorway on a building that depicts no place"),
                 );
             }
-            if o.state == OpeningState::Open && !(o.at_doorway && b.depicts.is_some()) {
+            if o.state == OpeningState::Open && !(door && b.depicts.is_some()) {
                 return refuse(
                     DepictionCode::Door,
                     format!("{at}: only a door at the doorway of a depicted place may be open"),
@@ -1018,7 +1102,14 @@ fn check_floors(file: &Depiction) -> Result<(), Refusal> {
         |tags| depicted(file, tags).map(|p| p.footprint_mm),
         &places,
         FLOOR_TOLERANCE_MM,
-    ) {
+    )
+    .or_else(|| {
+        depiction_station::floors(
+            &file.stations,
+            |tags| resolve(file, tags).map(|p| p.footprint_mm),
+            &places,
+        )
+    }) {
         Some(detail) => refuse(DepictionCode::OnFloor, detail),
         None => Ok(()),
     }

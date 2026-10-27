@@ -150,6 +150,8 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-175](ARC-175.md) | Every world that ships a 3D depiction ships one recorded MCP scenario with a 3D observer, run in CI |
 | [ARC-177](ARC-177.md) | A world's 3D look is a data file of its Presentation Pack, drawn by generic builders |
 | [ARC-178](ARC-178.md) | A deck on piles is depiction data: the `decks` section of format 1 |
+| [ARC-179](ARC-179.md) | A station is depiction data: the `stations` section, doors into rooms off a room, and sit points told apart |
+| [ARC-184](ARC-184.md) | Clients format money and read trade records through one shared module |
 | [ARC-192](ARC-192.md) | A station is drawn from a station kit, placed at a site, bound by role tag |
 | [ARC-266](ARC-266.md) | The world's date, time and sun reach a client through one shared world-time module that reads disclosure and computes no astronomy |
 | [ARC-267](ARC-267.md) | Host commands in the client: one shared host module, the token from the environment in memory only, and a World tab that shows only what the server said |

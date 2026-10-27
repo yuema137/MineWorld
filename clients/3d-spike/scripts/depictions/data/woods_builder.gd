@@ -72,6 +72,9 @@ static func _keep_clear(t: Dictionary, d: SliceDataDepiction) -> Dictionary:
 		rects.append(d.street()["footprint"])
 		for p in d.places():
 			rects.append(p["footprint"])
+	# a station's trackbed, through its cutting (ARC-179): no trunk stands on the line
+	for c in DepictionStations.cuts(d._section("stations"), d):
+		rects.append(c["rect"])
 	var polygons := []
 	for b in d._section("buildings"):
 		polygons.append(_polygon(b["footprint_mm"]))

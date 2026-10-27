@@ -9,7 +9,7 @@
 //! (`clients/3d-spike/scripts/slice/slice_probe_market.gd`), each on a fresh hosted world. Neither
 //! player names an action type, a person or an object: this file does, and it takes every one of them
 //! from the world's genesis observation of the seat (the nearest person offered a talk, the nearest
-//! object offered a kick), never from a world's literals.
+//! loose object of its place lying on the floor for a kick), never from a world's literals.
 //!
 //! The oracles are the server's: the requests are parsed through the contract, the answers are the
 //! server's `RESULT` frames, and the caused facts are read from each save after its server stops.
@@ -30,7 +30,7 @@ use std::collections::BTreeMap;
 use std::net::SocketAddr;
 use std::path::Path;
 
-use godot2d::worlds::{hosted, id};
+use godot2d::worlds::id;
 use godot2d::{MARKET_TOWN, World};
 use godot3d::{depiction, interactions, result_kind, world_key};
 use headless::Tables;
@@ -76,6 +76,33 @@ fn apart(a: (f64, f64), b: (f64, f64)) -> f64 {
     (a.0 - b.0).hypot(a.1 - b.1)
 }
 
+/// Whether a listed loose object lies on the floor: its centre's height is its own half-height (a
+/// box's `z` half-extent, a ball's radius), as the bodies pack lists it (`Lying::at`). One on a solid
+/// stands higher by the solid's height.
+fn on_floor(listed: &Value) -> bool {
+    let half = listed["shape"]["box"]["z"]
+        .as_f64()
+        .or_else(|| listed["shape"]["ball"].as_f64());
+    let z = listed["at"].get("z").and_then(Value::as_f64);
+    matches!((half, z), (Some(half), Some(z)) if (z - half).abs() <= 1.0)
+}
+
+/// `mineworld server <pack> --save <save>`, with the repository's pack roots given as an operator gives
+/// them (`--packs`): a world that requires a pack outside the build finds it there (Lakeside's
+/// Presentation Packs, ARC-54), and a world that requires none is unaffected. No `--agent`: the step
+/// list needs nobody under an agent, and a seat named here would not exist in every world (Lakeside
+/// has no `alice`).
+fn served(pack: &str, save: &SaveDir) -> Vec<String> {
+    let mut arguments: Vec<String> = ["server", pack, "--save", save.path()]
+        .map(str::to_owned)
+        .to_vec();
+    for root in ["entities", "presentation/mineworld-default"] {
+        arguments.push("--packs".to_owned());
+        arguments.push(format!("{}/../../{root}", env!("CARGO_MANIFEST_DIR")));
+    }
+    arguments
+}
+
 /// The first entity a payload refers to by a typed reference, or "" (13b's `about`).
 fn about(offer: &Value) -> String {
     offer["payload"]
@@ -99,7 +126,7 @@ impl Genesis {
     /// pack give every entity the same id (`AC-12`), so the ids hold for the worlds the clients join.
     async fn of(pack: &str, seat: &str) -> Self {
         let save = SaveDir::new("ac13-genesis");
-        let mut world = World::start(&owned(&hosted(pack, &save)), None).await;
+        let mut world = World::start(&owned(&served(pack, &save)), None).await;
         let mut client = Client::connect(world.address).await;
         let (observer, _) = client.join(seat).await;
         let observation = client.observation().await;
@@ -151,16 +178,12 @@ impl Genesis {
             .map(|(_, person)| person)
     }
 
-    /// The nearest loose object of the observer's place that a complete, target-less offer of
-    /// `action_type` is about, other than `except`.
+    /// The nearest loose object of the observer's place that `action_type` can be done to, other than
+    /// `except`: for a kick, one lying on the floor; for a throw, any. Taken from the place's disclosed
+    /// listing, not from the menu: the bodies pack offers a kick or a throw only within 800 mm of the
+    /// object (step-11 QO-7), so the genesis menu, seen from the seat, names none (nightly 40412844680).
     fn nearest_object(&self, action_type: &str, except: Option<&str>) -> Option<String> {
-        let offered: Vec<String> = self
-            .offers()
-            .iter()
-            .filter(|o| o["action_type"] == action_type && o["target"].is_null())
-            .filter(|o| o.get("payload").is_some_and(|p| !p.is_null()))
-            .map(about)
-            .collect();
+        let kick = action_type == "kick";
         let entities = self.frame["entities"]
             .as_array()
             .cloned()
@@ -182,8 +205,9 @@ impl Genesis {
             .unwrap_or_default();
         lying
             .iter()
+            .filter(|l| !kick || on_floor(l))
             .map(|l| (id(&l["object"]), point(&l["at"])))
-            .filter(|(object, _)| offered.contains(object) && Some(object.as_str()) != except)
+            .filter(|(object, _)| Some(object.as_str()) != except)
             .map(|(object, at)| (at.map_or(f64::MAX, |p| apart(p, self.here())), object))
             .min_by(|a, b| a.0.total_cmp(&b.0))
             .map(|(_, object)| object)
@@ -274,8 +298,9 @@ struct Run {
 
 /// Plays `steps` with the 2D client on a fresh hosted `pack`.
 async fn play_2d(pack: &str, seat: &str, name: &str, steps: &Value) -> Run {
-    let save = SaveDir::new(name);
-    let mut world = World::start(&owned(&hosted(pack, &save)), None).await;
+    // The save has a scratch of its own name: the client run takes `name` for its steps file.
+    let save = SaveDir::new(&format!("{name}-save"));
+    let mut world = World::start(&owned(&served(pack, &save)), None).await;
     let key = world_key(pack);
     let (status, lines) =
         godot2d::worlds::play(world.address, seat, name, steps, &[key.as_str()]).await;
@@ -290,8 +315,9 @@ async fn play_2d(pack: &str, seat: &str, name: &str, steps: &Value) -> Run {
 
 /// Plays `steps` with the 3D client on a fresh hosted `pack`.
 async fn play_3d(pack: &str, seat: &str, name: &str, steps: &Value) -> Run {
-    let save = SaveDir::new(name);
-    let mut world = World::start(&owned(&hosted(pack, &save)), None).await;
+    // The save has a scratch of its own name: the client run takes `name` for its steps file.
+    let save = SaveDir::new(&format!("{name}-save"));
+    let mut world = World::start(&owned(&served(pack, &save)), None).await;
     let run = play_3d_on(world.address, pack, seat, name, steps);
     world.kill();
     Run { lines: run, save }

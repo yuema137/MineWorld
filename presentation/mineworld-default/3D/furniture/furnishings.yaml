@@ -86,6 +86,7 @@
     "bench": { "model": "painted_wooden_bench", "front_md": 180000, "tint": [1.02, 0.95, 0.86] },
     "kiosk": { "model": "steel_frame_shelves_02", "front_md": 180000, "tint": [1.0, 0.96, 0.9] },
     "bench.station": { "piece": "bench_row", "front_md": 0, "style": "oak" },
+    "bench.platform": { "piece": "bench_row", "front_md": 0, "style": "timber" },
     "kiosk.news": { "piece": "kiosk", "front_md": 0, "style": "oak" },
     "well": { "model": "planter_pot_clay", "front_md": 0, "tint": [0.92, 0.92, 0.90] },
     "pump": { "model": "wooden_crate_01", "front_md": 0, "tint": [0.80, 0.82, 0.84] },
