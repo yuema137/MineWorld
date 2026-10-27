@@ -25,9 +25,17 @@ deterministically from the seed:
     scatter     every seed and count redrawn (reeds at most 40)
     decks       (ARC-178) footprint, surface, approach, rails and curb kept (the place's floor and the
                 pier's ADA heights), and the shelter's roof form and ridge (the landmark's outline);
-                piles' bent count +-2, the shelter roof's pitch in 30 ... 45 deg and its covering swapped
+                piles' bent count +-2, the shelter roof's pitch from the file's own (at least 30) to 45 deg
+                (never lower: a lower roof is a smaller landmark) and its covering swapped
                 among the file's roof slugs, every moored craft's heading +-10 deg and,
                 with two or more, the last one dropped half the time
+    stations    (ARC-179) every fixture's place, position and facing kept (the world's walls and solids
+                hold them), and a window bay's counter (the world's solid) and a post's width; a board's
+                or a clock's size scaled by 0.85 ... 1.15 and its height moved +-0.1 m; the style
+                swapped between timber and oak; the platform's place, edge, surface, height and gauge
+                kept (the world's floor); the canopy's depth in 2.0 ... 3.0 m, pitch 5 ... 12 deg and
+                covering among the file's roof slugs; the line's run beyond the platform 6 ... 18 m,
+                its cutting 10 ... 30 m and banks 1.5 ... 3.0 m
 
 The output keeps the input's file name (a depiction file's scope must equal its stem). Standard library
 only; the same input and seed give the same bytes.
@@ -193,7 +201,9 @@ def _decks(decks: list[dict], roofs: list[str], rng: random.Random) -> None:
             # the shelter's roof form and ridge are the landmark's outline (S33-e §5.3: the ridge set so
             # the slope faces the view), kept like the deck's ADA heights; its pitch and covering vary
             roof = shelter["roof"]
-            roof["pitch_deg"] = rng.randint(30, 45)
+            # never below the file's own pitch: a lower roof is a smaller landmark, which LM-1 judges as
+            # the design's, not the builder's (S33-e2: a variant at 31 deg drew LM-1 at 59.4 %)
+            roof["pitch_deg"] = rng.randint(min(45, max(30, int(roof["pitch_deg"]))), 45)
             if roofs:
                 roof["material"] = rng.choice(roofs)
                 roof.pop("tint", None)
@@ -202,6 +212,31 @@ def _decks(decks: list[dict], roofs: list[str], rng: random.Random) -> None:
             m["yaw_deg"] = _round(m["yaw_deg"] + rng.uniform(-10.0, 10.0), 1.0)
         if len(moored) >= 2 and rng.random() < 0.5:
             moored.pop()
+
+
+def _stations(stations: list[dict], roofs: list[str], rng: random.Random) -> None:
+    for s in stations:
+        s["style"] = "oak" if s["style"] == "timber" else "timber"
+        for f in s.get("fixtures", []):
+            if f["piece"] == "window_bay":
+                continue
+            k = rng.uniform(0.85, 1.15)
+            f["size_m"] = [_round(f["size_m"][0] * k), _round(f["size_m"][1] * k)]
+            f["up_m"] = _round(max(0.5, f["up_m"] + rng.uniform(-0.1, 0.1)))
+        platform = s.get("platform")
+        if not platform:
+            continue
+        canopy = platform.get("canopy")
+        if canopy:
+            canopy["depth_m"] = _round(rng.uniform(2.0, 3.0))
+            canopy["pitch_deg"] = rng.randint(5, 12)
+            if roofs:
+                canopy["material"] = rng.choice(roofs)
+                canopy.pop("tint", None)
+        track = platform["track"]
+        track["beyond_m"] = rng.randint(6, 18)
+        track["cutting_m"] = rng.randint(10, 30)
+        track["bank_m"] = _round(rng.uniform(1.5, 3.0), 0.1)
 
 
 def variant(data: dict, seed: int) -> dict:
@@ -221,6 +256,9 @@ def variant(data: dict, seed: int) -> dict:
     if out.get("decks"):
         roofs = sorted({b["roof"]["material"] for b in out.get("buildings", [])})
         _decks(out["decks"], roofs, rng)
+    if out.get("stations"):
+        roofs = sorted({b["roof"]["material"] for b in out.get("buildings", [])})
+        _stations(out["stations"], roofs, rng)
     return out
 
 

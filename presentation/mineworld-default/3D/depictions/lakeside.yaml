@@ -57,13 +57,13 @@
        "source": "the lake's bed beyond the near water to the south-west (the far field's lake sector to 250 deg); approximate"},
       {"name": "halt", "polygon_mm": [[30000, 500], [38000, 500], [38000, 5500], [30000, 5500]],
        "height": {"flat_m": 0.0}, "layer": "setts",
-       "source": "S29-a rev. 3: the waiting room joined to the lane's east end, at the lane's level; approximate: S33-e replaces it"},
+       "source": "S29-a rev. 3: the waiting room joined to the lane's east end, at the lane's level, under S33-e2's shell and floor; approximate"},
       {"name": "halt-tickets", "polygon_mm": [[33400, 5500], [38000, 5500], [38000, 10100], [33400, 10100]],
        "height": {"flat_m": 0.0}, "layer": "setts",
-       "source": "S29-a rev. 3: the ticket bay, at the lane's level; approximate: S33-e replaces it"},
+       "source": "S29-a rev. 3: the ticket bay north of the waiting room (R-S29a-e-1), at the lane's level, under S33-e2's shell and floor; approximate"},
       {"name": "halt-platform", "polygon_mm": [[38000, -1000], [42000, -1000], [42000, 39000], [38000, 39000]],
        "height": {"flat_m": 0.0}, "layer": "setts",
-       "source": "S29-a rev. 3: the platform, at the lane's level until S33-e's deck; approximate: S33-e replaces it"}
+       "source": "S29-a rev. 3: the platform at the lane's level; S33-e2's station platform cuts the ground under its slab and along the trackbed (ARC-179); approximate"}
     ],
     "profiles": [
       {"name": "north", "bearing_deg": 0,
@@ -93,9 +93,12 @@
     {"name": "lane-kerb", "kind": "kerb", "line_mm": [[0, 0], [30000, 0]], "height_m": 0.15, "width_m": 0.15,
      "material": "stone_brick_wall_001", "tint": "#b8b4ac", "open_at": ["shore", "pier"],
      "source": "S33-d sec.5.4: a 150 mm granite kerb on the lane's south side, gaps at the shore and pier doors; approximate"},
-    {"name": "quay", "kind": "quay", "line_mm": [[20000, -1000], [45000, -1000]], "height_m": 0.1, "width_m": 0.6,
+    {"name": "quay", "kind": "quay", "line_mm": [[20000, -1000], [38000, -1000]], "height_m": 0.1, "width_m": 0.6,
      "material": "stone_brick_wall_001", "tint": "#b8b4ac", "drop_m": 1.0,
-     "source": "S33-d sec.5.4, F-S33d-2: the quay wall on the water line at z 4 from the pier's east edge to x 30, falling 1.0 m to full pool (ARC-170); thickness approximate"},
+     "source": "S33-d sec.5.4, F-S33d-2: the quay wall on the water line at z 4 from the pier's east edge to the halt's platform, falling 1.0 m to full pool (ARC-170); the platform's own end and the track's quay follow (S33-e2); thickness approximate"},
+    {"name": "track-quay", "kind": "quay", "line_mm": [[42000, -1000], [45000, -1000]], "height_m": 0.1, "width_m": 0.6,
+     "material": "stone_brick_wall_001", "tint": "#b8b4ac", "drop_m": 1.0,
+     "source": "S33-e sec.5.2 (S33-e2): the quay wall at the track's end beyond the buffer stop, on the trackbed's level (the ground is cut there to the ballast, ARC-179); thickness approximate"},
     {"name": "revetment", "kind": "revetment", "line_mm": [[15800, -10000], [15800, -1000]], "height_m": 0.1, "width_m": 0.4,
      "material": "stone_brick_wall_001", "tint": "#a9a49a", "drop_m": 1.0,
      "source": "S33-d F-S33d-2: a short stone revetment at x 0.8 from the shore's water line north to the pier's foot; thickness approximate"},
@@ -123,9 +126,18 @@
     {"name": "lane-west-rail", "kind": "rail", "line_mm": [[0, 0], [0, 6000]], "height_m": 0.9, "width_m": 0.08,
      "material": "weathered_brown_planks", "posts_m": 1.8,
      "source": "the lane's west end, on the server's wall (12e): a low timber rail like the shore's (S33-d sec.5.4); approximate"},
-    {"name": "lane-east-wall", "kind": "wall", "line_mm": [[30000, 0], [30000, 6000]], "height_m": 0.9, "width_m": 0.25,
-     "material": "stone_brick_wall_001", "tint": "#c8c0b0", "open_at": ["station"],
-     "source": "the lane's east end at the halt, open at the halt's door, on the server's wall (12e), until S33-e draws the halt; approximate"},
+    {"name": "lane-east-wall-south", "kind": "wall", "line_mm": [[30000, 0], [30000, 500]], "height_m": 0.9, "width_m": 0.25,
+     "material": "stone_brick_wall_001", "tint": "#c8c0b0",
+     "source": "the lane's east end south of the halt's waiting room, on the server's wall (12e); the halt's west wall closes the rest (S33-e2); approximate"},
+    {"name": "lane-east-wall-north", "kind": "wall", "line_mm": [[30000, 5500], [30000, 6000]], "height_m": 0.9, "width_m": 0.25,
+     "material": "stone_brick_wall_001", "tint": "#c8c0b0",
+     "source": "the lane's east end north of the halt's waiting room, on the server's wall (12e); approximate"},
+    {"name": "platform-back-south", "kind": "rail", "line_mm": [[38000, -1000], [38000, 500]], "height_m": 1.07, "width_m": 0.08,
+     "material": "weathered_brown_planks", "posts_m": 1.5,
+     "source": "S33-e sec.5.2 (S33-e2): a timber guard on the platform's back (west) edge south of the waiting room, on the server's wall (12e), 1.07 m (42 in), the lane guard's IBC 1015.3 height; post spacing approximate"},
+    {"name": "platform-back-north", "kind": "rail", "line_mm": [[38000, 10100], [38000, 39000]], "height_m": 1.07, "width_m": 0.08,
+     "material": "weathered_brown_planks", "posts_m": 1.8,
+     "source": "S33-e sec.5.2 (S33-e2): the platform's back (west) edge north of the ticket bay, as its south end; approximate"},
     {"name": "square-wall-back", "kind": "wall", "line_mm": [[18000, 14000], [18000, 18000], [30000, 18000], [30000, 6000]], "height_m": 0.9, "width_m": 0.25,
      "material": "stone_brick_wall_001", "tint": "#c8c0b0",
      "source": "S33-f: the square's low wall on its west (north of the bakery), north and east edges, on the server's wall (12e), as the yard's back wall (S33-d sec.5.5); found by the geometry probe once the route reached the square; approximate"},
@@ -177,7 +189,67 @@
      ],
      "source": "S33-e sec.5.1 and sec.5.1.1: the deck 4 x 20 m at -0.30 (ARC-170, Q-S33d-1 A); boards a nominal 2 x 6 (38 x 140 mm, NIST PS 20), 6 mm gaps approximate; a 1:12 foot ramp of 3.6 m (2010 ADA 405.2); 8 bents of 300 mm round piles (ASTM D25 class sizes; spacing approximate); rails 865 mm, 34 in (ADA 1005.2.1, 505.4), 42 mm round (ADA 505.7.1); a 51 mm curb (ADA 1005.3.1); the pavilion on the world's four posts (worlds/lakeside/places/pier.yaml), eaves 2.6 m, ridge east-west at about 4.2 m, roof approximate (reference 06); the lantern on the south-east post; three rowing boats 4.3 m (14 ft) moored off the head and west of the pier, outside every floor, static (ARC-171); approximate"}
   ],
+  "stations": [
+    {"name": "halt", "style": "timber",
+     "fixtures": [
+       {"piece": "board", "in": ["station"], "at_mm": [32750, 5330], "up_m": 1.95, "facing_deg": 180, "size_m": [1.4, 0.7]},
+       {"piece": "clock", "in": ["station"], "at_mm": [37200, 5370], "up_m": 2.35, "facing_deg": 180, "size_m": [0.4, 0.4]},
+       {"piece": "window_bay", "in": ["station", "ticket-office"], "at_mm": [35700, 9800], "up_m": 0.0, "facing_deg": 180,
+        "size_m": [4.6, 0.6], "counter_m": 1.1, "screen_m": 2.4, "grilles": 2},
+       {"piece": "board", "in": ["station", "platform"], "at_mm": [40000, 19000], "up_m": 2.0, "facing_deg": 180,
+        "size_m": [1.2, 0.6], "post_m": 0.2}
+     ],
+     "platform": {"depicts": ["station", "platform"], "edge": "e", "surface_m": 0.0, "height_m": 0.2,
+                  "coping_mm": 300, "strip_mm": 610, "end_fence_m": 1.2,
+                  "canopy": {"along_mm": [500, 5500], "depth_m": 2.5, "eaves_m": 2.6, "pitch_deg": 8,
+                             "material": "roof_slates_03", "tint": "#8a7a6a"},
+                  "track": {"gauge_mm": 1435, "near_mm": 1650, "tie_mm": [2600, 250], "tie_pitch_mm": 600,
+                            "rail_mm": [70, 150], "buffer": "s", "beyond_m": 12, "cutting_m": 20, "bank_m": 2.0}},
+     "source": "S33-e sec.5.2 (S33-e2) and S29-a rev. 3: the halt's fixtures in its places -- the waiting room's board ('No service yet') over the ticket window's counter wall and its clock beside the bay's door (no hands: Lakeside keeps no calendar, step-29 sec.6.2, F-S33e-5), the ticket window bay on the bay's counter (the world's solid, worlds/lakeside/places/station-tickets.yaml (0, 4000)-(4600, 4600) h 1100, +33400, +5500), shut (no shop is declared there), the platform's board on the world's post (station-platform.yaml (-2100, -100)-(-1900, 100) h 2400, +42000, +19000); the platform 4 x 40 m at the lane's level, 0.20 m above the rail head (a low heritage-line platform; approximate), a 300 mm stone coping and the 610 mm detectable warning strip (2010 ADA Standards sec.705, sec.810.5.2); standard gauge 1 435 mm (4 ft 8 1/2 in, UIC / AREMA) with the near track's centreline 1.65 m from the edge (the depot's, S29-e), timber sleepers 2 600 x 250 mm at 0.6 m (approximate), the buffer stop at the south end against the quay (S33-d R-S33e-d-1) and the line running north 12 m into a shallow cutting closed by the woods (F-S33e-4); fences with closed gates across both platform ends; a 2.5 m canopy over the platform from the waiting room's east wall (step-33 sec.4.4); board, clock and window sizes are design (S29-e sec.5.4, at village scale); no train (step-29 sec.5.2)"}
+  ],
   "buildings": [
+    {"name": "halt", "depicts": ["station"],
+     "footprint_mm": [[30000, 500], [38000, 500], [38000, 5500], [30000, 5500]],
+     "storeys": 1, "storey_m": 3.0, "plinth_m": 0.3,
+     "walls": {"material": "weathered_brown_planks", "tint": "#d6c8ae"},
+     "roof": {"form": "gable", "ridge": "x", "pitch_deg": 35, "overhang_m": 0.4, "material": "roof_slates_03", "tint": "#8a7a6a"},
+     "openings": [
+       {"side": "w", "kind": "door", "storey": 0, "at_doorway": true, "width_m": 1.0, "height_m": 2.1, "state": "open"},
+       {"side": "e", "kind": "door", "storey": 0, "doorway_of": ["station", "platform"], "width_m": 1.0, "height_m": 2.1, "state": "open"},
+       {"side": "n", "kind": "door", "storey": 0, "doorway_of": ["station", "ticket-office"], "width_m": 0.9, "height_m": 2.1, "state": "open"},
+       {"side": "s", "kind": "window", "storey": 0, "offset_m": 1.6, "width_m": 1.0, "height_m": 1.2, "sill_m": 1.0, "state": "glazed"},
+       {"side": "s", "kind": "window", "storey": 0, "offset_m": 5.4, "width_m": 1.0, "height_m": 1.2, "sill_m": 1.0, "state": "glazed"}
+     ],
+     "interior": {
+       "floor": {"material": "weathered_brown_planks", "tint": "#b8a890"},
+       "ceiling": {"material": "brown_planks_09"},
+       "fittings": [
+         {"name": "counter-wall", "box_mm": [31000, 5100, 3500, 400], "height_m": 1.1, "material": "brown_planks_09",
+          "source": "the ticket window's counter wall, the world's shell solid (worlds/lakeside/places/station.yaml (1000, 4600)-(4500, 5000) h 1100, carried by the doorway to the lane's frame: +30000, +500)"}
+       ],
+       "lights": [
+         {"at_mm": [32500, 3000], "up_m": 2.7, "energy": 1.2, "range_m": 5.0, "colour": "#ffe0b0"},
+         {"at_mm": [36000, 3000], "up_m": 2.7, "energy": 1.2, "range_m": 5.0, "colour": "#ffe0b0"}
+       ],
+       "source": "S33-e sec.5.2 (S33-e2): the waiting room, seen once entered; its bench row along the south wall is the world's furnishing (ARC-307), drawn by S29-e's bench row piece; energies approximate"},
+     "source": "S33-e sec.5.2 (S33-e2), step-33 sec.4.4: a small timber waiting room 8 x 5 m at the lane's east end, board walls, a shingle-toned roof, its west door onto the lane, its east door onto the platform and its north door into the ticket bay, all open (the server lets people through); storey 3.0 m approximate"},
+    {"name": "halt-tickets", "depicts": ["station", "ticket-office"],
+     "footprint_mm": [[33400, 5500], [38000, 5500], [38000, 10100], [33400, 10100]],
+     "storeys": 1, "storey_m": 2.6, "plinth_m": 0.3,
+     "walls": {"material": "weathered_brown_planks", "tint": "#d6c8ae"},
+     "roof": {"form": "mono", "falls": "n", "pitch_deg": 5, "overhang_m": 0.3, "material": "roof_slates_03", "tint": "#8a7a6a"},
+     "openings": [
+       {"side": "s", "kind": "door", "storey": 0, "at_doorway": true, "width_m": 0.9, "height_m": 2.1, "state": "open"},
+       {"side": "e", "kind": "window", "storey": 0, "offset_m": 1.2, "width_m": 1.0, "height_m": 1.0, "sill_m": 1.1, "state": "glazed"}
+     ],
+     "interior": {
+       "floor": {"material": "weathered_brown_planks", "tint": "#b8a890"},
+       "ceiling": {"material": "painted_plaster_wall", "tint": "#efe4cc"},
+       "lights": [
+         {"at_mm": [35700, 7800], "up_m": 2.3, "energy": 1.0, "range_m": 4.0, "colour": "#ffe0b0"}
+       ],
+       "source": "S33-e sec.5.2 (S33-e2): the ticket bay, a lean-to north of the waiting room (R-S29a-e-1); its counter is the station section's window bay; energy approximate"},
+     "source": "S33-e sec.5.2 (S33-e2), F-S33e-1 / R-S29a-e-1: the ticket bay 4.6 x 4.6 m north of the waiting room, a lean-to falling north from under the waiting room's eaves (2.6 m + 4.6 m x tan 5 deg = 3.0 m); its door into the waiting room open; approximate"},
     {"name": "bakery", "depicts": ["bakery"],
      "footprint_mm": [[12000, 6000], [18000, 6000], [18000, 14000], [12000, 14000]],
      "storeys": 2, "storey_m": 2.9, "plinth_m": 0.3,
@@ -356,7 +428,8 @@
       {"name": "shore across the lake", "at_mm": [8000, -9000], "eye_m": 0.72, "yaw_deg": 150, "pitch_deg": 0},
       {"name": "square", "at_mm": [23000, 7000], "eye_m": 1.70, "yaw_deg": 0, "pitch_deg": 0},
       {"name": "lakeside crowd", "at_mm": [9000, 1000], "eye_m": 1.66, "yaw_deg": 60, "pitch_deg": 0},
-      {"name": "pier head looking north", "at_mm": [18000, -18500], "eye_m": 1.36, "yaw_deg": 0, "pitch_deg": 0}
+      {"name": "pier head looking north", "at_mm": [18000, -18500], "eye_m": 1.36, "yaw_deg": 0, "pitch_deg": 0},
+      {"name": "halt platform", "at_mm": [40000, 30000], "eye_m": 1.66, "yaw_deg": 180, "pitch_deg": 0}
     ],
     "perf_breakdown": ["lane wide"],
     "farfield_shots": [
@@ -371,6 +444,7 @@
       {"name": "ff_l9_lane_west", "at_mm": [15000, 3000], "eye_m": 1.66, "yaw_deg": 90, "pitch_deg": -1},
       {"name": "ff_l8_square_north", "at_mm": [23000, 7000], "eye_m": 1.66, "yaw_deg": 10, "pitch_deg": 4}
     ],
-    "probe_route": [["street"], ["bakery"], ["street"], ["boathouse"], ["street"], ["square"], ["street"], ["pier", "landmark"], ["street"]]
+    "probe_route": [["street"], ["bakery"], ["street"], ["boathouse"], ["street"], ["square"], ["street"], ["pier", "landmark"], ["street"],
+                    ["station"], ["station", "ticket-office"], ["station"], ["station", "platform"], ["street"]]
   }
 }

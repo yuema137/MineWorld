@@ -57,6 +57,9 @@ pub struct Depiction {
     /// Walked floors on piles: piers, jetties, boardwalks, platforms (`ARC-178`).
     #[serde(default)]
     pub decks: Vec<crate::depiction_deck::Deck>,
+    /// Stations' fixtures, platforms and tracks, drawn by the shared station pieces (`ARC-179`).
+    #[serde(default)]
+    pub stations: Vec<crate::depiction_station::Station>,
     /// GI volumes and reflection probes (absent: none).
     #[serde(default)]
     pub light: Option<Light>,
@@ -581,6 +584,10 @@ pub struct Opening {
     /// On the depicted place's doorway.
     #[serde(default)]
     pub at_doorway: bool,
+    /// On the doorway of another place, by its tags: a door from this building's place into a place
+    /// that opens off it (`ARC-179`).
+    #[serde(default)]
+    pub doorway_of: Option<Vec<Key>>,
     /// Width, metres.
     pub width_m: f64,
     /// Height, metres.
