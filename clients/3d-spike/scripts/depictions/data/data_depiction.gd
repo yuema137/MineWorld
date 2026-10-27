@@ -229,7 +229,9 @@ func viewpoints() -> Dictionary:
 		farfield.append([vp["id"], _at(vp["at_mm"], vp["eye_m"]), Array(vp.get("roles", []))])
 	var route := []
 	for step in v.get("probe_route", []):
-		route.append(_tags(step))
+		# a step that names a point inside its entry keeps it in the place's frame, millimetres
+		route.append(_tags(step) if step is Array
+			else {"tags": _tags(step["tags"]), "at_mm": Vector2(step["at_mm"][0], step["at_mm"][1])})
 	return {
 		"farfield": farfield,
 		"farfield_shots": _views(v.get("farfield_shots", [])),

@@ -2765,10 +2765,16 @@
    [
     "street"
    ],
-   [
-    "pier",
-    "landmark"
-   ],
+   {
+    "tags": [
+     "pier",
+     "landmark"
+    ],
+    "at_mm": [
+     2000,
+     1500
+    ]
+   },
    [
     "street"
    ],

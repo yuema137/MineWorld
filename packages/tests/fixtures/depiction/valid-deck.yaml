@@ -26,6 +26,7 @@
      "source": "a fixture: a short jetty with every deck field; approximate"}
   ],
   "viewpoints": {
-    "farfield": [{"id": "VP-1", "at_mm": [10000, 3000], "eye_m": 1.66, "roles": ["protected"]}]
+    "farfield": [{"id": "VP-1", "at_mm": [10000, 3000], "eye_m": 1.66, "roles": ["protected"]}],
+    "probe_route": [["street"], {"tags": ["jetty", "landmark"], "at_mm": [1500, 1500]}, ["street"]]
   }
 }

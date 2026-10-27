@@ -647,8 +647,9 @@ func _clear_aim(link: SliceLink, id: String) -> bool:
 ## `walk-to`, then the waypoints the world discloses in `walking.next` (four at most), walked by the
 ## body, whose own `move` reports end the server's walk; asked again from where the body now is until
 ## the world discloses no more. A fixed scene path does not survive a place furnished later (the
-## café's stools since ARC-307 stood on the old one), and a route the world plans does.
-func _route_to(link: SliceLink, goal: Dictionary, max_secs: float) -> void:
+## café's stools since ARC-307 stood on the old one), and a route the world plans does. With
+## `round_people`, each leg also steps round the people standing on it (`_walk_round_people`).
+func _route_to(link: SliceLink, goal: Dictionary, max_secs: float, round_people := false) -> void:
 	var place := link.here
 	var to := {"place": {"place": {"entity": place, "entity_type": "place"},
 		"local": {"x": int(goal["x"]), "y": int(goal["y"]), "z": 0}, "facing": null}}
@@ -667,10 +668,41 @@ func _route_to(link: SliceLink, goal: Dictionary, max_secs: float) -> void:
 			if _refused(link, tok):
 				break
 		for p in next:
-			await _walk_to(link.to_scene(place, p), max_secs)
+			await _leg(link, link.to_scene(place, p), max_secs, round_people)
 		if next.size() < 4:
 			break
-	await _walk_to(link.to_scene(place, goal), max_secs)
+	await _leg(link, link.to_scene(place, goal), max_secs, round_people)
+
+
+func _leg(link: SliceLink, to: Vector3, max_secs: float, round_people: bool) -> void:
+	if round_people:
+		await _walk_round_people(link, to, max_secs)
+	else:
+		await _walk_to(to, max_secs)
+
+
+## Walk straight to the floor point `goal`, stepping round each person drawn standing on the way: a
+## waypoint 1 m to their side, away from the line. People are bodies to the server too (`ARC-307`), so a
+## stride into one stops short; the world's route plans round walls and solids, not round people.
+func _walk_round_people(link: SliceLink, goal: Vector3, max_secs: float) -> void:
+	var from := player.global_position
+	var line := Vector3(goal.x - from.x, 0.0, goal.z - from.z)
+	var length := line.length()
+	var stops := []
+	if length > 0.01:
+		var dir := line / length
+		var side := Vector3(-dir.z, 0.0, dir.x)
+		for id in link.figures:
+			var p := (link.figures[id] as Node3D).global_position
+			var rel := Vector3(p.x - from.x, 0.0, p.z - from.z)
+			var along := rel.dot(dir)
+			var across := rel.dot(side)
+			if along > 0.3 and along < length - 0.3 and absf(across) < 0.8:
+				stops.append([along, Vector3(p.x, from.y, p.z) + side * (-1.0 if across > 0.0 else 1.0)])
+	stops.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
+	for s in stops:
+		await _walk_to(s[1], max_secs)
+	await _walk_to(goal, max_secs)
 
 
 ## To the counter, 1.85 m in front of `who` (the barista), by the world's route.
@@ -1185,23 +1217,25 @@ func _route_check(route: Array) -> void:
 		print("FAIL: the seat's place is not drawn by this depiction (misses %s)" % JSON.stringify(lay.misses))
 	else:
 		for step in route:
-			var target := _place_of_entry(lay, step)
+			var tags := _step_tags(step)
+			var target := _place_of_entry(lay, tags)
 			if target == "":
 				fails += 1
 				print("FAIL: no bound place is drawn as the entry tagged %s; misses %s"
-					% [",".join(step), JSON.stringify(lay.misses)])
+					% [",".join(tags), JSON.stringify(lay.misses)])
 				break
-			if target == link.here:
-				continue
-			var ok: bool = await _cross(link, target)
-			print("cross    to the entry tagged %s: body at %s, server place %s"
-				% [",".join(step), player.global_position, _where(link)])
-			if not ok:
-				fails += 1
-				print("FAIL: the server did not move the player into %s" % target)
-				break
-			_people(link, cast)
-			fails += _fixture_check(link)
+			if target != link.here:
+				var ok: bool = await _cross(link, target)
+				print("cross    to the entry tagged %s: body at %s, server place %s"
+					% [",".join(tags), player.global_position, _where(link)])
+				if not ok:
+					fails += 1
+					print("FAIL: the server did not move the player into %s" % target)
+					break
+				_people(link, cast)
+				fails += _fixture_check(link)
+			if step is Dictionary:
+				fails += await _to_route_point(link, tags, step["at_mm"])
 	print("places   the server's place, as observed: %s" % [link.place_changes])
 	var moves := link.answers.filter(func(a): return a["action"] == SliceLink.MOVE_ACTION)
 	var refusals := moves.filter(func(a): return a["result"] != "accepted")
@@ -1506,6 +1540,41 @@ func _cross_doorway(link: SliceLink, p: Dictionary) -> bool:
 		t += get_process_delta_time()
 	await _hold(0.5)
 	return link.here == p["to"]
+
+
+## A route step's tags: the step itself, or the tags of a step that names a point.
+static func _step_tags(step: Variant) -> PackedStringArray:
+	return step["tags"] if step is Dictionary else PackedStringArray(step)
+
+
+## A route step's point in the place the body stands in (`at`, millimetres in that place's frame), walked
+## to by the world's route on the real controller, round the people on it, then held against the server's
+## own view of the body: still in `place`, within 0.5 m (two capsule radii) of the point. Then back the same
+## way to where the step began, so the next step leaves by the door as any step does. Returns the failures.
+func _to_route_point(link: SliceLink, tags: PackedStringArray, at: Vector2) -> int:
+	var place := link.here
+	var back := link.to_world(place, player.global_position)
+	var goal := {"x": int(at.x), "y": int(at.y)}
+	await _route_to(link, goal, 20.0, true)
+	await _hold(0.5)
+	var tok := link.report_position()
+	var t := 0.0
+	while t < 3.0 and not _answered(link, tok):
+		await get_tree().process_frame
+		t += get_process_delta_time()
+	await _hold(0.6)
+	var seen: Variant = link.client.latest.self_location().get("local")
+	var off := INF
+	if typeof(seen) == TYPE_DICTIONARY and link.here == place:
+		off = Vector2(float(seen.get("x", 0)) - at.x, float(seen.get("y", 0)) - at.y).length() / 1000.0
+	print("point    in the entry tagged %s, to (%d, %d) mm: server place %s, local %s, %.2f m off"
+		% [",".join(tags), goal["x"], goal["y"], _where(link), JSON.stringify(seen), off])
+	if off > 0.5:
+		print("FAIL: the body did not reach the route's point in %s (%.2f m off; 0.5 m allowed)" % [place, off])
+		return 1
+	await _route_to(link, back, 20.0, true)
+	print("point    back in %s at %s" % [_where(link), player.global_position])
+	return 0
 
 
 ## The bound place drawn as the depiction entry with exactly `entry_tags`, or "".

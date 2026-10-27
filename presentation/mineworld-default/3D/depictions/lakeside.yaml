@@ -444,7 +444,8 @@
       {"name": "ff_l9_lane_west", "at_mm": [15000, 3000], "eye_m": 1.66, "yaw_deg": 90, "pitch_deg": -1},
       {"name": "ff_l8_square_north", "at_mm": [23000, 7000], "eye_m": 1.66, "yaw_deg": 10, "pitch_deg": 4}
     ],
-    "probe_route": [["street"], ["bakery"], ["street"], ["boathouse"], ["street"], ["square"], ["street"], ["pier", "landmark"], ["street"],
+    "probe_route": [["street"], ["bakery"], ["street"], ["boathouse"], ["street"], ["square"], ["street"],
+                    {"tags": ["pier", "landmark"], "at_mm": [2000, 1500]}, ["street"],
                     ["station"], ["station", "ticket-office"], ["station"], ["station", "platform"], ["street"]]
   }
 }
