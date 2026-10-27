@@ -27,6 +27,9 @@ pub struct Summary {
     pub other_os: Vec<String>,
     /// Every failed block, and every guard, with its name and verdict.
     pub checks: Vec<(String, Verdict)>,
+    /// Write mode only (§11.2): every console block whose expected output was re-recorded, by page and line,
+    /// and whether its mirror's block was copied too.
+    pub rewritten: Vec<String>,
 }
 
 impl Summary {
@@ -51,6 +54,7 @@ impl Summary {
         )];
         lines.extend(self.pending.iter().map(|item| format!("PENDING  {item}")));
         lines.extend(self.other_os.iter().map(|item| format!("OTHER OS {item}")));
+        lines.extend(self.rewritten.iter().map(|item| format!("REWROTE  {item}")));
         for (name, verdict) in &self.checks {
             match verdict {
                 Verdict::Pass => {}
