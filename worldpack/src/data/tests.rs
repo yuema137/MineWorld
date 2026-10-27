@@ -423,3 +423,190 @@ fn the_format_directories_agree_and_no_two_packs_own_one_directory() {
     owned.dedup();
     assert_eq!(owned.len(), count, "two packs own one directory: {owned:?}");
 }
+
+/// A decoded configuration that only yields files (S31-b2 §5.1): what a pack's configuration hands the
+/// loader through [`AuthoredConfiguration::yields`].
+#[derive(Debug)]
+struct Yielding {
+    owner: SystemId,
+    files: Vec<YieldedFile>,
+}
+
+impl AuthoredConfiguration for Yielding {
+    fn owner(&self) -> SystemId {
+        self.owner.clone()
+    }
+
+    fn references(&self) -> Vec<mineworld_authoring::Reference<'_>> {
+        Vec::new()
+    }
+
+    fn requires(&self) -> Vec<SystemId> {
+        Vec::new()
+    }
+
+    fn facts(&self) -> &'static [mineworld_contracts::EventTypeId] {
+        &[]
+    }
+
+    fn attachments(&self) -> Vec<&mineworld_authoring::Attachment> {
+        Vec::new()
+    }
+
+    fn check(
+        &self,
+        _: &mineworld_authoring::ConfigurationContext<'_>,
+    ) -> Result<(), mineworld_authoring::ConfigurationRefusal> {
+        Ok(())
+    }
+
+    fn yields(&self) -> Vec<YieldedFile> {
+        self.files.clone()
+    }
+
+    fn seed(
+        &self,
+        _: &mineworld_authoring::Seeding<'_, '_>,
+        _: &mineworld_authoring::ConfigurationContext<'_>,
+    ) -> Result<Vec<mineworld_kernel::Emission>, mineworld_contracts::Rejection> {
+        Ok(Vec::new())
+    }
+}
+
+/// Beta's configuration, yielding `files`.
+fn beta_yields(files: &[(DataDirectory, &str, &str)]) -> Yielding {
+    Yielding {
+        owner: SystemId::from_static("beta"),
+        files: files
+            .iter()
+            .map(|(directory, name, text)| YieldedFile {
+                directory: *directory,
+                name: (*name).to_owned(),
+                text: (*text).to_owned(),
+            })
+            .collect(),
+    }
+}
+
+/// The full paths Alpha's context saw, in order.
+fn seen_paths(
+    contexts: &BTreeMap<Probe, Arc<dyn OwnerContext>>,
+) -> Vec<(String, DataSource, String)> {
+    contexts[&Probe::Alpha]
+        .as_any()
+        .downcast_ref::<Vec<Seen>>()
+        .expect("alpha's context")
+        .iter()
+        .map(|seen| (seen.pack.clone(), seen.source, seen.path.clone()))
+        .collect()
+}
+
+/// S31-b2 C1: a configuration's yielded files are collected like shipped ones — after the yielding
+/// pack's shipped files, by directory then name, with the configuring pack as their origin and the
+/// shown path `configure/<pack>.yaml → <directory>/<name>` — and a world whose packs yield nothing
+/// collects exactly what it did before.
+#[test]
+fn yielded_files_are_collected_with_the_configuring_pack() {
+    let empty = Scratch::new("yield-order");
+    let roots = [world(&empty.0, &[])];
+    let configuration = beta_yields(&[
+        (TWO, "t.yaml", "from: beta-configuration\n"),
+        (ONE, "y.yaml", "from: beta-configuration\n"),
+    ]);
+    let collected = contexts(&roots, &INSTALLED, &[Probe::Beta, Probe::Alpha], |owner| {
+        (owner == Probe::Beta).then_some(&configuration as &dyn AuthoredConfiguration)
+    })
+    .expect("collects");
+    use DataSource::SystemPack;
+    let expected: Vec<(String, DataSource, String)> = [
+        ("beta", "one/a.yaml"),
+        ("beta", "one/z.yaml"),
+        ("beta", "two/b.yaml"),
+        ("beta", "configure/beta.yaml → one/y.yaml"),
+        ("beta", "configure/beta.yaml → two/t.yaml"),
+        ("alpha", "one/self.yaml"),
+    ]
+    .into_iter()
+    .map(|(pack, path)| (pack.to_owned(), SystemPack, path.to_owned()))
+    .collect();
+    assert_eq!(seen_paths(&collected), expected);
+
+    let unchanged =
+        contexts(&roots, &INSTALLED, &[Probe::Beta, Probe::Alpha], |_| None).expect("collects");
+    assert_eq!(
+        seen_paths(&unchanged),
+        expected[..3]
+            .iter()
+            .chain(&expected[5..])
+            .cloned()
+            .collect::<Vec<_>>()
+    );
+}
+
+/// S31-b2 C1: a yielded file for an owner the world does not enable is skipped, as a shipped one is.
+#[test]
+fn a_yielded_file_for_an_owner_not_enabled_is_skipped() {
+    let empty = Scratch::new("yield-skip");
+    let configuration = beta_yields(&[(ONE, "y.yaml", "from: beta-configuration\n")]);
+    let collected = contexts(
+        &[world(&empty.0, &[])],
+        &INSTALLED,
+        &[Probe::Beta],
+        |owner| (owner == Probe::Beta).then_some(&configuration as &dyn AuthoredConfiguration),
+    )
+    .expect("alpha is not enabled: nothing is read");
+    assert!(collected.is_empty());
+}
+
+/// S31-b2 C1: every refusal about a yielded file names the configuring pack and the shown path — a
+/// directory nobody owns, a malformed file, a bad name, and the owner's own refusal.
+#[test]
+fn every_yielded_refusal_names_the_configuring_pack() {
+    let empty = Scratch::new("yield-refusals");
+    let roots = [world(&empty.0, &[])];
+    let refuse = |files: &[(DataDirectory, &str, &str)]| {
+        let configuration = beta_yields(files);
+        contexts(&roots, &INSTALLED, &[Probe::Beta, Probe::Alpha], |owner| {
+            (owner == Probe::Beta).then_some(&configuration as &dyn AuthoredConfiguration)
+        })
+        .expect_err("refused")
+    };
+
+    let nowhere = DataDirectory::from_static("nowhere");
+    let refusal = refuse(&[(nowhere, "x.yaml", "a: b\n")]);
+    let PackError::UnknownDirectory { path, known } = &refusal else {
+        panic!("got: {refusal}");
+    };
+    assert_eq!(*path, PathBuf::from("configure/beta.yaml → nowhere/x.yaml"));
+    assert_eq!(known, "one, two");
+
+    let refusal = refuse(&[(ONE, "bad.yaml", "a: b\nc: [unclosed\n")]);
+    let PackError::Malformed { path, kind, detail } = &refusal else {
+        panic!("got: {refusal}");
+    };
+    assert_eq!(*path, PathBuf::from("configure/beta.yaml → one/bad.yaml"));
+    assert_eq!(*kind, "data");
+    assert!(detail.contains("line"), "a position: {detail}");
+
+    let refusal = refuse(&[(ONE, "../escape.yaml", "a: b\n")]);
+    assert!(
+        matches!(&refusal, PackError::Malformed { path, .. } if path.to_string_lossy().contains("configure/beta.yaml")),
+        "got: {refusal}"
+    );
+
+    let refusal = refuse(&[(ONE, "r.yaml", "refuse: the owner says no\n")]);
+    let PackError::DataRefused {
+        system,
+        file,
+        reason,
+    } = &refusal
+    else {
+        panic!("got: {refusal}");
+    };
+    assert_eq!(*system, AlphaData::ID);
+    assert_eq!(
+        file.as_deref(),
+        Some(Path::new("configure/beta.yaml → one/r.yaml"))
+    );
+    assert_eq!(reason, "the owner says no");
+}

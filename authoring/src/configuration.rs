@@ -18,7 +18,22 @@ use serde::de::{DeserializeOwned, DeserializeSeed, Deserializer};
 
 use crate::attachment::{Attached, Attachment};
 use crate::classes::{ClassName, EntityClasses};
+use crate::data::DataDirectory;
 use crate::section::{Reference, Seeding};
+
+/// One data file a configuration yields for an owner's directory (`ARC-124` note 2026-10-26, S31-b2
+/// §5.1): collected exactly like a file a pack ships (`ARC-121` item 4), with the configuring pack as its
+/// origin, so a world's own configuration can be the one source of a list an owner reads as data — the
+/// topics `notices` declares becoming the vocabulary `notices.topics`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct YieldedFile {
+    /// The owner's directory the file belongs in.
+    pub directory: DataDirectory,
+    /// The file's name in it, `<name>.yaml`.
+    pub name: String,
+    /// The file's YAML text.
+    pub text: String,
+}
 
 /// What a configuration is handed besides the assembled world (`ARC-61` note): the world's entity
 /// classes (`ARC-64`) and the bytes of the configuration's own attachments. Read-only.
@@ -142,6 +157,15 @@ pub trait PackConfiguration: SystemIdentity {
         Ok(())
     }
 
+    /// Data files this configuration yields for an owner's directory, collected like shipped data
+    /// (S31-b2 §5.1). Every shipped-file rule applies: the directory must be owned by an installed pack,
+    /// a file for an owner the world does not enable is skipped, and a refusal names the configuring
+    /// pack and the shown path `configure/<pack>.yaml → <directory>/<name>`. None by default.
+    fn yields(configuration: &Self::Configuration) -> Vec<YieldedFile> {
+        let _ = configuration;
+        Vec::new()
+    }
+
     /// The genesis facts the configuration becomes, in this pack's own vocabulary.
     ///
     /// # Errors
@@ -178,6 +202,12 @@ pub trait AuthoredConfiguration: core::fmt::Debug + Send + Sync {
     ///
     /// The owner's typed refusal.
     fn check(&self, context: &ConfigurationContext<'_>) -> Result<(), ConfigurationRefusal>;
+
+    /// The data files it yields (see [`PackConfiguration::yields`]). Provided, answering none, so an
+    /// implementation outside this crate keeps compiling.
+    fn yields(&self) -> Vec<YieldedFile> {
+        Vec::new()
+    }
 
     /// The genesis facts it becomes (see [`PackConfiguration::seed`]).
     ///
@@ -233,6 +263,10 @@ impl<P: PackConfiguration + 'static> AuthoredConfiguration for Held<P> {
 
     fn check(&self, context: &ConfigurationContext<'_>) -> Result<(), ConfigurationRefusal> {
         P::check(&self.0, context)
+    }
+
+    fn yields(&self) -> Vec<YieldedFile> {
+        P::yields(&self.0)
     }
 
     fn seed(

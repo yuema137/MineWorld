@@ -8,7 +8,8 @@
 //!               with `.` is not content and is ignored; anything else is UnknownDirectory, listing every
 //!               directory this build knows
 //! collect       for each enabled owner, in `systems:` order: files the enabled packs ship, in `systems:`
-//!               order; then each required Entity Pack, in id order; then the world — within each source,
+//!               order, each pack's shipped files followed by those its configuration yields (S31-b2 §5.1);
+//!               then each required Entity Pack, in id order; then the world — within each source,
 //!               directories in the owner's order and files by name, byte order; a subdirectory inside a
 //!               data directory is UnknownDirectory
 //! decode        each file by its owner's own type, straight from the YAML stream, so a refusal keeps its
@@ -25,6 +26,7 @@
 //! installing a pack (step-10 QS-24's precedent).
 
 use std::any::Any;
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
@@ -32,7 +34,7 @@ use std::sync::Arc;
 
 use mineworld_authoring::{
     AuthoredConfiguration, DataDirectory, DataOrigin, DataRefusal, DataSource, OwnerContext,
-    ShippedData,
+    ShippedData, YieldedFile,
 };
 use mineworld_contracts::SystemId;
 use serde::de::Deserializer;
@@ -237,7 +239,53 @@ struct Found {
     origin: DataOrigin,
     /// The path a refusal names: the file on disk, or a shipped file's path and pack.
     shown: PathBuf,
-    text: Option<&'static str>,
+    /// A shipped or yielded file's text; `None` for a file on disk, read when decoded.
+    text: Option<Cow<'static, str>>,
+}
+
+/// The files each enabled pack's configuration yields (S31-b2 §5.1), in `systems:` order.
+type Yields<O> = [(O, Vec<YieldedFile>)];
+
+/// The file `file` that `pack`'s configuration yields, as a refusal names it.
+fn shown_yielded(pack: &SystemId, file: &YieldedFile) -> PathBuf {
+    PathBuf::from(format!(
+        "{}/{}.yaml → {}/{}",
+        configure::DIRECTORY,
+        pack.as_str(),
+        file.directory.as_str(),
+        file.name
+    ))
+}
+
+/// Whether a yielded file's name is `<name>.yaml`, one path component.
+fn is_yielded_name(name: &str) -> bool {
+    name.strip_suffix(".yaml").is_some_and(|stem| {
+        !stem.is_empty() && !stem.contains(['/', '\\']) && !stem.starts_with('.')
+    })
+}
+
+/// Every yielded file follows the shipped-file rule (`check_shipped`): a file named other than
+/// `<name>.yaml` is malformed, and one for a directory no installed pack owns is refused naming the
+/// configuring pack.
+fn check_yielded<O: DataOwnerOps>(installed: &[O], yielded: &Yields<O>) -> Result<(), PackError> {
+    for (pack, files) in yielded {
+        for file in files {
+            if !is_yielded_name(&file.name) {
+                return Err(PackError::Malformed {
+                    path: shown_yielded(&pack.id(), file),
+                    kind: DATA_KIND,
+                    detail: "a yielded data file is named <name>.yaml".to_owned(),
+                });
+            }
+            if owner_of(installed, file.directory.as_str()).is_none() {
+                return Err(PackError::UnknownDirectory {
+                    path: shown_yielded(&pack.id(), file),
+                    known: listed(owned(installed)),
+                });
+            }
+        }
+    }
+    Ok(())
 }
 
 /// The shipped file `shipped` of the pack `pack`, as a refusal names it.
@@ -265,10 +313,12 @@ fn check_shipped<O: DataOwnerOps>(installed: &[O], enabled: &[O]) -> Result<(), 
     Ok(())
 }
 
-/// `owner`'s files, in collection order (I-b-7).
+/// `owner`'s files, in collection order (I-b-7): each enabled pack's shipped files, then the files its
+/// configuration yields (S31-b2 §5.1), each by directory then name; then every root.
 fn collect<O: DataOwnerOps>(
     owner: O,
     enabled: &[O],
+    yielded: &Yields<O>,
     roots: &[DataRoot<'_>],
 ) -> Result<Vec<Found>, PackError> {
     let directories = owner.directories();
@@ -290,7 +340,27 @@ fn collect<O: DataOwnerOps>(
                     path: PathBuf::from(shipped.path()),
                 },
                 shown: shown_shipped(&pack.id(), shipped),
-                text: Some(shipped.text()),
+                text: Some(Cow::Borrowed(shipped.text())),
+            });
+        }
+        let mut configured: Vec<(usize, &YieldedFile)> = yielded
+            .iter()
+            .filter(|(yielding, _)| yielding == pack)
+            .flat_map(|(_, files)| files)
+            .filter_map(|file| rank(file.directory).map(|at| (at, file)))
+            .collect();
+        configured.sort_by(|a, b| (a.0, a.1.name.as_bytes()).cmp(&(b.0, b.1.name.as_bytes())));
+        for (_, file) in configured {
+            let shown = shown_yielded(&pack.id(), file);
+            found.push(Found {
+                origin: DataOrigin {
+                    pack: pack.id().as_str().to_owned(),
+                    source: DataSource::SystemPack,
+                    directory: file.directory,
+                    path: shown.clone(),
+                },
+                shown,
+                text: Some(Cow::Owned(file.text.clone())),
             });
         }
     }
@@ -392,20 +462,28 @@ pub(crate) fn contexts<'c, O: DataOwnerOps>(
         check_directories(root, installed, enabled)?;
     }
     check_shipped(installed, enabled)?;
+    let yielded: Vec<(O, Vec<YieldedFile>)> = enabled
+        .iter()
+        .map(|pack| {
+            let files = configuration_of(*pack).map_or_else(Vec::new, |found| found.yields());
+            (*pack, files)
+        })
+        .collect();
+    check_yielded(installed, &yielded)?;
     let mut contexts = BTreeMap::new();
     for owner in enabled {
         if owner.directories().is_empty() {
             continue;
         }
         let mut files = Vec::new();
-        for found in collect(*owner, enabled, roots)? {
+        for found in collect(*owner, enabled, &yielded, roots)? {
             let directory = found.origin.directory;
             let decode = |text: &str| {
                 serde_saphyr::with_deserializer_from_str(text, |file| {
                     owner.decode_file(directory, file)
                 })
             };
-            let decoded = match found.text {
+            let decoded = match &found.text {
                 Some(text) => decode(text).map_err(|error| PackError::Malformed {
                     path: found.shown.clone(),
                     kind: DATA_KIND,
@@ -440,7 +518,7 @@ pub(crate) fn validate_entity_data(pack: &str, dir: &Path) -> Result<(), PackErr
     };
     check_directories(&root, &AVAILABLE, &AVAILABLE)?;
     for owner in AVAILABLE {
-        for found in collect(owner, &[], std::slice::from_ref(&root))? {
+        for found in collect(owner, &[], &[], std::slice::from_ref(&root))? {
             let directory = found.origin.directory;
             parse_with(&found.shown, DATA_KIND, |text| {
                 serde_saphyr::with_deserializer_from_str(text, |file| {

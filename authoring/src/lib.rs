@@ -46,7 +46,7 @@ pub use attachment::{ATTACHMENT_DIRECTORY, ATTACHMENT_MAX_BYTES, Attached, Attac
 pub use classes::{ClassDefinition, ClassName, Classed, EntityClasses};
 pub use configuration::{
     AuthoredConfiguration, ConfigurationContext, ConfigurationRefusal, DecodeConfiguration,
-    EntryAt, PackConfiguration,
+    EntryAt, PackConfiguration, YieldedFile,
 };
 pub use content::{AuthoredContent, Decode};
 pub use data::{

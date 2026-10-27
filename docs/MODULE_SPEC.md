@@ -417,6 +417,15 @@ data directory, read, load and run exactly as before.
    and is refused (`UnknownDirectory`, naming the shipping pack and the path). A pack root's files (as opposed to
    its directories) are neither refused nor collected by item 1.
 
+   *Extended 2026-10-26 (S31-b2, `ARC-124` note; `pr-s31b2-notices-attributes.md` §5.1).* A pack's **configuration
+   may yield data files** too: `PackConfiguration::yields` (provided, none by default) returns
+   `YieldedFile { directory, name, text }`, each `<name>.yaml`. Yielded files follow every rule above for shipped
+   files: they are collected right after the configuring pack's shipped files (by directory, then name), with the
+   configuring pack as their origin (`DataSource::SystemPack`); a file for an owner the world does not enable is
+   skipped; a directory no installed pack owns is refused (`UnknownDirectory`), and every refusal names the shown
+   path `configure/<pack>.yaml → <directory>/<name>`. A world whose configurations yield nothing loads exactly as
+   before.
+
 A data directory is a **general** capability of the seam: it names no domain, and the loader treats every
 owner's directories alike.
 
@@ -1486,18 +1495,21 @@ Declaring an id that already exists, instead of overriding it, is refused (`Dupl
 wants another value set declares its own attribute (`harbour.ancestry`) and its profile uses that one.
 
 *Vocabularies* (`ARC-122`, `ARC-124`). A `category` or `set` attribute may take its values from a vocabulary: a
-closed set of value ids named `<namespace>.<name>`, declared by its owner either as a `vocabularies/` file —
+closed set of value ids named `<namespace>.<name>`, declared by its owner either as a `vocabularies/` file it
+ships or that a World or Entity Pack writes, or **yielded by its own world configuration** (§3.1 seam item 4,
+`PackConfiguration::yields`; `ARC-124` note 2026-10-26). A yielded file is collected exactly like a file the
+configuring pack ships, in the configuring pack's namespace. `notices` yields its topic vocabulary from the topic
+keys of `configure/notices.yaml`, so the vocabulary is whatever topics the world declares:
 
 ```yaml
-# vocabularies/topics.yaml, shipped by the `notices` System Pack (step-31 §8.5)
+# vocabularies/topics.yaml, yielded by configure/notices.yaml (step-31 §8.5; S31-b2 §5.1): the topic keys, sorted
 format: 1
 vocabularies:
-  topics: [prices.ingredients, prices.fuel, station.departures, news.daily, weather.warnings]
+  topics: [news.daily, prices.ingredients]
 ```
 
-— or from its own world configuration, through its owner interface (`economy.wealth-bands`, the band ids of
-`configure/economy.yaml`, step-31 §7.4). A value outside the vocabulary is refused where it is written
-(`UnknownTopic`, naming the vocabulary and the nearest ids).
+`economy.wealth-bands` (the band ids of `configure/economy.yaml`, step-31 §7.4) takes the same path. A value
+outside the vocabulary is refused where it is written (`UnknownTopic`, naming the vocabulary and the nearest ids).
 
 *Rendering* (`ARC-122`). `label` names the attribute; `phrase` is a template with exactly one placeholder,
 `{value}`; `words` gives per-value words, by default the slug with hyphens turned into spaces. A `quantity`
