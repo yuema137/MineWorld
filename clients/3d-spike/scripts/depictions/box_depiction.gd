@@ -54,32 +54,67 @@ func build(root: Node3D, far_field: MineWorldFarField, _connected: bool) -> Node
 	var g := Node3D.new()
 	g.name = "Stub"
 	root.add_child(g)
+	draw_far_field(g, far_field)
+	draw_ground(g)
+	register(g)
+	draw_boxes(g)
+	_root = g
+	return g
+
+
+## The world's far field, drawn round the protected viewpoints; its flat ground inside the boundary
+## `near_ground_drop` below where it stands for a world drawn on it (`SliceFarFieldView.build`).
+func draw_far_field(g: Node3D, far_field: MineWorldFarField, near_ground_drop := 0.0) -> void:
 	var eyes := PackedVector3Array()
 	for vp in far_field_viewpoints("protected"):
 		eyes.append(vp[1])
-	SliceFarFieldView.build(g, far_field, eyes)
+	SliceFarFieldView.build(g, far_field, eyes, near_ground_drop)
+
+
+## The stub's flat ground.
+func draw_ground(g: Node3D) -> void:
 	Build.ground(g, Vector3.ZERO, GROUND_SIZE, GROUND_SIZE, Mats.pbr("leafy_grass", 1.4,
 		Color(0.62, 0.86, 0.42)))
-	var wall := Mats.paint(Color(0.62, 0.62, 0.60), 0.85)
-	var floor_mat := Mats.paint(Color(0.48, 0.47, 0.44), 0.9)
+
+
+## What this depiction says it drew, from `street()` and `places()` (S33-d R2-4): one scene volume per
+## place, its door in the scene's door registry (with its label over the sill), and one entry per place.
+## Shared by every depiction built from this data, whatever else draws the place.
+func register(g: Node3D) -> void:
 	var s := street()
 	var street_volume := _volume(g, "stub.street", s["footprint"])
-	_floor(g, s["footprint"], floor_mat)
 	_entries.append(SliceDepiction.entry(s["tags"], street_volume, SliceLayout.STREET, -1,
 		frame_origin()))
+	var i := 0
+	for p in places():
+		var volume := _volume(g, place_volume(i), p["footprint"])
+		var door := _door(g, p, volume)
+		_entries.append(SliceDepiction.entry(p["tags"], volume, SliceLayout.ROOM, door))
+		i += 1
+
+
+## The scene volume's name of the `i`-th place of `places()`.
+static func place_volume(i: int) -> String:
+	return "stub.%d" % i
+
+
+## The stub's drawing: a floor on the street and a walled grey box on every place, each wall with a
+## DOOR_W gap at every doorway it carries.
+func draw_boxes(g: Node3D) -> void:
+	var wall := Mats.paint(Color(0.62, 0.62, 0.60), 0.85)
+	var floor_mat := Mats.paint(Color(0.48, 0.47, 0.44), 0.9)
+	_floor(g, street()["footprint"], floor_mat)
 	var doorways := []
 	for p in places():
 		doorways.append(p["doorway"])
-	var i := 0
 	for p in places():
-		var volume := _volume(g, "stub.%d" % i, p["footprint"])
-		var door := _door(g, p, volume)
 		_walls(g, p["footprint"], doorways, wall)
 		_floor(g, p["footprint"], floor_mat)
-		_entries.append(SliceDepiction.entry(p["tags"], volume, SliceLayout.ROOM, door))
-		i += 1
-	_root = g
-	return g
+
+
+## The label drawn over a place's door and named in the door registry.
+func door_label(label: String) -> String:
+	return "%s -- stub" % label
 
 
 func place_volumes() -> Array[Area3D]:
@@ -136,7 +171,8 @@ func _door(g: Node3D, p: Dictionary, volume: String) -> int:
 	var yaw := atan2(out.x, out.z)
 	var at := to_scene(p["doorway"])
 	var sill := at - out * SliceLayout.DOOR_INSET
-	SliceTerrace.doors.append([sill, yaw, "%s -- stub" % p["label"], volume, 0.0, 0.0])
+	# the room's floor height (a deck's surface, ARC-178) puts its in-point, and so its frame, on that floor
+	SliceTerrace.doors.append([sill, yaw, door_label(p["label"]), volume, 0.0, float(p.get("floor_m", 0.0))])
 	Build.label(g, sill + Vector3(0.0, WALL_H + 0.35, 0.0) + out * 0.05, p["label"], 0.45,
 		Color(0.95, 0.95, 0.92), yaw)
 	return SliceTerrace.doors.size() - 1
@@ -144,7 +180,7 @@ func _door(g: Node3D, p: Dictionary, volume: String) -> int:
 
 ## Four walls on the footprint's edges, inside it, with a DOOR_W gap on the street side at the doorway.
 ## Four walls on the footprint's edges, inside it, each with a DOOR_W gap at every doorway (of any place)
-## that stands within DOORWAY_REACH of its centre line and inside its span -- so two boxes that share a
+## that stands within DOOR_GAP_MATCH_MM of its centre line and inside its span -- so two boxes that share a
 ## door, such as a room off another room, both open at it.
 func _walls(g: Node3D, rect: Rect2, doorways: Array, mat: Material) -> void:
 	var lo := rect.position
@@ -156,29 +192,21 @@ func _walls(g: Node3D, rect: Rect2, doorways: Array, mat: Material) -> void:
 		Rect2(lo.x, lo.y + t, t, hi.y - lo.y - 2.0 * t),
 		Rect2(hi.x - t, lo.y + t, t, hi.y - lo.y - 2.0 * t),
 	]
-	var half := DOOR_W * 500.0
 	for r in edges:
 		var along_x: bool = r.size.x > r.size.y
 		var line: float = r.get_center().y if along_x else r.get_center().x
 		var from: float = r.position.x if along_x else r.position.y
 		var to: float = r.end.x if along_x else r.end.y
-		var gaps := []
-		for d in doorways:
-			var across: float = d.y if along_x else d.x
-			var at: float = d.x if along_x else d.y
-			if absf(across - line) <= DOORWAY_REACH and at >= from and at <= to:
-				gaps.append(at)
-		gaps.sort()
-		var start := from
-		for at in gaps:
-			_wall_span(g, r, along_x, start, at - half, mat)
-			start = at + half
-		_wall_span(g, r, along_x, start, to, mat)
+		# the shared span function (`SliceSpans`, 16f-b), in this depiction's millimetres
+		var gaps := SliceSpans.openings(doorways, along_x, line, DOOR_GAP_MATCH_MM, Vector2(from, to))
+		for piece in SliceSpans.split(from, to, gaps, DOOR_W * 1000.0):
+			_wall_span(g, r, along_x, piece[0], piece[1], mat)
 
 
-## How far a doorway may stand from a wall's centre line and still open it, in millimetres: the
-## doorway rule puts it 0.2 to 0.4 m in front of its door (12d), the wall half its thickness further.
-const DOORWAY_REACH := 1000.0
+## How far a disclosed doorway may stand from a wall's centre line for this depiction to draw that
+## wall's gap there, in millimetres: a drawing tolerance, not a rule (the server decides who passes). The
+## doorway rule puts a doorway 0.2 to 0.4 m in front of its door (12d), the wall half its thickness further.
+const DOOR_GAP_MATCH_MM := 1000.0
 
 
 func _wall_span(g: Node3D, r: Rect2, along_x: bool, from: float, to: float, mat: Material) -> void:

@@ -141,19 +141,55 @@ def test_a_dump_without_a_jog_cannot_be_judged(tmp_path: Path) -> None:
     )
 
 
-def test_g9w_passes_hanging_arms_and_fails_a_hand_8_mm_inside_the_trunk(tmp_path: Path) -> None:
+def _arms(result: gait.Arms, clip: str) -> dict[str, object]:
+    arms = result.block["arms"]
+    assert isinstance(arms, dict)
+    entry = cast(dict[str, dict[str, object]], arms)[clip]
+    return entry
+
+
+def test_g9w_passes_hanging_arms_and_records_a_walking_hand_8_mm_inside_the_trunk(tmp_path: Path) -> None:
     clean = gait.gate_g9w(read(build(tmp_path, name="clean.mwcf")), TOL)
     assert clean.result.verdict is Verdict.PASS, clean.result.reasons
+    assert [_arms(clean, c)["frames"] for c in ("rest", "stand", "walk", "jog")] == [1, 3, 30, 30]
+    assert [_arms(clean, c)["judged"] for c in ("rest", "stand", "walk", "jog")] == [True, True, False, False]
 
-    # the hand's innermost corner (x 0.27 m) moved to 8 mm inside the trunk's side (x 0.18 m)
+    # the hand's innermost corner (x 0.27 m) moved to 8 mm inside the trunk's side (x 0.18 m) in walk and jog:
+    # recorded, not judged (Q-S36P2-2)
     planted = gait.gate_g9w(read(build(tmp_path, arm_in=0.098)), TOL)
-    assert planted.result.verdict is Verdict.FAIL
-    limbs = planted.block["limb_in_trunk_mm"]
-    assert isinstance(limbs, dict)
-    assert limbs["hand"] == pytest.approx(8.0, abs=0.1)
+    assert planted.result.verdict is Verdict.PASS, planted.result.reasons
+    walk = _arms(planted, "walk")
+    assert walk["hand_mm"] == pytest.approx(8.0, abs=0.1)
+    assert cast(dict[str, str], walk["keys"])["hand"] == "self.hand_in_trunk"
     assert any(
-        "Left hand, walk frames 0–29" in r and "self.hand_in_trunk" in r for r in planted.result.reasons
+        line.startswith("recorded: G-9w Left hand, walk frames 0–29, 8.0 mm inside the core")
+        and "self.hand_in_trunk" in line
+        for line in planted.result.looked_at
     )
+
+
+def test_g9w_fails_a_standing_hand_7_mm_inside_the_thigh_and_passes_3_mm(tmp_path: Path) -> None:
+    deep = gait.gate_g9w(read(build(tmp_path, hand_in_thigh={10: 0.007}, name="deep.mwcf")), TOL)
+    assert deep.result.verdict is Verdict.FAIL
+    assert deep.result.reasons == (
+        "G-9w Left hand, stand frame 10, 7.0 mm inside the core (bound 5 mm, self.arm_in_thigh)",
+    )
+    stand = _arms(deep, "stand")
+    assert stand["hand_mm"] == pytest.approx(7.0, abs=0.1)
+    assert cast(dict[str, str], stand["at"])["hand"] == "stand:10 Left hand"
+    shallow = gait.gate_g9w(read(build(tmp_path, hand_in_thigh={10: 0.003}, name="shallow.mwcf")), TOL)
+    assert shallow.result.verdict is Verdict.PASS, shallow.result.reasons
+    assert _arms(shallow, "stand")["hand_mm"] == pytest.approx(3.0, abs=0.1)
+
+
+def test_g9w_records_a_walking_forearm_6_mm_inside_the_flank_without_failing(tmp_path: Path) -> None:
+    result = gait.gate_g9w(read(build(tmp_path, forearm_in_flank={5: 0.006})), TOL)
+    assert result.result.verdict is Verdict.PASS, result.result.reasons
+    assert (
+        "recorded: G-9w Left sleeve, walk frame 5, 6.0 mm inside the core (bound 5 mm, self.limb_in_trunk)"
+        in result.result.looked_at
+    )
+    assert _arms(result, "walk")["limb_mm"] == pytest.approx(6.0, abs=0.1)
 
 
 def test_a_planted_blip_shorter_than_a_stance_is_swing_and_a_run_may_wrap_the_cycle() -> None:

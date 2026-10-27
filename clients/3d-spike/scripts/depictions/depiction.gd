@@ -6,10 +6,11 @@
 ## never names a place key. `SliceLayout` binds the places the server discloses to these entries by
 ## their disclosed tags and by doorway coincidence (16c's D-16c-3 rule, generalised; `slice_layout.gd`).
 ##
-## One depiction per world key, found by `SliceWorlds` at `res://scripts/depictions/<key>/depiction.gd`
-## (ARC-146 when it is absent). Social Café is the first (`depictions/social-cafe/`), a labelled
-## Lakeside stub the second (`depictions/lakeside/`, built by the shared `SliceBoxDepiction`). 16f
-## keeps this interface and changes only where depictions come from (R-16f-c-1).
+## One depiction per world key, found by `SliceWorlds`: the pack's `depictions/<key>.yaml`, drawn by the
+## shared `SliceDataDepiction` (`depictions/data/`, ARC-177; Lakeside is drawn so, with no script of its
+## own), else a bespoke script at `res://scripts/depictions/<key>/depiction.gd` (ARC-146 when it is
+## absent; Social Café's `depictions/social-cafe/` until 16f-d2), else plainly from disclosure (ARC-52).
+## 16f keeps this interface and changes only where depictions come from (R-16f-c-1).
 ##
 ## THE ENTRIES (`depictions()`), one dictionary per drawn thing that depicts a tagged place:
 ##
@@ -25,6 +26,9 @@ extends RefCounted
 
 ## The world key this depiction was opened for (set by `SliceWorlds.open`).
 var key := ""
+## A refusal line set by `build` when something the depiction draws from is refused by name (a station
+## kit, ARC-192); the slice prints and shows it, and a scripted run exits 3 (`SliceMain`).
+var refusal := ""
 
 
 ## Build the world's scene under `root` and return it. `connected`: a hosted or joined server is
@@ -63,13 +67,41 @@ func spawn() -> Dictionary:
 ##   farfield_shots  [[name, position, yaw, pitch]]
 ##   perf            [[name, position, yaw, pitch]]; perf_breakdown: [name]
 ##   probe_route     [PackedStringArray of tags, ...]: the link probe's walk, by entries' tags; empty
-##                   means the world's own bespoke walk
+##                   means the world's own bespoke walk. A step may instead be { tags: PackedStringArray,
+##                   at_mm: Vector2 }: into that entry, then on to that point in the place's frame
+##   landmark        [[name, position, yaw, pitch, azimuth_deg, band_top_deg]] (LM-1) and
+##                   [[name, position, yaw, pitch, "footprint"]] (LM-2): `--slice-landmark` (S29-d §5.9)
+##   station_shots   [[name, position, yaw, pitch]]: `--slice-station-shots`, under shots/<world>/station
+##   station_walk    { via: [scene points], tags: PackedStringArray }: `--slice-station-walk`, the walk from
+##                   the street into the station's main place, on the real controller
 func viewpoints() -> Dictionary:
+	return {}
+
+
+## The station this depiction draws, once built: { kit: StationKit, site: Dictionary } (ARC-192), or {}.
+func station() -> Dictionary:
 	return {}
 
 
 ## Sit points (presentation data, step-33 §4.5); none until S33-f.
 func sit_points() -> Array:
+	return []
+
+
+## Whose people this world's extras are (step-26 E-2; S33-g §5.2): a world key of the cast pack's
+## `casts` (PRESENTATION.md §2), "" for the pack's own `extras`. Never this world's own key: a world's
+## own people are never drawn as its extras (`SliceCast.use_extras_from`).
+func extras_from() -> String:
+	return ""
+
+
+## Decorative figures (S33-g §5.3, F-S33g-3): presentation people with no world entity, at most
+## `SliceDecor.MAX` of them, each drawn from the extras above and never as a placeholder. They never
+## sit, never fish and never enter a place: a depiction puts them only on its street. One dictionary
+## each, in scene coordinates:
+##   { pose: "walking", from: Vector3, to: Vector3 }   walks out and back between the two points
+##   { pose: "standing", at: Vector3, yaw: degrees }   stands there (the idle clip; no speech)
+func decor() -> Array:
 	return []
 
 

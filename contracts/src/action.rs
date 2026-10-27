@@ -329,6 +329,28 @@ pub trait Action: Serialize + DeserializeOwned + Sized {
     const ACTION_TYPE: ActionTypeId;
     /// The one system that resolves it.
     const OWNER: SystemId;
+    /// What kind of act this is, which orders it among the offers an observer sees. A pack that
+    /// declares nothing gets [`ActionCategory::Interaction`].
+    const CATEGORY: ActionCategory = ActionCategory::Interaction;
+}
+
+/// What kind of act an action is, as the pack that defines it declares ([`Action::CATEGORY`]).
+///
+/// Perception orders the offers an observer sees by this rank, lowest first, and keeps the
+/// composition order inside one category: social acts before other interactions, and both before
+/// commerce (operator ruling 2026-10-20, `pr-s27-g-offer-order.md`). Offers are never ordered by
+/// action name. The kernel never reads this. The variants are declared in rank order, so `Ord` is
+/// the rank.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ActionCategory {
+    /// An act directed at another person as a person: speaking, inviting, answering an
+    /// invitation, joining or leaving a shared activity.
+    Social,
+    /// Any other act on the world, the actor's own body or a thing. The default.
+    Interaction,
+    /// An act whose point is a trade or its terms: buying, listing, pricing, withdrawing stock.
+    Commerce,
 }
 
 /// An action's payload as a transport carries it: labelled and opaque.

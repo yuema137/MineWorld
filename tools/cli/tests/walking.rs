@@ -82,7 +82,7 @@ fn world(directory: &Path, people: &[Placed], objects: &[Object], bodies: bool) 
     let items = keys(objects.iter().map(|(key, ..)| *key).collect());
     let mut manifest = format!(
         "world:\n  id: walking-yard\n  name: Walking Yard\n  version: 0.1.0\n  license: MIT\n\
-         mineworld: \"^0.1\"\nsystems:\n  - presence\n  - movement\n{}places:\n  - attic\n  - court\n  \
+         mineworld: \"^0.1\"\nsettlement: {{ kind: none }}\nsystems:\n  - presence\n  - movement\n{}places:\n  - attic\n  - court\n  \
          - hall\npopulation:\n{population}seats:\n{population}",
         if bodies { "  - bodies\n" } else { "" }
     );
@@ -491,9 +491,10 @@ async fn a_walk_goes_through_the_slot_and_out_of_the_pocket() {
     );
 }
 
-/// NV-2 (c): to a person behind the table, then again while that person moves.
+/// NV-2 (c): to a person behind the table (ending on the near side, `ARC-75` amendment 1), then again
+/// while that person moves.
 #[tokio::test]
-async fn a_walk_to_a_person_goes_round_the_table_and_follows_them() {
+async fn a_walk_to_a_person_behind_the_table_stops_on_the_near_side_and_follows_them() {
     let directory = fresh("walking-person");
     let pack = world(
         &directory,
@@ -510,12 +511,13 @@ async fn a_walk_to_a_person_goes_round_the_table_and_follows_them() {
         matches!(result, ActionResult::Accepted { .. }),
         "{result:?}"
     );
-    // The table grown by 310: (6 690, 5 690)–(9 310, 7 310). The straight line meets it (at x 6 690,
-    // y 6 257); the route bends at its north-west corner and ends at Bea.
-    assert_eq!(
-        next_waypoints(&mut client, ada).await,
-        [(6_690, 7_310), (8_000, 7_600)]
-    );
+    // The table grown by 310: (6 690, 5 690)–(9 310, 7 310). The leg ends at a stand point (`ARC-75`
+    // amendment 1): the first candidate, 1 200 mm short of Bea on the line from Ada — (8 000, 7 600) +
+    // (−4 000, −4 100) · 1 200 / ⌈5 728.0⌉ = (7 163, 6 742), truncated — lies in the grown table, and the
+    // wayfinder moves it to the nearest free lattice point, (6 650, 6 750): 1 595 mm from Bea, within
+    // PERSON_REACH, reached straight (4 193 mm) for walk + gap 5 788. Going round the north-west corner
+    // to within 1 200 mm of her costs more (to (6 800, 7 600): 4 965 + 1 200 = 6 165).
+    assert_eq!(next_waypoints(&mut client, ada).await, [(6_650, 6_750)]);
     step_out(&mut client, ada).await;
     drop(server);
     let first = facts(Path::new(save.path()));
@@ -547,8 +549,9 @@ async fn a_walk_to_a_person_goes_round_the_table_and_follows_them() {
         let d2 = (end.0 - bea_at.0).pow(2) + (end.1 - bea_at.1).pow(2);
         assert!(
             // Not on her: at least 2R + GAP = 510 mm (610 at R 300).
-            (510 * 510..=1_200 * 1_200).contains(&d2),
-            "(c) within 1 200 mm of Bea at {bea_at:?}, and not on her: {end:?}, {} mm",
+            // Within PERSON_REACH: the table may stand between them (`ARC-75` amendment 1).
+            (510 * 510..=2_100 * 2_100).contains(&d2),
+            "(c) within 2 100 mm of Bea at {bea_at:?}, and not on her: {end:?}, {} mm",
             d2.isqrt()
         );
     }

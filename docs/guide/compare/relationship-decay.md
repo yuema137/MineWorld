@@ -94,6 +94,10 @@ seats:
 
 configure:
   - economy
+
+# Not a town: a town names its station hall and its landmark (docs/MODULE_SPEC.md §4.3).
+settlement:
+  kind: none
 ```
 
 Then run thirty days:
@@ -101,9 +105,9 @@ Then run thirty days:
 ```console
 $ mineworld run compare-decay/corner-shop --headless --seed 1 --days 30
 ...
-facts      relationship-changed 20
+facts      relationship-changed 18
 ...
-activity   days 1-30  ana move 1468 talk 738  ben move 1435 talk 950  cai move 1586 talk 871
+activity   days 1-30  ana move 1490 talk 681  ben move 1450 talk 944  cai move 1602 talk 876
 ...
 ```
 
@@ -162,6 +166,10 @@ seats:
 configure:
   - economy
   - relationships
+
+# Not a town: a town names its station hall and its landmark (docs/MODULE_SPEC.md §4.3).
+settlement:
+  kind: none
 ```
 
 ```console exit=1
@@ -190,9 +198,9 @@ Then run the same thirty days with the same seed, and keep them in a save:
 ```console
 $ mineworld run compare-decay/corner-shop --headless --seed 1 --days 30 --save compare-decay/saves/after
 ...
-facts      relationship-changed 38
+facts      relationship-changed 34
 ...
-activity   days 1-30  ana move 1468 talk 738  ben move 1435 talk 950  cai move 1586 talk 871
+activity   days 1-30  ana move 1490 talk 681  ben move 1450 talk 944  cai move 1602 talk 876
 ...
 ```
 
@@ -215,7 +223,7 @@ $ mineworld perceived compare-decay/corner-shop --save compare-decay/saves/after
 
 | | Step 1.2, nothing fades | Step 1.4, regard fades |
 | --- | --- | --- |
-| `relationship-changed` | 20 | 38 |
+| `relationship-changed` | 18 | 34 |
 | `activity` | the same | the same |
 | a tie going down | never | yes, as in step 1.5 |
 

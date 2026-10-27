@@ -21,28 +21,20 @@ fn arrived_early_i_wait_but_hours_before_the_part_in_force_has_its_day() {
         here: CAFE,
         ..View::at_home(at)
     };
-    assert!(holds(&there(FROM - 600).build(), &commute, seconds(PACE)));
+    assert!(held(&there(FROM - 600), &commute));
     assert!(
-        holds(
-            &there(FROM - 7_200 - PACE + 1).build(),
-            &commute,
-            seconds(PACE)
-        ),
-        "within the cap and a pace"
+        held(&there(FROM - 7_200 - PACE + 1), &commute),
+        "no way home disclosed: within the cap and a pace"
     );
     assert!(
-        !holds(&there(FROM - 7_200 - PACE).build(), &commute, seconds(PACE)),
+        !held(&there(FROM - 7_200 - PACE), &commute),
         "earlier, the part in force calls me home"
     );
     let at_boundary = Commute {
         mode: Mode::AtBoundary,
         ..commute
     };
-    assert!(!holds(
-        &there(FROM - 600).build(),
-        &at_boundary,
-        seconds(PACE)
-    ));
+    assert!(!held(&there(FROM - 600), &at_boundary));
     // Waiting at the café, nobody walks home to the agenda in force.
     for seed in 0..SEEDS {
         let decided = controller(seed, commute).decide(&there(FROM - 600).build());
@@ -54,6 +46,49 @@ fn arrived_early_i_wait_but_hours_before_the_part_in_force_has_its_day() {
             "seed {seed}: {decided:?}"
         );
     }
+}
+
+/// F-Nh-5: arrived early for another reason (a shop's food sold out at my workplace), I am held only while
+/// a round trip to the part in force would not fit before the commute calls me back, not for the whole cap.
+#[test]
+fn arrived_early_by_chance_i_wait_only_when_going_back_would_not_fit() {
+    let commute = Commute::default();
+    let there = |at| View {
+        here: CAFE,
+        way_home: true,
+        ..View::at_home(at)
+    };
+    // The way home is the way here: estimate 360 s, lead 840 s, so the window is 1 200 s.
+    let window = 360 + LEAD;
+    assert!(
+        held(&there(FROM - window - PACE + 1), &commute),
+        "a round trip would not fit: wait"
+    );
+    assert!(
+        !held(&there(FROM - window - PACE), &commute),
+        "a round trip fits: the part in force calls me home"
+    );
+    assert!(
+        !held(&there(FROM - 5_400), &commute),
+        "90 minutes early, inside the cap: no longer held"
+    );
+    // A commute's own arrival (it set out `LEAD` before `from` and walked 360 s) is always held.
+    assert!(held(&there(FROM - LEAD + 360), &commute));
+    // Not held, the agenda sends me home on most seeds.
+    let home = (0..SEEDS)
+        .filter(|seed| {
+            controller(*seed, commute)
+                .decide(&there(FROM - 5_400).build())
+                .as_ref()
+                .and_then(walks_into)
+                == Some(place(HOME))
+        })
+        .count();
+    assert!(home > 0, "somebody heads home");
+}
+
+fn held(view: &View, commute: &Commute) -> bool {
+    holds(&view.build(), commute, seconds(PACE), seconds(STRIDE))
 }
 
 const CAFE: u64 = 1;
@@ -88,6 +123,8 @@ struct View {
     here: u64,
     punctual: bool,
     ways: bool,
+    /// Whether `ways` also lists the way home (from the café).
+    way_home: bool,
     walking_to: Option<u64>,
     heard: Vec<Heard>,
 }
@@ -99,6 +136,7 @@ impl View {
             here: HOME,
             punctual: true,
             ways: true,
+            way_home: false,
             walking_to: None,
             heard: Vec::new(),
         }
@@ -137,11 +175,19 @@ impl View {
             ),
         ];
         if self.ways {
-            let ways = Ways(vec![Way {
+            let mut ways = vec![Way {
                 place: place(CAFE),
                 doors: 1,
                 length: Millimetres::new(LENGTH),
-            }]);
+            }];
+            if self.way_home {
+                ways.push(Way {
+                    place: place(HOME),
+                    doors: 1,
+                    length: Millimetres::new(LENGTH),
+                });
+            }
+            let ways = Ways(ways);
             mine.push(ComponentRecord::new::<Ways>(
                 id(ME),
                 serde_json::to_value(&ways).expect("serializes"),

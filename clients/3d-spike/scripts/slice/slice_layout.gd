@@ -24,9 +24,15 @@
 ##                the place's tags are known, a door an entry claims binds only a
 ##                place that entry is a candidate for.
 ##
-## A doorway that lands on no drawn door binds nothing and is recorded as a
-## miss (`misses`): the probe names it, the HUD says the place is not drawn.
-## Nothing is fitted, widened or guessed (R-16c-1). No place key is named here.
+## A doorway that lands on no drawn door binds its place as a SHELL (16f-b,
+## `ARC-52`): glued at the passage by translation only (`ARC-45` point 1), its
+## frame's origin at origin(here) + here - there, and drawn from its own
+## disclosure (`SliceShells`) once it is stood in. A world whose depiction draws
+## no entry at all (`SlicePlainDepiction`) anchors its first place at the scene's
+## origin as a SHELL, and every other place follows by the same gluing. A doorway
+## that lands on a drawn door already bound, or on one an entry claims for other
+## tags, is still a miss (`misses`): the probe names it. Nothing is fitted,
+## widened or guessed (R-16c-1). No place key is named here.
 ##
 ## The drawn doors are the depiction's (`SliceDepiction.doors()`, the scene's one
 ## registry `SliceTerrace.doors`), filled by the code that builds each door:
@@ -44,6 +50,10 @@ extends RefCounted
 const ROOM := "room"
 const DOOR := "door"
 const STREET := "street"
+## A place no depiction entry draws: glued at its passage (`ARC-45` point 1) and
+## drawn plainly from its disclosed `place-shape` by `SliceShells` (16f-b,
+## `ARC-52`).
+const SHELL := "shell"
 
 ## The authoring rule 12d adopted for every doorway (step-11 SD-D3): a doorway
 ## point stands 0.40 m in front of its door, on each side. A door's out-point
@@ -80,6 +90,9 @@ var anchor := ""
 var street := ""
 ## What this scene draws: the run's depiction (`SliceWorlds.current`).
 var depiction: SliceDepiction = SliceWorlds.current
+## "<from>><to>" -> true: doorways the harness flag `--drop-doorway` left out of the scene (PR 16e,
+## Q-PAR-3). Never set on the play path.
+var _hidden_doorways := {}
 
 
 ## Learn from one observation of the observer's own place: its tags and
@@ -135,6 +148,14 @@ func to_world(place: String, p: Vector3) -> Dictionary:
 	return MineWorldSpace.from_3d(rel)
 
 
+## The drawn door bound to `place`, as the registry holds it ([sill, yaw, …]), or [] when the place is bound
+## to no drawn door (S31-e: a shop's price board stands above it; nothing is guessed, R-16c-1).
+func door_of(place: String) -> Array:
+	var at: int = doors.get(place, -1)
+	var drawn := _doors()
+	return drawn[at] if at >= 0 and at < drawn.size() else []
+
+
 ## A drawn door's out-point: on the street side, DOOR_INSET in front of its sill.
 static func out_point(door: Array) -> Vector3:
 	return (door[0] as Vector3) + _outward(door) * DOOR_INSET
@@ -169,7 +190,7 @@ func shown(here: String, people: Array) -> Dictionary:
 		if not drawn_as.has(from):
 			continue
 		for p in passages[from]:
-			if not drawn_as.has(p["to"]):
+			if not drawn_as.has(p["to"]) or _hidden_doorways.has("%s>%s" % [from, p["to"]]):
 				continue
 			doorways.append({"from": from, "to": p["to"],
 				"here": [int(p["here"].get("x", 0)), int(p["here"].get("y", 0))],
@@ -180,6 +201,20 @@ func shown(here: String, people: Array) -> Dictionary:
 		shown_people.append({"id": who["id"], "label": who["label"],
 			"local": null if local.is_empty() else local})
 	return {"place": here, "places": places, "doorways": doorways, "people": shown_people}
+
+
+## Harness only (`--drop-doorway=<from>,<to>`, PR 16e Q-PAR-3): the doorway from `from` to `to` is no
+## longer bound in this scene, so the report leaves it out, as it would a doorway the scene never drew.
+func hide_doorway(from: String, to: String) -> void:
+	_hidden_doorways["%s>%s" % [from, to]] = true
+
+
+## Whether the world disclosed a doorway from `from` to `to` where the observer stood.
+func knows_doorway(from: String, to: String) -> bool:
+	for p in passages.get(from, []):
+		if p["to"] == to:
+			return true
+	return false
 
 
 # --- binding ------------------------------------------------------------------------
@@ -238,8 +273,14 @@ func _candidate(place_tags: Array, why: Array = []) -> int:
 
 
 ## The first place with a candidate that can anchor binds the scene (rule 2), and
-## the place its door opens onto is the street (rule 3).
+## the place its door opens onto is the street (rule 3). A depiction with no
+## entries (a world drawn plainly from disclosure) anchors the first place at the
+## scene's origin, drawn as a SHELL.
 func _bind_anchor(place: String) -> void:
+	if depiction != null and _entries().is_empty():
+		anchor = place
+		_bind(place, SHELL, "", -1, Vector3.ZERO)
+		return
 	var why := []
 	var c := _candidate(tags[place], why)
 	if c < 0:
@@ -318,8 +359,8 @@ func _bind_doorways(from: String) -> void:
 				best = i
 		var label: String = all_doors[best][2] if best >= 0 else ""
 		if best < 0 or best_d > DOOR_MATCH:
-			misses[to] = {"at": at, "nearest": label, "distance": best_d,
-				"why": "no drawn door within %.2f m" % DOOR_MATCH}
+			# no drawn door here: the place is glued at its passage and drawn as a shell
+			_bind(to, SHELL, "", -1, origins[from] + _flat(p["here"]) - _flat(p["there"]))
 			continue
 		if used.has(best):
 			misses[to] = {"at": at, "nearest": label, "distance": best_d,
@@ -336,6 +377,24 @@ func _bind_doorways(from: String) -> void:
 			_bind(to, ROOM, volume, best, in_point(d) - _flat(p["there"]))
 		else:
 			_bind(to, DOOR, "", best, Vector3.INF)
+
+
+## The scene volume that depicts `place` from now on (a shell's floor or threshold, `SliceShells`).
+func set_volume(place: String, volume: String) -> void:
+	volumes[place] = volume
+
+
+## Forget everything learned: the world instance changed (`ARC-45` point 2).
+func forget() -> void:
+	passages.clear()
+	tags.clear()
+	origins.clear()
+	drawn_as.clear()
+	volumes.clear()
+	doors.clear()
+	misses.clear()
+	anchor = ""
+	street = ""
 
 
 func _bind(place: String, how: String, volume: String, door: int, origin: Vector3) -> void:

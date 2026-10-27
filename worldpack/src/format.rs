@@ -205,6 +205,7 @@ fn example_world() -> serde_json::Value {
         "places": ["home", "shop"],
         "population": ["ana", "ben"],
         "seats": ["ben"],
+        "settlement": { "kind": "none" },
     })
 }
 

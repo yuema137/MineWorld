@@ -49,7 +49,7 @@ static func build(g: Node3D, u: SliceTerrace.Unit, ground_h: float, top: float,
 	# floor: terracotta quarry tiles, the commonest florist's floor and unlike any
 	# other floor in the slice
 	Build.box(n, Vector3(0, FLOOR_Y - 0.06, zm), Vector3(w - 0.02, 0.12, zf - zb),
-		Mats.pbr("long_white_tiles", 2.60, Color(0.80, 0.52, 0.40), 0.66), 0.0, true)
+		Mats.pbr("long_white_tiles", 2.60, Color(0.80, 0.52, 0.40), 0.66), 0.0, true, Build.LAYER_WORLD)
 	# side and back walls, full height, solid; the back wall with the back
 	# room's doorway cut through it
 	for sx in [-1.0, 1.0]:
@@ -93,7 +93,9 @@ static func build(g: Node3D, u: SliceTerrace.Unit, ground_h: float, top: float,
 	Build.box_blocker(n, Vector3((0.55 + xi1) * 0.5, FLOOR_Y + 1.0, zb - 0.12),
 		Vector3(xi1 - 0.55, 2.0, 0.28))
 	_back_room(n, xi0 + 1.05, zb)
-	_window_staging(n, -w * 0.5 + 2.40, w * 0.5 - 1.00)
+	# the staging ends 0.25 m short of where it did, clear of the crate by the window
+	# it stood 0.197 m into (S36-P5a, ARC-332; store.yaml moved with it)
+	_window_staging(n, -w * 0.5 + 2.40, w * 0.5 - 1.25)
 	_west_shelving(n, xi0, zf)
 	_counter(n, 0.55, xi1 - 0.25, zb)
 	_buckets(n, xi1, zf)
@@ -165,10 +167,9 @@ static func _window_staging(n: Node3D, x0: float, x1: float) -> void:
 		for i in range(k):
 			var px := x0 + 0.18 + i * (x1 - x0 - 0.36) / float(maxi(k - 1, 1))
 			if (i + t) % 3 == 0:
-				SliceProps.put(n, "planter_pot_clay", Vector3(px, y + 0.02, z), rng.randf() * TAU,
-					Color(0.96, 0.90, 0.84))
-				SliceProps.put(n, "shrub_03", Vector3(px, y + 0.20, z), rng.randf() * TAU,
-					Color(0.92, 1.00, 0.86), 0.28, 0.86, ["_a"])
+				SliceProps.potted(n, "planter_pot_clay", Vector3(px, y + 0.02, z), rng.randf() * TAU,
+					Color(0.96, 0.90, 0.84), "shrub_03", rng.randf() * TAU, Color(0.92, 1.00, 0.86),
+					["_a"])
 			else:
 				_pot_of_flowers(n, Vector3(px, y + 0.02, z), 0.09, 0.16, rng.randi())
 	# the staging's frame: legs, and a solid footprint the player cannot walk into
@@ -179,18 +180,42 @@ static func _window_staging(n: Node3D, x0: float, x1: float) -> void:
 
 
 ## Display shelving down the west wall: tall timber units of pots and vases.
+## The unit's boards stand 0.41 / 0.79 / 1.17 m up (0.38 m apart) under a top at 1.56 m; it is
+## turned across the wall, so its length runs into the room (scene x). What stands on it stands
+## along that length, inside the boards, and the antique vase (0.44 m, taller than the board
+## pitch) stands on top (S36-P5c: the vases stood 0.28 m beside the unit, in the air).
+const WEST_BOARDS := [0.41, 0.79, 1.17]
+## Two partitions split each board into three 0.32 m bays, centred 0.35 m apart along the unit;
+## the outer bay's middle, from the unit's centre (a vase across a partition ran into it).
+const WEST_BAY := 0.35
+const WEST_TOP := 1.56
+
 static func _west_shelving(n: Node3D, xi0: float, zf: float) -> void:
 	var warm := Color(1.0, 0.95, 0.88)
 	for i in range(2):
 		var z := -2.90 - i * 1.25
-		SliceProps.put_solid(n, "wooden_display_shelves_01", Vector3(xi0 + 0.22, FLOOR_Y, z),
+		var unit := SliceProps.put_solid(n, "wooden_display_shelves_01", Vector3(xi0 + 0.22, FLOOR_Y, z),
 			PI * 0.5, warm)
-		# what stands on them: the unit's shelves are at about 0.35 / 0.75 / 1.15 m
+		# store.yaml holds the unit by its whole drawn footprint, cut at the wall (S36-P5c); so
+		# does its collider
+		var held := SliceProps.true_box(unit)
+		var x1 := held.end.x
+		held.position.x = maxf(held.position.x, xi0)
+		held.size.x = x1 - held.position.x
+		Build.box_blocker(n, held.get_center(), held.size)
 		for s in range(3):
-			var y := FLOOR_Y + 0.37 + s * 0.40
-			SliceProps.put(n, ["ceramic_vase_02", "antique_ceramic_vase_01", "jug_01"][s],
-				Vector3(xi0 + 0.22, y, z + 0.28), 0.4 + s, warm)
-			_pot_of_flowers(n, Vector3(xi0 + 0.22, y, z - 0.25), 0.07, 0.12, 300 + i * 10 + s)
+			var y: float = FLOOR_Y + WEST_BOARDS[s]
+			SliceProps.put(n, ["ceramic_vase_02", "jug_01", "ceramic_vase_02"][s],
+				Vector3(xi0 + 0.22 + WEST_BAY, y, z), 0.4 + s, warm)
+			_pot_of_flowers(n, Vector3(xi0 + 0.22, y, z), 0.07, 0.12, 300 + i * 10 + s)
+		SliceProps.put(n, "antique_ceramic_vase_01", Vector3(xi0 + 0.45, FLOOR_Y + WEST_TOP, z), 1.4,
+			warm)
+
+
+## Shelf_01's boards that carry stock, metres above the floor, and the middle of a board's depth
+## from the unit's back face (its boards span 0.037-0.233 m of its 0.257 m).
+const BACK_BOARDS := [0.38, 0.94, 1.51]
+const BACK_BOARD_MID := 0.135
 
 
 ## The work counter at the back: a timber bench with a zinc top, the till, a
@@ -228,20 +253,19 @@ static func _counter(n: Node3D, x0: float, x1: float, zb: float) -> void:
 	for i in range(3):
 		Build.box(n, Vector3(x0 + 0.6 + i * 0.9, FLOOR_Y + 0.62, z + 0.36), Vector3(0.18, 0.12, 0.01),
 			Mats.paint(Color(0.92, 0.90, 0.84), 0.9))
-	# shelving behind it, on the back wall, with vases and stock
+	# shelving behind it, on the back wall, with jugs and stock. Shelf_01's boards are 0.20 m
+	# deep (0.037-0.233 of its 0.257) at 0.14 / 0.38 / ... / 1.79 m: a 0.22 m vase and a 0.38 m
+	# basket overhung them into the back board, so a jug (0.17 m deep, turned with its narrow
+	# side across the board) and pots of flowers stand on three of them (S36-P5c)
 	for i in range(2):
 		var sx := x0 + 0.85 + i * 1.30
-		SliceProps.put_solid(n, "Shelf_01", Vector3(sx, FLOOR_Y, zb + 0.16), 0.0,
+		var shelf := SliceProps.put_solid(n, "Shelf_01", Vector3(sx, FLOOR_Y, zb + 0.16), 0.0,
 			Color(1.0, 0.94, 0.86))
+		var board_z := SliceProps.placed_box(shelf).position.z + BACK_BOARD_MID
 		for s in range(3):
-			var sy := FLOOR_Y + 0.46 + s * 0.52
-			SliceProps.put(n, "ceramic_vase_02", Vector3(sx - 0.25, sy, zb + 0.18), s * 0.7,
-				Color(1.0, 0.96, 0.90))
-			if s == 0:
-				SliceProps.put(n, "wicker_basket_01", Vector3(sx + 0.20, sy, zb + 0.18), s * 0.9,
-					Color(1.0, 0.96, 0.90))
-			else:
-				_pot_of_flowers(n, Vector3(sx + 0.20, sy, zb + 0.18), 0.07, 0.12, 500 + s + i * 7)
+			var sy: float = FLOOR_Y + BACK_BOARDS[s]
+			SliceProps.put(n, "jug_01", Vector3(sx - 0.25, sy, board_z), 0.0, Color(1.0, 0.96, 0.90))
+			_pot_of_flowers(n, Vector3(sx + 0.20, sy, board_z), 0.07, 0.12, 500 + s + i * 7)
 	# a chalkboard over the counter: what is in today
 	Build.box(n, Vector3((x0 + x1) * 0.5, FLOOR_Y + 2.45, zb + 0.05), Vector3(1.30, 0.70, 0.05),
 		SlicePalette.painted(Color(0.30, 0.23, 0.16), 0.8))
@@ -291,22 +315,24 @@ static func _display_table(n: Node3D, x: float, z: float) -> void:
 	_pot_of_flowers(n, Vector3(x, y, z), 0.10, 0.28, 6211, 0.55)
 	SliceProps.put(n, "antique_ceramic_vase_01", Vector3(x + 0.26, y, z + 0.14), 0.9,
 		Color(1.0, 0.96, 0.90))
-	SliceProps.put(n, "planter_pot_clay", Vector3(x - 0.24, y, z - 0.12), 0.5,
-		Color(0.96, 0.90, 0.84))
-	SliceProps.put(n, "shrub_03", Vector3(x - 0.24, y + 0.18, z - 0.12), 1.3,
-		Color(0.92, 1.00, 0.86), 0.28, 0.86, ["_a"])
+	SliceProps.potted(n, "planter_pot_clay", Vector3(x - 0.24, y, z - 0.12), 0.5,
+		Color(0.96, 0.90, 0.84), "shrub_03", 1.3, Color(0.92, 1.00, 0.86), ["_a"])
 	SliceProps.put(n, "wicker_basket_01", Vector3(x - 0.10, y, z + 0.26), 2.2,
 		Color(1.0, 0.96, 0.90))
 
 
 static func _floor_plants(n: Node3D, xi0: float, xi1: float, zf: float) -> void:
 	var g := Color(0.92, 1.02, 0.88)
-	Props.place(n, "potted_plant_02", Vector3(xi0 + 0.45, FLOOR_Y, -5.60), 0.6, g)
-	Props.place(n, "potted_plant_02", Vector3(xi1 - 0.45, FLOOR_Y, -5.90), 2.0, g)
-	SliceProps.put(n, "planter_pot_clay", Vector3(xi0 + 0.40, FLOOR_Y, -1.30), 0.2,
-		Color(0.96, 0.90, 0.84))
-	SliceProps.put(n, "calathea_orbifolia_01", Vector3(xi0 + 0.40, FLOOR_Y + 0.20, -1.30), 0.5,
-		g, 0.28, 0.86, ["_a"])
+	# Every drawn plant a body could meet has a solid in store.yaml and a collider here, sized by its
+	# drawn footprint (S36-P5c). The east plant stands 0.50 m further from the back than it did: at
+	# -5.90 it was drawn into the work counter; the pot by the door 0.25 m further in, clear of the
+	# open door's leaf.
+	for at in [[Vector3(xi0 + 0.45, FLOOR_Y, -5.60), 0.6], [Vector3(xi1 - 0.45, FLOOR_Y, -5.40), 2.0]]:
+		var plant := Props.place(n, "potted_plant_02", at[0], at[1], g)
+		_blocker_around(n, [plant])
+	var door_pot := SliceProps.potted(n, "planter_pot_clay", Vector3(xi0 + 0.40, FLOOR_Y, -1.55), 0.2,
+		Color(0.96, 0.90, 0.84), "calathea_orbifolia_01", 0.5, g, ["_a"])
+	_blocker_around(n, door_pot)
 	SliceProps.put_solid(n, "wooden_crate_01", Vector3(xi1 - 0.50, FLOOR_Y, -0.95), 0.1,
 		Color(1.0, 0.95, 0.88))
 	# The world holds the turned crate by its axis-aligned box (store.yaml's "crate
@@ -380,6 +406,14 @@ static func _probe(n: Node3D, w: float, d: float, zf: float, zb: float) -> void:
 
 
 # --- hand scale -------------------------------------------------------------------
+
+## A hidden collider over what `props` draw, from their vertices (`SliceProps.true_box`), full height.
+static func _blocker_around(n: Node3D, props: Array) -> void:
+	var box := SliceProps.true_box(props[0])
+	for p in props.slice(1):
+		box = box.merge(SliceProps.true_box(p))
+	Build.box_blocker(n, box.get_center(), box.size)
+
 
 ## A small pot or vase with flowers in it: a glazed cylinder and a flower head
 ## cluster. The hand-scale object a florist has hundreds of.

@@ -182,6 +182,20 @@ concrete
 
 Avoid overly exaggerated fantasy proportions.
 
+A town drawn at a real setting splits its authority in two. The reference images govern its architecture,
+materials, light and mood; the real setting governs its terrain, peaks, water extent, vegetation and far field,
+each value cited, so a reference's snow peak or waterfall is not copied where the setting has none. Lakeside, on
+Lake Cuyamaca's north shore, is the first such town ([`ARC-143`](decisions/ARC-143.md)).
+
+### The landmark exception (2026-10-20, step-29 §14.4)
+
+One signature building per town may follow its own vernacular. The default town's is its station, the
+Santa Fe Depot of San Diego (1915): Mission Revival, two tiled towers, an arched front, roofs of Mission
+tile (`ARC-106`). The exception covers the style only. The building uses the pack's materials, palette,
+light and precision, is built at real size with each dimension cited, and its glazed tile is the pack's own
+shader, not a photograph of the real tiles. It is drawn from a station kit (`ARC-192`), so another town can
+place it, or its own landmark, without new code.
+
 ---
 
 ## Environmental Detail

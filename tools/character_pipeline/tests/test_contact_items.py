@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from pathlib import Path
 
 import pytest
@@ -109,4 +110,55 @@ def test_the_shipped_prop_library_passes_or_fails_only_by_recorded_findings(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     assert main(["contact-items"]) == 0
-    assert "failing none" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "failing none" in out
+    # the four sink-by-design props pass on their `ground` declaration (S36-P5 commit 4), not as findings
+    for slug in ("celandine_01", "grass_medium_01", "shrub_02", "water_manhole_cover"):
+        assert f"{slug} C-3: PASS" in out
+
+
+def _ground_library(tmp_path: Path, sink_m: float, entry: Mapping[str, object]) -> Path:
+    root = tmp_path / "models"
+    _prop(root, "planted", {"clump": _node(y=-sink_m)})
+    (root / "contact.json").write_text(
+        json.dumps({"format": 1, "items": {"planted": entry}}), encoding="utf-8"
+    )
+    return root
+
+
+_GROUND: dict[str, object] = {
+    "mount": "ground",
+    "rest_mm": 0,
+    "embed_mm": 20,
+    "why": "Rooted 20 mm below the soil by design.",
+}
+
+
+def test_a_ground_prop_passes_on_its_declaration_and_fails_when_sunk_deeper(tmp_path: Path) -> None:
+    exact = run_item_gates(_ground_library(tmp_path / "a", 0.020, _GROUND), Tolerances.load())
+    assert exact["planted"][0].verdict is Verdict.PASS
+    assert "lowest point 20.0 mm below it, declared embed 20.0 mm" in exact["planted"][0].looked_at[0]
+    deeper = run_item_gates(_ground_library(tmp_path / "b", 0.026, _GROUND), Tolerances.load())
+    assert deeper["planted"][0].reasons == (
+        "planted sinks 26.0 mm below its rest plane, 6.0 mm deeper than its declared embed 20.0 mm",
+    )
+    # a raised rest plane (a flush cover's flange top): the same mesh sunk 0 mm is 20 mm below rest 20 mm
+    flush = {**_GROUND, "rest_mm": 20}
+    lifted = run_item_gates(_ground_library(tmp_path / "c", 0.0, flush), Tolerances.load())
+    assert lifted["planted"][0].verdict is Verdict.PASS
+
+
+def test_a_ground_entry_without_its_reason_or_fields_is_refused(tmp_path: Path) -> None:
+    no_why = {k: v for k, v in _GROUND.items() if k != "why"}
+    with pytest.raises(ValueError, match="planted mount 'ground' needs \\['why'\\]"):
+        load_mounts(_ground_library(tmp_path / "a", 0.02, no_why) / "contact.json")
+    on_floor = {"mount": "floor", "embed_mm": 20}
+    with pytest.raises(ValueError, match="planted has \\['embed_mm'\\], which only a 'ground' mount takes"):
+        load_mounts(_ground_library(tmp_path / "b", 0.02, on_floor) / "contact.json")
+    walk = {**_GROUND, "walk_through": True}
+    with pytest.raises(ValueError, match="planted needs 'walk_through_why'"):
+        load_mounts(_ground_library(tmp_path / "c", 0.02, walk) / "contact.json")
+    spec = load_mounts(
+        _ground_library(tmp_path / "d", 0.02, {**walk, "walk_through_why": "Grass bends."}) / "contact.json"
+    )["planted"]
+    assert spec.walk_through and spec.ground is not None and spec.ground.embed_mm == 20.0

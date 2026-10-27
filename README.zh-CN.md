@@ -1,8 +1,8 @@
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/hero-zh-dark.svg">
-    <img src="docs/assets/readme/hero-zh-light.svg" alt="MineWorld：一个用来搭 1:1 数字世界的框架。游戏只是其中一种用法。现在：能走进去的、模块化的活小镇。" width="100%">
-  </picture>
+  <a href="https://github.com/yuema137/MineWorld/releases/tag/promo-v2.2"><img src="docs/assets/readme/cover.jpg" alt="MineWorld：一个开源框架，用来搭活的、1:1 的数字世界。点击观看三分钟介绍视频。" width="100%"></a>
+  <br>
+  <b><a href="https://github.com/yuema137/MineWorld/releases/download/promo-v2.2/mineworld-intro-v2.2.mp4">▶ 观看三分钟介绍视频</a></b>
+  <sub>（<a href="https://github.com/yuema137/MineWorld/releases/download/promo-v2.2/mineworld-intro-v2.2.en.srt">英文字幕</a>）</sub>
 </p>
 
 <p align="center">
@@ -19,75 +19,157 @@
 <p align="center">
   <a href="README.md">English</a> · <b>简体中文</b>
   <br>
+  <a href="#一个世界很多玩家">一个世界</a> ·
+  <a href="#一个自己活着的小镇">活的小镇</a> ·
+  <a href="#新世界同一个引擎">新世界</a> ·
   <a href="#快速上手">快速上手</a> ·
-  <a href="#核心想法给人的世界一份-interaction-list">核心想法</a> ·
-  <a href="#它是怎么工作的">怎么工作</a> ·
   <a href="#里面有什么">里面有什么</a> ·
-  <a href="#范围">范围</a> ·
   <a href="docs/VISION.md">愿景</a>
 </p>
 
 > 本文是英文 [`README.md`](README.md) 的中文镜像。两者如有出入，以英文版为准。
 
+**MineWorld 是一个开源框架，用来搭活的数字世界：小镇里的人上班、聊天、记事情，不管操控他们的是你、是简单的规则，还是 AI。** 你可以用 2D 或 3D 走进去，可以和朋友一起，也可以和 AI agent 一起，agent 守的规则和你完全一样。
+
 <p align="center">
-  <img src="docs/assets/readme/walk-in-3d.gif" alt="从主街走进咖啡馆的门，一直走到柜台：从 3D 客户端截下来的画面" width="100%">
-  <br><sub>从街上走到咖啡馆柜台，画面都是从 3D 客户端截下来的。</sub>
+  <img src="docs/assets/readme/one-world-three-players.webp" alt="一个小镇，同一时刻三个玩家：2D 客户端里的 Bob，3D 客户端里走进咖啡馆的 Vera，还有一个通过 MCP 读同一个世界的脚本 agent" width="100%">
+  <br><sub>一个小镇，同一时刻三个玩家：一个在 2D，一个在 3D 里走，还有一个 AI agent。</sub>
 </p>
 
+这个小镇不是产品本身。它只是用这个框架搭出来的一个世界，你也可以搭你自己的。
 
-<table>
-  <tr>
-    <td width="50%"><img src="docs/images/readme/3d-talk-to-alice.jpg" alt="在 3D 视图里，和咖啡馆里的 Alice 说话"></td>
-    <td width="50%"><img src="docs/images/readme/2d-menu.jpg" alt="同一个小镇的 2D 视图，服务器给 Alice 列出的菜单"></td>
-  </tr>
-  <tr>
-    <td align="center"><sub><b>3D</b>：走到 Alice 跟前按 E。她记得你说过的话。</sub></td>
-    <td align="center"><sub><b>2D</b>：同一个小镇，同一台服务器，同一份动作菜单。</sub></td>
-  </tr>
-</table>
+## 核心想法：给人的世界一份 physics list
 
-**MineWorld 是一个开源框架，用来搭一个 1:1 的数字世界：一个一直存在的世界，里面有人、地方、规则和物理，你可以走进去。游戏只是它的一种用法。** 现在它能搭的是模块化的活小镇，比如一个咖啡馆小镇和一个湖边村子。镇上的人上班、买东西、聊天、记事情，没人登录的时候也照样过日子。你可以用 2D 或 3D 来玩，可以和朋友一起玩，也可以和 AI agent 一起玩，agent 守的规则和你完全一样。完整的 1:1 范围是[方向](#范围)，不是现在的状态。
-
-- **拼出来，不用 fork。** 一个世界就是一份 pack 清单加几个文本文件。钱、工作、身体、天气，各是一个模块。内核很小，它不知道"工作"是什么。
-- **只有一个权威的世界。** 所有视图、所有 AI 角色、所有外部 agent，问的都是同一台服务器。每次变化都连同原因记下来，崩溃不丢，重放结果一样。
-- **有没有 AI 都能活。** 角色可以接语言模型，带自己的记忆；也可以只跑一个简单脚本。把模型全拔掉，世界照样运转。
-
-## 核心想法：给人的世界一份 Interaction List
-
-做粒子物理的人，不会每做一个实验就重写一个模拟器。在 [Geant4](https://geant4.web.cern.ch) 里，他们选一份 **physics list**：哪些物理过程作用在哪些粒子上。MineWorld 对人的世界做同样的事。一个世界的 [Interaction List](docs/MODULE_SPEC.md#42-the-worlds-interaction-list) 写清楚：有哪些相互作用，在谁和谁之间，按什么规则。同一个引擎，换一份列表，就是另一个世界。
+做粒子物理的人，不会每做一个实验就重写一个模拟器。在 [Geant4](https://geant4.web.cern.ch) 里，他们选一份 **physics list**：哪些物理过程作用在哪些粒子上。MineWorld 对人的世界做同样的事：Entity 是粒子，System 是物理过程，一个世界的 [Interaction List](docs/MODULE_SPEC.md#42-the-worlds-interaction-list) 决定这个世界用哪些。同一个引擎，换一份列表，就是另一个世界。
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/physics-list-zh-dark.svg">
   <img src="docs/assets/readme/physics-list-zh-light.svg" alt="Geant4 和 MineWorld 对照：粒子对应 Entity，物理过程对应 System，physics list 对应 Interaction List，参考列表，step 和 track 对应 ActionIntent 和 Event，探测器对应观察者。" width="100%">
 </picture>
 
-## 它是怎么工作的
+这就引出三个问题。下面用真实录屏一个个回答。
 
+## 一个世界，很多玩家
+
+*2D、3D 和 AI 玩家怎样共用一个世界，而且永远不会对不上？*
+
+**客户端只负责问，服务器按规则决定，并说明原因。** Vera 在门口跟 Alice 打招呼，服务器拒绝了：`too_far_away`。她走过去，再说一次，就成功了。客户端里没有任何规则。
+
+<p align="center">
+  <img src="docs/assets/readme/server-decides.webp" alt="2D 客户端：Vera 在门口对 Alice 说话被拒绝，原因是 too_far_away；走到柜台后再说就被接受" width="100%">
+</p>
+
+**一份记录，所有视图都看到。** Vera 在 3D 里买了一杯咖啡。经济 System 记下这笔账，所以她在 2D 里的钱包已经变成 2000.00 → 1999.20。
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/assets/readme/buy-coffee-3d.webp" alt="3D 客户端：Vera 在咖啡馆柜台买咖啡"></td>
+    <td width="50%"><img src="docs/assets/readme/wallet-2d.webp" alt="2D 客户端：同一个座位，钱从 2000.00 变成 1999.20"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub><b>3D</b>：在柜台买一杯咖啡</sub></td>
+    <td align="center"><sub><b>2D</b>：同一个座位，钱包已经变了</sub></td>
+  </tr>
+</table>
+
+**崩溃也抹不掉一个事实。** 所有事实都存在服务器上。走到一半用 `kill -9` 杀掉服务器，再启动，世界从同一个 revision 接着跑。客户端只是重连一下。
+
+<p align="center">
+  <img src="docs/assets/readme/crash-restart.webp" alt="真实终端：服务器被 kill -9 杀掉，用同一条命令重启，逐字节恢复；2D 客户端从 seated 变成 reconnecting 再变回 seated" width="100%">
+</p>
+
+<details>
+<summary><b>它是怎么工作的</b>：一台权威服务器，以及一个动作的一生</summary>
+<br>
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/one-world-zh-dark.svg">
   <img src="docs/assets/readme/one-world-zh-light.svg" alt="一个世界，很多种看法。2D 客户端、3D 客户端、AI 角色和外部 agent 都向同一台服务器发请求，再收回各自看到的内容。" width="100%">
 </picture>
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/compose-zh-dark.svg">
-  <img src="docs/assets/readme/compose-zh-light.svg" alt="用 pack 拼出一个世界。Social Café、Market Town 和 Lakeside 在同一个没改过的内核上用了不同的 System Pack。" width="100%">
-</picture>
-
-<details>
-<summary><b>一个动作的一生</b>：你买一杯咖啡时发生了什么</summary>
-<br>
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/action-life-zh-dark.svg">
   <img src="docs/assets/readme/action-life-zh-light.svg" alt="一个动作的一生：请求、由负责的 System 裁决、事件、写进事件记录、被观察。被拒绝的请求不改变世界，并返回原因。" width="100%">
 </picture>
 </details>
 
+## 一个自己活着的小镇
+
+*没人玩的时候，是什么让小镇继续运转？*
+
+**不是语言模型。** 把模型全拔掉，简单的规则照样让小镇运转：人们上班、吃饭、走回家、睡觉。这是下午 5 点的 Market Town，只用规则控制器。
+
+<p align="center">
+  <img src="docs/assets/readme/alive-without-ai.webp" alt="Market Town 下午 5 点的 3D 街道：人们走回家，只用规则控制器，没有语言模型" width="100%">
+</p>
+
+**每个人都跑在一个可替换的控制器上**：普通规则、会权衡自身需要的动机控制器、语言模型、外部 agent，或者你自己。换控制器不碰世界本身，只是 decisions 文件里的一行。
+
+<p align="center">
+  <img src="docs/assets/readme/controllers.webp" alt="世界里的 Alice 可以由规则、动机控制器、语言模型、外部 agent 或真人玩家控制；世界本身不变" width="80%">
+</p>
+
+**模型只是其中一种选择。** 给 Alice 接一个本地模型，在 2D 里告诉她一个消息。过一会儿在 3D 里见到她，她还记得。
+
+<p align="center">
+  <img src="docs/assets/readme/memory-across-clients.webp" alt="Vera 在 2D 里告诉 Alice 她姐姐的面包店；之后在 3D 咖啡馆里，Alice 的回答提到了这件事" width="100%">
+</p>
+
+**agent 也用同样的方式接进来。** Claude Code 通过 MCP 加入，走到柜台买一杯咖啡，守的规则和你一样。Bob 在 2D 里看着这一切发生。
+
+<p align="center">
+  <img src="docs/assets/readme/agent-over-mcp.webp" alt="一个只接了 MineWorld MCP 服务器的 Claude Code 实时会话，以 Wes 的身份加入，走到 Alice 跟前买咖啡；2D 客户端里能看到 Wes 站在柜台前" width="100%">
+</p>
+
+## 新世界，同一个引擎
+
+*怎样搭一个新世界，而不用重写引擎？*
+
+**一个世界就是一份 pack 清单，跑在一个永远不变的内核上。** 下面是咖啡馆真实的 Interaction List 的开头：
+
+```console
+$ mineworld interactions worlds/market-town --place cafe
+interactions  Market Town (market-town)
+section  conversation: default (compiled)
+section  employment: default (compiled)
+section  group-activity: default (compiled)
+section  needs:
+section  posture: default (compiled)
+section  relationships: default (compiled)
+section  sleep:
+…
+```
+
+社交咖啡馆里你可以坐下聊天。加上经济 pack，同一个咖啡馆就变成卖咖啡的集市小镇。再加一个第三方钓鱼 pack，就是湖边村子。内核一行都没改。
+
+<p align="center">
+  <img src="docs/assets/readme/compose-packs.webp" alt="Social Café 里你自己的菜单（走路、坐下）和加了经济 pack 的 Market Town（买咖啡、蛋糕等）并排；然后是 Lakeside，第三方钓鱼 pack 在 Nils 的菜单里加了钓鱼" width="100%">
+  <br><sub>Lakeside 现在能在 2D 里玩；🚧 3D 视图正在做。</sub>
+</p>
+
+<details>
+<summary><b>三个世界，一个内核</b>：每个世界用了哪些 pack</summary>
+<br>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/compose-zh-dark.svg">
+  <img src="docs/assets/readme/compose-zh-light.svg" alt="用 pack 拼出一个世界。Social Café、Market Town 和 Lakeside 在同一个没改过的内核上用了不同的 System Pack。" width="100%">
+</picture>
+</details>
+
+接下来是用火车连起来的多个区域，然后是市场和各种机构，一次加一个 pack（见[范围](#范围)）。
+
 ## 快速上手
 
 你需要装好 [Rust](https://rustup.rs)（版本会自己装对）和 [Godot 4.7](https://godotengine.org)，并且能在 `PATH` 里找到它们。
 
+3D 角色模型用 [Git LFS](https://git-lfs.com) 存放。先装一次：
+
+- macOS：`brew install git-lfs`
+- Linux（Debian 或 Ubuntu）：`sudo apt install git-lfs`
+- Windows：`winget install GitHub.GitLFS`
+
 ```sh
+git lfs install             # 每台电脑一次
 git clone https://github.com/yuema137/MineWorld && cd MineWorld
+git lfs pull                # 下载 3D 角色模型
 ./mineworld-2d               # 2D 的 market town：点地面走路，点一个人弹出菜单
 ./mineworld-slice --world    # 3D 走进咖啡馆，在柜台前按 E 和 Alice 说话
 ```
@@ -105,10 +187,14 @@ cargo run -p mineworld-cli -- create my-world
 
 ## 里面有什么
 
+<p align="center">
+  <img src="docs/assets/readme/whats-inside.webp" alt="里面有什么，今天都在 main 上运行：世界与时间、生活、身体、经济、心智、引擎" width="100%">
+</p>
+
 | | | |
 | --- | --- | --- |
 | 🧱 **内核** ✅<br><sub>时间、空间、事件、存储、重放；在 macOS、Linux、Windows 上结果一致</sub> | 🧩 **18 个 System Pack** ✅<br><sub>说话、交朋友、物品、商店、工作、工资、吃喝、身体、日期、天气，再加一个第三方钓鱼 pack</sub> | 📜 **Interaction List** ✅<br><sub>谁能对谁做什么，每个世界自己定，写成数据</sub> |
-| 🗺️ **2D 客户端** ✅<br><sub>走路、说话、邀请、买、给、吃喝，全走服务器给的菜单</sub> | 🏙️ **3D 客户端** ✅<br><sub>走、跑、跳、进咖啡馆、和 Alice 说话 · 🚧 完整的街道、买东西</sub> | 🧠 **AI 角色** ✅<br><sub>本地或在线模型，每个人有自己的记忆和遗忘 · 🚧 共享记忆</sub> |
+| 🗺️ **2D 客户端** ✅<br><sub>走路、说话、邀请、买、给、吃喝，全走服务器给的菜单</sub> | 🏙️ **3D 客户端** ✅<br><sub>走、跑、跳、进咖啡馆、说话、买东西 · 🚧 完整的街道、Lakeside 的 3D</sub> | 🧠 **AI 角色** ✅<br><sub>本地或在线模型，每个人有自己的记忆和遗忘 · 🚧 共享记忆</sub> |
 | 🤖 **agent 当玩家** ✅<br><sub>Python 库和 MCP；座位规则和真人一样 · 🚧 走 HTTP 远程接入</sub> | 👥 **一起玩** ✅<br><sub>邀请码、断线重连、没人在线时小镇照样运转</sub> | 🧬 **有深度的人物** 🚧<br><sub>精选的属性目录、按人口抽样、可选的 MatrAIx 后端</sub> |
 
 ✅ 已在 `main` 上并有测试 · 🚧 已设计，正在做。最新细节见 [`docs/MVP_STATUS.md`](docs/MVP_STATUS.md)。
@@ -142,4 +228,4 @@ cargo run -p mineworld-cli -- create my-world
 
 ## 许可证
 
-MIT。例外是 `clients/3d-spike/tools/blender/` 里的 Blender 脚本，它们用到了 Blender 的 GPL 接口，所以是 GPL-2.0-or-later。别人做的美术素材是 CC0。每件美术素材的来源，包括用 AI 工具做的部分，都列在 [`NOTICE`](NOTICE) 里。`docs/images/readme/` 和 `docs/assets/readme/` 里的截图和示意图是为这个项目做的。
+MIT。例外是 `clients/3d-spike/tools/blender/` 里的 Blender 脚本，它们用到了 Blender 的 GPL 接口，所以是 GPL-2.0-or-later。别人做的美术素材是 CC0。每件美术素材的来源，包括用 AI 工具做的部分，都列在 [`NOTICE`](NOTICE) 里。`docs/images/readme/` 和 `docs/assets/readme/` 里的截图、短片和示意图是为这个项目做的；短片剪自[介绍视频](https://github.com/yuema137/MineWorld/releases/tag/promo-v2.2)，视频旁白是 AI 生成的语音。

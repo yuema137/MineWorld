@@ -1,0 +1,83 @@
+{
+  "source_type": "rendered",
+  "status": "candidate",
+  "human_curated": false,
+  "render": {
+    "key": "hana-sato",
+    "stature_m": 1.68,
+    "views": [
+      "down",
+      "down_right",
+      "right",
+      "up_right",
+      "up"
+    ],
+    "view_angles_deg": [
+      0.0,
+      45.0,
+      90.0,
+      135.0,
+      180.0
+    ],
+    "columns": [
+      "stand",
+      "walk:0",
+      "walk:1",
+      "walk:2",
+      "walk:3",
+      "walk:4",
+      "walk:5",
+      "walk:6",
+      "walk:7",
+      "walk:8",
+      "walk:9",
+      "walk:10",
+      "walk:11"
+    ],
+    "frames_per_cycle": 12,
+    "cycle_m": 1.424,
+    "cell": [
+      77,
+      121
+    ],
+    "anchor": [
+      41,
+      105
+    ],
+    "phase0": "the Walk cycle's largest left-foot-forward stride",
+    "foot_drift_mm": {
+      "Left": {
+        "stance_mm": 95.3,
+        "step_max_mm": 45.8,
+        "planted_frames": 6
+      },
+      "Right": {
+        "stance_mm": 120.7,
+        "step_max_mm": 58.2,
+        "planted_frames": 6
+      }
+    },
+    "hold_slide_mm": 118.7,
+    "source": "the 3D client's own Stand and Walk poses of this export, dumped by cast.py ground --dump-pose",
+    "source_file": "hana-sato.gltf",
+    "source_sha256": "0afde7515eb247e83501081b908bcc3c7f617a2a5ec143095bfb7f60f9358250",
+    "source_bin_sha256": "a3ad70dea33aad5d3138b1ed61d5afd1b1abdc02bd227cd0ad5c31024f4559b7",
+    "pose_sha256": "25e42f9c6e7996e076a4eb332cc1572fb4fc12b8e1c30ff2653b2741b18aa696",
+    "tool": "Blender 5.2.2 LTS (BLENDER_EEVEE), tools/character_pipeline/blender/render_sprites.py --walk-frames",
+    "camera": {
+      "projection": "orthographic",
+      "elevation_deg": 30.0,
+      "faces": "screen right"
+    },
+    "postprocess": {
+      "supersample": 4,
+      "downsample": "premultiplied box",
+      "outline_px": 1,
+      "rule": "pixel height of the standing frame = stature_m * 64"
+    }
+  },
+  "license": {
+    "redistribution_allowed": true,
+    "note": "derived from the project's own generated character; inherits its source provenance"
+  }
+}

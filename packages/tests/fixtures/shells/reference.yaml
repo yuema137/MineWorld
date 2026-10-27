@@ -1,0 +1,5 @@
+{
+  "format": 1,
+  "materials": { "plaster_grey": { "colour": [0.62, 0.62, 0.60] } },
+  "tags": { "cafe": { "floor": { "material": "oak_boards" } } }
+}

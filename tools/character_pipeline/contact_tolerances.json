@@ -37,6 +37,12 @@
       "source": "step-26 §6.1 G-9 (pose_sheet.gd CLIP_MM = 5)",
       "status": "inherited"
     },
+    "self.arm_in_thigh": {
+      "bound_mm": 5,
+      "rationale": "A relaxed arm hangs with the hand and forearm resting on the side of the thigh (the 100STYLE Neutral idle shows it on every body, S26-c-pose F-2). Skin, fat and cloth compress a few millimetres under that light contact, as at the flank; deeper is a visible clip.",
+      "source": "step-26 §6.1 G-9 (pose_sheet.gd CLIP_MM = 5), the same basis as self.limb_in_trunk, extended from the trunk to the thigh by PR S36-CC10; no soft-tissue compression measurement was read",
+      "status": "inherited"
+    },
     "garment.poke.body": {
       "bound_mm": 2,
       "rationale": "About the thickness of the cloth itself: woven shirting is under 0.5 mm, denim under 1 mm, knitwear 1-3 mm.",

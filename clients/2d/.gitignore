@@ -6,6 +6,8 @@
 # Capture output is scratch, except the preview package, which is the reviewed artefact (ARC-24).
 shots/*
 !shots/preview/
+# The Demo A stills of the VIS-2D-1 package (PR 13f), one folder per world.
+!shots/demo-a/
 # The far-field regression views (RL-e0 §7), one folder per world, are committed too, and the
 # station stills of the three towns (S29-f, AC-f-10).
 !shots/market-town/

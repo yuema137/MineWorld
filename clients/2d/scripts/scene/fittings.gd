@@ -102,14 +102,14 @@ func word_of(row: Dictionary) -> String:
 		"board":
 			var board: Dictionary = state["board"]
 			if board.get("state") != State.LINES:
-				return Words.text("station.no_service")
+				return Words.text("sign.no_service")
 			var lines := PackedStringArray()
 			for entry in board.get("lines", []):
 				var line: Variant = entry.get("line") if typeof(entry) == TYPE_DICTIONARY else null
 				lines.append(String(line) if typeof(line) == TYPE_STRING else JSON.stringify(entry))
 			return "\n".join(lines)
 		"window":
-			return Words.text("station.window_closed") if state["window"] == State.SHUT else ""
+			return Words.text("sign.window_closed") if state["window"] == State.SHUT else ""
 	return ""
 
 

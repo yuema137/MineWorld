@@ -1,0 +1,48 @@
+{
+  "format": 1,
+  "about": "S33-f AC-f-4, the contested seat: four observations of Lakeside's bakery, one second of world time apart, as the server frames them (observer, at, self_location, entities). People 7 and 12 stand still within 0.40 m of long-table.3's fallback point (1660, 3000) from the first frame; 30 walks past long-table.1; 41 stands still beside long-table.5 but 0.45 m from it. The bakery discloses no sit-points (Lakeside does not enable posture until S34-c), so both clients take the shared rule's fallback branch. Expected: from at 102 (still 2 s), 7 is drawn at long-table.3 (the lower id), 12 is not drawn seated, 30 and 41 never are. Read by clients/2d/scripts/harness/seat_check.gd and clients/3d-spike/scripts/checks/seat_check.gd; compared by tools/cli/tests/client_sit_rule.rs.",
+  "world": "lakeside",
+  "expected": {"7": "long-table.3"},
+  "frames": [
+    {"observer": "1", "at": 100,
+     "self_location": {"place": {"entity": "200"}, "local": {"x": 2000, "y": 800}},
+     "entities": [
+       {"id": "200", "entity_type": "place", "tags": ["bakery", "indoor"]},
+       {"id": "1", "entity_type": "person", "location": {"place": {"entity": "200"}, "local": {"x": 2000, "y": 800}}},
+       {"id": "12", "entity_type": "person", "location": {"place": {"entity": "200"}, "local": {"x": 1700, "y": 2900}}},
+       {"id": "7", "entity_type": "person", "location": {"place": {"entity": "200"}, "local": {"x": 1700, "y": 3100}}},
+       {"id": "30", "entity_type": "person", "location": {"place": {"entity": "200"}, "local": {"x": 1660, "y": 1300}}},
+       {"id": "41", "entity_type": "person", "location": {"place": {"entity": "200"}, "local": {"x": 2110, "y": 4200}}}
+     ]},
+    {"observer": "1", "at": 101,
+     "self_location": {"place": {"entity": "200"}, "local": {"x": 2000, "y": 800}},
+     "entities": [
+       {"id": "200", "entity_type": "place", "tags": ["bakery", "indoor"]},
+       {"id": "1", "entity_type": "person", "location": {"place": {"entity": "200"}, "local": {"x": 2000, "y": 800}}},
+       {"id": "12", "entity_type": "person", "location": {"place": {"entity": "200"}, "local": {"x": 1700, "y": 2900}}},
+       {"id": "7", "entity_type": "person", "location": {"place": {"entity": "200"}, "local": {"x": 1700, "y": 3100}}},
+       {"id": "30", "entity_type": "person", "location": {"place": {"entity": "200"}, "local": {"x": 1660, "y": 1650}}},
+       {"id": "41", "entity_type": "person", "location": {"place": {"entity": "200"}, "local": {"x": 2110, "y": 4200}}}
+     ]},
+    {"observer": "1", "at": 102,
+     "self_location": {"place": {"entity": "200"}, "local": {"x": 2000, "y": 800}},
+     "entities": [
+       {"id": "200", "entity_type": "place", "tags": ["bakery", "indoor"]},
+       {"id": "1", "entity_type": "person", "location": {"place": {"entity": "200"}, "local": {"x": 2000, "y": 800}}},
+       {"id": "12", "entity_type": "person", "location": {"place": {"entity": "200"}, "local": {"x": 1700, "y": 2900}}},
+       {"id": "7", "entity_type": "person", "location": {"place": {"entity": "200"}, "local": {"x": 1700, "y": 3100}}},
+       {"id": "30", "entity_type": "person", "location": {"place": {"entity": "200"}, "local": {"x": 1660, "y": 2000}}},
+       {"id": "41", "entity_type": "person", "location": {"place": {"entity": "200"}, "local": {"x": 2110, "y": 4200}}}
+     ]},
+    {"observer": "1", "at": 103,
+     "self_location": {"place": {"entity": "200"}, "local": {"x": 2000, "y": 800}},
+     "entities": [
+       {"id": "200", "entity_type": "place", "tags": ["bakery", "indoor"]},
+       {"id": "1", "entity_type": "person", "location": {"place": {"entity": "200"}, "local": {"x": 2000, "y": 800}}},
+       {"id": "12", "entity_type": "person", "location": {"place": {"entity": "200"}, "local": {"x": 1700, "y": 2900}}},
+       {"id": "7", "entity_type": "person", "location": {"place": {"entity": "200"}, "local": {"x": 1700, "y": 3100}}},
+       {"id": "30", "entity_type": "person", "location": {"place": {"entity": "200"}, "local": {"x": 1660, "y": 2350}}},
+       {"id": "41", "entity_type": "person", "location": {"place": {"entity": "200"}, "local": {"x": 2110, "y": 4200}}}
+     ]}
+  ]
+}

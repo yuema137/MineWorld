@@ -58,7 +58,8 @@ func sprite(role: String) -> Dictionary:
 	return sprite_by_id(id) if id != "" else {}
 
 
-## A directional role (`player`, `person:n`): `{front, front_b, back, back_b}`, each a sprite or {}.
+## A directional role (`player`, `person:n`): `{front, front_b, back, back_b, walk}`, each a sprite or
+## {}; `walk` is the optional walk sheet (`<base>_walk`).
 func directional(role: String) -> Dictionary:
 	var base := String(_roles.get(role, ""))
 	if base == "":
@@ -70,6 +71,8 @@ func directional(role: String) -> Dictionary:
 	for view in ["front", "front_b", "back", "back_b"]:
 		var id := "%s_%s" % [base, view]
 		views[view] = sprite_by_id(id) if _sprites.has(id) else {}
+	var walk := "%s_walk" % base
+	views["walk"] = sprite_by_id(walk) if _sprites.has(walk) else {}
 	return {} if views["front"].is_empty() else views
 
 
@@ -158,6 +161,8 @@ func sprite_by_id(id: String) -> Dictionary:
 		"ink": String(spec.get("ink", "none")),
 		"height_m": spec.get("height_m"),
 		"faces": String(spec.get("faces", "right")),
+		# a walk sheet's layout (PRESENTATION.md §3), or null for a single picture
+		"sheet": spec.get("sheet"),
 	}
 	_textures[id] = loaded
 	return loaded

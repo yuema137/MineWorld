@@ -1,0 +1,46 @@
+{
+  "format": 1,
+  "scope": {"world": "valid-station"},
+  "frame": {"origin_m": [0, 0, 0]},
+  "street": {"tags": ["street"], "footprint_mm": [0, 0, 20000, 6000]},
+  "places": [
+    {"tags": ["station"], "label": "Halt", "footprint_mm": [20000, 500, 8000, 5000], "doorway_mm": [19600, 3000]},
+    {"tags": ["station", "ticket-office"], "label": "Tickets", "footprint_mm": [23400, 5500, 4600, 4600], "doorway_mm": [26000, 5100]},
+    {"tags": ["station", "platform"], "label": "Platform", "footprint_mm": [28000, -1000, 4000, 30000], "doorway_mm": [27600, 3000]}
+  ],
+  "spawn": {"at_mm": [10000, 3000], "up_m": 0.1, "yaw_deg": 0},
+  "buildings": [
+    {"name": "waiting-room", "depicts": ["station"],
+     "footprint_mm": [[20000, 500], [28000, 500], [28000, 5500], [20000, 5500]],
+     "storeys": 1, "storey_m": 3.0, "plinth_m": 0.2,
+     "walls": {"material": "weathered_brown_planks"},
+     "roof": {"form": "gable", "ridge": "x", "pitch_deg": 35, "overhang_m": 0.3, "material": "roof_slates_03"},
+     "openings": [
+       {"side": "w", "kind": "door", "storey": 0, "at_doorway": true, "width_m": 0.9, "height_m": 2.1, "state": "open"},
+       {"side": "n", "kind": "door", "storey": 0, "doorway_of": ["station", "ticket-office"], "width_m": 0.9, "height_m": 2.1, "state": "open"},
+       {"side": "e", "kind": "door", "storey": 0, "doorway_of": ["station", "platform"], "width_m": 0.9, "height_m": 2.1, "state": "open"}
+     ],
+     "source": "a fixture: a waiting room with doors into the rooms off it; approximate"}
+  ],
+  "stations": [
+    {"name": "halt", "style": "timber",
+     "fixtures": [
+       {"piece": "board", "in": ["station"], "at_mm": [22000, 5330], "up_m": 1.9, "facing_deg": 180, "size_m": [1.2, 0.6]},
+       {"piece": "clock", "in": ["station"], "at_mm": [27000, 5370], "up_m": 2.3, "facing_deg": 180, "size_m": [0.4, 0.4]},
+       {"piece": "window_bay", "in": ["station", "ticket-office"], "at_mm": [25700, 9800], "up_m": 0.0, "facing_deg": 180,
+        "size_m": [4.6, 0.6], "counter_m": 1.1, "screen_m": 2.4, "grilles": 2},
+       {"piece": "board", "in": ["station", "platform"], "at_mm": [30000, 14000], "up_m": 2.0, "facing_deg": 180,
+        "size_m": [1.2, 0.6], "post_m": 0.2}
+     ],
+     "platform": {"depicts": ["station", "platform"], "edge": "e", "surface_m": 0.0, "height_m": 0.2,
+                  "coping_mm": 300, "strip_mm": 610, "end_fence_m": 1.2,
+                  "canopy": {"along_mm": [500, 5500], "depth_m": 2.5, "eaves_m": 2.8, "pitch_deg": 10,
+                             "material": "roof_slates_03"},
+                  "track": {"gauge_mm": 1435, "near_mm": 1650, "tie_mm": [2590, 230], "tie_pitch_mm": 600,
+                            "rail_mm": [70, 150], "buffer": "s", "beyond_m": 10, "cutting_m": 20, "bank_m": 2.0}},
+     "source": "a fixture: a halt with every station field; approximate"}
+  ],
+  "viewpoints": {
+    "farfield": [{"id": "VP-1", "at_mm": [10000, 3000], "eye_m": 1.66, "roles": ["protected"]}]
+  }
+}

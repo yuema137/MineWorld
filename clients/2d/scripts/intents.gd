@@ -15,14 +15,30 @@ extends Node
 
 ## The action types this client composes. `scripts/check_client_rules.py` reads this list: no other
 ## script may hold one of these as a string literal.
-const COMPOSED := ["move", "walk-to", "walk-step", "talk", "invite", "accept-invitation", "decline-invitation", "join-group-activity", "leave-group-activity", "sleep"]
+const COMPOSED := ["move", "walk-to", "walk-step", "talk", "invite", "accept-invitation", "decline-invitation", "join-group-activity", "leave-group-activity", "sleep", "throw", "list-for-sale", "set-price", "withdraw"]
+
+## The seller actions this client composes from the trade panel (S31-e §5.4, `clients/shared/TRADE.md` §5.2):
+## what the player supplies, which rows of the panel each serves, and the wording of its button. The shared
+## trade module reads this table, so it names no action itself. Composed from the panel, not the menu.
+const TRADE_INPUTS := {
+	"list-for-sale": {"ask": ["amount"], "row": ["held", "note"], "label": "trade.list"},
+	"set-price": {"ask": ["amount"], "row": ["ask", "shelf"], "label": "trade.change-price"},
+	"withdraw": {"ask": [], "row": ["ask", "shelf"], "label": "trade.withdraw"},
+}
+
+## The one event type the client reads to draw (`scene/objects.gd`): the owner's statement that an
+## object moved, with the path to play (`bodies`' `object-moved`, ARC-342). Named here, beside the
+## action types, so no other script holds a world vocabulary literal.
+const OBJECT_MOVED := "object-moved"
 
 ## What the player supplies for a composed type that needs more than a choice: a point on the floor
-## (the walker asks), or a line of text with the wording keys of its prompt and suggestions. A
-## `suggest` is one key, or a list of keys (each a suggestion, or several separated by commas).
+## (the walker asks), a line of text with the wording keys of its prompt and suggestions, or an aim —
+## a floor point set on an offered complete affordance (`aim_throw`). A `suggest` is one key, or a
+## list of keys (each a suggestion, or several separated by commas).
 const INPUTS := {
 	"move": {"point": true},
 	"walk-to": {"point": true},
+	"throw": {"aim": true},
 	"talk": {"prompt": "ui.talk.prompt"},
 	"invite": {"prompt": "ui.invite.prompt", "suggest": "suggest.invite-kind"},
 	"sleep": {"prompt": "ui.prompt.sleep", "suggest": ["suggest.sleep.nap", "suggest.sleep.night"]},
@@ -54,9 +70,14 @@ func walk_step() -> String:
 	return link.client.submit("walk-step", null, {})
 
 
-## Whether this client knows how to ask for an incomplete affordance of `action_type`.
+## Whether this client knows how to ask for an incomplete affordance of `action_type` from the menu.
 func composes(action_type: String) -> bool:
-	return COMPOSED.has(action_type)
+	return COMPOSED.has(action_type) and not TRADE_INPUTS.has(action_type)
+
+
+## Whether `action_type` is composed from the trade panel beside the menu (S31-e).
+func trades(action_type: String) -> bool:
+	return TRADE_INPUTS.has(action_type)
 
 
 ## What the player supplies for `action_type`: `{}` (nothing: a choice is enough), `{point: true}`, or
@@ -78,12 +99,33 @@ func submit_offered(affordance: Dictionary) -> String:
 	return token
 
 
-## Composes and sends an incomplete affordance with the player's `input` (the typed line, or null),
-## sent exactly as given. Returns the token, or "" for a type this file does not compose here.
+## Sends an offered complete affordance aimed at `local` (`{x, y}`, integer millimetres of the
+## observer's place frame): the offer's payload, its object reference unchanged, with `toward` set
+## (ARC-342, Q-13d-2). The point is sent as clicked; whether it can be thrown there, and where the
+## object lands, is the server's answer. Returns the token, or "".
+func aim_throw(affordance: Dictionary, local: Dictionary) -> String:
+	if typeof(affordance.get("payload")) != TYPE_DICTIONARY:
+		return ""
+	var aimed := affordance.duplicate(true)
+	aimed["payload"]["toward"] = {"x": int(local.get("x", 0)), "y": int(local.get("y", 0))}
+	return submit_offered(aimed)
+
+
+## Composes and sends an incomplete affordance with the player's `input` (the typed line, or null; for a
+## seller action, the trade panel's `{item, price, shop}`), sent exactly as given. Returns the token, or ""
+## for a type this file does not compose here.
 func compose(affordance: Dictionary, input: Variant) -> String:
 	var action_type := String(affordance.get("action_type", ""))
 	var payload: Dictionary
 	match action_type:
+		"list-for-sale", "set-price", "withdraw":
+			# The item reference exactly as the world disclosed it; the price as the panel parsed it (S31-e §5.6).
+			var given: Dictionary = input if typeof(input) == TYPE_DICTIONARY else {}
+			payload = {"item": given.get("item")}
+			if action_type != "withdraw":
+				payload["price"] = int(given.get("price", 0))
+			if given.get("shop", false):
+				payload["for"] = "shop"
 		"talk":
 			payload = {"utterance": String(input)}
 		"invite":
@@ -96,7 +138,7 @@ func compose(affordance: Dictionary, input: Variant) -> String:
 		_:
 			return ""
 	var token: String = link.client.submit(action_type, affordance.get("target"), payload)
-	_remember(token, affordance)
+	_remember(token, affordance, payload)
 	return token
 
 
@@ -114,11 +156,11 @@ func drop_pending() -> Array:
 	return unanswered
 
 
-func _remember(token: String, affordance: Dictionary) -> void:
+func _remember(token: String, affordance: Dictionary, sent: Variant = null) -> void:
 	if token == "":
 		return
 	var about := ""
-	var payload: Variant = affordance.get("payload")
+	var payload: Variant = affordance.get("payload") if sent == null else sent
 	if typeof(payload) == TYPE_DICTIONARY:
 		for value in payload.values():
 			if typeof(value) == TYPE_DICTIONARY and typeof(value.get("entity")) == TYPE_STRING:

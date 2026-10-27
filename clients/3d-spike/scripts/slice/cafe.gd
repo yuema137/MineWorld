@@ -81,7 +81,7 @@ static func _shell(g: Node3D, stone: Material) -> void:
 
 	# floor, one step above the pavement, and a ceiling of exposed boards
 	Build.box(g, Vector3(0, FLOOR_Y - 0.06, -DEPTH * 0.5),
-		Vector3(inner_w, 0.12, DEPTH), SlicePalette.floor_boards(), 0.0, true)
+		Vector3(inner_w, 0.12, DEPTH), SlicePalette.floor_boards(), 0.0, true, Build.LAYER_WORLD)
 	Build.box(g, Vector3(0, CEIL_Y + 0.07, -DEPTH * 0.5),
 		Vector3(inner_w, 0.14, DEPTH), SlicePalette.ceiling_boards())
 	# joists under the boards: the ceiling is the largest interior surface after
@@ -248,22 +248,12 @@ static func _doorway(g: Node3D, green: Material, dark: Material, stone: Material
 	Build.box(g, Vector3(DOOR_X, DOOR_H + 0.025, -WALL_T * 0.5),
 		Vector3(DOOR_W + 0.10, 0.05, WALL_T), dark)
 
-	# the step and the threshold
-	Build.box(g, Vector3(DOOR_X, FLOOR_Y * 0.5, 0.26), Vector3(DOOR_W + 0.70, FLOOR_Y, 0.52),
-		SlicePalette.kerbstone())
-	Build.box(g, Vector3(DOOR_X, FLOOR_Y - 0.02, -WALL_T * 0.5),
+	# the step and the threshold, drawn steps with their own colliders (PR S36-P4b): the step is walked onto from
+	# the pavement (+z, y = 0), so `Build.step` puts a walk aid in front of it -- crossing it is a walk, not a hop
+	Build.step(g, Vector3(DOOR_X, FLOOR_Y * 0.5, 0.26), Vector3(DOOR_W + 0.70, FLOOR_Y, 0.52),
+		SlicePalette.kerbstone(), 1, 0.0, 0.0, true)
+	Build.step(g, Vector3(DOOR_X, FLOOR_Y - 0.02, -WALL_T * 0.5),
 		Vector3(DOOR_W + 0.10, 0.05, WALL_T), SlicePalette.kerbstone())
-	# a hidden wedge so crossing the step is a walk, not a hop
-	var ramp := StaticBody3D.new()
-	ramp.collision_layer = Build.LAYER_WORLD
-	var cs := CollisionShape3D.new()
-	var bs := BoxShape3D.new()
-	bs.size = Vector3(DOOR_W + 0.60, 0.30, 0.62)
-	cs.shape = bs
-	ramp.add_child(cs)
-	ramp.transform = Transform3D(Basis(Vector3.RIGHT, deg_to_rad(15.0)),
-		Vector3(DOOR_X, FLOOR_Y - 0.13, 0.30))
-	g.add_child(ramp)
 
 	_door_leaf(g, d0)
 	# the drawn-door registry's room fields (D-16c-4): the café room's volume, its
@@ -441,6 +431,8 @@ static func _basket(g: Node3D, hx: float, y: float, r: float, drop: float,
 	Build.cyl(g, Vector3(hx, y, out), r * 0.86, r * 0.40, r * 0.30, coir, 14)
 	Props.flowerbed(g, Vector3(hx, y + r * 0.62, out), r * 1.75, r * 1.40, seed_v)
 	_trailing(g, Vector3(hx, y + 0.04, out), r * 1.6, drop, seed_v + 2094)
+	# the bowl and its flowers, for the camera boom (Build.LAYER_CAMERA)
+	Build.camera_hull(g, AABB(Vector3(hx - r, y, out - r), Vector3(r * 2.0, r * 1.4, r * 2.0)))
 
 
 ## A curtain of trailing foliage cards, for baskets, window boxes and climbers.
@@ -456,6 +448,9 @@ static func _trailing(g: Node3D, top: Vector3, spread: float, drop: float,
 			rng.randf_range(-0.22, 0.22))
 		var s := 0.30 * (1.0 - 0.35 * t)
 		Build.card(g, p, s, s, mat, rng.randf() * TAU, rng.randf_range(-0.4, 0.4), false)
+	# the curtain's extent (cards reach half a card past the spread), for the camera boom
+	Build.camera_hull(g, AABB(top + Vector3(-0.5 * spread - 0.15, -drop - 0.15, -0.37),
+		Vector3(spread + 0.30, drop + 0.30, 0.74)))
 
 
 ## The cup on the hanging sign. Drawn from primitives rather than a texture so

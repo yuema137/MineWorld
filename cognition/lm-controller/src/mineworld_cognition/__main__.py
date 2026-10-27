@@ -2,8 +2,9 @@
 
 Design: `.structured-coding/plans/mvp0/pr-s10-p6-lm-controller.md` §§5.9, 5.16. The configuration names the server, the
 store, the decision JSON (`mineworld decisions --json`) and the invite's environment variable. One `SeatRunner` serves
-each selected `lm` seat. Ctrl-C leaves every seat within five seconds (`SeatRunner._leave_on_stop`); the status line of
-each seat is read back from its decision log, which every runner closes with its counters.
+each selected `lm` seat. Ctrl-C (SIGINT) or SIGTERM leaves every seat within five seconds (`SeatRunner._leave_on_stop`), and a
+stop that hangs is cut short (`shutdown.Stopper`, D-P6-43); the status line of each seat is read back from its decision log,
+which every runner closes with its counters.
 """
 
 from __future__ import annotations
@@ -28,6 +29,7 @@ from mineworld_cognition.controller.homes import SeatHomes
 from mineworld_cognition.controller.seat import SeatRunner
 from mineworld_cognition.errors import ConfigError
 from mineworld_cognition.gateway import Router
+from mineworld_cognition.shutdown import Stopper
 
 LOG_KIND = "counters"
 
@@ -51,18 +53,21 @@ def main(argv: Sequence[str] | None = None, *, scripted: ModelBackend | None = N
         print(f"[cognition] {error}", file=sys.stderr)
         return 2
     _earlier_layout(store_dir, seats)
+    stopper = Stopper()
     try:
         asyncio.run(
-            _closing(
-                serve(
-                    config,
-                    seats,
-                    router=router,
-                    invite=invite,
-                    url=server,
-                    store_dir=store_dir,
-                ),
-                router,
+            stopper.serve(
+                _closing(
+                    serve(
+                        config,
+                        seats,
+                        router=router,
+                        invite=invite,
+                        url=server,
+                        store_dir=store_dir,
+                    ),
+                    router,
+                )
             )
         )
     except ConfigError as error:
@@ -73,6 +78,7 @@ def main(argv: Sequence[str] | None = None, *, scripted: ModelBackend | None = N
     finally:
         for seat in seats:
             print(_status(store_dir, seat), flush=True)
+        stopper.disarm()
     return 0
 
 

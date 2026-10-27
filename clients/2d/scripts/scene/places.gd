@@ -48,6 +48,9 @@ var _inside_dir: Dictionary = {}
 var _observation: MineWorldObservation = null
 ## The fittings that follow disclosed state, and their words (pr-s29f §5.6).
 var fittings
+## Doorways left out of the drawing, "<from>><to>" -> true. Only the scripted checks set it
+## (`--drop-doorway`, PR 13f Q-PAR-3), through `hide_doorway`; the play path never does.
+var _hidden_doorways: Dictionary = {}
 
 
 func setup(the_projection, the_presentation, the_town, the_world: Node2D, parent: Node2D) -> void:
@@ -74,6 +77,7 @@ func reconcile(observation: MineWorldObservation) -> void:
 	if town.version != _version:
 		_version = town.version
 		_rebuild()
+		_apply_boards()
 	_observation = observation
 	fittings.follow(observation, _fitting_node)
 	for label in _door_labels:
@@ -117,6 +121,51 @@ func door_labels() -> Array:
 	return out
 
 
+## Every doorway the scene draws, as data: `{from, to, here, there}` with the passage's disclosed local
+## millimetres, once per drawn anchor, in drawing order. A doorway out of the hub is drawn where the
+## place it leads to stands on it (its façade, room or lawn); that opening is also the way back, so
+## the return passage that ends on it is reported with it. A room's doorways are drawn in its walls.
+## A doorway the model knows but the scene does not draw is not reported (PR 13f §4.2).
+func drawn_doorways() -> Array:
+	var out: Array = []
+	var seen := {}
+	var hub: String = town.hub()
+	for place in drawn:
+		var p: Variant = drawn[place].get("opening")
+		if p == null:
+			continue
+		_add_doorway(out, seen, hub, p)
+		for back in town.passages.get(place, []):
+			if back["to"] == hub and back["there"] == p["here"] and not _hidden(place, hub):
+				_add_doorway(out, seen, place, back)
+	for area in ground.areas:
+		if float(area.get("alpha", 1.0)) <= 0.002:
+			continue
+		for door in area.get("doors", []):
+			_add_doorway(out, seen, area["place"], door["passage"])
+	return out
+
+
+func _add_doorway(out: Array, seen: Dictionary, from: String, p: Dictionary) -> void:
+	var key := "%s>%s@%s" % [from, p["to"], p["here"]]
+	if seen.has(key):
+		return
+	seen[key] = true
+	out.append({"from": from, "to": p["to"], "here": [int(p["here"].x), int(p["here"].y)],
+		"there": [int(p["there"].x), int(p["there"].y)]})
+
+
+## Leaves the doorway `from` → `to` out of the drawing from now on: no anchor, no door in a wall, no
+## label, including once the layout learns it later. For the scripted checks' `--drop-doorway` only.
+func hide_doorway(from: String, to: String) -> void:
+	_hidden_doorways["%s>%s" % [from, to]] = true
+	_rebuild()
+
+
+func _hidden(from: String, to: String) -> bool:
+	return _hidden_doorways.has("%s>%s" % [from, to])
+
+
 ## Whether a doorway of `place` is drawn at `at` (plan metres), on a floor that is showing (F-10).
 func door_drawn(place: String, at: Vector2) -> bool:
 	for area in ground.areas:
@@ -156,6 +205,61 @@ func facade_alpha(place: String) -> float:
 	if entry.get("node") == null:
 		return 1.0
 	return entry["node"].modulate.a
+
+
+## place id -> the price lines of its shop's board, as last disclosed, and whether that was this frame
+## (S31-e §5.8, SD-S31e-10): a board out of view keeps its rows, dimmed; presentation memory only.
+var boards := {}
+
+
+## The shops' boards of this frame (place id -> lines); boards not in it stay, dimmed.
+func set_boards(current: Dictionary) -> void:
+	for place in boards:
+		boards[place]["fresh"] = false
+	for place in current:
+		boards[place] = {"lines": current[place], "fresh": true}
+	_apply_boards()
+
+
+## A different world: every board goes.
+func clear_boards() -> void:
+	boards.clear()
+	_apply_boards()
+
+
+## Each board on its shop's façade, above the door; a place drawn without a façade shows none.
+func _apply_boards() -> void:
+	for place in drawn:
+		var holder: Variant = drawn[place].get("node")
+		if holder == null or drawn[place]["kind"] != "facade":
+			continue
+		var label: Label = (holder as Node2D).get_node_or_null("board")
+		if not boards.has(place):
+			if label != null:
+				label.queue_free()
+			continue
+		if label == null:
+			label = Label.new()
+			label.name = "board"
+			label.add_theme_font_size_override("font_size", 12)
+			label.add_theme_color_override("font_color", Color("3b2c1e"))
+			label.add_theme_color_override("font_outline_color", Color(1, 0.98, 0.93, 0.95))
+			label.add_theme_constant_override("outline_size", 6)
+			label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+			label.size = Vector2(180, 0)
+			label.position = (holder as Node2D).get_meta("door_offset", Vector2.ZERO) + Vector2(-90, -96)
+			(holder as Node2D).add_child(label)
+		label.text = "\n".join(boards[place]["lines"])
+		label.modulate = Color(1, 1, 1, 1.0 if boards[place]["fresh"] else 0.55)
+
+
+## Every board drawn, `[{place, lines, fresh}]`, for the harness's HUD report.
+func board_report() -> Array:
+	var out: Array = []
+	for place in boards:
+		out.append({"place": place, "lines": Array(boards[place]["lines"]), "fresh": boards[place]["fresh"]})
+	return out
 
 
 ## Where a façade's door is drawn, and where its doorway is (both screen pixels), for AC-W12.
@@ -228,7 +332,8 @@ func _draw_doorway(hub: String, p: Dictionary, extent: Rect2, doors: PackedVecto
 	var rect: Rect2 = town.shapes.get(place, _footprint(door, in_dir, right, spec))
 	town.footprints[place] = rect
 	var entry := {"door": door, "in_dir": in_dir, "rect": rect, "node": null, "fittings": [], "fade": 0.0,
-		"lights": [], "wall_m": float(spec.get("wall_m", 2.8)), "shaped": town.shapes.has(place)}
+		"lights": [], "wall_m": float(spec.get("wall_m", 2.8)), "shaped": town.shapes.has(place),
+		"opening": null if _hidden(hub, place) else p}
 	if not outdoor.is_empty():
 		entry["kind"] = "lawn"
 		for item in outdoor.get("dressing", []):
@@ -431,12 +536,14 @@ func _doors(place: String, entry: Dictionary) -> Array:
 	var out: Array = []
 	var rect: Rect2 = entry["rect"]
 	for p in town.passages.get(place, []):
+		if _hidden(place, p["to"]):
+			continue
 		var at: Variant = town.to_plan(place, {"x": p["here"].x, "y": p["here"].y})
 		if at == null:
 			continue
 		var outward: Vector2 = -entry["in_dir"] if (at as Vector2).distance_to(entry["door"]) < 0.01 \
 			else _axis(at - rect.get_center())
-		out.append({"at": at, "out": outward, "to": p["to"]})
+		out.append({"at": at, "out": outward, "to": p["to"], "passage": p})
 	return out
 
 

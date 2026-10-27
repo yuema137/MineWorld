@@ -12,6 +12,7 @@
 ##   FF-SEAM    no two adjacent columns differ in part over a vertical run of 6 rows   (D-3)
 ##   FF-RELIEF  a near band's pixels vary in luma within a row (texture)               (D-4)
 ##   FF-RING    from above, the ground between the boundary and 400 m is built on      (D-5)
+##              as densely as the file declares there
 ##   FF-BAY     from each protected eye that is judged, the water still shows          (SD-5's guard)
 ##
 ## EVERY EXPECTED VALUE comes from the far-field file the slice loaded, through the formulas of
@@ -38,7 +39,18 @@ const RING_FROM_M := 20.0         # beyond reach_m
 const RING_TO_M := 400.0
 const RING_MIN_PX := 200
 const RING_WATER_MAX := 0.5
-const RING_NEED := 0.15
+## FF-RING's need per bin: this share of the bin's mean declared density (the operator's direction
+## of 2026-10-20 replaced one 15 % for every bin; RL-e0b ledger D-0b-2). The generator covers each
+## sector's declared plan share and moves the boxes the cap refuses to the ground it allows, and an
+## oblique view adds the walls to the roofs, so a built bin shows at least its declared density; half
+## of it is the frozen 15 % restated as a rule (0.43-0.60 of the shipped 0.25-0.35), and fails only
+## a bin that is nearly bare where the file asks for buildings.
+const RING_SHARE := 0.5
+## A bin is judged only when at least this share of its pixels is buildable ground: the file's
+## unbuildable ground (no sector, a slot, the cap) is exempted as RING_WATER_MAX exempts water.
+const RING_OPEN_MIN := 0.5
+const DENSITY_CELL_M := 2.0       # the declared-density table's radial step (1 deg in bearing)
+const SIGHT_STEPS := 3600         # the sightline table's bearings (0.1 deg)
 const BAY_NEED := 0.90
 const MIN_JUDGED := 20
 const UNKNOWN_MAX := 0.01
@@ -49,6 +61,11 @@ const T_WATER := 4.0
 const EARTH_R := 6371000.0
 const REFRACTION_K := 0.13
 const OUTER_M := 1450.0
+## SD-5.2's numbers: a roof's margin below a sightline, and the cap under which nothing is built;
+## and the smallest building's footprint radius (8 x 8 m, the massing's least box, A-6).
+const CAP_MARGIN_DEG := 0.25
+const CAP_FLOOR_M := 1.0
+const BUILDING_R := 5.657         # half the diagonal of 8 x 8 m
 
 ## The G render (sec.6.1).
 const G_SIZE := Vector2i(960, 540)
@@ -74,6 +91,10 @@ var _names: PackedStringArray = []
 var _bands: Array = []            # the file's bands, in order
 var _cache := {}
 var _datum := 0.0
+## The protected eyes' scene positions (SD-5), set by the check from the depiction's viewpoints.
+var eyes := PackedVector3Array()
+var _density := PackedFloat32Array()   # ring_density's table
+var _sight := []                       # per protected eye, `sightline` every 360/SIGHT_STEPS deg
 
 
 func _init(field: MineWorldFarField) -> void:
@@ -212,6 +233,12 @@ func band_angle(band: Dictionary, bearing: float, eye_y: float) -> Vector2:
 static func shore(body: Dictionary, bearing: float) -> float:
 	var s := end_factor(body["sector"], bearing, T_WATER)
 	return float(body["shore_m"]) + (OUTER_M - float(body["shore_m"])) * (1.0 - s)
+
+
+## The horizon's dip (degrees, negative) over water whose surface stands at `level_m` above sea level,
+## from scene height `eye_y` (Q-S33d-7 (A)); at level 0 it is `sea_horizon_deg`.
+func water_horizon_deg(eye_y: float, level_m: float) -> float:
+	return -rad_to_deg(sqrt(2.0 * maxf(_datum + eye_y - level_m, 0.01) / EARTH_R))
 
 
 ## The sea horizon's dip (degrees, negative) and distance (m) from scene height `eye_y`.
@@ -354,7 +381,6 @@ func _crest(where: String, pos: Vector3, az: float, ids: PackedByteArray, hd: Pa
 	var judged := 0
 	var good := 0
 	var err := 0.0
-	var eh := sea_horizon_deg(pos.y)
 	for x in cols:
 		var b := _bearing(az, x)
 		var best := -INF
@@ -364,8 +390,13 @@ func _crest(where: String, pos: Vector3, az: float, ids: PackedByteArray, hd: Pa
 		if best == -INF:
 			continue
 		var expect := rad_to_deg(best)
-		if not water_at(b).is_empty() and eh >= expect - CREST_TOL_DEG:
-			continue   # the sea's horizon, not a band, is the top here
+		# Q-S33d-7 (A), ruled 2026-10-21: only a crest above the water's horizon is judged -- one below
+		# it cannot be seen. The horizon is the water body's own, from the eye's height above ITS level
+		# (an inland lake's, not the sea's at 0 m), as FF-ORDER's sea_horizon_m already takes it.
+		var body := water_at(b)
+		if not body.is_empty() \
+				and water_horizon_deg(pos.y, float(body["level_m"])) >= expect - CREST_TOL_DEG:
+			continue   # the water's horizon, not a band, is the top here
 		var rc := _row(x, expect)
 		if rc < CREST_CLEAR_ROWS or rc > _h - 1 - CREST_CLEAR_ROWS:
 			continue
@@ -557,9 +588,15 @@ func _bay(where: String, pos: Vector3, az: float, ids: PackedByteArray, hd: Pack
 
 # --- the G frame -------------------------------------------------------------------------------
 
-## FF-RING (D-5): looking down from `pos` at bearing `az` (G_PITCH, G_SIZE, G_HFOV), each ground
-## pixel's ground radius, by ray-ground intersection; in 20 m bins from reach_m + 20 to 400 m within
-## the sector, a bin of RING_MIN_PX or more that is less than half water is RING_NEED massing.
+## FF-RING (D-5), judged per bin against the massing the file declares there (operator direction of
+## 2026-10-20, relayed by the primary session; RL-e0b ledger D-0b-2). Looking down from `pos` at
+## bearing `az` (G_PITCH, G_SIZE, G_HFOV), each land or water pixel is given its ground point by
+## ray-ground intersection; in 20 m bins from reach_m + 20 to 400 m within the sector, each pixel also
+## carries the plan density the file lets a building reach at that ground point (`ring_density`). A
+## bin of RING_MIN_PX or more is judged when it is less than half water and at least RING_OPEN_MIN
+## of its pixels lie where a building may stand; its massing share must be at least RING_SHARE of
+## its pixels' mean declared density. A bin the data leaves mostly unbuilt (no sector there, a
+## slot's footprint, or the sightline cap) is exempt, and says so.
 func judge_ring(where: String, pos: Vector3, az: float, ids: PackedByteArray) -> int:
 	var edge_m: float = ff.boundary()["reach_m"]
 	var lo := edge_m + RING_FROM_M
@@ -567,9 +604,13 @@ func judge_ring(where: String, pos: Vector3, az: float, ids: PackedByteArray) ->
 	var total := PackedInt32Array()
 	var mass := PackedInt32Array()
 	var wet := PackedInt32Array()
+	var open := PackedInt32Array()
+	var dens := PackedFloat64Array()
 	total.resize(n)
 	mass.resize(n)
 	wet.resize(n)
+	open.resize(n)
+	dens.resize(n)
 	var land := [id_of("ground"), id_of("foreground"), id_of("massing")]
 	var water := [id_of("water"), id_of("sea-ribbon")]
 	var massing := id_of("massing")
@@ -608,6 +649,10 @@ func judge_ring(where: String, pos: Vector3, az: float, ids: PackedByteArray) ->
 				continue
 			var k := int((r - lo) / RING_BIN_M)
 			total[k] += 1
+			var d := ring_density(bearing, r)
+			dens[k] += d
+			if d > 0.0:
+				open[k] += 1
 			if id == massing:
 				mass[k] += 1
 			elif not is_land:
@@ -617,12 +662,122 @@ func judge_ring(where: String, pos: Vector3, az: float, ids: PackedByteArray) ->
 		if total[k] < RING_MIN_PX or wet[k] >= RING_WATER_MAX * total[k]:
 			continue
 		var a := lo + k * RING_BIN_M
+		if open[k] < RING_OPEN_MIN * total[k]:
+			print("[farfield-ring]   %s  %d-%d m  exempt: the file leaves it mostly unbuilt (%d/%d px buildable)"
+				% [where, int(a), int(a + RING_BIN_M), open[k], total[k]])
+			continue
 		var share := float(mass[k]) / float(total[k])
-		if share >= RING_NEED:
-			print("[farfield-ring]   %s  %d-%d m  massing %.1f%% >= %d%%   ok"
-				% [where, int(a), int(a + RING_BIN_M), 100.0 * share, int(RING_NEED * 100)])
+		var need := RING_SHARE * dens[k] / float(total[k])
+		if share >= need:
+			print("[farfield-ring]   %s  %d-%d m  massing %.1f%% >= %.1f%%   ok"
+				% [where, int(a), int(a + RING_BIN_M), 100.0 * share, 100.0 * need])
 		else:
-			print("FAIL farfield-ring %s %d-%d m: massing %.1f%% < %d%% (%d px)"
-				% [where, int(a), int(a + RING_BIN_M), 100.0 * share, int(RING_NEED * 100), total[k]])
+			print("FAIL farfield-ring %s %d-%d m: massing %.1f%% < %.1f%% (%d px, %d buildable)"
+				% [where, int(a), int(a + RING_BIN_M), 100.0 * share, 100.0 * need, total[k], open[k]])
 			fails += 1
 	return fails
+
+
+## The plan share of the ground the file lets the massing cover at the ground point at `bearing`
+## (degrees from the scene origin) and radius `r`: the declared `density` of the skyline sector that
+## holds it (`from_m` <= r < `to_m`), and 0 where the file leaves no room for even the smallest
+## building centred there (BUILDING_R): its footprint would reach into a reserved or filled slot's,
+## or the sightline cap (SD-5.2 as ruled, restated in `_cap`) leaves it less than CAP_FLOOR_M from
+## some protected eye. Read from a 1 deg x 2 m polar table, filled lazily.
+func ring_density(bearing: float, r: float) -> float:
+	var nr := int(ceil(RING_TO_M / DENSITY_CELL_M))
+	if _density.is_empty():
+		_density.resize(360 * nr)
+		_density.fill(-1.0)
+	var ib := clampi(int(bearing), 0, 359)
+	var ir := clampi(int(r / DENSITY_CELL_M), 0, nr - 1)
+	var i := ib * nr + ir
+	if _density[i] < 0.0:
+		_density[i] = _density_at(float(ib) + 0.5, (float(ir) + 0.5) * DENSITY_CELL_M)
+	return _density[i]
+
+
+func _density_at(bearing: float, r: float) -> float:
+	var skyline := ff.skyline()
+	var p := Vector2(sin(deg_to_rad(bearing)), -cos(deg_to_rad(bearing))) * r
+	var best := 0.0
+	for sector in skyline["sectors"]:
+		if MineWorldFarField.sector_contains(sector["sector"], bearing) \
+				and r >= float(sector["from_m"]) and r < float(sector["to_m"]):
+			best = maxf(best, float(sector["density"]))
+	if best <= 0.0:
+		return 0.0
+	for name in skyline["slots"]:
+		var slot: Dictionary = skyline["slots"][name]
+		if slot["state"] != "reserved" and slot["state"] != "filled":
+			continue
+		var b := deg_to_rad(float(slot["bearing_deg"]))
+		var c := Vector2(sin(b), -cos(b)) * float(slot["distance_m"])
+		if p.distance_to(c) < float(slot["footprint_m"]) * 0.5 + BUILDING_R:
+			return 0.0
+	if _cap(p, BUILDING_R, ground_y(r)) < CAP_FLOOR_M:
+		return 0.0
+	return best
+
+
+## SD-5.2, restated from the file (never the view's code, I-4): the tallest a building of footprint
+## radius `radius` centred at ground point `p` (scene height `gy`) may stand so that from every
+## protected eye its roof stays CAP_MARGIN_DEG below what it stands in front of, across every
+## bearing the roof covers from that eye. INF without protected eyes.
+func _cap(p: Vector2, radius: float, gy: float) -> float:
+	var cap := INF
+	if _sight.size() != eyes.size():
+		_sight.clear()
+		for eye in eyes:
+			var row := PackedFloat32Array()
+			row.resize(SIGHT_STEPS)
+			for i in SIGHT_STEPS:
+				row[i] = sightline(eye, 360.0 * float(i) / float(SIGHT_STEPS))
+			_sight.append(row)
+	for e in eyes.size():
+		var eye := eyes[e]
+		var to := p - Vector2(eye.x, eye.z)
+		var bearing := rad_to_deg(atan2(to.x, -to.y))
+		var half := rad_to_deg(atan2(radius, maxf(to.length(), 1.0)))
+		var samples := 1 + 2 * maxi(1, int(ceil(half)))
+		var lim := INF
+		var row: PackedFloat32Array = _sight[e]
+		for k in samples:
+			var b := bearing + half * (2.0 * float(k) / float(samples - 1) - 1.0)
+			lim = minf(lim, row[int(round(fposmod(b, 360.0) / 360.0 * SIGHT_STEPS)) % SIGHT_STEPS])
+		if is_inf(lim):
+			continue
+		var dist := maxf(to.length() - radius, 1.0)
+		cap = minf(cap, eye.y + dist * tan(lim - deg_to_rad(CAP_MARGIN_DEG)) - gy)
+	return cap
+
+
+## The lowest angle (radians) `eye` must see clear along `bearing` (SD-5.2 as ruled 2026-10-19,
+## RL-e0b D-0b-1): in a water sector the water's far side -- the foot of the nearest band in front of
+## the sea horizon, or the sea horizon -- blended to the water's near edge over T_WATER of its ends;
+## elsewhere the highest band crest. INF when neither exists.
+func sightline(eye: Vector3, bearing: float) -> float:
+	var body := water_at(bearing)
+	if not body.is_empty():
+		var level := float(body["level_m"])
+		var y := level - _datum
+		var o := Vector2(eye.x, eye.z)
+		var dv := Vector2(sin(deg_to_rad(bearing)), -cos(deg_to_rad(bearing)))
+		var s := shore(body, bearing)
+		var b := o.dot(dv)
+		var t := -b + sqrt(maxf(b * b - (o.length_squared() - s * s), 0.0))
+		var near := atan((y - eye.y) / maxf(t, 1.0))
+		var far := -sqrt(2.0 * maxf(eye.y - y, 0.01) / EARTH_R)
+		var dh := sea_horizon_m(eye.y, level)
+		for band in _bands:
+			if not MineWorldFarField.sector_contains(band["sector"], bearing):
+				continue
+			var d := crest_hd(band, bearing).y
+			if d < dh:
+				far = minf(far, angle(level, d, eye.y))
+		return near + (maxf(far, near) - near) * end_factor(body["sector"], bearing, T_WATER)
+	var best := -INF
+	for band in _bands:
+		if MineWorldFarField.sector_contains(band["sector"], bearing):
+			best = maxf(best, band_angle(band, bearing, eye.y).x)
+	return INF if best == -INF else best

@@ -42,7 +42,7 @@ static func shell(g: Node3D, w: float, depth: float, h: float, top: float,
 	var back := depth - WALL_T
 
 	# floor and ceiling
-	Build.slab(g, 0, depth * 0.5, inner_w, depth, 0.0, 0.08, _floor_mat(), 0.0, true)
+	Build.slab(g, 0, depth * 0.5, inner_w, depth, 0.0, 0.08, _floor_mat(), 0.0, true, Build.LAYER_WORLD)
 	Build.slab(g, 0, depth * 0.5, w, depth, CEIL_H, 0.22,
 		Mats.paint(Color(0.55, 0.53, 0.50), 0.95))
 

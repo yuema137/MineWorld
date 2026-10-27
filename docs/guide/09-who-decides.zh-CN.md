@@ -43,7 +43,7 @@ Copy-Item -Recurse corner-shop who-decides
 ```console
 $ mineworld run who-decides/corner-shop --headless --seed 1 --days 3
 ...
-activity   days 1-3  ana move 155 talk 81  ben move 159 talk 118  cai move 170 talk 99
+activity   days 1-3  ana move 161 talk 72  ben move 165 talk 106  cai move 170 talk 102
 ...
 $ mineworld decisions who-decides/corner-shop
 Corner Shop (corner-shop): decisions [..]
@@ -117,7 +117,7 @@ configure:
 
 decisions: decisions.yaml
 
-# 不是小镇：小镇要写明车站大厅和地标（docs/MODULE_SPEC.md §4.3）。
+# Not a town: a town names its station hall and its landmark (docs/MODULE_SPEC.md §4.3).
 settlement:
   kind: none
 ```
@@ -164,7 +164,7 @@ Corner Shop (corner-shop): decisions [..]
 $ mineworld run who-decides/corner-shop --headless --seed 1 --days 3
 [mineworld] run Corner Shop (corner-shop): seats ana, ben, cai; seed 1; to day 3; pace 900s; in memory; decisions [..] (2 rule, 1 motivated)
 ...
-activity   days 1-3  ana move 162 talk 74  ben move 9 talk 18  cai move 165 talk 96
+activity   days 1-3  ana move 166 talk 68  ben move 9 talk 18  cai move 169 talk 91
 ...
 ```
 
@@ -172,8 +172,8 @@ activity   days 1-3  ana move 162 talk 74  ben move 9 talk 18  cai move 165 talk
 
 | | Step 9.1 | Step 9.4 |
 | --- | --- | --- |
-| Ben 的 `move` | 159 | 9 |
-| Ben 的 `talk` | 118 | 18 |
+| Ben 的 `move` | 165 | 9 |
+| Ben 的 `talk` | 106 | 18 |
 
 Ben 现在按需要待在一个地方，不再到处走。他说话也少多了：用默认设置时，`motivated` 是个安静的 model。
 Ana 和 Cai 的数字也变了一点，因为 Ben 在他们身边的时间少了。
@@ -206,7 +206,7 @@ Corner Shop (corner-shop): decisions [..]
 $ mineworld run who-decides/corner-shop --headless --seed 1 --days 3
 [mineworld] run Corner Shop (corner-shop): seats ana, ben, cai; seed 1; to day 3; pace 900s; in memory; decisions [..] (1 rule, 2 motivated)
 ...
-activity   days 1-3  ana move 203 talk 37  ben move 15 talk 7  cai move 10 talk 6
+activity   days 1-3  ana move 200 talk 36  ben move 15 talk 7  cai move 10 talk 6
 ...
 ```
 

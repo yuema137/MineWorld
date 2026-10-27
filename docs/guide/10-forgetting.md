@@ -113,9 +113,9 @@ Then run thirty days, and keep them in a save:
 ```console
 $ mineworld run forgetting/corner-shop --headless --seed 1 --days 30 --save forgetting/saves/before
 ...
-requests   accept-invitation accepted 263
+requests   accept-invitation accepted 259
 ...
-requests   invite accepted 374
+requests   invite accepted 375
 ...
 facts      relationship-changed 18
 ...
@@ -256,7 +256,7 @@ $ mineworld run forgetting/corner-shop --headless --seed 1 --days 30 --save forg
 ...
 facts      relationship-changed 32
 ...
-activity   days 1-30  ana move 1526 talk 597  ben move 1498 talk 878  cai move 1572 talk 864
+activity   days 1-30  ana move 1549 talk 525  ben move 1483 talk 881  cai move 1607 talk 862
 ...
 ```
 
@@ -270,11 +270,11 @@ activity   days 1-30  ana move 1526 talk 597  ben move 1498 talk 878  cai move 1
 ```console
 $ mineworld perceived forgetting/corner-shop --save forgetting/saves/after --person ben --json
 ...
-{"id":"[..]","at":[..],"event_type":"relationship-changed",[..]"from":"close"[..]"to":"friend"}}[..]
+{"id":"[..]","at":[..],"event_type":"relationship-changed",[..]"from":"friendly"[..]"to":"acquaintance"}}[..]
 ...
 ```
 
-**You should see**, among many lines, a tie that went down from `close` to `friend`. Liking faded
+**You should see**, among many lines, a tie that went down from `friendly` to `acquaintance`. Liking faded
 between two meetings, and the next meeting stated the new level. Without fading, no tie ever goes down.
 
 Which program keeps a person's own memory, and what it forgets, is chosen in the decision list of

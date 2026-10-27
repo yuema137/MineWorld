@@ -1,0 +1,127 @@
+{
+  "id": "social-cafe-florist",
+  "type": "place_visual",
+  "format": {
+    "model": "social-cafe-florist.glb",
+    "rules": "materials/material_rules.yaml"
+  },
+  "semantic_bindings": {
+    "entrances": [
+      "front_door"
+    ],
+    "spaces": [
+      "shop_room"
+    ]
+  },
+  "doors": [
+    {
+      "name": "front_door",
+      "label": "THE FLOWER ROOM -- enterable",
+      "space": "shop_room",
+      "depth_m": 0.35,
+      "floor_m": 0.12
+    }
+  ],
+  "presentation": {
+    "style_family": [
+      "mineworld-default-3d"
+    ]
+  },
+  "scale": {
+    "unit": "meter"
+  },
+  "license": {
+    "spdx": "MIT",
+    "sources": [
+      {
+        "what": "Poly Haven models and their textures, referenced by path from the 3D client's library (clients/3d-spike/ASSETS.md)",
+        "spdx": "CC0-1.0",
+        "url": "https://polyhaven.com/license",
+        "files": [
+          "assets/models/Shelf_01/Shelf_01.gltf",
+          "assets/models/Shelf_01/textures/Shelf_01_arm_1k.jpg",
+          "assets/models/Shelf_01/textures/Shelf_01_diff_1k.jpg",
+          "assets/models/Shelf_01/textures/Shelf_01_nor_gl_1k.jpg",
+          "assets/models/antique_ceramic_vase_01/antique_ceramic_vase_01.gltf",
+          "assets/models/antique_ceramic_vase_01/textures/antique_ceramic_vase_01_arm_1k.jpg",
+          "assets/models/antique_ceramic_vase_01/textures/antique_ceramic_vase_01_diff_1k.jpg",
+          "assets/models/antique_ceramic_vase_01/textures/antique_ceramic_vase_01_nor_gl_1k.jpg",
+          "assets/models/calathea_orbifolia_01/calathea_orbifolia_01.gltf",
+          "assets/models/calathea_orbifolia_01/textures/calathea_orbifolia_01_arm_1k.jpg",
+          "assets/models/calathea_orbifolia_01/textures/calathea_orbifolia_01_diff_1k.jpg",
+          "assets/models/calathea_orbifolia_01/textures/calathea_orbifolia_01_nor_gl_1k.jpg",
+          "assets/models/ceramic_vase_02/ceramic_vase_02.gltf",
+          "assets/models/ceramic_vase_02/textures/ceramic_vase_02_diff_1k.jpg",
+          "assets/models/ceramic_vase_02/textures/ceramic_vase_02_nor_gl_1k.jpg",
+          "assets/models/ceramic_vase_02/textures/ceramic_vase_02_rough_1k.jpg",
+          "assets/models/jug_01/jug_01.gltf",
+          "assets/models/jug_01/textures/jug_01_arm_1k.jpg",
+          "assets/models/jug_01/textures/jug_01_diff_1k.jpg",
+          "assets/models/jug_01/textures/jug_01_nor_gl_1k.jpg",
+          "assets/models/modern_ceiling_lamp_01/modern_ceiling_lamp_01.gltf",
+          "assets/models/modern_ceiling_lamp_01/textures/modern_ceiling_lamp_01_arm_1k.jpg",
+          "assets/models/modern_ceiling_lamp_01/textures/modern_ceiling_lamp_01_diff_1k.jpg",
+          "assets/models/modern_ceiling_lamp_01/textures/modern_ceiling_lamp_01_nor_gl_1k.jpg",
+          "assets/models/planter_pot_clay/planter_pot_clay.gltf",
+          "assets/models/planter_pot_clay/textures/planter_pot_clay_arm_1k.jpg",
+          "assets/models/planter_pot_clay/textures/planter_pot_clay_diff_1k.jpg",
+          "assets/models/planter_pot_clay/textures/planter_pot_clay_nor_gl_1k.jpg",
+          "assets/models/potted_plant_02/potted_plant_02.gltf",
+          "assets/models/potted_plant_02/textures/potted_plant_02_leaves_diff_1k.jpg",
+          "assets/models/potted_plant_02/textures/potted_plant_02_leaves_nor_gl_1k.jpg",
+          "assets/models/potted_plant_02/textures/potted_plant_02_leaves_rough_1k.jpg",
+          "assets/models/potted_plant_02/textures/potted_plant_02_pot_diff_1k.jpg",
+          "assets/models/potted_plant_02/textures/potted_plant_02_pot_nor_gl_1k.jpg",
+          "assets/models/potted_plant_02/textures/potted_plant_02_pot_rough_1k.jpg",
+          "assets/models/round_wooden_table_02/round_wooden_table_02.gltf",
+          "assets/models/round_wooden_table_02/textures/round_wooden_table_02_arm_1k.jpg",
+          "assets/models/round_wooden_table_02/textures/round_wooden_table_02_diff_1k.jpg",
+          "assets/models/round_wooden_table_02/textures/round_wooden_table_02_nor_gl_1k.jpg",
+          "assets/models/shrub_03/shrub_03.gltf",
+          "assets/models/shrub_03/textures/shrub_03_arm_1k.jpg",
+          "assets/models/shrub_03/textures/shrub_03_diff_alpha_1k.png",
+          "assets/models/shrub_03/textures/shrub_03_nor_gl_1k.jpg",
+          "assets/models/steel_frame_shelves_02/steel_frame_shelves_02.gltf",
+          "assets/models/steel_frame_shelves_02/textures/steel_frame_shelves_02_arm_1k.jpg",
+          "assets/models/steel_frame_shelves_02/textures/steel_frame_shelves_02_diff_1k.jpg",
+          "assets/models/steel_frame_shelves_02/textures/steel_frame_shelves_02_nor_gl_1k.jpg",
+          "assets/models/wicker_basket_01/textures/wicker_basket_01_arm_1k.jpg",
+          "assets/models/wicker_basket_01/textures/wicker_basket_01_diff_1k.jpg",
+          "assets/models/wicker_basket_01/textures/wicker_basket_01_nor_gl_1k.jpg",
+          "assets/models/wicker_basket_01/wicker_basket_01.gltf",
+          "assets/models/wooden_crate_01/textures/wooden_crate_01_arm_1k.jpg",
+          "assets/models/wooden_crate_01/textures/wooden_crate_01_diff_1k.jpg",
+          "assets/models/wooden_crate_01/textures/wooden_crate_01_nor_gl_1k.jpg",
+          "assets/models/wooden_crate_01/wooden_crate_01.gltf",
+          "assets/models/wooden_display_shelves_01/textures/wooden_display_shelves_01_arm_1k.jpg",
+          "assets/models/wooden_display_shelves_01/textures/wooden_display_shelves_01_diff_1k.jpg",
+          "assets/models/wooden_display_shelves_01/textures/wooden_display_shelves_01_nor_gl_1k.jpg",
+          "assets/models/wooden_display_shelves_01/wooden_display_shelves_01.gltf"
+        ]
+      },
+      {
+        "what": "Poly Haven textures, referenced by path from the 3D client's library (clients/3d-spike/ASSETS.md)",
+        "spdx": "CC0-1.0",
+        "url": "https://polyhaven.com/license",
+        "files": [
+          "assets/textures/clay_roof_tiles_02/clay_roof_tiles_02_arm_1k.jpg",
+          "assets/textures/clay_roof_tiles_02/clay_roof_tiles_02_diff_1k.jpg",
+          "assets/textures/clay_roof_tiles_02/clay_roof_tiles_02_nor_gl_1k.jpg",
+          "assets/textures/concrete/concrete_arm_1k.jpg",
+          "assets/textures/concrete/concrete_diff_1k.jpg",
+          "assets/textures/concrete/concrete_nor_gl_1k.jpg",
+          "assets/textures/long_white_tiles/long_white_tiles_arm_1k.jpg",
+          "assets/textures/long_white_tiles/long_white_tiles_diff_1k.jpg",
+          "assets/textures/long_white_tiles/long_white_tiles_nor_gl_1k.jpg",
+          "assets/textures/sandstone_blocks_05/sandstone_blocks_05_arm_1k.jpg",
+          "assets/textures/sandstone_blocks_05/sandstone_blocks_05_diff_1k.jpg",
+          "assets/textures/sandstone_blocks_05/sandstone_blocks_05_nor_gl_1k.jpg"
+        ]
+      }
+    ]
+  },
+  "source": {
+    "tool": "tools/presentation/export_place_art.gd",
+    "authoring": "tools/presentation/social_cafe/source.gd"
+  }
+}

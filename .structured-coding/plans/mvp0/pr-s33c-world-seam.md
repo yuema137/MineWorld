@@ -642,6 +642,15 @@ F-S33c-1 … F-S33c-6 (§3.2), recorded at design time. Implementation (bounded,
 - **D-S33c-4 (R-S33c-b-1 pending).** The stub's footprints are S33-b §5.3's; its doorways are the points the
   world states on `main` today (S33-b §5.2's "before" column), so binding by coincidence holds now. When S33-b
   merges, the stub's table takes the "after" column (one value per door).
+- **R-S33c-b-1 done (2026-10-20, stacked on S33-b #395).** The stub's door table takes S33-b §5.2's "after"
+  column: the north places' lane points at y 5600, the shore's and the pier's at y 400 (the halt's unchanged).
+  Its footprints are read from each place's `body: floor` in `worlds/lakeside/places/*.yaml`, translated by its
+  passage: the north places, shore, pier and waiting room were already equal; the ticket bay is 4600 mm deep
+  (lane y 5500…10100, was 4000) and the platform stands at lane y −1000…39000 (was −17000…23000). Data only;
+  no furniture (ARC-307). `./mineworld-slice --world=lakeside --link` (dummy admin token) → `all link checks pass`: eight places bound
+  (the seven village places and the halt's waiting room; the bay and the platform are not disclosed to an
+  observer outside the waiting room, rule 4, as in D-S33c-4b), `SHOWN` doorways at the new points, route places
+  `[3,4],[4,1],[1,4],[4,5],[5,4]`, 66/66 moves accepted, six cast people.
 - **D-S33c-4b (S29-a merged during S33-c).** After merging `main` (S29-a's halt in Lakeside and Social Café),
   the stub draws the halt per §5.5: `[station]`, `[station, ticket-office]`, `[station, platform]`, boxes at
   S33-b §5.3's sizes placed by their disclosed doorways. The shared builder now opens a wall at every doorway
@@ -671,3 +680,18 @@ F-S33c-1 … F-S33c-6 (§3.2), recorded at design time. Implementation (bounded,
   `MINEWORLD_ADMIN_TOKEN` to the server, and clap reads the empty variable as given. The local runs exported a
   dummy token. It is a launcher defect outside this PR's scope (it would affect the nightly
   `clients-probes` too unless CI sets the variable).
+
+### Bounded follow-up (2026-10-20, operator-approved, lane question Q1)
+
+- **FU-S33c-1 (the halt's street door, L-1).** Resolves F-S33c-impl-2's second half. Social Café's depiction
+  (`depictions/social-cafe/depiction.gd`) now draws S29-a's halt door: a closed door in a short limestone
+  façade at the street's west forecourt, and one more entry, bound by its tag set
+  (`[SliceDepiction.tag("station")]`, drawn as `DOOR`, no volume), never by a place key. Its position is
+  data: the doorway the world discloses on the street's side of the station hall's arch, (-62 050, -4 900) mm
+  in the street's frame, put in the scene through the street frame's origin (3.45, 0, -4.90) -- the café
+  door's out-point less the café passage's street side (0, 2 800) -- with the sill `SliceLayout.DOOR_INSET`
+  behind it toward the hall (16c's rule), its façade facing east. No interior, no furniture (ARC-307):
+  furniture stays world data. The café, the street and every other drawn thing are unchanged; the door
+  stands 25 m west of the drawn street's end, so other shots change at most where that door is in view.
+  Evidence: the PR's `--world --layout` and `--world --link` runs (L-1 verdict in the PR body) and CI `fast`.
+  `client_rules`' walk-to/walk-step failure (F-S33c-impl-2's first half, #355) stays with its owner.

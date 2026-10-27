@@ -72,7 +72,8 @@ Annotations: none.
 
 ## observe
 
-The newest observation, as a view, a page of one, or a delta from a view still held.
+The newest observation, as a view, a page of one, or a delta from a view still held. A view shows a first
+window of each long list; its `more` names each list that continues, to read with `page`.
 
 Errors: invalid_arguments, unknown_handle, seat_lost.
 
@@ -98,7 +99,9 @@ Annotations: read-only.
 
 ## inspect
 
-What this seat perceives about one entity, `ref`, component by component.
+What this seat perceives about one entity, `ref`, component by component. An item kind, which is
+never perceived as an entity, answers with the name and category my place's `item-catalogue` gives it;
+a loose object lying in my place, with the tags its listing gives it.
 
 Errors: invalid_arguments, unknown_handle, seat_lost, unknown_ref.
 
@@ -199,7 +202,7 @@ Annotations: read-only.
 
 ## act
 
-Act in the world: one call, six kinds, chosen by `act.kind`. Each kind is:
+Act in the world: one call; `act.kind` chooses what to do. Each kind is:
 
 `say`: Say `words` to the person `to`, when the newest view offers talking to that person. The answer says
 whether the world took it; a reply, if any, arrives as an event (see `wait`).
@@ -217,6 +220,26 @@ the newest observation; when the world no longer offers it, the answer says so a
 `sleep`: Lie down to sleep where I am, for `minutes` world minutes, when the newest view offers sleeping. The same
 request a player's own menu sends: the world checks the length and the place, and refuses either by reason.
 
+`list_for_sale`: Start asking `price` for one of `item`, a kind I hold; with `for_shop`, for the shop I keep and stand in.
+Amounts are minor units (with exponent 2, 450 is 4.50). The world may refuse it by code: `already-listed`
+(use `set_price`), `not-held`, `price-out-of-range`, or `permission_denied` when I keep no shop here.
+
+`set_price`: Change my asking price for `item` to `price` (minor units); with `for_shop`, the shop's. Refusal codes:
+`not-for-sale`, `price-unchanged`, `price-out-of-range`, `permission_denied`.
+
+`withdraw`: Stop asking for `item`; with `for_shop`, the shop's ask. Refusal codes: `not-for-sale`,
+`permission_denied`.
+
+`publish_notice`: Publish a notice on `topic`, current for `valid_for_s` world seconds: a text, or price lines (minor
+units). Refusal codes: `unknown-topic`, `permission_denied` (not a publisher), `body-mismatch` (the topic
+takes the other kind), `body-too-large`, `body-invalid` (a kind named twice), `validity-out-of-range`,
+`over-daily-limit`.
+
+`subscribe`: Subscribe to `topic`: its notices then reach my inbox and my board. Refusal codes: `unknown-topic`,
+`already-subscribed`.
+
+`unsubscribe`: Unsubscribe from `topic`. Refusal code: `not-subscribed`.
+
 Errors: invalid_arguments, unknown_handle, seat_lost, unknown_ref.
 
 A refused call is an error result whose text is a ToolError (mineworld://reference/agent-errors).
@@ -229,7 +252,7 @@ Annotations: none.
 
 | Field | Type | Required | Bounds and default | Description |
 | --- | --- | --- | --- | --- |
-| `act` | [`Act`](#model-act) | yes |  | The act: `kind` names it (`say`, `walk_to`, `move`, `stop`, `attempt` or `sleep`); the other fields are that kind's. |
+| `act` | [`Act`](#model-act) | yes |  | The act: `kind` names it (the union lists every kind); the other fields are that kind's. |
 | `handle` | string | yes | matches `^[0-9a-f]{32}$` | The seat's handle, as `join` returned it: 32 hexadecimal characters. It is not a credential. |
 
 **Result of `act`**
@@ -378,7 +401,7 @@ One person I know: relationships' reading of them, faded by the world's decay.
 
 ### Model Act
 
-Type: [`SayAct`](#model-sayact) or [`WalkToAct`](#model-walktoact) or [`MoveAct`](#model-moveact) or [`StopAct`](#model-stopact) or [`AttemptAct`](#model-attemptact) or [`SleepAct`](#model-sleepact).
+Type: [`SayAct`](#model-sayact) or [`WalkToAct`](#model-walktoact) or [`MoveAct`](#model-moveact) or [`StopAct`](#model-stopact) or [`AttemptAct`](#model-attemptact) or [`SleepAct`](#model-sleepact) or [`ListForSaleAct`](#model-listforsaleact) or [`SetPriceAct`](#model-setpriceact) or [`WithdrawAct`](#model-withdrawact) or [`PublishNoticeAct`](#model-publishnoticeact) or [`SubscribeAct`](#model-subscribeact) or [`UnsubscribeAct`](#model-unsubscribeact).
 
 ### Model AgendaLine
 
@@ -391,6 +414,15 @@ schedule's `Agenda`: the part of my day I mean to keep now. It moves nobody.
 | `since` | integer | yes |  | — |
 | `until` | integer | yes |  | — |
 
+### Model Amount
+
+An amount of money: `minor`, the integer the world stores and a request carries, and `display`, the same amount in major units formatted with the disclosed currency's exponent (450 at exponent 2 is `"4.50"`; at exponent 0, `"450"`). The symbol and its side are in `View.currency`.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `display` | string or null | yes | length ≤ 32; matches `^[0-9]+(?:\.[0-9]+)?$` | `minor` in major units, from the disclosed exponent; `None` when this seat is told no currency. |
+| `minor` | integer | yes | ≥ 0 | Minor units: what the world stores, and what `list_for_sale`, `set_price` and a notice's prices take. |
+
 ### Model AnyEvent
 
 `wait` until any fact arrives in the inbox.
@@ -398,6 +430,31 @@ schedule's `Agenda`: the part of my day I mean to keep now. It moves nobody.
 | Field | Type | Required | Bounds and default | Description |
 | --- | --- | --- | --- | --- |
 | `kind` | `any_event` | no | default `any_event` | — |
+
+### Model AskLine
+
+One standing offer of a seller to sell one kind at one unit price (economy's `asks`).
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `available` | boolean | yes |  | Whether the seller holds one now; how many is never disclosed for another person. |
+| `item` | string | yes | matches `^E[1-9][0-9]{0,8}$` | The item kind, by reference (items are never perceived entities). |
+| `name` | [`WorldText`](#model-worldtext) or null | no | default `null` | The kind's name, from an `item-catalogue` this seat saw; `None` when none named it. |
+| `price` | [`Amount`](#model-amount) | yes |  | The asking price of one. |
+| `reference` | [`Amount`](#model-amount) or null | no | default `null` | The kind's reference value (its typical worth in this world), when the currency names one; left out otherwise. |
+
+### Model AskReading
+
+economy's `listed`, `price-set` or `withdrawn` (the fact's `event_type` says which): a seller's ask began, moved or ended.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `item` | string | yes | matches `^E[1-9][0-9]{0,8}$` | The item kind asked for. |
+| `kind` | `ask` | no | default `ask` | Always `ask`. |
+| `name` | [`WorldText`](#model-worldtext) or null | no | default `null` | The kind's name, from an `item-catalogue` this seat saw. |
+| `price` | [`Amount`](#model-amount) or null | yes |  | The asking price now: the listed price, or the new one; `None` once withdrawn. |
+| `seller` | string | yes | matches `^E[1-9][0-9]{0,8}$` | Whose ask it is: a person, or the organization that runs a shop. |
+| `was` | [`Amount`](#model-amount) or null | yes |  | The price before a `price-set`; `None` otherwise. |
 
 ### Model AsleepLine
 
@@ -425,7 +482,7 @@ One of my attributes, as the world discloses it to me (S30-f §5.8): what my own
 | Field | Type | Required | Bounds and default | Description |
 | --- | --- | --- | --- | --- |
 | `attribute` | [`WorldText`](#model-worldtext) | yes |  | The attribute's qualified id. |
-| `kind` | one of `category`, `level`, `quantity`, `flag`, `set`, `text`, `instant` | yes |  | — |
+| `kind` | one of `category`, `level`, `quantity`, `flag`, `set`, `text`, `instant` | yes |  | Its kind, which says which field of `value` is set. |
 | `label` | [`WorldText`](#model-worldtext) | yes |  | Its label in prose. |
 | `text` | [`WorldText`](#model-worldtext) or null | no | default `null` | The world's phrase for it, when it renders one. |
 | `value` | [`AttributeValueLine`](#model-attributevalueline) or null | no | default `null` | The exact value, when disclosed. |
@@ -436,10 +493,10 @@ An attribute's exact value, when the world discloses it to me: exactly one field
 
 | Field | Type | Required | Bounds and default | Description |
 | --- | --- | --- | --- | --- |
-| `flag` | boolean or null | no | default `null` | — |
+| `flag` | boolean or null | no | default `null` | A flag's value: whether it holds. |
 | `instant` | integer or null | no | default `null` | A world instant, in world seconds. |
 | `members` | array of [`WorldText`](#model-worldtext) or null | no | default `null` | A set's members, sorted. |
-| `quantity` | string or null | no | default `null` | A quantity, as an exact decimal string (`"1.660"`); never a float. |
+| `quantity` | string or null | no | length ≤ 40; matches `^-?[0-9]+(?:\.[0-9]+)?$`; default `null` | A quantity, as an exact decimal string (`"1.660"`); never a float. |
 | `rank` | integer or null | no | default `null` | A level's position in its declared order, lowest first. |
 | `slug` | [`WorldText`](#model-worldtext) or null | no | default `null` | A category's or a level's value, as the world's author named it. |
 | `text` | [`WorldText`](#model-worldtext) or null | no | default `null` | A text attribute's prose. |
@@ -464,6 +521,17 @@ One component of an entity, as its owning System Pack wrote it.
 | --- | --- | --- | --- | --- |
 | `component` | string | yes | length ≤ 64; matches `^[a-z0-9](?:[a-z0-9_-]{0,62}[a-z0-9])?$` | — |
 | `envelope` | [`Envelope`](#model-envelope) | yes |  | — |
+
+### Model CurrencyLine
+
+The world's currency, as economy discloses it to me: one per world, written by its author.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `exponent` | integer | yes | ≥ 0 | How many digits of an amount are minor units: 2 means 450 minor units are 4.50. |
+| `name` | [`WorldText`](#model-worldtext) | yes |  | The currency's name, as the world's `currency` record states it. |
+| `symbol` | [`WorldText`](#model-worldtext) | yes |  | Its symbol (`$`, `cr`). |
+| `symbol_at` | one of `before`, `after` | yes |  | Which side of an amount the symbol is written on: `$4.50` (`before`) or `300 cr` (`after`). |
 
 ### Model Destination
 
@@ -498,6 +566,7 @@ One fact this seat perceived (step-27 §5.4).
 | `detail` | [`Envelope`](#model-envelope) or null | no | default `null` | The fact's payload, when `events(detail=True)` asked for it, capped at 1 KiB. |
 | `event_type` | string | yes | length ≤ 64; matches `^[a-z0-9](?:[a-z0-9_-]{0,62}[a-z0-9])?$` | — |
 | `place` | string or null | yes | matches `^E[1-9][0-9]{0,8}$` | — |
+| `reading` | [`Reading`](#model-reading) or null | no | default `null` | For a sale, an ask's change, a notice, or a subscription's change: the fact read by name; left out for every other fact. |
 | `ref` | string | yes | matches `^F[1-9][0-9]{0,8}$` | — |
 | `subjects` | array of string | yes |  | — |
 | `words` | [`WorldText`](#model-worldtext) or null | yes |  | What was said, for a `spoke` fact (the conversation pack's utterance). |
@@ -543,13 +612,14 @@ An invitation someone made me (group-activity), open until `until`.
 
 ### Model ItemCount
 
-A count of one kind of item (R-S27c-INFO). Items are never perceived entities, so `item` is a reference to the id a payload names, and `name` is `None` until a pack discloses item names.
+A count of one kind of item (R-S27c-INFO). Items are never perceived entities, so `item` is a reference to the id a payload names; `name` is the kind's name from an `item-catalogue` this seat saw, or `None` when no catalogue names it. `inspect(item)` shows the same name.
 
 | Field | Type | Required | Bounds and default | Description |
 | --- | --- | --- | --- | --- |
 | `count` | integer | yes |  | — |
 | `item` | string | yes | matches `^E[1-9][0-9]{0,8}$` | — |
 | `name` | [`WorldText`](#model-worldtext) or null | no | default `null` | — |
+| `reference` | [`Amount`](#model-amount) or null | no | default `null` | For my holdings: the kind's reference value, when the currency names one; left out otherwise. |
 
 ### Model JobLine
 
@@ -571,6 +641,17 @@ employment's `Employment`, disclosed to the employee only.
 
 Type: boolean or integer or number or string or array of [`JsonValue`](#model-jsonvalue) or object of [`JsonValue`](#model-jsonvalue) or null.
 
+### Model ListForSaleAct
+
+Kind `list_for_sale`: start asking a price for a kind, for myself or for the shop I keep.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `for_shop` | boolean | no | default `false` | Ask for the shop I keep and stand in, not for myself. |
+| `item` | string | yes | matches `^E[1-9][0-9]{0,8}$` | The item kind, by reference, as my holdings or a view lists it. |
+| `kind` | `list_for_sale` | yes |  | Always `list_for_sale`. |
+| `price` | integer | yes | ≥ 0; ≤ 18446744073709551615 | The price of one, in minor units (with exponent 2, 450 is 4.50). The world refuses one out of its range. |
+
 ### Model MeLine
 
 The seat's own person as this agent sees it: state, wallet, holdings and commitments.
@@ -579,6 +660,7 @@ The seat's own person as this agent sees it: state, wallet, holdings and commitm
 | --- | --- | --- | --- | --- |
 | `acquaintances` | array of [`AcquaintanceLine`](#model-acquaintanceline) | no |  | Paged like the other lists (`PageRef(list="acquaintances")`). Always empty in a `ViewDelta`'s `me`: a change to it answers a whole view. |
 | `agenda` | [`AgendaLine`](#model-agendaline) or null | no | default `null` | — |
+| `asks` | array of [`AskLine`](#model-askline) | no |  | My own asks: what I offer to sell and at what price, in item order. Paged like the other lists (`PageRef(list="asks")`); left out when empty. Always empty in a `ViewDelta`'s `me`: a change to it answers a whole view. |
 | `asleep` | [`AsleepLine`](#model-asleepline) or null | no | default `null` | Whether I sleep, since when, and my alarm, when sleep discloses it (`alarm` is mine alone). |
 | `attributes` | array of [`AttributeLine`](#model-attributeline) | no |  | My own sheet: every attribute the world discloses to me that shows a phrase or a value, in rank order. Paged like the other lists (`PageRef(list="attributes")`); left out when empty. Always empty in a `ViewDelta`'s `me`: a change to it answers a whole view. |
 | `doing` | [`DoingLine`](#model-doingline) or null | no | default `null` | — |
@@ -592,8 +674,10 @@ The seat's own person as this agent sees it: state, wallet, holdings and commitm
 | `plans` | [`PlansLine`](#model-plansline) or null | no | default `null` | The next part of my day and the way to it, when schedule discloses one. |
 | `position` | [`Point`](#model-point) or null | yes |  | — |
 | `ref` | string | yes | matches `^E[1-9][0-9]{0,8}$` | — |
+| `subscriptions` | array of string | no |  | The notice topics I subscribe to (the notices pack's `subscriptions`, mine alone); left out when none. |
 | `walking` | [`WalkLine`](#model-walkline) or null | yes |  | — |
-| `wallet` | integer or null | no | default `null` | My money in minor units (economy's `wallet`), when disclosed. |
+| `wallet` | [`Amount`](#model-amount) or null | no | default `null` | My money (economy's `wallet`), when disclosed. |
+| `wealth` | [`WealthLine`](#model-wealthline) or null | no | default `null` | What I am worth (economy's `wealth`, mine alone), when disclosed; left out otherwise. |
 
 ### Model MoveAct
 
@@ -623,6 +707,48 @@ needs' `Needs`, disclosed to me only: how I feel, in the pack's own words.
 | --- | --- | --- | --- | --- |
 | `needs` | array of [`NeedLine`](#model-needline) | yes |  | Each need of my `words` map, in the record's order. |
 
+### Model NoticeBodyArg
+
+Type: [`TextBody`](#model-textbody) or [`PricesBody`](#model-pricesbody).
+
+### Model NoticeLine
+
+One current notice on a topic I subscribe to or publish (the notices pack's `notice-board`), as it was issued: either price lines or one line of text.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `issued_at` | integer | yes |  | When it was published, in world seconds. |
+| `prices` | array of [`NoticePriceLine`](#model-noticepriceline) | no |  | A prices notice's lines, in item order; left out for a text notice. |
+| `publisher` | string | yes | matches `^E[1-9][0-9]{0,8}$` | Who published it. |
+| `text` | [`WorldText`](#model-worldtext) or null | no | default `null` | A text notice's words, as its publisher wrote them; left out for a prices notice. |
+| `topic` | string | yes | length ≤ 64; matches `^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*$` | The topic it was published on. |
+| `valid_until` | integer | yes |  | Until when it is current, in world seconds; the world takes it off the board then. |
+
+### Model NoticePriceLine
+
+One line of a prices notice: what its publisher suggests one kind costs.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `basis` | integer | yes | ≥ 0 | How many observed prices the suggestion rests on, as the publisher states it. |
+| `item` | string | yes | matches `^E[1-9][0-9]{0,8}$` | The item kind, by reference. |
+| `name` | [`WorldText`](#model-worldtext) or null | no | default `null` | The kind's name, from an `item-catalogue` this seat saw; `None` when none named it. |
+| `price` | [`Amount`](#model-amount) | yes |  | The suggested price of one. |
+
+### Model NoticeReading
+
+The notices pack's `notice-published`: a notice issued on a topic I subscribe to or publish.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `issued_at` | integer | yes |  | When it was published, in world seconds. |
+| `kind` | `notice` | no | default `notice` | Always `notice`. |
+| `prices` | array of [`NoticePriceLine`](#model-noticepriceline) | no |  | A prices notice's lines, in item order; left out for a text notice. |
+| `publisher` | string | yes | matches `^E[1-9][0-9]{0,8}$` | Who published it. |
+| `text` | [`WorldText`](#model-worldtext) or null | no | default `null` | A text notice's words, as its publisher wrote them; left out for a prices notice. |
+| `topic` | string | yes | length ≤ 64; matches `^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*$` | The topic it was published on. |
+| `valid_until` | integer | yes |  | Until when it is current, in world seconds; the world takes it off the board then. |
+
 ### Model OfferAvailable
 
 `wait` until an offer of this action type (on this target, when named) is available.
@@ -640,11 +766,14 @@ One affordance of the observation, numbered within its view, in the observation'
 | Field | Type | Required | Bounds and default | Description |
 | --- | --- | --- | --- | --- |
 | `about` | array of string | no |  | The entities a complete offer's payload names (the item a `buy` sells), by reference. |
+| `about_names` | array of [`WorldText`](#model-worldtext) or null | no |  | The name of each entity in `about`, in the same order: a person's or place's display name, an item kind's name from my place's `item-catalogue`; `None` where the world names none. Left out when none is named. |
 | `action_type` | string | yes | length ≤ 64; matches `^[a-z0-9](?:[a-z0-9_-]{0,62}[a-z0-9])?$` | — |
 | `available` | boolean | yes |  | — |
 | `complete` | boolean | yes |  | Whether `attempt` can send it as it is (`ARC-34`); an incomplete one needs its own operation. |
+| `item_name` | [`WorldText`](#model-worldtext) or null | no | default `null` | For a `buy`: the name of the one item kind it sells, when a catalogue named it; left out otherwise. |
 | `n` | integer | yes | ≥ 1 | — |
-| `price` | integer or null | no | default `null` | For an offer about an item my place's shop lists: its price, in minor units. |
+| `price` | [`Amount`](#model-amount) or null | no | default `null` | For a `buy`: the price its payload carries, the one the world settles at (a shop's or a person's). `None` for every other offer. |
+| `reference` | [`Amount`](#model-amount) or null | no | default `null` | For a `buy`: that kind's reference value, when the currency names one; left out otherwise. |
 | `requirement` | [`RequirementLine`](#model-requirementline) | yes |  | — |
 | `target` | string or null | yes | matches `^E[1-9][0-9]{0,8}$` | — |
 | `unavailable` | [`ReasonLine`](#model-reasonline) or null | yes |  | — |
@@ -659,7 +788,7 @@ Where a paged list of a view continues: pass it back as `observe(page=…)`.
 
 | Field | Type | Required | Bounds and default | Description |
 | --- | --- | --- | --- | --- |
-| `list` | one of `people`, `things`, `offers`, `acquaintances`, `invitations`, `attributes` | yes |  | — |
+| `list` | one of `people`, `things`, `offers`, `acquaintances`, `invitations`, `attributes`, `asks`, `notices` | yes |  | — |
 | `start` | integer | yes | ≥ 0 | — |
 | `view` | integer | yes | ≥ 1 | — |
 
@@ -669,6 +798,8 @@ A person in the seat's place or among its acquaintances, by reference.
 
 | Field | Type | Required | Bounds and default | Description |
 | --- | --- | --- | --- | --- |
+| `asks` | array of [`AskLine`](#model-askline) | no |  | What this person offers to sell, at most 8, in item order; left out when none. Each ask is also a `buy` offer, so the rest are among `offers`. |
+| `asks_total` | integer | no | default `0` | How many asks this person has in all; left out when none. |
 | `asleep` | [`AsleepLine`](#model-asleepline) or null | no | default `null` | Whether this person sleeps and since when; `alarm` is `None` (the alarm is the sleeper's own). |
 | `description` | [`WorldText`](#model-worldtext) or null | no | default `null` | How this person looks to me: the world's phrases for what an observer notices, most salient first, within 160 bytes (S30-f §5.4, "who I see"); left out when the world discloses none. `inspect` lists every phrase. |
 | `doing` | [`DoingLine`](#model-doingline) or null | no | default `null` | — |
@@ -710,6 +841,40 @@ A semantic position: millimetres in the place's own frame (`CORE_CONCEPTS.md` §
 | `x_mm` | integer | yes |  | — |
 | `y_mm` | integer | yes |  | — |
 | `z_mm` | integer or null | no | default `null` | — |
+
+### Model PriceArg
+
+One line of a prices notice: a kind, its suggested price, and how many observations it rests on.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `basis` | integer | yes | ≥ 0; ≤ 65535 | How many observed prices the suggestion rests on. |
+| `item` | string | yes | matches `^E[1-9][0-9]{0,8}$` | The item kind, by reference. |
+| `price` | integer | yes | ≥ 0; ≤ 18446744073709551615 | The suggested price of one, in minor units. |
+
+### Model PricesBody
+
+A prices notice: 1 to 32 lines, any order (they are sent in item order).
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `kind` | `prices` | yes |  | Always `prices`. |
+| `lines` | array of [`PriceArg`](#model-pricearg) | yes | items ≥ 1; items ≤ 32 | The lines, 1 to 32; the world refuses a kind named twice. |
+
+### Model PublishNoticeAct
+
+Kind `publish_notice`: publish a notice on a topic I may publish on.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `body` | [`NoticeBodyArg`](#model-noticebodyarg) | yes |  | The notice: `{kind: text, text}` or `{kind: prices, lines}`, as the topic requires. |
+| `kind` | `publish_notice` | yes |  | Always `publish_notice`. |
+| `topic` | string | yes | length ≤ 64; matches `^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*$` | The topic, by name, such as `news.daily`. |
+| `valid_for_s` | integer | yes | ≥ 0; ≤ 4294967295 | How many world seconds the notice stays current; the topic's own bounds decide what is allowed. |
+
+### Model Reading
+
+Type: [`SaleReading`](#model-salereading) or [`AskReading`](#model-askreading) or [`NoticeReading`](#model-noticereading) or [`TopicReading`](#model-topicreading).
 
 ### Model ReasonLine
 
@@ -755,6 +920,21 @@ An offer's spatial requirement, unevaluated: the server's, shown, never checked 
 
 Type: one of `station`, `stop`, `platform`, `ticket-office`, `landmark`.
 
+### Model SaleReading
+
+economy's `sold`: a sale settled, at the price the buyer saw.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `buyer` | string | yes | matches `^E[1-9][0-9]{0,8}$` | Who bought. |
+| `count` | integer | yes |  | How many were sold. |
+| `item` | string | yes | matches `^E[1-9][0-9]{0,8}$` | The item kind sold. |
+| `kind` | `sale` | no | default `sale` | Always `sale`. |
+| `name` | [`WorldText`](#model-worldtext) or null | no | default `null` | The kind's name, from an `item-catalogue` this seat saw. |
+| `place` | string or null | yes | matches `^E[1-9][0-9]{0,8}$` | Where the sale happened. |
+| `price` | [`Amount`](#model-amount) | yes |  | The price of one. |
+| `seller` | string | yes | matches `^E[1-9][0-9]{0,8}$` | Who sold: a person, or the organization that runs a shop. |
+
 ### Model SayAct
 
 Kind `say`: speak to a person in the seat's place, by reference.
@@ -773,6 +953,17 @@ The seat ended while the act was in flight; the handle is gone after this answer
 | --- | --- | --- | --- | --- |
 | `kind` | `seat_lost` | no | default `seat_lost` | — |
 | `reason` | one of `taken_over`, `superseded`, `kicked`, `world_stopped`, `unauthorized`, `protocol_mismatch`, `seat_occupied`, `unknown_seat`, `seat_not_in_world`, `invalid_nickname`, `cursor_unavailable`, `world_changed`, `protocol_violation`, `gave_up`, `not_granted`, `idle_released` | yes |  | — |
+
+### Model SetPriceAct
+
+Kind `set_price`: change the asking price of a kind, mine or the shop's.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `for_shop` | boolean | no | default `false` | Change the shop's ask, not my own. |
+| `item` | string | yes | matches `^E[1-9][0-9]{0,8}$` | The item kind, by reference. |
+| `kind` | `set_price` | yes |  | Always `set_price`. |
+| `price` | integer | yes | ≥ 0; ≤ 18446744073709551615 | The new price of one, in minor units. |
 
 ### Model SleepAct
 
@@ -798,6 +989,24 @@ Kind `stop`: stop walking. No arguments beyond `kind`.
 | Field | Type | Required | Bounds and default | Description |
 | --- | --- | --- | --- | --- |
 | `kind` | `stop` | yes |  | Always `stop`. |
+
+### Model SubscribeAct
+
+Kind `subscribe`: receive a topic's notices.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `kind` | `subscribe` | yes |  | Always `subscribe`. |
+| `topic` | string | yes | length ≤ 64; matches `^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*$` | The topic, by name, such as `news.daily`. |
+
+### Model TextBody
+
+A text notice: one line of words, 1 to 280 UTF-8 bytes.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `kind` | `text` | yes |  | Always `text`. |
+| `text` | string | yes |  | The notice's words, mine, 1 to 280 UTF-8 bytes. |
 
 ### Model ThingLine
 
@@ -835,6 +1044,15 @@ A walk to a point, in the walker's place or one a chain of passages reaches.
 | --- | --- | --- | --- | --- |
 | `point` | [`Point`](#model-point) | yes |  | — |
 
+### Model TopicReading
+
+The notices pack's `subscribed` or `unsubscribed` (the fact's `event_type` says which).
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `kind` | `topic` | no | default `topic` | Always `topic`. |
+| `topic` | string | yes | length ≤ 64; matches `^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*$` | The topic subscribed to, or left. |
+
 ### Model Unavailable
 
 No enabled System provides the action (`INV-10`).
@@ -842,6 +1060,15 @@ No enabled System provides the action (`INV-10`).
 | Field | Type | Required | Bounds and default | Description |
 | --- | --- | --- | --- | --- |
 | `kind` | `unavailable` | no | default `unavailable` | — |
+
+### Model UnsubscribeAct
+
+Kind `unsubscribe`: stop receiving a topic's notices.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `kind` | `unsubscribe` | yes |  | Always `unsubscribe`. |
+| `topic` | string | yes | length ≤ 64; matches `^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*$` | The topic, by name. |
 
 ### Model View
 
@@ -852,12 +1079,14 @@ One observation of this seat, rendered (step-27 §5.3): nothing else, and nothin
 | `acted_through` | boolean | yes |  | Whether every request this handle submitted is reflected in this observation. |
 | `at` | integer | yes |  | The world instant of the newest observation, in world seconds. |
 | `calendar` | [`CalendarLine`](#model-calendarline) or null | no | default `null` | — |
+| `currency` | [`CurrencyLine`](#model-currencyline) or null | no | default `null` | The world's currency, which every `Amount`'s `display` is formatted with; left out when none is disclosed. |
 | `here` | [`Here`](#model-here) | yes |  | — |
 | `inbox` | [`InboxCounts`](#model-inboxcounts) | yes |  | — |
 | `kind` | `view` | no | default `view` | — |
 | `me` | [`MeLine`](#model-meline) | yes |  | — |
-| `more` | array of [`PageRef`](#model-pageref) | yes |  | — |
-| `offers` | array of [`OfferLine`](#model-offerline) | yes |  | — |
+| `more` | array of [`PageRef`](#model-pageref) | yes |  | The lists this view shows only a first window of (often `offers`): pass one to `observe(page=...)` to read the rest. An offer you are looking for, such as `talk`, may be on a later page. |
+| `notices` | array of [`NoticeLine`](#model-noticeline) | no |  | The current notices on the topics I subscribe to or publish, as the world lists them; paged (`PageRef(list="notices")`) and left out when none. |
+| `offers` | array of [`OfferLine`](#model-offerline) | yes |  | What you may attempt, ordered by the kind of act each pack declares: social acts such as `talk` first, then other interactions, then commerce. |
 | `paused` | boolean | yes |  | — |
 | `time_scale` | integer | yes |  | World seconds per wall second, as the host paces it. |
 | `view` | integer | yes | ≥ 1 | — |
@@ -882,12 +1111,14 @@ What changed between `base_view` and `view` (step-27 §5.10).
 | `at` | integer | yes |  | The world instant of the newest observation, in world seconds. |
 | `base_view` | integer | yes | ≥ 1 | — |
 | `calendar` | [`CalendarLine`](#model-calendarline) or null | no | default `null` | `None` when unchanged. |
+| `currency` | [`CurrencyLine`](#model-currencyline) or null | no | default `null` | The currency when it changed; left out when unchanged. |
 | `exits` | array of [`ExitLine`](#model-exitline) or null | yes |  | `None` when unchanged. |
 | `inbox` | [`InboxCounts`](#model-inboxcounts) | yes |  | — |
 | `kind` | `delta` | no | default `delta` | — |
 | `me` | [`MeLine`](#model-meline) or null | yes |  | `None` when unchanged. |
-| `more` | array of [`PageRef`](#model-pageref) | yes |  | — |
-| `offers` | array of [`OfferLine`](#model-offerline) or null | yes |  | The whole list when anything in it changed, else `None`. |
+| `more` | array of [`PageRef`](#model-pageref) | yes |  | The lists this view shows only a first window of (often `offers`): pass one to `observe(page=...)` to read the rest. An offer you are looking for, such as `talk`, may be on a later page. |
+| `notices` | array of [`NoticeLine`](#model-noticeline) or null | no | default `null` | The whole list of current notices when it changed; left out when unchanged. |
+| `offers` | array of [`OfferLine`](#model-offerline) or null | yes |  | The whole list when anything in it changed, else `None`; ordered as in a view: social acts first, then other interactions, then commerce. |
 | `paused` | boolean | yes |  | — |
 | `people` | array of [`PersonLine`](#model-personline) | yes |  | Upserted: new or changed. |
 | `people_gone` | array of string | yes |  | — |
@@ -928,6 +1159,15 @@ Kind `walk_to`: walk to a place, a person or a point.
 | `kind` | `walk_to` | yes |  | Always `walk_to`. |
 | `to` | [`Destination`](#model-destination) | yes |  | Where to walk: a place (`place`), a person (`person`) or a point (`point`). |
 
+### Model WealthLine
+
+What I am worth, as economy discloses it to me alone: my wallet plus my holdings at their reference values. Never a price: nothing is settled at it.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `amount` | [`Amount`](#model-amount) | yes |  | Wallet plus, for each kind I hold that has a reference value, the count times that value. |
+| `unvalued` | integer | yes | ≥ 0 | How many units I hold of kinds with no reference value (left out of `amount`). |
+
 ### Model WeatherLine
 
 The weather pack's weather in my place now (`weather-now`, and this hour of `weather-today`).
@@ -941,6 +1181,16 @@ The weather pack's weather in my place now (`weather-now`, and this hour of `wea
 | `temperature_dc` | integer or null | no | default `null` | Tenths of a degree Celsius, this hour. |
 | `wind_dms` | integer or null | no | default `null` | Wind speed in decimetres per second, this hour. |
 | `wind_from_deg` | integer or null | no | default `null` | — |
+
+### Model WithdrawAct
+
+Kind `withdraw`: stop asking for a kind, mine or the shop's.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `for_shop` | boolean | no | default `false` | Withdraw the shop's ask, not my own. |
+| `item` | string | yes | matches `^E[1-9][0-9]{0,8}$` | The item kind, by reference. |
+| `kind` | `withdraw` | yes |  | Always `withdraw`. |
 
 ### Model WorldLine
 

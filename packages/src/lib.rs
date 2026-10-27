@@ -32,6 +32,11 @@
 #![warn(missing_docs)]
 
 mod declared;
+pub mod depiction;
+mod depiction_check;
+mod depiction_deck;
+mod depiction_schema;
+mod depiction_station;
 mod error;
 pub mod far_field;
 mod far_field_check;
@@ -39,12 +44,15 @@ mod far_field_schema;
 mod found;
 mod identity;
 mod manifest;
+pub mod place_asset;
 mod policy;
 mod resolve;
 mod roots;
 mod schema;
+pub mod shells;
 
 pub use declared::{Package, compiled_under};
+pub use depiction::{DEPICTIONS_DIR, DepictionCode};
 pub use error::PackageError;
 pub use far_field::{Dimension, FAR_FIELD_DIR, FarFieldCode, SlotName, SlotRule, check_slots};
 pub use found::{DataPack, WORLD_FILE, packs_in};
@@ -55,12 +63,14 @@ pub use manifest::{
     ENTITY_ITEM_EXTENSION, ENTITY_ITEMS, PACK_FILE, STYLE_FILE, check_entity_layout,
     check_style_manifest, pack_file_schema, read_pack_file, style_manifest_schema,
 };
+pub use place_asset::{AssetCode, MATERIAL_RULES_FILE, PLACE_ASSETS_DIR, PlaceAssets};
 pub use policy::LicencePolicy;
 pub use resolve::{
     CodePack, Composition, FoundPack, Installed, Resolved, Source, SystemPackUsed,
     WorldRequirements, resolve,
 };
 pub use roots::{PACKS_VARIABLE, PackRoots};
+pub use shells::{SHELLS_FILE, ShellsCode};
 
 /// The framework's release version: the version every framework crate and every bundled pack share
 /// (`ARC-53`). This crate is one of them, so its own Cargo version is the framework's.

@@ -275,6 +275,7 @@ This person's job: who employs them, where, which hours each day, the wage, and 
 | `from` | [TimeOfDay](#section-job-timeofday) | yes | — | — | When the shift begins, every day. |
 | `manages` | true or false | no | `false` | — | Whether this employee manages the employer's staff: told of their lateness and offered `penalize` when lateness costs money. At most one per employer (`ARC-287`). |
 | `produces` | mapping: each key matches `^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$`, each value is whole number (at least 1) | no | `{}` | — | What one full shift produces for the employer: an item key, then how many (at least 1). |
+| `title` | text | no | `null` | — | What the job is called, in prose: 1 to 40 bytes, no control character. Optional; where the world enables `attributes`, it is the holder's `employment.occupation` (S30-f, Q-S30f-3). |
 | `until` | [TimeOfDay](#section-job-timeofday) | yes | — | — | When the shift ends, the same day: after `from`. |
 | `wage` | whole number | yes | — | at least 0 | The wage, in minor units per hour worked, paid by the employer. |
 | `workplace` | [EntityKey](#section-job-entitykey) | yes | — | — | Where they work: a place key. |
@@ -327,7 +328,7 @@ A body: in a place file, the walkable floor and the solids standing on it (floor
 | `floor` | [Floor](#section-body-floor) | no | — | — | A place's walkable floor: an axis-aligned rectangle whose edge is the place's walls. Required in a place's body. |
 | `furnishings` | list of [Furnishing](#section-body-furnishing) | no | — | — | The named pieces standing on a place's floor that a body can meet — tables, chairs, shelf units: at most 64 (`ARC-307`). Each is named by at least one solid's `furnishing`; a Presentation Pack draws it by its `kind`. |
 | `shape` | [BodyShape](#section-body-bodyshape) | no | — | — | An object's shape. Required, with `at`, in an item's body. |
-| `solids` | list of [Solid](#section-body-solid) | no | — | — | The solid boxes standing on a place's floor — counters, tables, pillars: at most 64. Nobody stands inside one or walks through it. |
+| `solids` | list of [AuthoredSolid](#section-body-authoredsolid) | no | — | — | The solid boxes standing on a place's floor — counters, tables, pillars: at most 64. Nobody stands inside one or walks through it. Two whose footprints share any area must be parts of one thing: the same `group`, or the same `furnishing` (`ARC-332`). |
 
 Any other key is refused with `unknown field`, naming the key.
 
@@ -368,6 +369,20 @@ body:
 ```
 
 ### Types used above
+
+<a id="section-body-authoredsolid"></a>
+
+#### `AuthoredSolid`
+
+A solid as a place file writes it: its footprint, its height, the furnishing it belongs to, and the `group` it shares with the other solids of the same thing.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `furnishing` | [FurnishingKey](#section-body-furnishingkey) | no | `null` | — | The furnishing this solid belongs to, if any: the key of one of the place's `furnishings`. |
+| `group` | [SolidGroup](#section-body-solidgroup) | no | — | — | The thing this solid is part of, when another solid of the same thing overlaps it — a chair tucked under its table, two crossed boxes holding one round table. Two solids whose footprints share any area must share a `group` or name one `furnishing`; otherwise the place is refused (`bodies-solids-overlap`). Authoring data only: never stored or disclosed. |
+| `height` | [Millimetres](#section-body-millimetres) | yes | — | — | How high it stands above the floor, in millimetres: 1 to 10000. |
+| `max` | [Corner](#section-body-corner) | yes | — | — | The footprint's north-east corner; the footprint is not empty. |
+| `min` | [Corner](#section-body-corner) | yes | — | — | The footprint's south-west corner. |
 
 <a id="section-body-bodyshape"></a>
 
@@ -471,18 +486,13 @@ A length or a coordinate, in whole millimetres (1 m = 1000).
 
 **Type:** whole number. **Bounds:** -2147483648 to 2147483647.
 
-<a id="section-body-solid"></a>
+<a id="section-body-solidgroup"></a>
 
-#### `Solid`
+#### `SolidGroup`
 
-A solid box standing on the floor — a counter, a table, a pillar: its footprint from `min` to `max`, and its height above the floor. Nobody stands inside one or walks through it.
+The name an author gives the solids of one thing (`ARC-332`): `terrace-table.1`, `table.east`. The slug grammar of a furnishing key, and of `posture`'s sit group: 1 to 48 bytes of `a`–`z`, `0`–`9`, `-` and `.`. Authoring data only: a [`PlaceShape`] does not store it, so nothing is disclosed and no digest depends on it.
 
-| Field | Type | Required | Default | Bounds | Description |
-| --- | --- | --- | --- | --- | --- |
-| `furnishing` | [FurnishingKey](#section-body-furnishingkey) | no | — | — | The furnishing this solid belongs to, if any: the key of one of the place's `furnishings`. |
-| `height` | [Millimetres](#section-body-millimetres) | yes | — | — | How high it stands above the floor, in millimetres: 1 to 10000. |
-| `max` | [Corner](#section-body-corner) | yes | — | — | The footprint's north-east corner; the footprint is not empty. |
-| `min` | [Corner](#section-body-corner) | yes | — | — | The footprint's south-west corner. |
+**Type:** text. **Bounds:** 1 to 48 characters; matches `^[a-z0-9.-]+$`.
 
 <a id="section-fishing"></a>
 
@@ -555,13 +565,13 @@ Example:
 
 ```yaml
 attributes:
-  attributes-town.chronotype: early-bird
+  core.chronotype: early-bird
   glasses: true
   hair-colour:
     allowed:
       - brown
       - auburn
-  languages:
+  languages-spoken:
     - english
     - spanish
   stature: 1.66
@@ -744,3 +754,54 @@ notices:
 A topic's name: dotted lowercase segments, such as `prices.ingredients` or `news.daily`.
 
 **Type:** text. **Bounds:** at most 64 characters; matches `^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$`.
+
+<a id="section-price-survey"></a>
+
+## `price-survey`
+
+Written under the key `price-survey` in `people/<key>.yaml`.
+Read by the `price-survey` system (package `mineworld-price-survey`), which a world enables in `systems:`. A file whose world does not enable it is refused.
+
+A surveyor, as authored.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `depth` | whole number | no | — | at least 0 | How many notes it keeps per kind, the oldest dropped first: 1 to 64. Default 32. |
+| `kinds` | [AuthoredKinds](#section-price-survey-authoredkinds) | yes | — | — | Which kinds the surveyor tracks, by item category. |
+| `resurvey_after` | text | no | — | — | How soon it may survey the same place again: "1m" to "1d". Default "1h". |
+| `window` | text | no | — | — | The oldest note it keeps: "1h" to "30d". Default "7d". |
+
+Any other key is refused with `unknown field`, naming the key.
+
+Example:
+
+```yaml
+price-survey:
+  depth: 32
+  kinds:
+    categories:
+      - food
+      - drink
+  resurvey_after: "1h"
+  window: "7d"
+```
+
+### Types used above
+
+<a id="section-price-survey-authoredkinds"></a>
+
+#### `AuthoredKinds`
+
+Which kinds a surveyor tracks.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `categories` | list of [Category](#section-price-survey-category) | yes | — | — | The item categories whose kinds it notes: 1 to 16, none twice. Each must be the category of at least one declared kind, or genesis refuses it (`survey-category-unknown`). |
+
+<a id="section-price-survey-category"></a>
+
+#### `Category`
+
+The sort of thing an item kind is, such as drink, food or goods: 1 to 32 of a-z, 0-9 and -, not beginning or ending with -.
+
+**Type:** text. **Bounds:** matches `^[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?$`.

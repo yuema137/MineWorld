@@ -66,9 +66,9 @@ postprocess:
   - alpha rescaled so peak 254 -> 255
   - edge colour bled 8px into transparent region
 approval:
-  status: candidate
-  approved_by: null
-  approved_date: null
+  status: approved
+  approved_by: operator
+  approved_date: '2026-10-26'
 license:
   redistribution_allowed: true
   note: Generated with the OpenAI Images API. Under OpenAI's terms of use the customer owns the output
