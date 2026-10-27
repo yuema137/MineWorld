@@ -151,3 +151,8 @@ fn no_masked_value_is_drawn_in_ten_thousand() {
     assert!(males > 4000);
     let _ = ValueSlug::new("none");
 }
+
+#[test]
+fn proof_deliberate_failure_fidelity() {
+    panic!("deliberate failure for no-fail-fast proof");
+}

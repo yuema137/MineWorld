@@ -335,3 +335,8 @@ fn snapshot(written: &str) -> EntityRegistrySnapshot {
 fn refusal(snapshot: EntityRegistrySnapshot) -> KernelError {
     EntityRegistry::try_from(snapshot).expect_err("an inconsistent registry must not load")
 }
+
+#[test]
+fn proof_deliberate_failure_entities() {
+    panic!("deliberate failure for no-fail-fast proof");
+}
