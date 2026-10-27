@@ -70,6 +70,14 @@ runs:
           --env CARGO_PROFILE_DEV_DEBUG=line-tables-only \
           mineworld-toolchain:ci python3 scripts/ci_layer.py "$LAYER" "${shard[@]}"
 
+    # Every failing test of a failed layer, listed in the job summary (scripts/ci_layer.py writes it
+    # on failure and removes any earlier copy when the layer starts). Shows nothing on a green layer.
+    - name: Summarise failing tests
+      if: always()
+      shell: bash
+      run: |
+        if [ -s target/ci-failed-tests.md ]; then cat target/ci-failed-tests.md >> "$GITHUB_STEP_SUMMARY"; fi
+
     - name: Prune target/ before the cache is saved
       shell: bash
       run: |

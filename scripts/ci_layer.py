@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shlex
 import shutil
 import subprocess
@@ -89,7 +90,7 @@ LAYERS: dict[str, list[list[str]]] = {
     # suite, nothing may be left behind (ENGINEERING_STANDARDS.md §22, "Test scratch"; QTH-4).
     "core": [
         ["cargo", "test", "--workspace", "--no-run"],
-        ["cargo", "test", "--workspace"],
+        ["cargo", "test", "--workspace", "--no-fail-fast"],
         ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
     ],
     # A documentation-only change (step-14 §16, ARC-48's note of 2026-10-09 for 13x): the only CI
@@ -550,8 +551,9 @@ def repeat_commands(cargo: list[list[str]]) -> list[list[str]]:
             out.append(command)
             continue
         summary = f"{NIGHTLY_OUT}/repeat{'-doc' if '--doc' in command else ''}.txt"
+        flags = [] if "--no-fail-fast" in command else ["--no-fail-fast"]
         out.append(["python3", "scripts/ci_repeat.py", "--times", "2", "--summary", summary, "--",
-                    *command[:2], "--no-fail-fast", *command[2:]])
+                    *command[:2], *flags, *command[2:]])
     return out
 
 
@@ -570,8 +572,61 @@ def commands_of(layer: str, shard: str | None) -> list[list[str]]:
     return [*cargo, *(command for command in LAYERS[layer] if command[:2] != ["cargo", "test"])]
 
 
+FAILED_TESTS = ROOT / "target" / "ci-failed-tests.md"
+TEST_FAILED = re.compile(r"^test (.+) \.\.\. FAILED$")
+CARGO_RUNNING = re.compile(r"^\s*(?:Running|Doc-tests)\s+(.*)$")
+
+
+def is_test(command: list[str]) -> bool:
+    """A cargo test run (not a build of its targets): its failure is reported, and the layer goes on."""
+    return "cargo" in command and "test" in command and "--no-run" not in command
+
+
+def stream(command: list[str]) -> tuple[int, list[str]]:
+    """Runs a command, echoing its output as it comes, and returns its exit status and output lines."""
+    process = subprocess.Popen(
+        resolved(command), cwd=ROOT, env={**os.environ, **COMMAND_ENVIRONMENT},
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+    )
+    lines: list[str] = []
+    assert process.stdout is not None
+    for line in process.stdout:
+        print(line, end="", flush=True)
+        lines.append(line.rstrip("\n"))
+    return process.wait(), lines
+
+
+def failures_in(lines: list[str]) -> list[str]:
+    """`binary: test` for every test cargo reports FAILED, in the order it ran them; `binary` is the
+    `Running` line that preceded it."""
+    binary, found = "(no binary named)", []
+    for line in lines:
+        running = CARGO_RUNNING.match(line)
+        if running:
+            binary = running.group(1)
+        failed = TEST_FAILED.match(line)
+        if failed:
+            found.append(f"`{binary}`: `{failed.group(1)}`")
+    return found
+
+
+def write_failure_summary(
+    layer: str, shard: str | None, failed: list[tuple[list[str], int]], failures: list[str]
+) -> None:
+    """The failing commands and tests of a failed layer, as Markdown for the job summary. The workflow's
+    composite action appends it to the job's summary when it exists."""
+    title = f"layer `{layer}`{f' shard {shard}' if shard else ''}"
+    body = [f"### Failing tests: {title}", "", "Commands that failed:"]
+    body += [f"- `{shlex.join(command)}` (exit {status})" for command, status in failed]
+    body += ["", "Tests reported FAILED:"]
+    body += [f"- {failure}" for failure in failures] or ["- (none parsed; see the log)"]
+    FAILED_TESTS.parent.mkdir(parents=True, exist_ok=True)
+    FAILED_TESTS.write_text("\n".join(body) + "\n", encoding="utf-8")
+
+
 def run(layer: str, shard: str | None = None) -> int:
     print(f"[ci] layer {layer}{f' shard {shard}' if shard else ''} in {ROOT}", flush=True)
+    FAILED_TESTS.unlink(missing_ok=True)
     for command in ENVIRONMENT_OF.get(layer, ENVIRONMENT):
         report(resolved(command))
     measured = layer in MEASURES_DISK
@@ -580,23 +635,32 @@ def run(layer: str, shard: str | None = None) -> int:
     result(layer, "started")
     started = time.monotonic()
     commands = commands_of(layer, shard)
+    failed: list[tuple[list[str], int]] = []
+    failures: list[str] = []
     for command in commands:
         print(f"[ci] $ {shlex.join(command)}", flush=True)
         began = time.monotonic()
         try:
-            status = subprocess.run(
-                resolved(command), cwd=ROOT, env={**os.environ, **COMMAND_ENVIRONMENT}
-            ).returncode
+            status, lines = stream(command)
         except FileNotFoundError:
             print(f"[ci] {command[0]}: not found on PATH", flush=True)
-            status = 127
+            status, lines = 127, []
         print(f"[ci] exit {status} after {time.monotonic() - began:.1f} s: {shlex.join(command)}", flush=True)
         if status != 0:
-            if measured:
-                disk("after (failed)")
+            failed.append((command, status))
+            failures += failures_in(lines)
+            # A failing `cargo test` does not stop the layer: every later test binary still runs and
+            # reports (F-1), and the layer fails at the end. Any other failure stops it, as before.
+            if not is_test(command):
+                break
+    if failed:
+        if measured:
+            disk("after (failed)")
+        for command, status in failed:
             print(f"[ci] layer {layer} FAILED at: {shlex.join(command)}", flush=True)
             result(layer, f"failed at: {shlex.join(command)} (exit {status})")
-            return status
+        write_failure_summary(layer, shard, failed, failures)
+        return failed[0][1]
     if measured:
         disk("after")
     print(f"[ci] layer {layer} passed: {len(commands)} command(s) in {time.monotonic() - started:.1f} s")
