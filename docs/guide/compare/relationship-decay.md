@@ -105,9 +105,9 @@ Then run thirty days:
 ```console
 $ mineworld run compare-decay/corner-shop --headless --seed 1 --days 30
 ...
-facts      relationship-changed 20
+facts      relationship-changed 18
 ...
-activity   days 1-30  ana move 1483 talk 681  ben move 1461 talk 950  cai move 1601 talk 875
+activity   days 1-30  ana move 1490 talk 681  ben move 1450 talk 944  cai move 1602 talk 876
 ...
 ```
 
@@ -198,9 +198,9 @@ Then run the same thirty days with the same seed, and keep them in a save:
 ```console
 $ mineworld run compare-decay/corner-shop --headless --seed 1 --days 30 --save compare-decay/saves/after
 ...
-facts      relationship-changed 40
+facts      relationship-changed 34
 ...
-activity   days 1-30  ana move 1483 talk 681  ben move 1461 talk 950  cai move 1601 talk 875
+activity   days 1-30  ana move 1490 talk 681  ben move 1450 talk 944  cai move 1602 talk 876
 ...
 ```
 
@@ -223,7 +223,7 @@ $ mineworld perceived compare-decay/corner-shop --save compare-decay/saves/after
 
 | | Step 1.2, nothing fades | Step 1.4, regard fades |
 | --- | --- | --- |
-| `relationship-changed` | 20 | 40 |
+| `relationship-changed` | 18 | 34 |
 | `activity` | the same | the same |
 | a tie going down | never | yes, as in step 1.5 |
 

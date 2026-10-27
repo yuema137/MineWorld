@@ -616,3 +616,32 @@ F-S33b-1 … F-S33b-7 (§3.2), recorded at design time. During implementation:
   milestone run. The S33-c stub (`depictions/lakeside/depiction.gd`) still holds the "before" doorway
   points and draws tickets 4.6 × 4.0 and the platform at y −17 000…23 000 while the files place it at
   −1 000…39 000: listed in the PR body for the lead (no client change here).
+
+### Post-merge: milestone fd-1026 (run 40403074977, main `30021293`) — 2026-10-26
+
+Both `lakeside_bodies.rs` failures are stale expectations after deliberate, merged changes in other lanes;
+neither is a regression, and neither touches bodies' or the doorways' semantics as S33-b set them.
+
+- **F-b-post-1 — `without_bodies_only_the_doorways_moved` (fixture stale).** Bisected with
+  `git bisect --first-parent` over main from `079ed94c` (#395's merge; the test passes there) to
+  `3f288d1e`: the first bad merge is **#439 `210ec53c`** (`fix(movement)`: a walk to a person ends at a
+  stand point on the walker's side of a counter, `ARC-75` amendment 1). The no-bodies summary recorded at
+  `210ec53c` is byte-identical to main `3f288d1e`'s, so nothing later moved it. The change is in
+  movement's last leg and the rule controller's pacing: day 1 facts 2 504 → 2 502, `walk-to` 9 916 →
+  9 877, `arrived` 25 958 → 25 867; `person-entered-place` stays 2 402 (the doorways are untouched).
+  **Bounded change:** the fixture is re-recorded from main `3f288d1e` (C1's procedure: the copy without
+  `bodies` and every `body:`, 30 days, seed 7, every line but `wall`), with a dated `# reason` note naming
+  the commit; the test ignores the fixture's `#` lines. Computing the expectation inside the test instead
+  was considered and rejected: the only world the test can build is the no-bodies copy itself, so the
+  comparison would be a tautology; the stored record is what makes (5) evidence from before the code under
+  test. A future merged change outside bodies and the doorways re-records it the same way.
+- **F-b-post-2 — `nobody_stands_in_the_lake_…` (scan bound stale).** The 1 825 violations ("celia moved
+  269 mm (at most 260)", up to 459 mm) are displaced arrivals beyond the old 260 mm nudge bound
+  (`NUDGE_LIMIT` in `tools/cli/tests/bodies/mod.rs`). #370 (S35 N-f, merged `b788d426` after #395) made
+  bodies move a person who is not walking aside by up to `GIVE_WAY_MAX` = 1 200 mm
+  (`systems/bodies/src/doorway.rs:39`; `ARC-330` R2, frozen design `pr-s35-nf-doorways.md`), stated by
+  `gave-way` (R4). All observed moves are within that contract. The shared scan was updated by #475
+  (`GIVE_WAY_LIMIT`, mirrored like `R`, and each displaced arrival must be stated by `gave-way`); this
+  test already uses that scan, so no Lakeside-specific constant is added. Locally with #475's scan:
+  `--test lakeside_bodies` 4/4 PASS; strides 27 495, geometry 207 (0.8 %), every place entered 100 % of
+  the no-bodies copy.

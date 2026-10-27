@@ -113,17 +113,17 @@ Then run thirty days, and keep them in a save:
 ```console
 $ mineworld run forgetting/corner-shop --headless --seed 1 --days 30 --save forgetting/saves/before
 ...
-requests   accept-invitation accepted 260
+requests   accept-invitation accepted 259
 ...
-requests   invite accepted 377
+requests   invite accepted 375
 ...
-facts      relationship-changed 20
+facts      relationship-changed 18
 ...
 faults     0
 ...
 ```
 
-**You should see** invitations sent and accepted, and 20 times a tie crossed a level. Without fading,
+**You should see** invitations sent and accepted, and 18 times a tie crossed a level. Without fading,
 every tie only goes up, and the three soon stay `close`.
 
 ### Step 10.3 — Tell the world to configure relationships
@@ -256,11 +256,11 @@ $ mineworld run forgetting/corner-shop --headless --seed 1 --days 30 --save forg
 ...
 facts      relationship-changed 32
 ...
-activity   days 1-30  ana move 1552 talk 540  ben move 1492 talk 883  cai move 1591 talk 862
+activity   days 1-30  ana move 1549 talk 525  ben move 1483 talk 881  cai move 1607 talk 862
 ...
 ```
 
-**You should see** 32 level crossings instead of 20. The `activity` numbers are the same as in step
+**You should see** 32 level crossings instead of 18. The `activity` numbers are the same as in step
 10.2: people do exactly the same things. Only how they feel about it changed.
 
 ### Step 10.6 — See a friendship cool down

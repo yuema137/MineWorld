@@ -37,12 +37,15 @@ var _origin := Vector3.ZERO
 
 ## Rasterises `t` (the file's `terrain`) and draws it under `parent`. `water` is the file's `water`
 ## section or null; `origin` is the scene position of plan (0, 0).
+## `cuts` (`DepictionStations.cuts`, ARC-179): [{ rect: plan mm, to_m, strict }] -- the ground is lowered to
+## at most `to_m` inside each rect (strictly inside it when `strict`), so a platform's slab and a trackbed
+## are never covered by the ground.
 static func build(parent: Node3D, t: Dictionary, water: Variant, paths: Array, origin: Vector3,
-		decks: Array = []) -> DepictionTerrain:
+		decks: Array = [], cuts: Array = []) -> DepictionTerrain:
 	var started := Time.get_ticks_msec()
 	var terrain := DepictionTerrain.new()
 	terrain._origin = origin
-	terrain._rasterise(t, water, paths, decks)
+	terrain._rasterise(t, water, paths, decks, cuts)
 	terrain._draw(parent, t)
 	terrain._collide(parent)
 	print("[depiction] terrain %dx%d at %.2f m, hash %s, %d ms" % [terrain.nx, terrain.nz, terrain.cell,
@@ -86,7 +89,7 @@ func _plan(i: int, j: int) -> Vector2:
 	return Vector2((x - _origin.x) * 1000.0, (_origin.z - z) * 1000.0)
 
 
-func _rasterise(t: Dictionary, water: Variant, paths: Array, decks: Array = []) -> void:
+func _rasterise(t: Dictionary, water: Variant, paths: Array, decks: Array = [], cuts: Array = []) -> void:
 	cell = float(t["cell_m"])
 	var e: Array = t["extent_mm"]
 	x0 = _origin.x + float(e[0]) / 1000.0
@@ -125,6 +128,8 @@ func _rasterise(t: Dictionary, water: Variant, paths: Array, decks: Array = []) 
 		_path(path, names.find(path["layer"]))
 	for deck in decks:
 		_under_deck(deck)
+	for c in cuts:
+		_cut(c["rect"], float(c["to_m"]), bool(c["strict"]))
 	var ctx := HashingContext.new()
 	ctx.start(HashingContext.HASH_SHA256)
 	ctx.update(heights.to_byte_array())
@@ -237,6 +242,20 @@ func _under_deck(deck: Dictionary) -> void:
 			# under the deck's lower end: the ground never rises toward the walked floor's own level
 			var limit := _origin.y + minf(DepictionDecks.surface_at(deck, on), float(deck["surface_m"])) - thickness
 			heights[j * nx + i] = minf(heights[j * nx + i], limit)
+
+
+## The ground inside plan rect `r` (mm) at most `to_m` above the street; `strict`: only vertices more than
+## a millimetre inside it, so the ground on its edges (a room's wall beside a platform) is kept.
+func _cut(r: Rect2, to_m: float, strict: bool) -> void:
+	var inner := r.grow(-1.0) if strict else r.grow(0.5)
+	var span := _span(r)
+	for j in range(span.position.y, span.end.y):
+		for i in range(span.position.x, span.end.x):
+			var p := _plan(i, j)
+			var inside := inner.has_point(p) if strict else (p.x >= inner.position.x and p.x <= inner.end.x
+				and p.y >= inner.position.y and p.y <= inner.end.y)
+			if inside:
+				heights[j * nx + i] = minf(heights[j * nx + i], _origin.y + to_m)
 
 
 ## A path paints its layer within its half-width of its centre line.

@@ -338,10 +338,18 @@ def peak_rss_bytes() -> int:
         kernel.GetCurrentProcess.restype = wintypes.HANDLE
         psapi.GetProcessMemoryInfo(kernel.GetCurrentProcess(), ctypes.byref(counters), counters.cb)
         return int(counters.PeakWorkingSetSize)
+    if sys.platform == "linux":
+        # Not `ru_maxrss`: Linux carries the parent's high-water mark into a child across `exec`
+        # (`exec_mmap` folds the old mm's peak into the signal's `maxrss`), and `spawn` starts the
+        # worker with vfork + exec from the pytest process, so `ru_maxrss` reads the parent's peak.
+        # `VmHWM` is this process's own mm only, which is what S-4 bounds (F-S28g-8, D-g-10).
+        for line in Path("/proc/self/status").read_text(encoding="ascii").splitlines():
+            if line.startswith("VmHWM:"):
+                return int(line.split()[1]) * 1024
+        raise RuntimeError("/proc/self/status has no VmHWM line")
     import resource
 
-    peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-    return peak if sys.platform == "darwin" else peak * 1024
+    return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
 
 
 @dataclass(frozen=True)
@@ -614,7 +622,10 @@ def run_scale(spec: ScaleSpec, scratch: Path) -> ScaleRun:
     ]
     (scratch / "alone" / str(instance)).mkdir(parents=True, exist_ok=True)
     with ProcessPoolExecutor(
-        max_workers=max(1, spec.workers), mp_context=get_context("spawn")
+        # One task per worker: a reused worker's peak would include the group it absorbed before.
+        max_workers=max(1, spec.workers),
+        mp_context=get_context("spawn"),
+        max_tasks_per_child=1,
     ) as pool:
         began = time.monotonic()
         homes = tuple(pool.map(absorb_group, jobs))

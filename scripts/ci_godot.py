@@ -20,6 +20,8 @@
         this OS's named skips (SKIPS below), through `ci_repeat.py` once so that a failing test is named in
         artifacts/nightly/clients-tests.txt; the skips and their reasons go to artifacts/nightly/notes.txt.
         Where a connected 3D test runs, one unjudged launch of the 3D slice first warms its caches (ARC-149).
+    python3 scripts/ci_godot.py tests --shard K/N
+        The same, over shard K of N of the test targets, partitioned by GODOT_WEIGHTS (ARC-110's rule).
     python3 scripts/ci_godot.py coverage
         Lists the ignored Godot tests (`cargo test … -- --ignored --list`) and fails if none is found, if
         a skip below names a test that does not exist, or if a test is skipped on every OS (QC-5).
@@ -44,6 +46,7 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
+import ci_shard
 from ci_repeat import render as render_samples
 from ci_repeat import repeat
 
@@ -98,6 +101,19 @@ GODOT_TESTS = ["client_2d", "client_2d_interact", "client_2d_interact_stub", "cl
                # S14 16e (ARC-347): Demo B — AC-13 and AC-15 with the real 2D and 3D clients, and "one
                # world, two views" (the 3D runs take the ARC-291 low-cost flags like every slice launch)
                "ac13_clients", "ac15_clients", "shown_parity"]
+# Seconds per Godot test target, for `tests --shard K/N` (ARC-110's rule, ci_shard.partition): the wall time
+# between cargo's `Running` lines on macos-26 in nightly 40412844680 (2026-10-26). Linux matched macOS within
+# 3 % per target on the night both ran whole (39676698282, 2026-10-21), so one table serves both. ac13_clients
+# failed in 0.5 s that night; its 300 s is ac15_clients' per-test cost (~45 s for each of the two clients)
+# times its three tests, an estimate until a green night measures it. A target missing here weighs
+# ci_shard.DEFAULT_WEIGHT and still lands in exactly one shard. Linux runs the Godot tests as two shards
+# because, unsharded beside the probes, the job outran its 75 minutes (nightly 40412844680).
+GODOT_WEIGHTS: dict[str, int] = {
+    "client_settings": 1139, "client_far_field": 411, "ac13_clients": 300, "client_2d": 291, "demo_a": 227,
+    "shown_parity": 170, "ac15_clients": 128, "client_2d_interact": 89, "client_2d_interact_stub": 31,
+    "client_sit_rule": 13, "client_station": 9, "client_2d_attributes": 8, "item_names": 5,
+    "client_depiction": 4, "needs_rows_parity": 2,
+}
 # SET-b's connected 3D settings tests. They hung on llvmpipe and on WARP (nightly 38919486641: fewer than 12
 # frames in 240 s; ARC-149) and were skipped there. Since ARC-291 every harness launch of the slice passes
 # `--aniso=off --render-cost=low` (half render scale, GI none, no shadows, SSAO or glow), so they run on all
@@ -320,12 +336,23 @@ def kill_group(process: subprocess.Popen[bytes]) -> None:
 # ------------------------------------------------------------------------------------------- coverage
 
 
-def godot_tests_command(*libtest: str) -> list[str]:
+def godot_tests_command(*libtest: str, targets: list[str] | None = None) -> list[str]:
     # --no-fail-fast: a failing client_2d must not hide client_settings' results (run 38094677692).
     command = ["cargo", "test", "--no-fail-fast", "-p", "mineworld-cli"]
-    for test in GODOT_TESTS:
+    for test in GODOT_TESTS if targets is None else targets:
         command += ["--test", test]
     return [*command, "--", "--ignored", *libtest]
+
+
+def shard_targets(text: str) -> tuple[list[str], str]:
+    """The Godot test targets of shard K/N (or K,L/N), partitioned by GODOT_WEIGHTS with ci_shard's
+    longest-processing-time rule, and a one-line account of the whole partition for the log."""
+    indices, count = ci_shard.parse_shard(text)
+    shards = ci_shard.partition(GODOT_TESTS, count, GODOT_WEIGHTS)
+    loads = [sum(GODOT_WEIGHTS.get(t, ci_shard.DEFAULT_WEIGHT) for t in shard) for shard in shards]
+    account = ", ".join(f"{n}/{count}: {len(shard)} targets ~{load} s"
+                        for n, (shard, load) in enumerate(zip(shards, loads), 1))
+    return sorted(t for index in indices for t in shards[index - 1]), account
 
 
 def skips_on(system: str) -> dict[str, str]:
@@ -367,11 +394,16 @@ def warm_3d_client(system: str, skips: dict[str, str]) -> None:
         out.write(note + "\n")
 
 
-def run_tests(system: str) -> int:
+def run_tests(system: str, shard: str | None = None) -> int:
     skips = skips_on(system)
+    targets = None
+    if shard is not None:
+        targets, account = shard_targets(shard)
+        print(f"[godot] shard {shard} of the Godot tests: {' '.join(targets)} (partition: {account})", flush=True)
     warm_3d_client(system, skips)
     command = godot_tests_command("--test-threads=1", "--exact",
-                                  *[part for name in sorted(skips) for part in ("--skip", name)])
+                                  *[part for name in sorted(skips) for part in ("--skip", name)],
+                                  targets=targets)
     samples = repeat(1, command)
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "clients-tests.txt").write_text(render_samples(samples, command), encoding="utf-8", newline="\n")
@@ -475,6 +507,12 @@ def self_test() -> int:
         ("an unruled third name on the not-run list is refused",
          bool(ruled_list_failures({**HOSTED_UNRUNNABLE, "three_d_x": "r"}))),
         ("every OS has a pinned build", set(ASSETS) == set(OSES) and all(len(pin) == 128 for _, pin, _ in ASSETS.values())),
+        ("every weighed Godot target is a Godot test target", set(GODOT_WEIGHTS) <= set(GODOT_TESTS)),
+        ("the two Linux shards hold every Godot target exactly once",
+         sorted(shard_targets("1/2")[0] + shard_targets("2/2")[0]) == sorted(GODOT_TESTS)),
+        ("shards 1,2/2 together are the whole list", shard_targets("1,2/2")[0] == sorted(GODOT_TESTS)),
+        ("the heaviest target, client_settings, opens shard 1 and client_far_field shard 2",
+         "client_settings" in shard_targets("1/2")[0] and "client_far_field" in shard_targets("2/2")[0]),
     ]
     failed = 0
     for name, good in cases:
@@ -486,7 +524,7 @@ def self_test() -> int:
 
 USAGE = ("usage: ci_godot.py fetch --dest DIR [--github-env FILE] [--github-path FILE]\n"
          "       ci_godot.py slice [--limit SECONDS] FLAGS ...\n"
-         "       ci_godot.py tests | coverage | --self-test")
+         "       ci_godot.py tests [--shard K/N] | coverage | --self-test")
 
 
 def main(arguments: list[str]) -> int:
@@ -497,6 +535,13 @@ def main(arguments: list[str]) -> int:
             return coverage()
         if arguments == ["tests"]:
             return run_tests(platform.system())
+        if len(arguments) == 3 and arguments[:2] == ["tests", "--shard"]:
+            try:
+                ci_shard.parse_shard(arguments[2])
+            except ValueError as error:
+                print(f"ci_godot.py: {error}", file=sys.stderr)
+                return 2
+            return run_tests(platform.system(), arguments[2])
         if arguments[:1] == ["slice"] and len(arguments) > 1:
             flags, limit = arguments[1:], SLICE_LIMIT
             if flags[0] == "--limit" and len(flags) > 2:
