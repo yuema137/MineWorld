@@ -12,6 +12,7 @@ use std::collections::BTreeMap;
 use mineworld_contracts::Tag;
 use mineworld_decision::ModelParameters;
 use mineworld_rule_controller::commute::Commute;
+use mineworld_rule_controller::price::Pricing;
 use schemars::{JsonSchema, Schema, SchemaGenerator};
 use serde::de::{Error as DeError, MapAccess, Visitor};
 use serde::{Deserializer, Serialize};
@@ -33,6 +34,7 @@ const KEYS: &[&str] = &[
     "commute",
     "attributes",
     "homeward",
+    "pricing",
 ];
 
 /// The most entries `attributes` may list (S30-f §5.7).
@@ -131,6 +133,8 @@ pub struct MotivatedParameters {
     /// The tiredness a door home adds before it reads `pressure`, 0 … 600 (`pr-s35-nc3` SD-Nc3-2).
     #[schemars(range(min = 0, max = 600))]
     pub homeward: u16,
+    /// How a seat prices what it sells and chooses what it buys: `rule`'s block (`ARC-117`).
+    pub pricing: Pricing,
     /// The settings the parameters derive, built at decode time and never serialized.
     #[serde(skip)]
     #[schemars(skip)]
@@ -164,6 +168,7 @@ impl Default for MotivatedParameters {
             commute: settings.commute,
             attributes: Vec::new(),
             homeward: settings.homeward,
+            pricing: settings.pricing.clone(),
             settings,
         }
     }
@@ -195,7 +200,7 @@ impl<'de> Visitor<'de> for Fields {
     type Value = MotivatedParameters;
 
     fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str("a mapping of motivated parameters (curves, top_band, commit_minutes, social_need_hours, reply_floor, base, roles, curve, commute, attributes, homeward)")
+        formatter.write_str("a mapping of motivated parameters (curves, top_band, commit_minutes, social_need_hours, reply_floor, base, roles, curve, commute, attributes, homeward, pricing)")
     }
 
     fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<MotivatedParameters, A::Error> {
@@ -281,6 +286,7 @@ impl<'de> Visitor<'de> for Fields {
                 "homeward" => {
                     parameters.homeward = within::<u16, A::Error>(&key, map.next_value()?, 0, 600)?;
                 }
+                "pricing" => parameters.pricing = map.next_value()?,
                 _ => return Err(A::Error::unknown_field(&key, KEYS)),
             }
             seen.push(key);
@@ -407,6 +413,7 @@ fn finish<E: DeError>(mut parameters: MotivatedParameters) -> Result<MotivatedPa
     settings.commute = parameters.commute;
     settings.attributes = parameters.attributes.clone();
     settings.homeward = parameters.homeward;
+    settings.pricing = parameters.pricing.clone();
     for (name, points) in &parameters.curve {
         let curve = Curve::new(points.clone()).map_err(E::custom)?;
         if settings.curves.atus.replace(name, curve.clone()) {

@@ -442,7 +442,17 @@ pub fn request(
         Choice::Door(place) | Choice::Commute(place) => {
             act::head_for(observation, *place)?.request()
         }
-        Choice::Offered(index) | Choice::Penalize(index) => {
+        // The pricing block's buyer hook: the chosen offer's own request, unless `buy.choose` says to buy
+        // the same kind more cheaply (`ARC-117`; no draw).
+        Choice::Offered(index) => {
+            let affordance = observation.affordances().get(*index)?;
+            mineworld_rule_controller::price::on_chosen_buy(
+                observation,
+                &context.settings.pricing,
+                affordance,
+            )
+        }
+        Choice::Penalize(index) => {
             let affordance = observation.affordances().get(*index)?;
             affordance.request(me, encoded)
         }
