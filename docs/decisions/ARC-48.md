@@ -264,3 +264,11 @@ Design: `.structured-coding/plans/mvp0/pr-s23-rb-release-workflow.md` §3.10.
   the input `draft: true`. It creates draft releases only; nothing in it publishes (`ARC-79`).
 - `publish.yml` (R-d) is the only workflow that may read a secret.
 - `fast` gains `ci_release.py --self-test`.
+
+---
+
+## ARC-48 note — the onboarding cold-start workflow (2026-10-27, ARC-362)
+
+- A new workflow, `.github/workflows/cold-start.yml`, runs weekly, on dispatch, on `workflow_run` of the release workflow ("Release"), and on pushes to `cold-start/**`. Never on `pull_request`.
+- Its jobs `cold-start-harness (<os>)`, `cold-start-a (<os>)`, `cold-start-b (<target>)` and `cold-start` block nothing: none is a required check, so none is an interface yet. If R-b's `verify-tag` comes to require a green run (Q-25g-6), `cold-start` becomes one, recorded then.
+- `ci.yml` is unchanged. `fast` gains one self-test, `scripts/ci_cold_start.py --self-test`.

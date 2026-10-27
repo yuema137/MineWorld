@@ -194,7 +194,56 @@ on CI as written, per platform, and that no directive stands in for them.
    binary, §4.2).
 6. **Outcome.** The block passes when the script exits 0. Its output is not matched; a failure shows the exit code
    and everything it printed. `requires`, `operator-only` and `equals` qualify a shell block as they qualify any
-   executed block; `packs` does not.
+   executed block; `packs` does not. A `cold-start` block (§6) is not run in this mode: it is listed by page and
+   step with the reason `cold-start`, and, unlike a pending block, it does not make the blocks after it pending.
+
+### 4.7 Cold-start mode
+
+The repository's own guide test (§4.6) runs on a CI machine that already has Rust, Git LFS and a warm build, and
+its clone reads the checked-out copy. Cold-start mode answers a different question: can a stranger with a clean
+computer follow the guide from its first line? It is run only by `.github/workflows/cold-start.yml`
+([`ARC-362`](decisions/ARC-362.md)), on a hosted runner whose preinstalled Rust and Git LFS were removed and shown
+absent first, through the ignored test `cold_start` of `tools/cli/tests/guide.rs`. That test reads its configuration
+from the TOML file named by the environment variable `MINEWORLD_COLD_START`; without the variable or the file it
+fails, naming this section. It never passes by doing nothing.
+
+A run is in exactly one mode. A cold-start run differs from §4.6 in these ways, and in no other:
+
+1. **The reader's home is the real home** of the runner's user. Shell blocks see the process's own `HOME` (on
+   Windows `USERPROFILE`, `HOMEDRIVE`, `HOMEPATH`). `CARGO_HOME`, `RUSTUP_HOME` and `CARGO_TARGET_DIR` are removed
+   from a shell block's environment.
+2. **The clone is real.** No `insteadOf`, no `safe.directory`, no `GIT_LFS_SKIP_SMUDGE`: `git clone
+   https://github.com/yuema137/MineWorld` reads GitHub.
+3. **The build is real.** `cargo build --release -p mineworld-cli` writes the clone's own `target/`.
+4. **Every block starts as a new terminal.** On macOS and Linux a shell block runs as `sh -l -e FILE`: a login
+   shell reads `~/.profile`, where rustup's installer puts `~/.cargo/bin` on `PATH`. On Windows, the block's first
+   line rebuilds `PATH` from the Machine and User `Path` in the registry, as a newly opened PowerShell window has it.
+5. **The binary.** Every console command and every feature probe (§9.1) runs the file the configuration names, not
+   the test's own build. In layer A that is the reader's `$HOME/MineWorld/target/release/mineworld[.exe]`; after page
+   `01-get-mineworld` the runner checks that it exists, and a missing file fails the run with "the reader's build
+   made no binary at PATH". In layer B it is the downloaded bundle's `runtime/mineworld[.exe]`.
+6. **`cold-start` blocks run** (§6).
+7. **Pages** may be limited to a list (layer B runs `02-your-first-world` … `06-play-it`). A listed page must not
+   continue a page outside the list.
+8. **The commit.** Layer A checks, after page 01, that the clone's `HEAD` is the commit the test was built from and
+   that the clone's `docs/guide` equals the pages the run read, byte for byte; layer B checks that the bundle's
+   `runtime/BUNDLE.toml` names that commit. A difference is `INCONCLUSIVE`, which fails the run: a run that proved
+   nothing is never a pass. On a branch other than `main` (pre-merge evidence), layer A checks the branch's commit
+   out in the clone after page 01 and builds it again, and layer B records the bundle's commit beside the harness's;
+   such a run is headed **PRE-MERGE** and is never acceptance evidence.
+9. **Guards.** Layer A runs the guards of §§7–9 against the clone. Layer B runs the feature probes of §9.1 against
+   the bundled binary; it has no repository, so mirror parity and links are the default test's and layer A's.
+10. **Expectation.** The blocks a cold-start run does not run are held to `tools/cli/tests/guide/expected_cold_start.toml`
+    (tables `[a]` and `[b]`, each a `not_run` list and a `minimum_passed`), compared as §11.1 compares the default
+    run.
+11. **Substitutes.** An `operator-only` block is still never run. After the guide run, a second phase of the same test
+    runs named substitutes for some of them (a headless server, the 2D client's `--drive=walk`, the recorded agent
+    session through the real MCP adapter), each reported under its own name and never as the page's block. No
+    substitute starts a language model.
+12. **Mutations.** A run may name one committed mutation (`tools/cli/tests/guide/cold_start_mutations.toml`): an
+    exact text of one page and its replacement, applied in memory to the page text the runner reads, never to a
+    file. An unknown name, or a text the page does not hold, fails the run. Mutations exist to show the run turns
+    red on a wrong page.
 
 ---
 
@@ -227,6 +276,7 @@ does not know fails the page, naming it.
 | `operator-only` | the next block | The block needs a live model, a display or a running server. It is never run in CI; it is listed in every run. |
 | `equals DIR PATH` | the next block; the block must be a command block, a shell block or a file block | After the block, the scratch folder's `DIR` equals the committed folder `PATH` file by file, byte for byte (§6.1). `DIR` is relative to the scratch folder; `PATH` is relative to the repository root. |
 | `packs DIR` | the next command block | Each command in the next block receives `--packs DIR` appended after its arguments. `DIR` is relative to the scratch folder and confined as §3.2. The page does not show the flag. |
+| `cold-start` | the next shell block only | The block installs software a reader needs (Git LFS, Rust). It runs only in cold-start mode (§4.7); in the default run it is listed with the reason `cold-start` and does not stop the blocks after it. On a `console` block or a file block it fails the page. |
 
 There is no `copy` directive and no `example` directive (PR 25e). They stood in for the per-OS copy commands a page
 showed; since the operator's ruling of 2026-10-18 those commands are shell blocks and run themselves (§4.6). A
@@ -404,6 +454,9 @@ For each run the runner prints, in order:
 3. The pending total and the list of pending features by name.
 4. The result of each guard (mirror parity, `equals`, links, features versus build), each as `PASS`, `FAIL` or
    `INCONCLUSIVE`, derived from what was actually checked.
+5. One line of timings: each page's wall time, in run order. A cold-start run also writes its report as a file
+   (each page's time and verdict, each block's time for page 01, each substitute), which the workflow renders as a
+   Markdown table in the job summary (§4.7).
 
 ### 11.1 The real guide's committed run
 

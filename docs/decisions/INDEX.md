@@ -190,6 +190,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-350](ARC-350.md) | Offers are ordered by the category each pack declares for its actions |
 | [ARC-360](ARC-360.md) | Putting things down, seeing shelves, keeping shifts |
 | [ARC-361](ARC-361.md) | Nobody trapped in a pocket or a doorway, and chance purchases within a budget |
+| [ARC-362](ARC-362.md) | The onboarding cold-start check: a clean runner, the guide in cold-start mode, the bundle check |
 | [ARC-364](ARC-364.md) | A shop sells only inside its authored daily hours |
 | [ARC-370](ARC-370.md) | Food energy is a kcal reserve variant of `needs`' one hunger state; invalid authored genesis is a domain-neutral kernel error; a new save is created only after a valid genesis |
 | [ARC-371](ARC-371.md) | A world states the time of day it begins (`world.yaml` `begins:`) |
