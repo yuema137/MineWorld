@@ -66,6 +66,8 @@ LAYERS: dict[str, list[list[str]]] = {
         ["python3", "scripts/check_cast.py"],
         ["python3", "scripts/check_cast.py", "--self-test"],
         ["python3", "scripts/ci_changes.py", "--self-test"],
+        # The packaging script's A-R3 exclusions, A-R4 budget and archive determinism (S23 R-a).
+        ["python3", "scripts/package.py", "--self-test"],
         # The nightly's classifiers (ARC-83), each under a second: a verdict rule that fails open would
         # otherwise be found only by a red night that never comes.
         ["python3", "scripts/ci_nightly.py", "--self-test"],
@@ -163,6 +165,14 @@ LAYERS.update({
         ["uv", "run", "--locked", "pytest", "cognition/lm-controller", "-m", "slow"],
         ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
     ],
+    # The memory scale gates (pr-s28g §5.5): 12 people and the tiled 100-person café, each for 300 days, through
+    # the release binary (the gates set MINEWORLD_BIN to it) and the shipped memory code. `-m scale` replaces the
+    # member's `addopts` expression; the timings land in artifacts/nightly/timings-memory-scale.json.
+    "memory-scale": [
+        ["cargo", "build", "--release", "--locked", "-p", "mineworld-cli"],
+        ["uv", "run", "--locked", "pytest", "cognition/lm-controller", "-m", "scale"],
+        ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
+    ],
     # The unchanged default suite sampled twice more on this commit (flakes); every sample runs.
     "core-repeat": [
         ["cargo", "test", "--workspace", "--no-run"],
@@ -179,14 +189,25 @@ LAYERS.update({
         ["python3", "scripts/ci_godot.py", "coverage"],
         ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
     ],
+    # PR 16g1 (AC-3DS-1 … -4, -6): typed speech in both Godot clients, and Alice on her `lm` seat with
+    # Milestone D's scripted model recalling a line told in the other view. It needs Godot and the Python
+    # workspace at once, so it is its own nightly job (`speech-linux`), never part of `clients`.
+    "speech": [
+        ["uv", "sync", "--locked"],
+        ["cargo", "build", "-p", "mineworld-cli"],
+        ["cargo", "test", "-p", "mineworld-cli", "--test", "speech_both_ways", "--", "--ignored",
+         "--test-threads=1"],
+        ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
+    ],
     # RL-e0 (Q-FF-5, operator 2026-10-15): the far-field checks per PR on Linux, when ci_changes.py says
     # a client, a Presentation Pack or a launcher changed (the `farfield` job of ci.yml) -- the hosted Linux
     # run of the 3D check; the nightly `farfield-3d` layer runs the 3D check on Windows, and the `clients`
     # layer the 2D check and the validators on all three OSes (ci_godot.py SKIPS and DEDICATED, R-FF-1).
     "farfield": [
         ["cargo", "build", "-p", "mineworld-cli"],
+        # S33-d: Lakeside's 3D check runs nightly on Windows (farfield-3d), not in this 50-min job
         ["cargo", "test", "-p", "mineworld-cli", "--test", "client_far_field", "--", "--ignored",
-         "--test-threads=1"],
+         "--skip", "three_d_lakeside_far_field_closes_every_open_sector", "--test-threads=1"],
         ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
     ],
     # RL-e0 R-FF-1 on Windows (F-FF-CI-3, 2026-10-18): the 3D rendered far-field check alone, in the nightly
@@ -195,6 +216,9 @@ LAYERS.update({
         ["cargo", "build", "-p", "mineworld-cli"],
         ["cargo", "test", "-p", "mineworld-cli", "--test", "client_far_field", "--", "--ignored", "--exact",
          "three_d_far_field_closes_every_open_sector", "--test-threads=1"],
+        # S33-d AC-d-1: Lakeside drawn from its depiction file
+        ["cargo", "test", "-p", "mineworld-cli", "--test", "client_far_field", "--", "--ignored", "--exact",
+         "three_d_lakeside_far_field_closes_every_open_sector", "--test-threads=1"],
         ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
     ],
     # The bash launchers' probes, Linux and macOS (W-9): the 3D slice's verdicts parsed (they exit 0 on
@@ -204,9 +228,23 @@ LAYERS.update({
         ["python3", "scripts/ci_godot.py", "slice", "--drive"],
         ["python3", "scripts/ci_godot.py", "slice", "--world", "--link"],
         ["python3", "scripts/ci_godot.py", "slice", "--world", "--target"],
+        # S33-c (ARC-144): Lakeside on the same server path, drawn from its depiction file (S33-d); its
+        # scene walls against the server's along the whole probe route, now that S33-e draws the pier and
+        # S33-f the bakery's and the boat shed's rooms (S33-d sec.15, C11; D-S33d-16)
+        ["python3", "scripts/ci_godot.py", "slice", "--world=lakeside", "--link"],
+        ["python3", "scripts/ci_godot.py", "slice", "--world=lakeside", "--geometry"],
+        # S33-f (AC-f-2, AC-S33-3): every Lakeside sit point holds every body this checkout can build
+        # within 20 mm of the drawn seat; bodies a checkout without LFS lacks are reported SKIP
+        ["python3", "scripts/ci_godot.py", "slice", "--world=lakeside", "--seat"],
+        # S33-i's agent + 3D observer pair is its own layer, `agent-observer`, so that Windows runs it too.
         # S15 12e: bodies in the 3D client (step-11 §22.4; the QE-9 requirement on 13c's clients job)
         ["python3", "scripts/ci_godot.py", "slice", "--world", "--geometry"],
         ["python3", "scripts/ci_godot.py", "slice", "--world", "--bodies"],
+        # S14 16f-b (ARC-52): a world with no depiction, drawn plainly from the server's walls and walked
+        # through its doorways; the art held to the disclosure with the greybox pack too
+        ["python3", "scripts/ci_godot.py", "slice", "--world=bodies-yard", "--link"],
+        ["python3", "scripts/ci_godot.py", "slice", "--world", "--geometry",
+         "--presentation=presentation/mineworld-greybox/3D"],
         ["bash", "clients/protocol/run.sh", "evidence"],
         ["bash", "clients/protocol/run.sh", "affordances"],
         ["bash", "clients/protocol/run.sh", "reconnect"],
@@ -214,13 +252,45 @@ LAYERS.update({
         ["bash", "clients/protocol/run.sh", "deltas"],
         ["bash", "clients/protocol/run.sh", "admin"],
         ["cargo", "test", "-p", "mineworld-cli", "--test", "ac13_semantic_parity"],
+        # S36-P4: runtime foot grounding (pr-s36-p4-foot-grounding.md §4 commit 4). Its own checks gate: the per-side
+        # lift, flat on = off, the step straddle, the cost. Every body the client draws over the seed-1 course and
+        # across the slice street's kerb is measured and recorded, not yet judged: the course's residual frames stay
+        # record-only (Q-S36-P4-3); on the street, since S36-P4b's drawn-step colliders (Q-S36-P4-4) every body's
+        # straddles pass and only the walker's touchdown frames remain (pr-s36-p4b-colliders-jog.md §7).
+        ["python3", "tools/character_pipeline/cast.py", "feet", "--self-test", "artifacts/nightly/feet-selftest"],
+        ["python3", "tools/character_pipeline/cast.py", "feet", "--run", "artifacts/nightly/feet-seed1",
+         "--seed", "1", "--record-only"],
+        ["python3", "tools/character_pipeline/cast.py", "feet", "--run", "artifacts/nightly/feet-street",
+         "--scene", "street", "--record-only"],
+        # S36-P5: every drawn prop of both towns' café, street and store, dumped by the slice, then judged
+        # against the disclosed solids and its drawn support (`cast.py contact-scene`, PIPELINE.md §18).
+        # Last, so a scene failure never hides the probes above; the dumps are uploaded with the night.
+        ["python3", "scripts/ci_godot.py", "slice", "--world", "--props",
+         "--props-dump=artifacts/nightly/props/social-cafe"],
+        ["python3", "scripts/ci_godot.py", "slice", "--world=market-town", "--props",
+         "--props-dump=artifacts/nightly/props/market-town"],
+        ["uv", "run", "--locked", "python", "tools/character_pipeline/cast.py", "contact-scene",
+         "artifacts/nightly/props"],
+        ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
+    ],
+    # S33-i (AC-i-4, ARC-175): the scripted MCP agent walks Lakeside while a real 3D client watches from the
+    # street. It needs Godot and the Python workspace and no bash launcher, so unlike `clients-probes` it runs
+    # in all three `clients-<os>` jobs, after their `clients` layer, each of which sets up uv.
+    "agent-observer": [
+        ["uv", "sync", "--locked"],
+        ["cargo", "build", "-p", "mineworld-cli"],
+        ["cargo", "test", "-p", "mineworld-cli", "--test", "agent_with_3d_observer", "--", "--ignored",
+         "--test-threads=1"],
         ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
     ],
 })
 # The nightly's layers record how they ended (artifacts/nightly/layer-<layer>.txt): `started`, then
 # `passed` or `failed at: <command>`. The night's verdict reads it, so that a layer that never started is
 # INCONCLUSIVE and one that ran and failed is FAIL (I-13c-3). Per-PR layers write nothing.
-NIGHTLY_LAYERS = {"parity-long", "stability", "core-repeat", "clients", "clients-probes", "farfield-3d"}
+NIGHTLY_LAYERS = {
+    "parity-long", "stability", "core-repeat", "clients", "clients-probes", "agent-observer", "farfield-3d",
+    "memory-scale", "speech",
+}
 
 # The Python workspace (sdk/python; DECISIONS.md DEP-26, ARC-48's note of 2026-10-08). Its tests never
 # join `core`, whose job is a required check that must not get slower (pr-s10-p3 QP3-3). Every
@@ -233,7 +303,8 @@ PYTHON_MEMBERS = ["sdk/python", "cognition/lm-controller", "clients/agent"]
 # The onboarding harness (S25 PR 25f, tools/onboarding/PROTOCOL.md §9): standard-library scripts, not a workspace
 # member (no dependency, nothing in uv.lock), held to the same static checks; its tests run with the workspace's
 # pytest. Its own tests never start an agent or call a model (INV-S25-6).
-PYTHON_TOOLS = ["tools/onboarding"]
+# The world tiler (pr-s28g §5.2) joins them: one script over PyYAML (the root dev group) and its tests.
+PYTHON_TOOLS = ["tools/onboarding", "tools/worldgen"]
 PYTHON_STATIC: list[list[str]] = [
     ["uv", "sync", "--locked"],
     ["uv", "run", "--locked", "ruff", "check", *PYTHON_MEMBERS, *PYTHON_TOOLS],
@@ -280,6 +351,7 @@ LAYERS["python"] = [
     ["uv", "run", "--locked", "pytest", "cognition/lm-controller"],
     ["uv", "run", "--locked", "pytest", "clients/agent"],
     ["uv", "run", "--locked", "pytest", "tools/onboarding"],
+    ["uv", "run", "--locked", "pytest", "tools/worldgen"],
     ["uv", "run", "--locked", "pytest", f"{PIPELINE}/tests"],
     [sys.executable, f"{PIPELINE}/cast.py", "check-characters"],
     # S36-P1: C-3 and C-4 over every prop of the model library (needs numpy and the mesh libraries, so it runs
@@ -298,8 +370,12 @@ LAYERS["python"] = [
 ]
 # IC-7 (S10 P7): a copy of the checkout without `cognition/lm-controller/` and its workspace line still
 # syncs, builds and passes — the SDK, the agent library, and the whole Rust workspace, Milestone D's
-# unplugged run among it (`scripts/ci_removability.py`, `pr-s10-p7-milestone-d.md` D-P7-3).
+# unplugged run among it (`scripts/ci_removability.py`, `pr-s10-p7-milestone-d.md` D-P7-3). And ARC-347
+# (16e D-e-3): a copy without the 3D client formats, lints and passes every Rust test. The 3D check runs
+# first, so its verdict is in the log whatever IC-7's is; without Godot in the container, its 2D drive is
+# left out by name (`--no-godot`).
 LAYERS["removability"] = [
+    [sys.executable, "scripts/ci_removability.py", "--target", "3d", "--no-godot"],
     [sys.executable, "scripts/ci_removability.py"],
 ]
 # No Rust build: the tests that need the binary — the SDK's real_server tests and the cognition
@@ -311,10 +387,11 @@ LAYERS["python-smoke"] = [
     ["uv", "run", "--locked", "pytest", "sdk/python", "-m", "not real_server"],
     [
         "uv", "run", "--locked", "pytest", "cognition/lm-controller",
-        "-m", "not live_model and not real_binary and not slow",
+        "-m", "not live_model and not real_binary and not slow and not scale",
     ],
     ["uv", "run", "--locked", "pytest", "clients/agent", "-m", "not real_server"],
     ["uv", "run", "--locked", "pytest", "tools/onboarding", "-m", "not real_binary"],
+    ["uv", "run", "--locked", "pytest", "tools/worldgen", "-m", "not real_binary"],
     ["uv", "run", "--locked", "pytest", f"{PIPELINE}/tests"],
     [sys.executable, f"{PIPELINE}/cast.py", "check-characters"],
     CAST_DIRECTOR_CHECK,
@@ -326,7 +403,7 @@ LAYERS["python-smoke"] = [
 COMMAND_ENVIRONMENT = {"PYRIGHT_PYTHON_GLOBAL_NODE": "0", "PYRIGHT_PYTHON_IGNORE_WARNINGS": "1"}
 
 # Layers whose disk use is worth recording (step-14 A13-3: free disk and the size of target/).
-MEASURES_DISK = {"core", "parity-long", "stability", "core-repeat"}
+MEASURES_DISK = {"core", "parity-long", "stability", "core-repeat", "memory-scale"}
 
 ENVIRONMENT: list[list[str]] = [
     ["rustc", "-V"],
@@ -451,7 +528,10 @@ def result(layer: str, line: str) -> None:
 # Layers that may run as shards (ARC-110): `core`'s cargo commands become shard K's, and the scratch check
 # still closes the layer, so each shard leaves nothing behind. `core-repeat` shards the same partition
 # (ARC-149): shard K builds its targets, then samples its tests twice through ci_repeat.py.
-SHARDABLE = {"core", "core-repeat"}
+# `clients` shards its Godot test targets by ci_godot.py's GODOT_WEIGHTS (the nightly's Linux jobs, which
+# outran 75 minutes unsharded beside the probes); its build, coverage and scratch checks run in every shard.
+SHARDABLE = {"core", "core-repeat", "clients"}
+GODOT_TESTS_COMMAND = ["python3", "scripts/ci_godot.py", "tests"]
 
 
 def repeat_commands(cargo: list[list[str]]) -> list[list[str]]:
@@ -474,6 +554,9 @@ def commands_of(layer: str, shard: str | None) -> list[list[str]]:
     non-cargo-test commands in their order."""
     if shard is None:
         return LAYERS[layer]
+    if layer == "clients":
+        return [[*command, "--shard", shard] if command == GODOT_TESTS_COMMAND else command
+                for command in LAYERS[layer]]
     cargo, account = ci_shard.shard_commands(shard)
     print(f"[ci] shard {shard} of {layer}; {account}", flush=True)
     if layer == "core-repeat":

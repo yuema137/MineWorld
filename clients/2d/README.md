@@ -4,12 +4,24 @@ A real world you walk around in: `mineworld-2d` joins a running MineWorld server
 draws the town that Person can see, in the default isometric `town` style.
 
 ```sh
-./mineworld-2d                  # host worlds/market-town locally and play it as Carol
-./mineworld-2d --seat visitor   # the same world, as somebody else
+./mineworld-2d                  # host worlds/market-town locally, with its town alive; pick a person
+./mineworld-2d --world worlds/lakeside   # another world: its own people are listed
+./mineworld-2d --join-local     # a second window: join the world the first one hosts
+./mineworld-2d --seat visitor   # skip the join screen and play as the visitor
+./mineworld-2d --no-town        # nobody else moves (a quiet world, for debugging)
 ./mineworld-2d --server 127.0.0.1:7878 --invite TOKEN   # join a world someone else is hosting,
                                                          # with the invite its server printed
 ./mineworld-2d --drive=walk     # the scripted checks, headless
 ```
+
+Demo A, the whole story played by the scripted client on two worlds (S12 13f):
+`cargo test -p mineworld-cli --test demo_a -- --ignored --test-threads=1`.
+
+The join screen lists the people the world offers. Pick one and press Join. If somebody else is
+already playing that person you are told so, and you may press **Take over**; they are told who took
+it and return to their own join screen. The other people of the town walk, talk and do things on their
+own. A line spoken near you appears as a bubble over the speaker; an activity starting near you
+appears as a short notice. If your connection drops, you come back as the same person.
 
 Click to walk, or use WASD / the arrow keys. Esc opens the settings menu: language (English or 简体中文),
 12- or 24-hour clock, window and display, and a Controls tab with the key map (read-only); Quit is there too. Settings stay on your machine and are
@@ -20,6 +32,20 @@ Click a person (or press E over them) for what you can do with them; click yours
 what you can do on your own — buy, eat, drink, leave an activity. Every entry is something the world
 offered; a greyed one says why not, and you may still try it. I shows your things, H your
 conversations.
+
+Where people trade, a panel opens beside the menu: what that person sells, with *Buy*; on yourself, what
+the shop here sells, and your stall — put what you carry up for sale, change a price, withdraw it. Prices
+are in the world's own money, and the money line under the status shows what you have. Sellers wear a
+price tag, and a shop's board shows its prices at the door. N shows the notice board: the current notices
+on the topics you follow, with a "new" count on the status line until you look.
+
+Balls and boxes lying in a room are drawn where the world says, and move the way it says. Click one
+for what you can do with it — kick it, throw it, or "Throw the ball at…" and then click the floor where
+it should go (Esc or a right click cancels). Try it in `worlds/bodies-yard`:
+
+```sh
+./mineworld-2d --world worlds/bodies-yard --seat ada
+```
 
 ```sh
 ./mineworld-2d --seat visitor     # in the café: talk to Alice, buy a coffee, give Bob the scarf

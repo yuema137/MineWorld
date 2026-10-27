@@ -850,6 +850,21 @@ STOP CONDITION:          each PR open, `fast` green, ledger current
   - **C3 probe mode not written.** The `--slice-needs-sleeper` probe and its café-sleep world copy are not in
     this PR; the sleeping figure is covered only by the code path above. Recorded as a follow-up for the milestone.
   - **Notice set** is kept per node lifetime (not per instance change, as the 2D does).
+- **N-e2 Godot run (fix/s35-ne2-godot, 2026-10-19, macOS, Godot 4.7.2).** The N-e2 GDScript was compiled and run for
+  the first time. `godot --headless --path clients/3d-spike --import`: no script or parse error. `needs_rows_probe.gd`
+  ran and printed six `ROWS` lines; five equalled `rows3d.<locale>.txt`, and `commute-sleeper` differed (FAIL):
+  the probe words the next part's place `1` as `bakery`, because `commute-sleeper.json` discloses place `1` with
+  the tag `bakery` (Ben is in the bakery), and §4.4 says a place reads as its tags from this observation, as the
+  live 2D panel does (`readers.gd` `learn` sets `_latest`, then `place` reads its tags). The hand-written oracle
+  wrote the id. **The oracle line was wrong**; #346 corrected it by hand in both locales; the code is unchanged.
+  Then `cargo test -p mineworld-cli --test needs_rows_parity -- --ignored`: PASS (it failed on the old oracle).
+  `ci_godot.py slice --link` loaded the slice with the needs HUD and no script error, then stopped at `FAIL: no
+  --server= given` (the mode needs a server; INCONCLUSIVE for N-e2). The connected run
+  `client_settings three_d_switches_language_live_and_settings_never_reach_the_server` (server, observations, a
+  live language switch, so `observed`, `refresh` and the translation re-render run): PASS, no script error.
+  **Open finding:** the 2D harness `clients/2d/scripts/harness/needs_rows.gd` calls `panels` without `learn`, so
+  its places read as ids, and the 2D oracle `rows.<locale>.txt` writes `1` for `commute-sleeper`; the live 2D panel
+  shows `bakery`. Neither is changed here (2D is out of this fix's scope).
 
 ### Deviations
 

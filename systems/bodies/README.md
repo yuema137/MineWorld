@@ -14,12 +14,17 @@ emits       place-shaped, body-formed, object-placed, object-moved, person-shove
             and presence's arrived and stopped-short (for shove only)
 resolves    arrivals          into a shaped place: walls stop, people are nudged, objects pushed
             doorways          walks end clear of them; idle people give way to walkers (ARC-330)
+            walkers           a later walk gives way to an earlier one; waiting is not stalling (ARC-333)
 depends on  presence          (and reads mineworld_item::is_declared, nothing else)
 ```
 
 Everything is decided on the server, on whole millimetres. Rapier sweeps, casts and flies, behind
 one module (`src/rapier.rs`); the checks that keep the world consistent are integers. A place without
 a `body:` section is untouched.
+
+A pack can hold a person in place through the `Anchoring` catalog (`src/anchoring.rs`; posture
+does, for seated people): walkers stop short of them, `shove` is refused, and each of the pack's
+fixed points must lie where a person fits (260 mm clear of every solid), or the world does not load.
 
 The rules are in [`docs/DECISIONS.md`](../../docs/DECISIONS.md) (`ARC-39` and its notes, `ARC-36`'s
 note, `DEP-13`); the section in [`docs/MODULE_SPEC.md`](../../docs/MODULE_SPEC.md) §4.1; the design in

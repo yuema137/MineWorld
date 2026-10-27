@@ -91,6 +91,8 @@ MODELS=(
   # the street
   standing_chalkboard_01 planter_box_01 planter_pot_clay shrub_02 shrub_03
   water_manhole_cover
+  # the loose ball (object_view.gd, bound by the disclosed ball shape, not by item id)
+  football
 )
 
 for s in "${MODELS[@]}"; do

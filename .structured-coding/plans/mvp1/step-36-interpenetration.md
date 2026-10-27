@@ -7,7 +7,10 @@ tolerances, the five PRs with their acceptance, risks and questions.
 **Lifecycle:** `DESIGN FROZEN — 2026-10-19` (operator approved in the primary session: freeze with Q-S36-1 … Q-S36-9 answered as recommended). It authorizes no implementation. Each PR is
 detailed to the commit in its own PR design and frozen in turn (`CLAUDE.md` §3.1). The first two are drafted beside
 this document: [`pr-s36-p1-contact-module.md`](pr-s36-p1-contact-module.md) and
-[`pr-s36-p2-gait-contact.md`](pr-s36-p2-gait-contact.md).
+[`pr-s36-p2-gait-contact.md`](pr-s36-p2-gait-contact.md). P3–P5 are drafted (2026-10-19, DRAFT, awaiting freeze):
+[`pr-s36-p3-garment-pushout.md`](pr-s36-p3-garment-pushout.md),
+[`pr-s36-p4-foot-grounding.md`](pr-s36-p4-foot-grounding.md) and
+[`pr-s36-p5-scene-layout.md`](pr-s36-p5-scene-layout.md); each lists the edits it proposes to §4 of this document.
 
 **Design session:** worktree `/Users/yuema137/mineworld-worktrees/design-step36-clip`, branch
 `docs/step36-interpenetration`, audit base `origin/main @ b843d546` (2026-10-19).
@@ -51,7 +54,7 @@ item–item and person–item overlap; existing open-source tools are adopted ra
 | --- | --- | --- |
 | O-1 | No body's lowest skinned point goes below the floor beyond tolerance, at rest, standing, and in every sampled frame of every locomotion cycle | G-4 (rest), G-4w (P2) |
 | O-2 | A foot that the gait calls planted does not float above the floor beyond tolerance | G-4w (P2) |
-| O-3 | No limb goes into the trunk beyond tolerance, at rest and in every sampled frame | C-1 (P1, rest), G-9w (P2, frames) |
+| O-3 | No limb goes into the trunk beyond tolerance, at rest and in every sampled frame, and the arms against the hips and thighs, standing included | C-1 (P1, rest), G-9w (P2, frames; S36-CC10: arms against the body core, rest and stand judged), CC-10 |
 | O-4 | No body surface pokes through the garment that covers it, and no inner garment pokes through an outer one, at rest and in every sampled frame | C-2 (P1, rest), W-4w (P3, frames) |
 | O-5 | Every floor-standing item rests on the floor; no two parts of one item interpenetrate beyond tolerance | C-3, C-4 (P1) |
 | O-6 | In the running client, feet meet the floor they stand on, also on uneven ground | P4 runtime check |
@@ -155,6 +158,7 @@ against the bounds it was measured with.
 | `floor.float.walk_frame` | 20 mm | In a walk one foot is always on the floor. The lowest point of each frame may float at most this far | inherited (S26-c-ground, CC-9) |
 | `self.limb_in_trunk` | 5 mm | An arm resting against the flank compresses skin and fat by a few millimetres; deeper is a visible clip. G-9's bound, kept | inherited (G-9, step-26 §6.1) |
 | `self.hand_in_trunk` | 5 mm | Same reason, for the hand on the hip or the belly | inherited (G-9) |
+| `self.arm_in_thigh` | 5 mm | A relaxed arm rests on the side of the thigh; skin, fat and cloth compress a few millimetres (PR S36-CC10) | inherited (G-9) |
 | `garment.poke.body` | 2 mm | About the thickness of the cloth itself: woven shirting is under 0.5 mm, denim under 1 mm, knitwear 1–3 mm (thickness measured per ASTM D1777) | inherited (W-4, step-32 §7.2); P1 records the figures read |
 | `garment.poke.layer` | 2 mm | An inner layer poking through an outer one; the same cloth-thickness reason | new, same source as above |
 | `item.rest.floor` | 3 mm | A floor-standing prop that floats or sinks by more shows a seam or loses its contact shadow at a 2 m viewing distance | new; plausibility, marked `inconclusive` until a viewing-distance test in P1 |
@@ -203,17 +207,23 @@ manifests) passes, and two generated variants fail: a body lowered 6 mm, and a b
 
 ### 4.3 P3 — garment push-out in layer order
 
-Replace the ray push-out in `blender/mpfb/garment_clean.py` (commit `a2967fb3`) with a winding-number push-out:
+Replace the ray push-out in `blender/mpfb/assemble.py` (L-b; first added in `garment_clean.py` by `a2967fb3`) with a
+winding-number push-out:
 garment vertices with winding number > 0.5 against the layer under them move out along the distance gradient to
 `+gap`. Layers are processed inner to outer (body → base layer → mid → outer), so each layer is pushed out of the
 already-fixed one under it. libigl runs in the tooling venv on exported arrays, not inside Blender's bundled Python
 (nothing is installed into Blender). W-4w replaces W-4's slab outlines in the pose sheet's outfit mode with the
-P2 dump and C-2's pairwise test, per frame. Thin features (cords, straps) are excluded by vertex group so they do not
-flip.
+P2 dump and C-2's pairwise test, per frame. (No vertex-group exclusion of cords: the push-out tests a garment only
+against the surfaces under it, so a cord outside the tee does not move; F-P3-2.)
 
 **Acceptance.** Vera's, Ivan's and Hana's outfits (route B, S32-p) pass W-4w in every sampled frame, and a
 generated outfit from `outfits.sweep` with a different seed passes too. A planted outfit (the hoodie shrunk 3 %)
 fails before push-out and passes after.
+
+*Amended by the frozen PR design (Q-S36-P3-1) and the protagonist-only wardrobe ruling:* every Vera outfit and
+the sweep pass C-2 at rest except vertices reported unreached; Vera A, Vera B and one sweep outfit pass W-4w in
+every frame; Ivan and Hana are not run. The execution record (`pr-s36-p3-garment-pushout.md` §9) shows this is not
+met by the current assets (open shells, holes): recorded findings, Q-S36-P3-3.
 
 ### 4.4 P4 — runtime foot grounding (presentation only)
 
@@ -232,7 +242,9 @@ uneven ground.
 
 Wrapped in one script, so a fallback (the Godot 4.6/4.7 IK nodes are new; `DEP-144`) is one file.
 
-**Acceptance.** On the lakeside's uneven terrain (S33-d), the client's own frame probe shows every planted foot of
+**Acceptance.** On generated courses (seeds 1–3: kerbs, ramps, stairs, uneven patches) and the slice street's kerb
+now, and on the lakeside's uneven terrain (S33-d) at the step's milestone run once S33-d merges (Q-S36-P4-1), the
+client's own frame probe shows every planted foot of
 every visible person within `floor.sink.foot` and `floor.float.planted` of the ground under it; on the café floor
 nothing changes measurably (the flat case stays at P2's numbers).
 
@@ -253,6 +265,15 @@ nothing changes measurably (the flat case stays at P2's numbers).
 Today no id links a drawn prop to its `Solid` (§2.1). P5 needs one. PR vf-furniture-solids left the matching
 question open (Q-VF-F1, recommended option (b): an optional `kind` / `yaw` on solids). P5's design resolves the
 link together with Q-VF-F1.
+
+**As designed and implemented (`pr-s36-p5-scene-layout.md`, frozen 2026-10-19; P5a, `ARC-332`).** Item 1 became:
+"no two solids of different `group`s overlap" — two solids whose footprints share area must share a `group` or name one
+`furnishing` (`ARC-307`), refused when the `body:` section is decoded (`bodies-solids-overlap`); the group is
+authoring data only (§2.2 of the PR design: eight of both towns' eleven pairs are right — tucked chairs, crossed
+boxes). The "spawns and anchors" are person starts, doorway points and sit points, held by
+`tools/cli/tests/layout.rs` at `R + GAP` from the files' text (DO-12), not through bodies' code; genesis keeps its
+margins. The prop-to-solid link is geometric (P5b's check), with `ARC-307`'s furnishings as the drawn data; Q-S36-P1-2
+is answered by P5b's `ground` mount.
 
 **Acceptance.** Both towns and the bodies yard pass; the lakeside (no solids yet) passes vacuously and is listed as
 such; a generated variant (a copy of a place with one solid moved to overlap another, and a prop drawn 60 mm wider)

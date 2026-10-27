@@ -353,3 +353,12 @@ radius the crowd claim reads as the operator restated it (step-11 §21.15 M-1): 
 and a stride may be blocked; a blocked walker re-plans. Results change, so the `bodies-yard` and
 long-run bases are re-captured (step-11 §19.12), under note 7's version 5. The 3D client's capsules
 (`player.gd`, 300 mm) must follow (12e/16c); IL-c is to make the radius world configuration.
+
+**Note 9, 2026-10-20 (S33-b; step-33 F-S33-3, `pr-s33b-lakeside-bodies.md`) — Lakeside has bodies.**
+Lakeside enables `bodies` after `schedule` (Market Town's position) and every one of its ten places
+carries a `body:`: the village's frontages are 6 m (the square 12 m) with depth to the north (Q-S33b-2
+(A)), the halt in S29-a's frame, the shore's floor ending at the water line and the pier's at its deck
+edges. Nothing in `bodies` knows water: a floor's edge is a wall, so a stride into the lake or off the
+deck stops short with `by: None`. Free-standing pieces are furnishings with solids (`ARC-307`), the
+bakery's five table chairs included. Every doorway point moved from 200 mm to 400 mm inside its edge
+(12d SD-D3). No System, constant or contract changed.

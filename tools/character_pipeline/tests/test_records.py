@@ -134,6 +134,17 @@ def test_a_valid_record_parses_and_its_only_override_is_counted() -> None:
     assert overrides(fit) == ["flecks.enabled"]
 
 
+def test_the_spine_depth_defaults_to_hips_relative_and_takes_only_its_two_values() -> None:
+    assert parse_fit(_vera_fit(), SOURCE).fit.spine_depth == "hips-relative"  # #211's rule, unchanged
+    raw = _vera_fit()
+    _child(raw, "fit")["spine_depth"] = "body-centre"  # S32-p: a bare base-layer body (Ivan's G-6)
+    assert parse_fit(raw, SOURCE).fit.spine_depth == "body-centre"
+    _child(raw, "fit")["spine_depth"] = "sideways"
+
+    with pytest.raises(RecordError, match="spine_depth"):
+        parse_fit(raw, SOURCE)
+
+
 def test_the_defaults_themselves_are_not_overrides() -> None:
     assert overrides(parse_fit(_vera_fit(), SOURCE)) == []
 

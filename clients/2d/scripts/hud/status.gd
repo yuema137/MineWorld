@@ -31,7 +31,46 @@ func _ready() -> void:
 	_when = _line(lines, 13)
 	_hint = _line(lines, 12)
 	_hint.text = Words.text("ui.hint")
+	_money = _line(lines, 13)
+	_money.visible = false
+	_badge = _line(lines, 12)
+	_badge.visible = false
 	add_child(panel)
+
+
+var _money: Label
+## The money line as last shown ("" when hidden), for the harness's HUD report.
+var money_text := ""
+
+
+## The money line (S31-e §5.7): my balance in the world's money, my worth beside it when it is disclosed, and
+## how many things I hold that have no reference value. Absent without a wallet.
+func _show_money(observation: MineWorldObservation) -> void:
+	var held := MineWorldTrade.money_of(observation)
+	if held.is_empty():
+		money_text = ""
+	else:
+		var worth := MineWorldTrade.wealth_of(observation)
+		if worth.is_empty():
+			money_text = Words.text("hud.money", {"money": Words.money(held["balance"])})
+		else:
+			money_text = Words.text("hud.money.wealth", {"money": Words.money(held["balance"]),
+				"wealth": Words.money(worth["amount"])})
+			if worth["unvalued"] != 0:
+				money_text = Words.text("hud.money.unvalued", {"line": money_text, "count": worth["unvalued"]})
+	_money.text = money_text
+	_money.visible = money_text != ""
+	# The board's badge (S31-e §5.9): new notices since the board was last opened, as the board counts them.
+	var fresh: int = board.badge() if board != null else 0
+	badge_text = Words.text("board.badge", {"count": fresh}) if fresh != 0 else ""
+	_badge.text = badge_text
+	_badge.visible = badge_text != ""
+
+
+## The notice board, whose badge this line shows; set by the composition root.
+var board
+var badge_text := ""
+var _badge: Label
 
 
 func _line(parent: Node, size: int) -> Label:
@@ -62,10 +101,20 @@ func set_clock(line: String, is_paused: bool) -> void:
 		show_state(_last[0], _last[1], _last[2])
 
 
+## The hint shown instead of the usual one while a throw is aimed ("" when none is).
+var aim_hint := ""
+
+
+## Shows `hint` in the hint line while aiming, or the usual hint again with "".
+func set_aim(hint: String) -> void:
+	aim_hint = hint
+	_hint.text = hint if hint != "" else Words.text("ui.hint")
+
+
 ## Refreshes the lines from the newest observation and the connection's state.
 func show_state(observation: MineWorldObservation, link: Node, revision: Variant) -> void:
 	_last = [observation, link, revision]
-	_hint.text = Words.text("ui.hint")
+	_hint.text = aim_hint if aim_hint != "" else Words.text("ui.hint")
 	var state := Words.text("ui.state." + String(link.state))
 	if observation != null:
 		var me := observation.observer()
@@ -80,5 +129,6 @@ func show_state(observation: MineWorldObservation, link: Node, revision: Variant
 		_when.text = Words.text("ui.status.when", {"clock": clock,
 			"revision": "—" if revision == null else str(int(revision)),
 			"instance": link.instance.right(8), "state": state})
+		_show_money(observation)
 	else:
 		_when.text = state

@@ -86,8 +86,13 @@ seats:
   - cai
 
 configure:
+  - economy
   - calendar
   - weather
+
+# Not a town: a town names its station hall and its landmark (docs/MODULE_SPEC.md §4.3).
+settlement:
+  kind: none
 ```
 
 ```console exit=1
@@ -99,7 +104,7 @@ $ mineworld validate compare-weather/corner-shop
 
 ### Step 1.3 — Start the world on 8 October
 
-**Do this.** Make a folder `compare-weather/corner-shop/configure`. In it, write `calendar.yaml`:
+**Do this.** In `compare-weather/corner-shop/configure`, write `calendar.yaml`:
 
 ```yaml file=compare-weather/corner-shop/configure/calendar.yaml
 # San Diego, California.
@@ -323,7 +328,7 @@ $ mineworld run compare-weather/corner-shop --headless --seed 1 --days 7
 ...
 facts      weather-changed 17
 ...
-activity   days 1-7  ana move 363 talk 196  ben move 380 talk 267  cai move 389 talk 243
+activity   days 1-7  ana move 382 talk 183  ben move 385 talk 259  cai move 384 talk 243
 ...
 ```
 
@@ -350,7 +355,7 @@ $ mineworld run compare-weather/corner-shop --headless --seed 1 --days 7
 ...
 facts      weather-changed 24
 ...
-activity   days 1-7  ana move 363 talk 196  ben move 380 talk 267  cai move 389 talk 243
+activity   days 1-7  ana move 382 talk 183  ben move 385 talk 259  cai move 384 talk 243
 ...
 ```
 

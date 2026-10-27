@@ -1,0 +1,762 @@
+{
+  "about": "The place-shape bodies states for a station place of social-cafe, with the place's tags: what the standalone 3D slice draws the station's furnishings from (ARC-307, S29-e). Written by tools/cli/tests/station_furnishings_fixture.rs; do not edit by hand.",
+  "format": 1,
+  "place": "station",
+  "place-shape": {
+    "floor": {
+      "max": {
+        "x": 16800,
+        "y": 51800
+      },
+      "min": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    "furnishings": [
+      {
+        "at": {
+          "x": 4200,
+          "y": 6300
+        },
+        "facing": 0,
+        "key": "bench.w.0",
+        "kind": "bench.station"
+      },
+      {
+        "at": {
+          "x": 4200,
+          "y": 8700
+        },
+        "facing": 0,
+        "key": "bench.w.1",
+        "kind": "bench.station"
+      },
+      {
+        "at": {
+          "x": 4200,
+          "y": 11100
+        },
+        "facing": 0,
+        "key": "bench.w.2",
+        "kind": "bench.station"
+      },
+      {
+        "at": {
+          "x": 4200,
+          "y": 13500
+        },
+        "facing": 0,
+        "key": "bench.w.3",
+        "kind": "bench.station"
+      },
+      {
+        "at": {
+          "x": 4200,
+          "y": 15900
+        },
+        "facing": 0,
+        "key": "bench.w.4",
+        "kind": "bench.station"
+      },
+      {
+        "at": {
+          "x": 4200,
+          "y": 18300
+        },
+        "facing": 0,
+        "key": "bench.w.5",
+        "kind": "bench.station"
+      },
+      {
+        "at": {
+          "x": 4200,
+          "y": 20700
+        },
+        "facing": 0,
+        "key": "bench.w.6",
+        "kind": "bench.station"
+      },
+      {
+        "at": {
+          "x": 4200,
+          "y": 23100
+        },
+        "facing": 0,
+        "key": "bench.w.7",
+        "kind": "bench.station"
+      },
+      {
+        "at": {
+          "x": 4200,
+          "y": 25500
+        },
+        "facing": 0,
+        "key": "bench.w.8",
+        "kind": "bench.station"
+      },
+      {
+        "at": {
+          "x": 4200,
+          "y": 27900
+        },
+        "facing": 0,
+        "key": "bench.w.9",
+        "kind": "bench.station"
+      },
+      {
+        "at": {
+          "x": 4200,
+          "y": 30300
+        },
+        "facing": 0,
+        "key": "bench.w.10",
+        "kind": "bench.station"
+      },
+      {
+        "at": {
+          "x": 4200,
+          "y": 32700
+        },
+        "facing": 0,
+        "key": "bench.w.11",
+        "kind": "bench.station"
+      },
+      {
+        "at": {
+          "x": 4200,
+          "y": 35100
+        },
+        "facing": 0,
+        "key": "bench.w.12",
+        "kind": "bench.station"
+      },
+      {
+        "at": {
+          "x": 4200,
+          "y": 37500
+        },
+        "facing": 0,
+        "key": "bench.w.13",
+        "kind": "bench.station"
+      },
+      {
+        "at": {
+          "x": 4200,
+          "y": 39900
+        },
+        "facing": 0,
+        "key": "bench.w.14",
+        "kind": "bench.station"
+      },
+      {
+        "at": {
+          "x": 4200,
+          "y": 42300
+        },
+        "facing": 0,
+        "key": "bench.w.15",
+        "kind": "bench.station"
+      },
+      {
+        "at": {
+          "x": 4200,
+          "y": 44700
+        },
+        "facing": 0,
+        "key": "bench.w.16",
+        "kind": "bench.station"
+      },
+      {
+        "at": {
+          "x": 12600,
+          "y": 6300
+        },
+        "facing": 0,
+        "key": "bench.e.0",
+        "kind": "bench.station"
+      },
+      {
+        "at": {
+          "x": 12600,
+          "y": 8700
+        },
+        "facing": 0,
+        "key": "bench.e.1",
+        "kind": "bench.station"
+      },
+      {
+        "at": {
+          "x": 12600,
+          "y": 11100
+        },
+        "facing": 0,
+        "key": "bench.e.2",
+        "kind": "bench.station"
+      },
+      {
+        "at": {
+          "x": 12600,
+          "y": 13500
+        },
+        "facing": 0,
+        "key": "bench.e.3",
+        "kind": "bench.station"
+      },
+      {
+        "at": {
+          "x": 12600,
+          "y": 15900
+        },
+        "facing": 0,
+        "key": "bench.e.4",
+        "kind": "bench.station"
+      },
+      {
+        "at": {
+          "x": 12600,
+          "y": 18300
+        },
+        "facing": 0,
+        "key": "bench.e.5",
+        "kind": "bench.station"
+      },
+      {
+        "at": {
+          "x": 12600,
+          "y": 20700
+        },
+        "facing": 0,
+        "key": "bench.e.6",
+        "kind": "bench.station"
+      },
+      {
+        "at": {
+          "x": 12600,
+          "y": 23100
+        },
+        "facing": 0,
+        "key": "bench.e.7",
+        "kind": "bench.station"
+      },
+      {
+        "at": {
+          "x": 12600,
+          "y": 25500
+        },
+        "facing": 0,
+        "key": "bench.e.8",
+        "kind": "bench.station"
+      },
+      {
+        "at": {
+          "x": 12600,
+          "y": 27900
+        },
+        "facing": 0,
+        "key": "bench.e.9",
+        "kind": "bench.station"
+      },
+      {
+        "at": {
+          "x": 12600,
+          "y": 30300
+        },
+        "facing": 0,
+        "key": "bench.e.10",
+        "kind": "bench.station"
+      },
+      {
+        "at": {
+          "x": 12600,
+          "y": 32700
+        },
+        "facing": 0,
+        "key": "bench.e.11",
+        "kind": "bench.station"
+      },
+      {
+        "at": {
+          "x": 12600,
+          "y": 35100
+        },
+        "facing": 0,
+        "key": "bench.e.12",
+        "kind": "bench.station"
+      },
+      {
+        "at": {
+          "x": 12600,
+          "y": 37500
+        },
+        "facing": 0,
+        "key": "bench.e.13",
+        "kind": "bench.station"
+      },
+      {
+        "at": {
+          "x": 12600,
+          "y": 39900
+        },
+        "facing": 0,
+        "key": "bench.e.14",
+        "kind": "bench.station"
+      },
+      {
+        "at": {
+          "x": 12600,
+          "y": 42300
+        },
+        "facing": 0,
+        "key": "bench.e.15",
+        "kind": "bench.station"
+      },
+      {
+        "at": {
+          "x": 12600,
+          "y": 44700
+        },
+        "facing": 0,
+        "key": "bench.e.16",
+        "kind": "bench.station"
+      },
+      {
+        "at": {
+          "x": 2200,
+          "y": 2500
+        },
+        "facing": 90000,
+        "key": "kiosk",
+        "kind": "kiosk.news"
+      }
+    ],
+    "solids": [
+      {
+        "furnishing": "bench.w.0",
+        "height": 450,
+        "max": {
+          "x": 7200,
+          "y": 6600
+        },
+        "min": {
+          "x": 1200,
+          "y": 6000
+        }
+      },
+      {
+        "furnishing": "bench.w.1",
+        "height": 450,
+        "max": {
+          "x": 7200,
+          "y": 9000
+        },
+        "min": {
+          "x": 1200,
+          "y": 8400
+        }
+      },
+      {
+        "furnishing": "bench.w.2",
+        "height": 450,
+        "max": {
+          "x": 7200,
+          "y": 11400
+        },
+        "min": {
+          "x": 1200,
+          "y": 10800
+        }
+      },
+      {
+        "furnishing": "bench.w.3",
+        "height": 450,
+        "max": {
+          "x": 7200,
+          "y": 13800
+        },
+        "min": {
+          "x": 1200,
+          "y": 13200
+        }
+      },
+      {
+        "furnishing": "bench.w.4",
+        "height": 450,
+        "max": {
+          "x": 7200,
+          "y": 16200
+        },
+        "min": {
+          "x": 1200,
+          "y": 15600
+        }
+      },
+      {
+        "furnishing": "bench.w.5",
+        "height": 450,
+        "max": {
+          "x": 7200,
+          "y": 18600
+        },
+        "min": {
+          "x": 1200,
+          "y": 18000
+        }
+      },
+      {
+        "furnishing": "bench.w.6",
+        "height": 450,
+        "max": {
+          "x": 7200,
+          "y": 21000
+        },
+        "min": {
+          "x": 1200,
+          "y": 20400
+        }
+      },
+      {
+        "furnishing": "bench.w.7",
+        "height": 450,
+        "max": {
+          "x": 7200,
+          "y": 23400
+        },
+        "min": {
+          "x": 1200,
+          "y": 22800
+        }
+      },
+      {
+        "furnishing": "bench.w.8",
+        "height": 450,
+        "max": {
+          "x": 7200,
+          "y": 25800
+        },
+        "min": {
+          "x": 1200,
+          "y": 25200
+        }
+      },
+      {
+        "furnishing": "bench.w.9",
+        "height": 450,
+        "max": {
+          "x": 7200,
+          "y": 28200
+        },
+        "min": {
+          "x": 1200,
+          "y": 27600
+        }
+      },
+      {
+        "furnishing": "bench.w.10",
+        "height": 450,
+        "max": {
+          "x": 7200,
+          "y": 30600
+        },
+        "min": {
+          "x": 1200,
+          "y": 30000
+        }
+      },
+      {
+        "furnishing": "bench.w.11",
+        "height": 450,
+        "max": {
+          "x": 7200,
+          "y": 33000
+        },
+        "min": {
+          "x": 1200,
+          "y": 32400
+        }
+      },
+      {
+        "furnishing": "bench.w.12",
+        "height": 450,
+        "max": {
+          "x": 7200,
+          "y": 35400
+        },
+        "min": {
+          "x": 1200,
+          "y": 34800
+        }
+      },
+      {
+        "furnishing": "bench.w.13",
+        "height": 450,
+        "max": {
+          "x": 7200,
+          "y": 37800
+        },
+        "min": {
+          "x": 1200,
+          "y": 37200
+        }
+      },
+      {
+        "furnishing": "bench.w.14",
+        "height": 450,
+        "max": {
+          "x": 7200,
+          "y": 40200
+        },
+        "min": {
+          "x": 1200,
+          "y": 39600
+        }
+      },
+      {
+        "furnishing": "bench.w.15",
+        "height": 450,
+        "max": {
+          "x": 7200,
+          "y": 42600
+        },
+        "min": {
+          "x": 1200,
+          "y": 42000
+        }
+      },
+      {
+        "furnishing": "bench.w.16",
+        "height": 450,
+        "max": {
+          "x": 7200,
+          "y": 45000
+        },
+        "min": {
+          "x": 1200,
+          "y": 44400
+        }
+      },
+      {
+        "furnishing": "bench.e.0",
+        "height": 450,
+        "max": {
+          "x": 15600,
+          "y": 6600
+        },
+        "min": {
+          "x": 9600,
+          "y": 6000
+        }
+      },
+      {
+        "furnishing": "bench.e.1",
+        "height": 450,
+        "max": {
+          "x": 15600,
+          "y": 9000
+        },
+        "min": {
+          "x": 9600,
+          "y": 8400
+        }
+      },
+      {
+        "furnishing": "bench.e.2",
+        "height": 450,
+        "max": {
+          "x": 15600,
+          "y": 11400
+        },
+        "min": {
+          "x": 9600,
+          "y": 10800
+        }
+      },
+      {
+        "furnishing": "bench.e.3",
+        "height": 450,
+        "max": {
+          "x": 15600,
+          "y": 13800
+        },
+        "min": {
+          "x": 9600,
+          "y": 13200
+        }
+      },
+      {
+        "furnishing": "bench.e.4",
+        "height": 450,
+        "max": {
+          "x": 15600,
+          "y": 16200
+        },
+        "min": {
+          "x": 9600,
+          "y": 15600
+        }
+      },
+      {
+        "furnishing": "bench.e.5",
+        "height": 450,
+        "max": {
+          "x": 15600,
+          "y": 18600
+        },
+        "min": {
+          "x": 9600,
+          "y": 18000
+        }
+      },
+      {
+        "furnishing": "bench.e.6",
+        "height": 450,
+        "max": {
+          "x": 15600,
+          "y": 21000
+        },
+        "min": {
+          "x": 9600,
+          "y": 20400
+        }
+      },
+      {
+        "furnishing": "bench.e.7",
+        "height": 450,
+        "max": {
+          "x": 15600,
+          "y": 23400
+        },
+        "min": {
+          "x": 9600,
+          "y": 22800
+        }
+      },
+      {
+        "furnishing": "bench.e.8",
+        "height": 450,
+        "max": {
+          "x": 15600,
+          "y": 25800
+        },
+        "min": {
+          "x": 9600,
+          "y": 25200
+        }
+      },
+      {
+        "furnishing": "bench.e.9",
+        "height": 450,
+        "max": {
+          "x": 15600,
+          "y": 28200
+        },
+        "min": {
+          "x": 9600,
+          "y": 27600
+        }
+      },
+      {
+        "furnishing": "bench.e.10",
+        "height": 450,
+        "max": {
+          "x": 15600,
+          "y": 30600
+        },
+        "min": {
+          "x": 9600,
+          "y": 30000
+        }
+      },
+      {
+        "furnishing": "bench.e.11",
+        "height": 450,
+        "max": {
+          "x": 15600,
+          "y": 33000
+        },
+        "min": {
+          "x": 9600,
+          "y": 32400
+        }
+      },
+      {
+        "furnishing": "bench.e.12",
+        "height": 450,
+        "max": {
+          "x": 15600,
+          "y": 35400
+        },
+        "min": {
+          "x": 9600,
+          "y": 34800
+        }
+      },
+      {
+        "furnishing": "bench.e.13",
+        "height": 450,
+        "max": {
+          "x": 15600,
+          "y": 37800
+        },
+        "min": {
+          "x": 9600,
+          "y": 37200
+        }
+      },
+      {
+        "furnishing": "bench.e.14",
+        "height": 450,
+        "max": {
+          "x": 15600,
+          "y": 40200
+        },
+        "min": {
+          "x": 9600,
+          "y": 39600
+        }
+      },
+      {
+        "furnishing": "bench.e.15",
+        "height": 450,
+        "max": {
+          "x": 15600,
+          "y": 42600
+        },
+        "min": {
+          "x": 9600,
+          "y": 42000
+        }
+      },
+      {
+        "furnishing": "bench.e.16",
+        "height": 450,
+        "max": {
+          "x": 15600,
+          "y": 45000
+        },
+        "min": {
+          "x": 9600,
+          "y": 44400
+        }
+      },
+      {
+        "furnishing": "kiosk",
+        "height": 2400,
+        "max": {
+          "x": 3200,
+          "y": 3500
+        },
+        "min": {
+          "x": 1200,
+          "y": 1500
+        }
+      }
+    ]
+  },
+  "tags": [
+    "landmark",
+    "public",
+    "station"
+  ],
+  "world": "social-cafe"
+}

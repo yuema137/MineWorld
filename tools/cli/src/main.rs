@@ -86,7 +86,7 @@ use clap::Parser;
 use mineworld_contracts::{EntityKey, WorldTime};
 use mineworld_packages::PACKS_VARIABLE;
 use mineworld_persistence::{Durability, SqliteBackend, verify};
-use mineworld_worldpack::{PackError, PackRoots, WorldPack};
+use mineworld_worldpack::{PackError, PackRoots, SettlementKind, WorldPack};
 
 /// Where the server listens when nothing says otherwise: the local player's own machine.
 const DEFAULT_LISTEN: &str = "127.0.0.1:7878";
@@ -228,9 +228,14 @@ enum Subcommand {
         #[arg(long, value_name = "DIR")]
         save: Option<PathBuf>,
         /// World seconds between a seat's consults (default 900). A measurement knob for FX-24
-        /// (`ARC-69` item 11): a multiple of the run's stride step, 30.
+        /// (`ARC-69` item 11): a multiple of the run's stride step (`--stride`).
         #[arg(long, value_name = "SECONDS", value_parser = clap::value_parser!(u64).range(1..))]
         pace: Option<u64>,
+        /// World seconds between a walking seat's stride consults (default 30). A divisor of the pace;
+        /// a run takes at most one seat fewer than the stride, so a larger world passes a larger one
+        /// (`ARC-341`).
+        #[arg(long, value_name = "SECONDS", value_parser = clap::value_parser!(u64).range(1..))]
+        stride: Option<u64>,
         #[command(flatten)]
         decisions: DecisionFlags,
         #[command(flatten)]
@@ -591,20 +596,23 @@ async fn main() -> ExitCode {
             days,
             save,
             pace,
+            stride,
             decisions,
             packs,
         } => packs.roots().and_then(|roots| {
+            let seconds = |given: u64| {
+                mineworld_contracts::SimDuration::from_seconds(
+                    i64::try_from(given).unwrap_or(i64::MAX),
+                )
+            };
             run::run(&run::RunRequest {
                 world,
                 seed,
                 days,
                 save,
                 roots,
-                pace: pace.map_or(run::PACE, |seconds| {
-                    mineworld_contracts::SimDuration::from_seconds(
-                        i64::try_from(seconds).unwrap_or(i64::MAX),
-                    )
-                }),
+                pace: pace.map_or(run::PACE, seconds),
+                stride: stride.map_or(run::RUN_STEP, seconds),
                 decisions: decisions.args(),
             })
         }),
@@ -766,6 +774,11 @@ fn not_yet(command: &str) -> Result<(), String> {
 fn validate(world: &PathBuf, roots: &PackRoots) -> Result<(), String> {
     let pack = WorldPack::read_with(world, roots).map_err(described)?;
     let loaded = pack.load(WorldTime::EPOCH).map_err(described)?;
+    // The authoring gate: every world says whether it is a town (ARC-105, MODULE_SPEC §4.3). `run` and
+    // `server` do not ask, so a world without the key still runs.
+    let settlement = pack.require_settlement().map_err(described)?;
+    // A town's far field fills its slots with the declared places (ARC-107, S29-c).
+    pack.check_far_field_slots(roots).map_err(described)?;
 
     println!("{} ({})", pack.name(), pack.id());
     println!("  systems    {}", listed(pack.systems()));
@@ -780,6 +793,12 @@ fn validate(world: &PathBuf, roots: &PackRoots) -> Result<(), String> {
         println!("  organizations {}", listed(pack.organizations().keys()));
     }
     println!("  seats      {}", listed(pack.seats().iter()));
+    match settlement.kind() {
+        SettlementKind::Town { station, landmark } => {
+            println!("  settlement town (station {station}, landmark {landmark})");
+        }
+        SettlementKind::None => println!("  settlement none"),
+    }
     // Only for a world that states requires:, by the same rule (ARC-54 point 7).
     for required in &pack.composition().required {
         println!(

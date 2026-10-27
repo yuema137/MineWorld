@@ -314,12 +314,21 @@ async fn a_player_takes_alice_from_her_controller_and_she_is_the_same_person() {
         .collect();
     println!("alice's own components that changed: {changed:?}");
     // What she paid, what she bought, what was said — and, because a first talk makes two people
-    // acquainted, her acquaintance with bob (step-12 D-SB7).
+    // acquainted, her acquaintance with bob (step-12 D-SB7). And, since Market Town enables `needs`
+    // (S35 N-d), her hunger and tiredness, which move with the world's time and with what she eats,
+    // whoever drives her: the needs pack's, never a controller's.
     let explained: BTreeSet<&str> = [
         "wallet",
         "holdings",
         "conversation-history",
         "acquaintances",
+        "needs",
+        // Economy's `wealth` (S31-a, ARC-114) is computed from the wallet and the holdings when disclosed,
+        // never stored: it moves exactly when they do.
+        "wealth",
+        // Economy's `shop-stock` (S35 N-h, ARC-360): every shop's stocked kinds, computed when disclosed;
+        // a purchase can empty a kind.
+        "shop-stock",
     ]
     .into_iter()
     .collect();

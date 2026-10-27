@@ -33,17 +33,17 @@ Copy-Item -Recurse "$HOME\MineWorld\docs\guide\examples\corner-shop" compare-rul
 ```console
 $ mineworld run compare-rules/corner-shop --headless --seed 1 --days 3
 ...
-requests   talk accepted 335
+requests   talk accepted 324
 ...
-activity   days 1-3  ana move 145 talk 108  ben move 157 talk 120  cai move 158 talk 107
+activity   days 1-3  ana move 150 talk 99  ben move 156 talk 116  cai move 152 talk 109
 ...
 ```
 
-**你应该看到**这几个数字：每个人都说了话，加起来 335 次。
+**你应该看到**这几个数字：每个人都说了话，加起来 324 次。
 
 ### Step 1.2 — 告诉世界它有配置文件
 
-**照着做。** 用下面这整份文件替换 `compare-rules/corner-shop/world.yaml`。新加的是最后的 `configure`：
+**照着做。** 用下面这整份文件替换 `compare-rules/corner-shop/world.yaml`。新加的是最后 `configure` 下面的 `conversation`：
 
 ```yaml file=compare-rules/corner-shop/world.yaml
 # Corner Shop: the world this guide builds.
@@ -90,7 +90,12 @@ seats:
   - cai
 
 configure:
+  - economy
   - conversation
+
+# Not a town: a town names its station hall and its landmark (docs/MODULE_SPEC.md §4.3).
+settlement:
+  kind: none
 ```
 
 ```console exit=1
@@ -102,7 +107,7 @@ $ mineworld validate compare-rules/corner-shop
 
 ### Step 1.3 — 改这一处：小店里不许说话
 
-**照着做。** 新建文件夹 `compare-rules/corner-shop/configure`，在里面写 `conversation.yaml`：
+**照着做。** 在 `compare-rules/corner-shop/configure` 里写 `conversation.yaml`：
 
 ```yaml file=compare-rules/corner-shop/configure/conversation.yaml
 regions:
@@ -157,9 +162,9 @@ section  conversation:
 ```console
 $ mineworld run compare-rules/corner-shop --headless --seed 1 --days 3
 ...
-requests   talk accepted 292
+requests   talk accepted 273
 ...
-activity   days 1-3  ana move 155 talk 81  ben move 159 talk 116  cai move 170 talk 95
+activity   days 1-3  ana move 161 talk 72  ben move 165 talk 104  cai move 170 talk 97
 ...
 ```
 
@@ -169,10 +174,10 @@ activity   days 1-3  ana move 155 talk 81  ben move 159 talk 116  cai move 170 t
 
 | | Step 1.1 | Step 1.4 |
 | --- | --- | --- |
-| 所有人的 `talk accepted` | 335 | 292 |
-| Ana 的 `talk` | 108 | 81 |
-| Ben 的 `talk` | 120 | 116 |
-| Cai 的 `talk` | 107 | 95 |
+| 所有人的 `talk accepted` | 324 | 273 |
+| Ana 的 `talk` | 99 | 72 |
+| Ben 的 `talk` | 116 | 104 |
+| Cai 的 `talk` | 109 | 97 |
 
 Ana 一整天都在小店里干活，所以她少说的话最多。Ben 和 Cai 只是去店里逛逛，所以只少了一点。
 没有谁在店里想说话然后被拒绝：世界根本不会把不许做的动作摆出来，人也就不会去挑它。

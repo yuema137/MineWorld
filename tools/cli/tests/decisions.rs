@@ -77,7 +77,12 @@ impl Cafe {
         copy_dir(Path::new(PACK), &root);
         let manifest = root.join("world.yaml");
         let text = std::fs::read_to_string(&manifest).expect("world.yaml reads");
-        std::fs::write(&manifest, format!("{text}{world_yaml}")).expect("world.yaml writes");
+        // `configure:` lines join the pack's own list (ARC-269: social-cafe configures calendar).
+        std::fs::write(
+            &manifest,
+            mineworld_test_support::manifest::extended(&text, world_yaml),
+        )
+        .expect("world.yaml writes");
         for (relative, contents) in files {
             let path = root.join(relative);
             std::fs::create_dir_all(path.parent().expect("a parent")).expect("a directory");
@@ -121,7 +126,12 @@ fn list_file(name: &str, contents: &str) -> (mineworld_test_support::Scratch, St
 /// `origin/main @ 6306977` before any DL-a code existed (test rules §25). Re-captured by S26-a
 /// (appearance's genesis facts); the diff is recorded in pr-s26a-appearance.md §15. Re-captured by
 /// fix-activity-double-draw (ARC-151, the offered band no longer redraws leave and join); the diff is
-/// recorded in pr-fix-activity-double-draw.md §10.
+/// recorded in pr-fix-activity-double-draw.md §10. Re-captured at the milestone F run from CI's own output
+/// of this test (run 39404483002, head 58fb4d48), after S29's places, LE, S35, ARC-269 and S34-c1's
+/// posture moved the café. Re-captured at the milestone fd-1026 run (40403074977, head 30021293; its
+/// Windows output of this test matches the local capture byte for byte): the merges since milestone F
+/// (among them S29's station places, LE, S35 N-f/N-g's doorways and give-way) moved the café; the
+/// golden already differed at b13b8ade, before S35 N-f merged.
 #[test]
 fn with_no_decision_list_run_prints_what_the_base_printed() {
     let (ok, stdout, stderr) =

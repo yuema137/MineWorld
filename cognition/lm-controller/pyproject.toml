@@ -22,6 +22,10 @@ dependencies = [
     "python-dotenv>=1.2,<2",
 ]
 
+# Memory inspection and seat export / import (pr-s28e §5.8): reads a stopped home, never writes it.
+[project.scripts]
+mineworld-memory = "mineworld_cognition.inspect.cli:main"
+
 # Retention policies (pr-fg-b §5.3): the bundled ones are found through this group exactly as a user's
 # package would publish one; the entry name is the policy's id. Standard metadata, no dependency.
 [project.entry-points."mineworld.forgetting"]
@@ -44,6 +48,14 @@ none = "mineworld_cognition.controller.retry:NoRetry"
 [project.entry-points."mineworld.breaker"]
 failure-rate = "mineworld_cognition.controller.breaker:FailureRate"
 never = "mineworld_cognition.controller.breaker:Never"
+
+# The memory scopes (pr-s28c §5.4). `person` and `world` are the base scopes: only this distribution may
+# publish them (ScopeRegistry's load check, QS28c-1).
+[project.entry-points."mineworld.memory_scopes"]
+person = "mineworld_cognition.memory.scopes.person:PersonScope"
+world = "mineworld_cognition.memory.scopes.world:WorldScope"
+place = "mineworld_cognition.memory.scopes.anchored:PlaceScope"
+item = "mineworld_cognition.memory.scopes.anchored:ItemScope"
 
 [tool.uv.sources]
 mineworld-sdk = { workspace = true }
@@ -81,6 +93,7 @@ markers = [
     "live_model: calls a real model server on loopback; deselected by default, never in CI",
     "real_binary: runs the real mineworld binary; never skipped, only deselected by name",
     "slow: a heavy case of a harness whose reduced set runs per PR; the nightly `stability` layer runs these (pr-s28a D-a-15)",
+    "scale: a nightly scale gate (pr-s28g); the nightly memory-scale layer runs these",
 ]
 # The network guard (I-11, as sdk/python): pytest-socket blocks every `connect` to anything but the
 # loopback addresses, on every platform. It allows loopback, where a user's Ollama listens, which is why
@@ -89,4 +102,4 @@ markers = [
 # pr-s10-p5b AB-9) is shown to have run, by name, on the leg that owns it.
 # `slow` cases (pr-s28a D-a-15, primary ruling 2026-10-16) are deselected here, for every PR run, and run each
 # night by the `stability` layer (`scripts/ci_layer.py`), whose `-m slow` replaces this expression.
-addopts = ["--strict-markers", "--allow-hosts=127.0.0.1,::1", "-v", "-m", "not live_model and not slow"]
+addopts = ["--strict-markers", "--allow-hosts=127.0.0.1,::1", "-v", "-m", "not live_model and not slow and not scale"]

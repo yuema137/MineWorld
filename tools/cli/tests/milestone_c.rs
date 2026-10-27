@@ -10,7 +10,7 @@
 //! hosted    mineworld server worlds/market-town --save K: clients alice and bob walk from where the
 //!           save left them, through the pack's doorways, into the café (alice's employer's shop),
 //!           every stride accepted; alice's own wallet = the replayed balance at K's head
-//! bought    alice submits one available complete `buy` affordance unchanged: accepted, two events
+//! bought    alice submits one available complete `buy` affordance unchanged: accepted, three events
 //! changed   alice's wallet is lower by the listed price, her holdings higher by one of that kind;
 //!           bob's next observation shows that kind's in_stock one lower, and discloses neither
 //!           alice's wallet nor her holdings
@@ -74,19 +74,19 @@ fn locate_work_and_pay(town: &Town, facts: &[EventEnvelope], alice: PersonId) {
                 && fact.at() < worked.at()
         })
         .expect("the shift she worked began");
-    // Work is attendance (ARC-38 item 2). Her routine and her shift both begin at 05:30, so she is
-    // still on her way when the shift starts (`present: false`, step-10 §4.6.8 DP-5): her presence
-    // is located as her arrival at the café during the shift, the fact employment reacts to.
+    // Work is attendance (ARC-38 item 2): she is at the café while the shift runs. Whether she walked in
+    // during it (DP-5, when her routine and shift both began at 05:30) or before it (since her 05:30
+    // work is punctual, 0dd3d76a), the place she last entered before the shift ended is the café.
     let cafe = town.id(SHOP);
     let arrived = facts
         .iter()
+        .rev()
         .find(|fact| {
-            fact.at() >= started.at()
-                && fact.at() <= worked.at()
-                && social_entry(fact)
-                    .is_some_and(|(person, place)| person == alice.entity_id() && place == cafe)
+            fact.at() <= worked.at()
+                && social_entry(fact).is_some_and(|(person, _)| person == alice.entity_id())
         })
-        .expect("alice entered the café during the shift she worked");
+        .filter(|fact| social_entry(fact).is_some_and(|(_, place)| place == cafe))
+        .expect("alice was at the café during the shift she worked: the place she last entered");
     let (due, paid) = facts
         .iter()
         .find_map(|fact| match (market_fact(fact), fact.caused_by()) {
@@ -300,8 +300,8 @@ async fn alice_works_earns_buys_and_bob_sees_the_shelf_change_across_a_restart()
         .await;
     assert_eq!(
         events.len(),
-        2,
-        "a purchase records the payment and the transfer"
+        3,
+        "a purchase records the sale, the payment and the transfer (ARC-112, S31-a F-S31a-20)"
     );
 
     let alice_after = alice_client

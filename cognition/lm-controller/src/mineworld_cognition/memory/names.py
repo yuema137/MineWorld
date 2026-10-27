@@ -3,12 +3,18 @@
 A rendered line never shows an entity id. A person with no known name is `someone`, a place with no
 known label `somewhere`. Names are learned from perceived `named` facts (by ingestion, through the
 `named` renderer) and from observations (by P6, `NameBook.learn`); `learn` is the only write path.
+
+A place has no display name in the shipped packs: the world discloses what a place is by its tags (its own,
+to whoever stands in it, and a doorway's `to_tags`, to whoever stands beside it; ARC-82). Such a place is
+labelled by `tag_label`, its tags joined in their disclosed order (`cafe/public`), until a display name
+replaces it (D-P6-43). No tag is singled out, so no world's vocabulary is built in.
 """
 
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
+from types import MappingProxyType
 
 from mineworld_sdk.wire.ids import EntityId, EventId
 
@@ -18,12 +24,20 @@ from mineworld_cognition.memory.records import event_key
 SOMEONE = "someone"
 SOMEWHERE = "somewhere"
 MAX_NAME_LENGTH = 60
+TAG_SEPARATOR = "/"
 _SPACE = re.compile(r"\s+")
 
 
 def one_line(text: str) -> str:
     """World text on one line: every run of whitespace, newlines included, becomes one space."""
     return _SPACE.sub(" ", text).strip()
+
+
+def tag_label(tags: Iterable[str]) -> str | None:
+    """A place's label from its disclosed tags, in their order: `cafe/public`. `None` without a tag."""
+    words = [one_line(tag) for tag in tags]
+    label = TAG_SEPARATOR.join(word for word in words if word)
+    return label or None
 
 
 class NameBook:
@@ -55,6 +69,10 @@ class NameBook:
 
     def name(self, entity: EntityId) -> str | None:
         return self._names.get(entity)
+
+    def known(self) -> Mapping[EntityId, str]:
+        """Every name this seat knows, read-only (the prose name check reads them, pr-s28b §5.4)."""
+        return MappingProxyType(self._names)
 
     def person(self, entity: EntityId) -> str:
         return self._names.get(entity, SOMEONE)

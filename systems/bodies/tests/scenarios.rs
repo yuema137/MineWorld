@@ -985,3 +985,95 @@ fn people_who_give_way_are_stated_with_the_walker_as_participant() {
     println!("{gave_way} gave way");
     assert!(gave_way >= 1, "somebody gave way");
 }
+
+// ---------------------------------------------------------------------------------------------
+// ARC-75 amendment 1 — a walk to a person ends on the walker's side of the furniture between them
+// ---------------------------------------------------------------------------------------------
+
+/// `who` walks to `whom` (`walk-to { person }`), stepping until the walk is over; returns where `who`
+/// ended and how many steps it took.
+fn walk_to_person(yard: &mut Yard, who: &str, whom: &str) -> (Xy, usize) {
+    let target = person(yard, whom);
+    let walk = yard.submit(
+        who,
+        ActionRecord::new::<WalkTo>(encode(&WalkTo::new(Destination::Person(target)))),
+    );
+    assert!(walk.accepted(), "walk-to: {:?}", walk.result);
+    let mut steps = 0;
+    while yard
+        .submit(
+            who,
+            ActionRecord::new::<WalkStep>(encode(&WalkStep::default())),
+        )
+        .accepted()
+    {
+        steps += 1;
+        assert!(steps <= 40, "the walk ends");
+    }
+    (yard.point(who).expect("placed"), steps)
+}
+
+/// Promo v2 (B4, B8, B10): a visitor who chose "walk to Alice" ended behind the counter, beside the
+/// barista, because the walk's last leg was planned to Alice herself and the way round the counter's
+/// end was the only way to get within 1 200 mm of her. The leg now ends at the stand point with the
+/// least walk + remaining gap, within PERSON_REACH (2 100 mm): the counter's near edge.
+///
+/// Two rooms, so that no number of the café's is what passes: the café's counter with the barista
+/// behind it and the visitor in front, and a generated variant — a room of another size with a long
+/// table across it and the person on its far side.
+#[test]
+fn a_walk_to_a_person_behind_a_counter_ends_on_the_walkers_side() {
+    // The café: counter (3 860, 6 570)–(8 320, 7 170) against the east wall. Alice at (6 000, 7 800),
+    // 630 mm behind it; the visitor at (6 000, 2 000). The near edge's free line is y = 6 570 − 310 =
+    // 6 260, 1 540 mm from her; her side is reached only round the west end (x < 3 550).
+    let mut yard = Yard::new(&Plan::room(
+        cafe(),
+        &[("alice", (6_000, 7_800)), ("visitor", (6_000, 2_000))],
+    ));
+    let (end, steps) = walk_to_person(&mut yard, "visitor", "alice");
+    println!("café: the visitor ends at {end:?} after {steps} steps");
+    assert!(
+        end.1 < 6_570,
+        "on the customer's side of the counter: {end:?}"
+    );
+    assert!(
+        distance2(end, (6_000, 7_800)) <= 2_100_i64.pow(2),
+        "within PERSON_REACH of her: {end:?}"
+    );
+    assert!(
+        steps <= 5,
+        "straight to the counter, not round it: {steps} steps"
+    );
+
+    // A variant: a 12 × 9 m room, a table (2 000, 4 000)–(10 000, 4 900) across it, open at both
+    // ends; Bea at (6 000, 5 600), 700 mm beyond it; the walker at (5 000, 1 000). The near edge's free
+    // line is y = 4 000 − 310 = 3 690, 1 910 mm from her.
+    let room = shape(
+        (0, 0, 12_000, 9_000),
+        &[((2_000, 4_000, 10_000, 4_900), 750)],
+    );
+    let mut yard = Yard::new(&Plan::room(
+        room,
+        &[("bea", (6_000, 5_600)), ("walker", (5_000, 1_000))],
+    ));
+    let (end, steps) = walk_to_person(&mut yard, "walker", "bea");
+    println!("table: the walker ends at {end:?} after {steps} steps");
+    assert!(end.1 < 4_000, "on the walker's side of the table: {end:?}");
+    assert!(
+        distance2(end, (6_000, 5_600)) <= 2_100_i64.pow(2),
+        "within PERSON_REACH of her: {end:?}"
+    );
+
+    // With nothing between them the walk is the direct approach it always was: 1 200 mm short of her
+    // on the line from the walker — (6 000, 5 600) from (6 000, 1 000) ends at (6 000, 4 400).
+    let open = shape((0, 0, 12_000, 9_000), &[]);
+    let mut yard = Yard::new(&Plan::room(
+        open,
+        &[("bea", (6_000, 5_600)), ("walker", (6_000, 1_000))],
+    ));
+    let (end, _) = walk_to_person(&mut yard, "walker", "bea");
+    assert!(
+        (end.0 - 6_000).abs() <= 1 && (end.1 - 4_400).abs() <= 1,
+        "the direct approach: {end:?}"
+    );
+}

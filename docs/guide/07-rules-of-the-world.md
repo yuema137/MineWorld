@@ -19,19 +19,19 @@ folder. You never change the System Pack itself.
 ```console
 $ mineworld run corner-shop --headless --seed 1 --days 3
 ...
-requests   talk accepted 335
+requests   talk accepted 324
 ...
-activity   days 1-3  ana move 145 talk 108  ben move 157 talk 120  cai move 158 talk 107
+activity   days 1-3  ana move 150 talk 99  ben move 156 talk 116  cai move 152 talk 109
 ...
 ```
 
-**You should see** these numbers. Ana spoke 108 times in three days. The same seed always gives the
+**You should see** these numbers. Ana spoke 99 times in three days. The same seed always gives the
 same run, so you can compare the next run with this one.
 
 ### Step 7.2 — Tell the world it has configuration
 
-**Do this.** Replace `corner-shop/world.yaml` with this whole file. The new part is `configure` at
-the end:
+**Do this.** Replace `corner-shop/world.yaml` with this whole file. The new parts are `classes`
+and `conversation`, under `configure` at the end:
 
 ```yaml file=corner-shop/world.yaml
 # Corner Shop: the world this guide builds.
@@ -78,8 +78,13 @@ seats:
   - cai
 
 configure:
+  - economy
   - classes
   - conversation
+
+# Not a town: a town names its station hall and its landmark (docs/MODULE_SPEC.md §4.3).
+settlement:
+  kind: none
 ```
 
 Each key under `configure` names a file in the `configure` folder: `classes` names
@@ -97,7 +102,7 @@ $ mineworld validate corner-shop
 A rule does not name one person. It names a **class**: a group of entities with the same tag. Ana
 carries the tag `shopkeeper` since chapter 02.
 
-**Do this.** Make a folder `corner-shop/configure`. In it, write `classes.yaml`:
+**Do this.** In `corner-shop/configure`, write `classes.yaml`:
 
 ```yaml file=corner-shop/configure/classes.yaml
 - class: shopkeeper
@@ -183,6 +188,7 @@ section  conversation:
     "scoped": []
   }
 }
+section  employment: default (compiled)
 section  relationships: default (compiled)
 class    ana              shopkeeper
 class    ben              person
@@ -205,9 +211,9 @@ anyone. At the end, each entity's class: Ana is a `shopkeeper`, Ben and Cai are 
 ```console
 $ mineworld run corner-shop --headless --seed 1 --days 3
 ...
-requests   talk accepted 298
+requests   talk accepted 280
 ...
-activity   days 1-3  ana move 155 talk 81  ben move 159 talk 118  cai move 170 talk 99
+activity   days 1-3  ana move 161 talk 72  ben move 165 talk 106  cai move 170 talk 102
 ...
 ```
 
@@ -215,8 +221,8 @@ activity   days 1-3  ana move 155 talk 81  ben move 159 talk 118  cai move 170 t
 
 | | Step 7.1 | Step 7.6 |
 | --- | --- | --- |
-| `talk accepted`, everyone | 335 | 298 |
-| Ana's `talk` | 108 | 81 |
+| `talk accepted`, everyone | 324 | 280 |
+| Ana's `talk` | 99 | 72 |
 
 Ana talks less: in the shop she no longer talks at all, only at home. Ben and Cai may still talk to her
 there. The others' numbers move a little too, because everyone's day now runs a little differently.

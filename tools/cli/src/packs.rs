@@ -21,7 +21,7 @@ use mineworld_installed_models::Catalog as _;
 use mineworld_kernel::SystemVersion;
 use mineworld_packages::{
     DataPack, Identity, LicencePolicy, PackType, Package, PackageError, Source,
-    check_style_manifest, distinct, far_field, read_pack_file,
+    check_style_manifest, depiction, distinct, far_field, place_asset, read_pack_file, shells,
 };
 use mineworld_worldpack::catalog::AVAILABLE;
 use mineworld_worldpack::{MANIFEST, PackRoots, WorldPack, validate_entity_pack};
@@ -155,6 +155,10 @@ fn identity_of(pack: &DataPack, roots: &PackRoots) -> Result<Identity, String> {
 
 /// A World Pack's identity, from the fields the loader read and checked, all required here.
 fn world_identity(world: &WorldPack) -> Result<Identity, String> {
+    // The authoring gate, as `mineworld validate`'s: every world says whether it is a town (ARC-105).
+    world
+        .require_settlement()
+        .map_err(|error| format!("[mineworld] {error}"))?;
     let fields = world.package_fields();
     Identity::of_world(
         &world.root().join(MANIFEST),
@@ -270,6 +274,8 @@ pub fn validate(dir: &Path, roots: &PackRoots) -> Result<(), String> {
         DataPack::World(dir) => {
             let world = WorldPack::read_with(dir, roots).map_err(described)?;
             let identity = world_identity(&world)?;
+            // A town's far field fills its slots with the declared places (ARC-107, S29-c).
+            world.check_far_field_slots(roots).map_err(described)?;
             world.load(WorldTime::EPOCH).map_err(described)?;
             world
                 .licence_policy()
@@ -298,6 +304,14 @@ pub fn validate(dir: &Path, roots: &PackRoots) -> Result<(), String> {
                         }));
                     }
                     far_field::check_pack(dir, &dimensions).map_err(refused)?;
+                    // A 3D pack's optional place shells (`places/shells.yaml`, ARC-52).
+                    shells::check_pack(dir).map_err(refused)?;
+                    // A 3D pack's place assets, each a .glb with its asset.yaml (PACKAGE_FORMAT §3,
+                    // 16f-d1), before the depiction files that place them.
+                    place_asset::check_pack(dir).map_err(refused)?;
+                    // A 3D pack may carry depiction files; each is checked when the folder exists
+                    // (MODULE_SPEC §6.1.2, ARC-177).
+                    depiction::check_pack(dir).map_err(refused)?;
                     None
                 }
             };

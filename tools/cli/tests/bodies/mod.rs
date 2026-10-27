@@ -48,8 +48,18 @@ pub const KEEP: i32 = R - TOLERANCE;
 /// The most a nudge moves anybody: bodies' `NUDGE_MAX + GAP`, where `NUDGE_MAX` is the radius since
 /// step-11 §21.6 (SD-N11): 260 mm (310 while R was 300).
 pub const NUDGE_LIMIT: i32 = R + GAP;
+/// The most a displaced arrival moves anybody since S35 N-f: bodies' `GIVE_WAY_MAX` (`ARC-330` R2). A
+/// person who is not walking, or whose walk ranks lower (`ARC-333` R1), steps aside to the nearest free
+/// lattice point within 1.2 m of where they stood; a nudge (at most [`NUDGE_LIMIT`]) is the short case
+/// of the same displaced arrival. The scan cannot tell the two apart from the save, so it holds every
+/// displaced arrival to this bound and to bodies' `gave-way` statement of it (`ARC-330` R4).
+pub const GIVE_WAY_LIMIT: i32 = 1_200;
 /// How far a shove moves its target, at most: bodies' `SHOVE_DISTANCE`.
 pub const SHOVE: i32 = 500;
+/// The most people one request displaces: a nudge pass moves at most bodies' `NUDGED_MAX` (4), and a
+/// give-way at most `2 × NUDGED_MAX` (8, `ARC-330` R2: a cluster round a doorway is what that rule
+/// exists for). The scan cannot tell the two apart from the save, so it holds a request to the larger.
+pub const DISPLACED_MAX: u32 = 8;
 
 /// Where each person stands, as the scan has replayed it: their place and, if they have one, their
 /// ground position.
@@ -102,6 +112,7 @@ pub fn rooms_of(pack: &Path) -> Rooms {
         let text = std::fs::read_to_string(&file).expect("a place file reads");
         let mut numbers = Vec::new();
         let mut inside = false;
+        let mut furnishings = false;
         for line in text.lines() {
             let line = line.split('#').next().unwrap_or_default();
             if line.starts_with("body:") {
@@ -109,7 +120,15 @@ pub fn rooms_of(pack: &Path) -> Rooms {
             } else if !line.trim().is_empty() && !line.starts_with(' ') && !line.starts_with('-') {
                 inside = false;
             }
-            if !inside {
+            // The furnishings list (ARC-307) carries no geometry a body meets: it is skipped, so
+            // the numbers read are still the floor's and the solids'.
+            let entry = line.trim_start();
+            if entry.starts_with("furnishings:") {
+                furnishings = true;
+            } else if entry.starts_with("solids:") || entry.starts_with("floor:") || !inside {
+                furnishings = false;
+            }
+            if !inside || furnishings {
                 continue;
             }
             for (at, _) in line.match_indices(':') {
@@ -453,6 +472,8 @@ struct Replay {
     requests: BTreeMap<EventId, ActionId>,
     /// The `arrived` facts of the current request.
     arrivals: BTreeSet<EventId>,
+    /// The people displaced in the current request whom no `gave-way` has stated yet.
+    unstated: BTreeMap<EntityId, EventId>,
     shoving: bool,
 }
 
@@ -461,9 +482,9 @@ struct Replay {
 /// ```text
 /// people   no pair in one place closer than CLEARANCE; no centre outside the floor shrunk by KEEP or
 ///          within KEEP of a solid (the rooms); every displaced arrival — an `arrived` after the first
-///          in one request — stays in its place, moves at most NUDGE_LIMIT, at most four per request,
-///          stated by movement (a move) or by bodies (a shove); a shoved person's own arrival moves at
-///          most SHOVE
+///          in one request — stays in its place, moves at most GIVE_WAY_LIMIT, at most DISPLACED_MAX
+///          per request, stated by movement (a move) or by bodies (a shove), and is stated by bodies'
+///          `gave-way` in the same request; a shoved person's own arrival moves at most SHOVE
 /// objects  each within its floor, at rest on the floor or a solid's top (± 5 mm), out of every
 ///          other solid, ≥ KEEP from every person's centre measured to its footprint, overlapping no
 ///          other object by more than 5 mm
@@ -506,6 +527,7 @@ pub fn scan_in(tables: &Tables, keys: &BTreeMap<EntityId, String>, rooms: Rooms)
             );
             arrivals_in_request = 0;
             replay.arrivals.clear();
+            unstated(&mut replay, &mut report, &place_of);
             replay.shoving = false;
         }
         if current != Some(request) && request.is_some() {
@@ -565,14 +587,15 @@ pub fn scan_in(tables: &Tables, keys: &BTreeMap<EntityId, String>, rooms: Rooms)
                         before,
                         &location,
                         point,
-                        i64::from(NUDGE_LIMIT),
+                        i64::from(GIVE_WAY_LIMIT),
                         &place_of(person),
                         fact,
                     );
-                    if arrivals_in_request > 5 {
-                        report
-                            .violations
-                            .push(format!("more than four displaced by request {request:?}"));
+                    replay.unstated.insert(person, fact.id());
+                    if arrivals_in_request > DISPLACED_MAX + 1 {
+                        report.violations.push(format!(
+                            "more than {DISPLACED_MAX} displaced by request {request:?}"
+                        ));
                     }
                 }
             }
@@ -619,6 +642,7 @@ pub fn scan_in(tables: &Tables, keys: &BTreeMap<EntityId, String>, rooms: Rooms)
         last_instant,
         &mut report,
     );
+    unstated(&mut replay, &mut report, &place_of);
     report.rooms = rooms;
     report.objects = replay
         .objects
@@ -634,6 +658,16 @@ pub fn scan_in(tables: &Tables, keys: &BTreeMap<EntityId, String>, rooms: Rooms)
         })
         .collect();
     report
+}
+
+/// At the end of a request: every person displaced in it was stated by a `gave-way` (`ARC-330` R4).
+fn unstated(replay: &mut Replay, report: &mut Report, place_of: &dyn Fn(EntityId) -> String) {
+    for (person, id) in std::mem::take(&mut replay.unstated) {
+        report.violations.push(format!(
+            "{} was displaced at {id:?} and no gave-way states it",
+            place_of(person)
+        ));
+    }
 }
 
 /// A person's arrival moved them at most `limit` mm, within their place.
@@ -695,6 +729,8 @@ fn objects_fact(
         object.origin = object.at;
     } else if let Some(moved) = bodies_fact(fact, "object-moved") {
         object_moved(fact, &moved, replay, report, bucket, place_of);
+    } else if let Some(gave) = bodies_fact(fact, "gave-way") {
+        replay.unstated.remove(&entity(&gave["person"]));
     } else if let Some(shoved) = bodies_fact(fact, "person-shoved") {
         replay.shoving = true;
         let b = &mut report.buckets[bucket];
@@ -1176,4 +1212,146 @@ pub fn assert_aggregate(reports: &[Report]) {
             );
         }
     }
+}
+
+/// Which kind of authored point a person is placed at (S36-P5, O-7).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum PointKind {
+    /// A person's start: `people/*.yaml` `location`.
+    Start,
+    /// A doorway point: a passage's `here` (in the file's place) or `there` (in the place it leads to).
+    Doorway,
+    /// A sit point's `at`: a place file's `sit-points:`.
+    Sit,
+}
+
+/// One authored point a person is placed at: its place, its kind, a key naming it, and where.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Placed {
+    pub place: String,
+    pub kind: PointKind,
+    pub key: String,
+    pub at: (i32, i32),
+}
+
+/// A YAML file read as a generic tree, never through a pack's types (DO-12).
+fn yaml_tree(path: &Path) -> Value {
+    let text = std::fs::read_to_string(path).expect("a file reads");
+    serde_saphyr::from_str::<Value>(&text).unwrap_or_else(|error| panic!("{path:?}: {error}"))
+}
+
+fn xy(value: &Value, what: &str) -> (i32, i32) {
+    let number = |axis: &str| {
+        value
+            .get(axis)
+            .and_then(Value::as_i64)
+            .and_then(|n| i32::try_from(n).ok())
+            .unwrap_or_else(|| panic!("{what}: an integer `{axis}`: {value}"))
+    };
+    (number("x"), number("y"))
+}
+
+fn sorted_yaml(directory: &Path) -> Vec<PathBuf> {
+    let Ok(listing) = std::fs::read_dir(directory) else {
+        return Vec::new();
+    };
+    let mut files: Vec<PathBuf> = listing
+        .map(|entry| entry.expect("an entry").path())
+        .filter(|path| path.extension().is_some_and(|ext| ext == "yaml"))
+        .collect();
+    files.sort();
+    files
+}
+
+fn stem(path: &Path) -> String {
+    path.file_stem()
+        .and_then(|stem| stem.to_str())
+        .expect("a file's key")
+        .to_owned()
+}
+
+/// Every authored point of `pack` a person is placed at, read from the files' text: each person's
+/// start that names a position, both ends of every passage, and every sit point. Doorway keys read
+/// `<from>->` (`here`) or `-><to>` (`there`, named by the file's place); a start's key is the person's.
+pub fn points_of(pack: &Path) -> Vec<Placed> {
+    let mut points = Vec::new();
+    for file in sorted_yaml(&pack.join("people")) {
+        let tree = yaml_tree(&file);
+        let Some(location) = tree.get("location") else {
+            continue;
+        };
+        let (Some(place), Some(position)) = (
+            location.get("place").and_then(Value::as_str),
+            location.get("position"),
+        ) else {
+            continue;
+        };
+        let key = stem(&file);
+        points.push(Placed {
+            place: place.to_owned(),
+            kind: PointKind::Start,
+            at: xy(position, &key),
+            key,
+        });
+    }
+    for file in sorted_yaml(&pack.join("places")) {
+        let place = stem(&file);
+        let tree = yaml_tree(&file);
+        for passage in tree
+            .get("passages")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+        {
+            let to = passage
+                .get("to")
+                .and_then(Value::as_str)
+                .unwrap_or_else(|| panic!("{place}: a passage names `to`"));
+            if let Some(here) = passage.get("here") {
+                points.push(Placed {
+                    place: place.clone(),
+                    kind: PointKind::Doorway,
+                    key: format!("{place}->{to}"),
+                    at: xy(here, &place),
+                });
+            }
+            if let Some(there) = passage.get("there") {
+                points.push(Placed {
+                    place: to.to_owned(),
+                    kind: PointKind::Doorway,
+                    key: format!("{place}->{to}"),
+                    at: xy(there, &place),
+                });
+            }
+        }
+        for sit in tree
+            .get("sit-points")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+        {
+            let key = sit
+                .get("key")
+                .and_then(Value::as_str)
+                .unwrap_or_else(|| panic!("{place}: a sit point names `key`"))
+                .to_owned();
+            let at = sit
+                .get("at")
+                .unwrap_or_else(|| panic!("{place}: sit point {key} names `at`"));
+            points.push(Placed {
+                place: place.clone(),
+                kind: PointKind::Sit,
+                at: xy(at, &key),
+                key,
+            });
+        }
+    }
+    points
+}
+
+/// The distance, in millimetres, from `point` to the rectangle `rect` (0 inside it).
+pub fn distance_to_rect((x, y): (i32, i32), (x0, y0, x1, y1): Rect) -> f64 {
+    let dx = f64::from((x0 - x).max(0).max(x - x1));
+    let dy = f64::from((y0 - y).max(0).max(y - y1));
+    dx.hypot(dy)
 }

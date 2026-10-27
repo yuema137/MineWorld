@@ -137,9 +137,31 @@ pub(crate) fn stride(
     } else {
         Vec::new()
     };
+    // ARC-333 R1: who yields to this stride. A walker moves (nudges or asks to give way) only people
+    // who rank lower — no walk in progress, or a walk that started later (ties to the higher id);
+    // a direct `move` ranks above nobody and below nobody, and nudges anyone (step-11 SD-B7). An
+    // anchored person (`anchoring.rs`, SD-b-2) yields to nobody.
+    let yields: Vec<bool> = (0..standing.len())
+        .filter(|index| *index != me)
+        .map(|index| {
+            !here.anchored.get(index).copied().unwrap_or(false)
+                && match (here.walking[me], here.walking[index]) {
+                    (Some(rank), Some(other)) => other > rank,
+                    _ => true,
+                }
+        })
+        .collect();
     let attempt = |walls: Against| {
         let reach = reach(&scene, me, &behind, start, aim, walls);
-        match nudge(&scene, &others, &in_scene, reach.candidate, fallback, walls) {
+        match nudge(
+            &scene,
+            &others,
+            &in_scene,
+            &yields,
+            reach.candidate,
+            fallback,
+            walls,
+        ) {
             Ok(nudged) => Tried {
                 candidate: Candidate {
                     walker: reach.candidate,
@@ -190,18 +212,15 @@ pub(crate) fn stride(
             let (result, degraded) = degrade(room, &others, start, tried.reach.blocked, &laid);
             (result, degraded, Objects::Untouched)
         };
-    // ARC-330 R2: a walker's stride that fell short of its target because people who have no walk in
-    // progress stand in its corridor asks them to give way before it settles for less. Only a walker
-    // (a walk in progress) outranks them; a direct `move` does not.
-    if here.walking[me] && result.walker != target {
-        let walking: Vec<bool> = (0..standing.len())
-            .filter(|index| *index != me)
-            .map(|index| here.walking[index])
-            .collect();
+    // ARC-330 R2, ARC-333 R1: a walker's stride that fell short of its target because people of lower
+    // rank stand in its corridor — people with no walk in progress, and walkers whose walk started
+    // later (or at the same instant, with a higher id) — asks them to give way before it settles for
+    // less. Only a walker (a walk in progress) outranks anybody; a direct `move` does not.
+    if here.walking[me].is_some() && result.walker != target {
         let moved = give_way(
             room,
             &other_points,
-            &walking,
+            &yields,
             &here.doors,
             &laid,
             start,
@@ -403,11 +422,15 @@ pub(crate) struct Nudged {
 ///
 /// The pass fails if a nudge would exceed `NUDGE_MAX + GAP`, if the walls cut one more than [`SNAP`]
 /// short, if more than [`NUDGED_MAX`] people would move, or if any pair is still closer than
-/// [`CLEARANCE`] after [`CHAIN_MAX`] generations.
+/// [`CLEARANCE`] after [`CHAIN_MAX`] generations — or if a pusher would touch a person who does not
+/// yield: `yields` is parallel to `others`, and a person who does not yield (an anchored person,
+/// SD-b-2, or a walker of higher rank, `ARC-333` R1) is never moved, so the caller degrades to
+/// blocked at first contact.
 pub(crate) fn nudge(
     scene: &Scene,
     others: &[(EntityId, Point)],
     in_scene: &[usize],
+    yields: &[bool],
     pusher: Point,
     fallback: Point,
     walls: Against,
@@ -430,6 +453,9 @@ pub(crate) fn nudge(
                 let between = distance2(at, *pushing);
                 if between >= touching * touching {
                     continue;
+                }
+                if !yields[index] {
+                    return Err(());
                 }
                 let needed = spacing - between.isqrt();
                 if needed > longest {

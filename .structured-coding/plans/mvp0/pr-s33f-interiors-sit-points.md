@@ -35,6 +35,28 @@ Lakeside's `sit_points:` into world data), written by C1. No other id.
 
 ---
 
+> **Revision 2 (2026-10-19) — furnishings (`ARC-307`; operator ruling Q-FD-2 in
+> [`../mvp1/pr-vf-furnishings-from-data.md`](../mvp1/pr-vf-furnishings-from-data.md) §9).** A bounded revision
+> applied before S33-f starts; scope, invariants and acceptance otherwise unchanged. What changes:
+>
+> 1. **No client-placed furniture.** §5.3's fit-out draws only the rooms' **shells** in client code (the oven
+>    wall, the counter, the gated stair, linings, light). Every free-standing piece — the bread racks, the long
+>    table and its chairs, the boat on its cradle, the workbench, and outside the pump, the well, the benches,
+>    the boulders — is a furnishing S33-b writes in world data (S33-b §5.3.1), and both clients draw it from the
+>    disclosure (`clients/3d-spike/scripts/slice/furnishings.gd`, `clients/2d/scripts/scene/furnishings.gd`).
+>    S33-f's art work becomes **bindings**: for each Lakeside kind, a model in
+>    `presentation/mineworld-default/3D/furniture/furnishings.yaml` (with its hand-scale `dressing`: loaves,
+>    baskets, tools, clamps) and a 2D role `furnishing.<kind>`, replacing any placeholder binding S33-b used. The
+>    "within 50 mm of S33-b's footprint" rule holds by construction for furnishings; it still binds the shells.
+> 2. **The long table's chairs are solids** (S33-b §5.3.1), superseding **F-S33f-5**'s "chairs are drawn props,
+>    not solids". The five sit points stay on the east side, facing west, but stand **behind** each chair on
+>    the aisle side, 260 mm from the chair box's back face, as S34-c rules for the café's chairs (Q-S34c-2);
+>    the depiction pulls the pelvis forward onto the seat by a signed offset (S34-f), superseding **F-S33f-7**'s
+>    0.15 m "back along facing". Each point's `group` is the chair's furnishing key (`long-table.chair-1` …).
+> 3. Interiors are seen only once entered (the disclosure is the observer's own place, Q-FD-3), so the bakery
+>    and the boat shed are furnished from the moment the observer stands in them; what the windows show from
+>    the lane before that is the shell.
+
 ## 0. Binding inputs, exactly restated
 
 - **Scope (step §12.1, S33-f row).** "bakery and boathouse-shed interiors; sit points in all seats; the shared sit
@@ -142,8 +164,8 @@ invented on undrawn benches.
 | **F-S33f-2** | **Q-S34-9's ruling collides with Q-S33-8 and S34-c's scope.** Q-S34-9 says "S33-f authors Lakeside's points once as world data". A `sit_points:` section is refused unless `posture` is enabled (A-5), and enabling it moves Lakeside's digests: a second re-baseline, where Q-S33-8 ruled one (in S33-b). S34-c's own row already enables posture in Lakeside with a recorded re-baseline | **Q-S33f-1** (§14). Recommended A: S33-f fixes the values once (§5.2) and lands only presentation; S34-c writes §5.2's table into the place files verbatim, inside its own re-baseline |
 | **F-S33f-3** | **The pier bench cannot face the lake.** It stands 300 mm from the head's edge (A-2). A sitter facing south would stand 40 mm from the edge, under the 250 mm bodies needs | The pier's sit points face **north**, back to the lake, looking at the village across the water — the view AC-S33-11 asks for ("look back at the village … sit on the pier bench"). Facing the lake would need S33-b's bench moved **≥ 220 mm** north, so that its front edge stands ≥ 520 mm from the head's edge (260 mm to `at`, then 260 mm to the edge) (Q-S33f-2) |
 | **F-S33f-4** | **One square bench is too close to the lime tree.** The north bench's south face is 400 mm from the trunk (A-2); a sitter facing south would stand 140 mm from the trunk | The north bench's points face north, the east bench's face east: both backs to the tree, which is how benches under a village tree stand |
-| **F-S33f-5** | **The long table's west side is unusable.** It stands 300 mm from the bakery's west wall (A-1); a sitter there would stand 40 mm from the wall | Five places on the east side only, facing west along the table (the west wall is the party wall with the boathouse, so there is no window there; the bakery's window is on its lane side); chairs are drawn props, not solids (S33-b names none) |
-| **F-S33f-7** | **A chair at a table needs a short pelvis offset.** S34 places the pelvis at `at` moved back along `facing` by the depiction's `seat_depth_m` (SD-S34-3). With `at` 260 mm from the table's edge, a bench-like 0.42 m would put a diner's pelvis 680 mm from the table — too far to eat | For the long table's chairs `seat_depth_m` is **0.15**: the pelvis sits ≈ 410 mm from the table's edge, and the chair is drawn under the pelvis with its front edge tucked into the 260 mm band (a chair is a prop, not a solid, so bodies is unaffected). The dining distance is cited at C1 from an anthropometric source (Panero and Zelnik, *Human Dimension & Interior Space*, 1979, the dining-clearance plates), or, if C1 cannot quote one, marked approximate with S34-f as its replacer (S34 R-S34-6 records the related chair-point risk) |
+| **F-S33f-5** (superseded in part by revision 2: the chairs are solids, the points stand behind them) | **The long table's west side is unusable.** It stands 300 mm from the bakery's west wall (A-1); a sitter there would stand 40 mm from the wall | Five places on the east side only, facing west along the table (the west wall is the party wall with the boathouse, so there is no window there; the bakery's window is on its lane side); chairs are drawn props, not solids (S33-b names none) |
+| **F-S33f-7** (superseded by revision 2: a signed offset from behind the chair, as S34-c) | **A chair at a table needs a short pelvis offset.** S34 places the pelvis at `at` moved back along `facing` by the depiction's `seat_depth_m` (SD-S34-3). With `at` 260 mm from the table's edge, a bench-like 0.42 m would put a diner's pelvis 680 mm from the table — too far to eat | For the long table's chairs `seat_depth_m` is **0.15**: the pelvis sits ≈ 410 mm from the table's edge, and the chair is drawn under the pelvis with its front edge tucked into the 260 mm band (a chair is a prop, not a solid, so bodies is unaffected). The dining distance is cited at C1 from an anthropometric source (Panero and Zelnik, *Human Dimension & Interior Space*, 1979, the dining-clearance plates), or, if C1 cannot quote one, marked approximate with S34-f as its replacer (S34 R-S34-6 records the related chair-point risk) |
 | **F-S33f-6** | The halt's benches have no coordinates yet (A-3), and F-S33e-1 moves the ticket bay onto the waiting room's north wall | §5.2's halt rows are proposed and fixed at C0 from S33-b's and S29-a's merged files |
 
 ### 3.3 What does not exist
@@ -407,9 +429,104 @@ STOP CONDITION:          train-ready
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C6 | — | [ ] | [ ] | [ ] |
+| C0 base, ledger | (this commit) | [x] | [x] doc scripts | N/A — SPEED FIRST (charter 2026-10-18); prerequisites with evidence below |
+| C1 `ARC-145`, `ARC-172` | (this commit) | [x] | [x] `check_decision_ids.py --write-index`, `check_doc_headings.py` | N/A — SPEED FIRST; `ARC-145` states nothing S34-e/f must undo (the pose rule is presentation; the posture branch first) |
+| C2 the table and its test | (this commit) | [x] | see C2 below | N/A — SPEED FIRST |
+| C3 the shared decision | (this commit) | [x] | see C3 below | N/A — SPEED FIRST |
+| C4 the interiors | (this commit) | [x] | see C4 below | frames below |
+| C5 the `--seat` probe | (this commit) | [x] | see C5 below | N/A — SPEED FIRST |
+| C6 close-out | (this commit) | [x] | CI `fast` on the head | deviations D-S33f-1… recorded |
 
-Mutations: M-f-1, M-f-2, X-4 (none run yet). Findings: F-S33f-1…F-S33f-7 (§3.2).
+Mutations: M-f-1, M-f-2, X-4 (below). Findings: F-S33f-1…F-S33f-7 (§3.2).
+
+### Evidence
+
+**C0 (2026-10-21).** Worktree `/Users/yuema137/mineworld-worktrees/impl-s33f`, branch `mvp0/pr-s33f`, stacked on
+S33-d (#452, `mvp0/pr-s33d` @ `cee33a64`), itself stacked on #387/#395/#400 (the coordinator's chain; origin/main
+not merged). Prerequisites: S34-a MERGED (#301) and S34-c1 MERGED (#368; Social Café and Market Town enable
+`posture`) — both ancestors of the base; the sit-point spacing is `SIT_POINT_SPACING` = 510 mm
+(`systems/posture/src/point.rs:19`), BC-7 void (S34-a ledger: `PERSON_RADIUS` 250 mm), so R-f-4's re-spacing does
+not apply. S33-e2 NOT merged: the halt's thirteen rows are **deferred** to a bounded follow-up on S33-e2's merge
+(§2.3), not invented on undrawn benches. S34-e/S34-f not started: `clients/shared/sitting/` is created here.
+
+**Base audit against revision 2 (bounded corrections, recorded).**
+
+- **D-S33f-1 (the long table's points).** Revision 2 put the five points behind the chairs, 260 mm from each
+  chair box's back face, with a signed pelvis offset; §5.2's table still shows revision 1's (1 060, …). S33-b's
+  merged chairs are boxes (900…1 400, centre ± 235) facing west, so the points are **(1 660, 1 800 / 2 400 /
+  3 000 / 3 600 / 4 200)**, facing 270 000, `seat_offset_m` −0.57 (forward 510 mm to the box's centre and 60 mm
+  more toward the table, the pose sheet's seat middle), `group` = the chair's furnishing key. The frozen §5.2
+  text is kept; this row is the table's value (I-f-3 reads the file and this ledger's value).
+- **D-S33f-2 (the square's north bench).** S33-b's merged bench is (10 900…12 500, 9 600…10 000), not
+  (…12 700): the three points (11 200 / 11 800 / 12 400, 10 260) all still lie over it; no value changes.
+- **D-S33f-3 (the pier bench).** S33-b's merged bench is (450…3 550, 300…750), not (400…3 600): the five points
+  (800 … 3 200, 1 010) all still lie over it; no value changes. The bench's furnishing faces south (the
+  water) while its points face north (F-S33f-3, Q-S33f-2 (A)): the drawn bench is a backless slatted form
+  (`painted_wooden_bench` repeated), so a sitter may face either way.
+- **D-S33f-4 (interiors from data).** Revision 2 and the dispatch: no `LakesideInteriors` script. The rooms are a
+  depicting shell's new `interior` (finishes, fittings, lamps) in the depiction file, drawn by a generic builder
+  (`scripts/depictions/data/interior_builder.gd`), with a format addition validated by
+  `mineworld_packages::depiction` and the client reader alike: `interior` (only on a depicting shell,
+  `DEPICTION_MALFORMED`; fittings and lamps inside the footprint, `DEPICTION_OUT_OF_RANGE`) and the opening
+  state `glazed` (only with an `interior`, `DEPICTION_DOOR`). The `SliceDepiction` interface is unchanged
+  (`sit_points()` keeps its stub; the shared rule reads the depiction file itself).
+- **D-S33f-5 (furniture bindings).** Revision 2 item 1: Lakeside's kinds get bindings in `furnishings.yaml`;
+  two generic binding features were needed because the library has no long bench, long table, workbench or boat:
+  `repeat: true` (a model copied along its solids' longer side) and `form: table | hull` (built over the piece's
+  own solids). `furnishings.rs` admits a `form` binding.
+- **D-S33f-6 (the `--seat` probe's home).** A sibling `slice_probe_seat.gd` (`SliceProbeSeat extends
+  SliceProbeWorld`) instead of growing `slice_probe_world.gd` (1 220 lines), the S14/S15 sibling pattern;
+  windowed, because the seat contact skins vertices.
+- **D-S33f-7 (the 2D client reads the 3D pack's sit-point file).** Until S34-c the fallback positions live
+  only in `presentation/mineworld-default/3D/sit_points/<world>.yaml` (§2.1 item 2), so the 2D wiring reads
+  that file for them; it uses nothing else of it. S34-c removes the fallback, and with it this read.
+- **D-S33f-8 (the probe route).** Lakeside's `probe_route` gains the boathouse and the square, so `--link`
+  enters both rooms (AC-f-6) and `--seat` reaches every place with points.
+
+- **D-S33f-9 (backless benches).** The first `--seat` run failed every bench point (drawn seat 0.207 m against
+  0.45 m, +243 mm): `painted_wooden_bench` has a backrest on the side the points face away from (the benches'
+  furnishings face the water and the trunk; the points face away, F-S33f-3/4, Q-S33f-2 (A)). `bench.pier` and
+  `bench.park` are now the generic form `bench` (a backless seat top at the solid's 450 mm on legs); a sitter
+  may face either side. Data and one generic form name; no point moved.
+
+**Validation (2026-10-21…26, one job at a time through `with-slot.sh`).**
+
+| Check | Verdict | Evidence |
+| --- | --- | --- |
+| AC-f-1 `lakeside_sit_points` (3 tests) | PASS | the table loads with `posture` enabled; every point ≥ 260 mm clear, every pelvis over its prop's solid; AC-f-5 equal |
+| M-f-1 (`pier-bench.2` 200 mm toward `.1`) | PASS (red) | `sit points pier-bench.1 and pier-bench.2 stand closer than 510 mm`; reverted |
+| `cargo test -p mineworld-packages --test depiction` | PASS | 5 passed (new corpus `malformed-interior`, `out-of-range-interior`, `door-glazed` named by field) |
+| `cargo test -p mineworld-cli --test packs` | PASS | 7 passed |
+| `cargo test -p mineworld-acceptance --test client_rules` | PASS | 6 passed, incl. I-f-6 `no_client_holds_a_copy_of_the_sit_rule` |
+| `cargo test -p mineworld-cli --test furnishings` | 4 PASS, 1 **pre-existing FAIL** | `a_lakeside_variants_bakery_carries_furnishings_and_validates`: "world.yaml enables the system 'bodies' twice" — the test appends `bodies`, which S33-b already enables; same on the base; for the milestone batch |
+| Godot import / parse, both clients | PASS | no parse error |
+| AC-f-4 contested seat (2D and 3D `seat_check.gd`) | PASS | both print `SEATED 102 7 long-table.3`, `SEATED 103 7 long-table.3`; nobody before 2 s; 12, 30, 41 never |
+| AC-f-6 `--world=lakeside --link` | PASS | route street → bakery → street → boathouse → street → square → street → pier → street; 126 moves accepted; "all link checks pass" |
+| AC-f-2 `--world=lakeside --seat` | PASS | 16 points × 23 bodies (22 cast + the town figure, 0 SKIP), 368 rows, "all seat checks pass"; chairs' drawn seat 0.454 m, benches 0.450 m |
+| AC-f-3 X-4 (`long-table.3` 0.50 m) | PASS (red) | "23 SEAT CHECKS FAILED", every row `long-table.3`, +46.3 mm; reverted |
+| `--world=lakeside --geometry` (the bakery rows S33-d left open) | PASS for the bakery and the boat shed | 0 failing rows in either room (oven wall, counter and stair now collide as fittings). 20 rows remain: the pier's posts and edges (S33-e's) and, newly reached by the route, the square's lime trunk and its north/east/west edges (S33-d's data; not S33-f's scope) — so `ci_layer.py` still does not run `--geometry` on Lakeside |
+| `lakeside-v7` from data | PASS | regenerated (interiors kept); `--depiction-file=… --link` "all link checks pass", terrain hash `5291616…` |
+| AC-f-7 threshold exposure | INCONCLUSIVE | `--slice-measure` measures the café only; the lamp is placed, its band unmeasured |
+| AC-f-8 bytes | PASS | no binary asset added |
+
+**After merging the base (2026-10-26, `mvp0/pr-s33d` @ `8112883a`, with main).** Bounded corrections:
+`SliceMain.PACK_DIR` is gone (ARC-51): the seating, its check, and — because the base no longer parsed —
+S33-d's `data_depiction.gd` and the café's depiction now read `SlicePack.select().dir` (D-S33f-10); the sit
+rule's constants are `SIT_NEAR_M` / `SIT_STILL_S`, since main brought unrelated `NEAR_M`s that I-f-6 took for
+copies (D-S33f-11); PRESENTATION.md's sit-point section is §9 after main's §8 stations. Re-run: depiction 5,
+packs 7, `lakeside_sit_points` 3, `client_rules` 7 — all PASS; Godot import clean; AC-f-4 both clients
+`SEATED 102/103 7 long-table.3`; `--link` "all link checks pass" (125 moves accepted, bakery, boathouse,
+square, pier entered); `--seat` 368 rows "all seat checks pass".
+
+**After merging main (2026-10-26; S33-d #452 and S33-e1 #469 merged, the pier as `decks`, ARC-178).** The
+PR targets `main`. Lakeside's probe route takes the pier's new tags (`pier`, `landmark`); `lakeside-v7`
+regenerated. **D-S33f-12:** with the route through the square, `--geometry` found the square's west (north of
+the bakery), north and east floor edges and the lime trunk's solid without a scene collider (7 rows); two wall
+edges in the depiction file (`square-wall-back`, `lime-surround`) close them, and `clients-probes` now runs
+Lakeside's `--geometry` (D-S33d-16). Re-run, one slot: Lakeside `--geometry` "all geometry checks pass";
+Lakeside `--link` PASS (125 moves); `--seat` 368 rows PASS; café `--world --link` PASS; `--check-only` on every
+changed script clean; AC-f-4 equal in both clients; depiction 7, packs 7, `lakeside_sit_points` 3,
+`client_rules` 9 PASS; clippy `-D warnings` clean on the three crates.
 
 **Design review (2026-10-18).** One independent Opus reviewer, verdict REQUEST CHANGES, no blockers; §5.2's
 clearances and spacings confirmed point by point. Applied before the PR opened: the bakery's facing reads "along
@@ -417,3 +534,7 @@ the table" (no window on the party wall); the chairs' pelvis offset 0.15 m (F-S3
 risk and a C0 check (R-f-4, S34-a's BC-7); one figure for the pier bench's move (≥ 220 mm); ADA §903.3/§903.4
 attributed correctly; the facing convention cited from `CORE_CONCEPTS.md:440`; I-f-2's clearance aligned with
 SD-S34-3.
+
+**Bounded correction, 2026-10-19 (S34-c1; S34-a BC-10).** The place-file section key is `sit-points:`,
+with a hyphen: an authored section name is `a`–`z`, `0`–`9` and `-`. Everywhere this document writes
+`sit_points:` it means `sit-points:`; the text above is kept as frozen.

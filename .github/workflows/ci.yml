@@ -127,6 +127,10 @@ jobs:
   # exactly one shard. Each shard builds and runs only its own targets, and is capped at 45 min so that
   # drift turns a shard red long before the budget is gone (re-weigh at 35 min, ARC-110).
   #
+  # Shard counts (ARC-110 re-weigh note, 2026-10-21): the suite tripled to ~8700 s on Windows (~6700 s on
+  # Linux), and one test (`market_town`, ~16 min on Linux, ~20 on Windows) is the floor of any shard. Six
+  # Linux shards project ~19 min of tests + ~6 min build each; eight Windows shards ~20 min + ~9 min build.
+  #
   # The shards run on full runs only (ARC-154): a milestone dispatch, a `milestone`-labelled PR, a scratch
   # branch.
   #
@@ -155,7 +159,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: ["1/3", "2/3", "3/3"]
+        shard: ["1/6", "2/6", "3/6", "4/6", "5/6", "6/6"]
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -198,8 +202,8 @@ jobs:
           echo "test shards: $RESULT" | tee -a "$GITHUB_STEP_SUMMARY"
           test "$RESULT" = success
 
-  # Four shards: windows-2025 is the slowest of the three (the suite's tests ~1.3x Linux's, 1.5-1.7x
-  # macOS's, measured per binary on the runs above). Full runs only (ARC-154).
+  # Eight shards: windows-2025 is the slowest of the three (the suite's tests ~1.3x Linux's, ~1.7x
+  # macOS's, measured per binary; ARC-110 re-weigh note). Full runs only (ARC-154).
   test-windows-shard:
     name: test-windows (${{ matrix.shard }})
     needs: changes
@@ -214,7 +218,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: ["1/4", "2/4", "3/4", "4/4"]
+        shard: ["1/8", "2/8", "3/8", "4/8", "5/8", "6/8", "7/8", "8/8"]
     runs-on: windows-2025
     timeout-minutes: 45
     steps:
@@ -257,14 +261,14 @@ jobs:
           echo "test-windows shards: $RESULT" | tee -a "$GITHUB_STEP_SUMMARY"
           test "$RESULT" = success
 
-  # macOS: two jobs per run, carrying every macOS check (ARC-110). GitHub-hosted macOS runs at most five
-  # jobs at once on every plan, so a run holding five macOS jobs held them all; Linux and Windows have
-  # more slots and stay finely sharded. (a) checks the lock and EC-3 (b)'s offline vendor build (what the
-  # `platforms` layer checks that `core` does not; its tests are a subset of `core`), then runs shards 1
-  # and 2 of 3; (b) runs shard 3 of 3, then the Python workspace (`python` layer, uv's Python 3.12 on
-  # macos-26). Measured on head 3045db8b, before 12d: (a) ~27 min, (b) ~31 min. The cap is 55 rather than
-  # 45 because 12d (#171) was measured at 1.1x to 1.6x the suite's macOS time on two of its runs; at 1.6x
-  # both jobs are ~46-49 min. Past 40 min, re-weigh or give macOS a third job. Full runs only (ARC-154).
+  # macOS: four `core` jobs per run (ARC-110 re-weigh note, 2026-10-21). GitHub-hosted macOS runs at most
+  # five jobs at once on every plan, so macOS stays coarser than Linux and Windows. (a) checks the lock and
+  # EC-3 (b)'s offline vendor build (what the `platforms` layer checks that `core` does not; its tests are
+  # a subset of `core`), then runs shard 1 of 4; (b), (c), (d) run shards 2, 3, 4 of 4. Before the
+  # re-weigh, two jobs carried `1,2/3` and `3/3` plus the Python workspace, and ran 44-49 min on runs
+  # 39635558077; each of four shards projects ~21 min of tests + ~9 min build. The Python workspace moved
+  # to the `python` job's matrix (its own macOS job), because it alone takes the better part of an hour.
+  # Full runs only (ARC-154).
   test-macos-shard:
     name: test-macos (${{ matrix.part }})
     needs: changes
@@ -280,21 +284,17 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { part: "a: lock, core 1+2/3", layers: "platforms-lock core", shard: "1,2/3", uv: false }
-          - { part: "b: core 3/3, python", layers: "core python", shard: "3/3", uv: true }
+          - { part: "a: lock, core 1/4", layers: "platforms-lock core", shard: "1/4" }
+          - { part: "b: core 2/4", layers: "core", shard: "2/4" }
+          - { part: "c: core 3/4", layers: "core", shard: "3/4" }
+          - { part: "d: core 4/4", layers: "core", shard: "4/4" }
     runs-on: macos-26
-    timeout-minutes: 55
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           filter: blob:none
-      - if: matrix.uv
-        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
-        with:
-          version: "0.12.5"
-          python-version: "3.12"
-          enable-cache: false
       - uses: ./.github/actions/native
         with:
           layer: ${{ matrix.layers }}
@@ -400,7 +400,8 @@ jobs:
   # (ARC-154), on every platform (D-P3-11). Linux runs in the toolchain
   # container like every other layer; Windows cannot, so it installs the pinned Rust toolchain
   # (rust-toolchain.toml) and uv (DEP-26) on the runner, and Python from uv, at the floor
-  # `requires-python` declares (ARC-48's note of 2026-10-08). macOS's runs in `test-macos (b)` (ARC-110).
+  # `requires-python` declares (ARC-48's note of 2026-10-08). macOS installs them the same way as Windows;
+  # it ran inside `test-macos (b)` until the ARC-110 re-weigh note of 2026-10-21.
   python:
     name: python (${{ matrix.os }}, ${{ matrix.layer }})
     needs: changes
@@ -415,7 +416,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, windows-2025]
+        os: [ubuntu-24.04, windows-2025, macos-26]
         layer: [python]
     runs-on: ${{ matrix.os }}
     # 75 (S10 P7, D-P7-10): Milestone D adds two 100-simulated-day tests (the store bound and the fallback
@@ -499,7 +500,8 @@ jobs:
       (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
        endsWith(github.ref, '-scenario')))
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    # Cancelled at 30 min in milestone run 39407544864 with every world now larger; capacity only (operator, 2026-10-20).
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -536,7 +538,8 @@ jobs:
       (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
        endsWith(github.ref, '-scenario')))
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 30
+    # linux-arm recorded market-town in 1 071 s and was cancelled at 30 min (milestone run 39407544864); capacity only (operator, 2026-10-20).
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -583,6 +586,7 @@ jobs:
             !/presentation/
             /presentation/mineworld-default/*/pack.yaml
             /presentation/mineworld-default/*/manifest.yaml
+            /presentation/mineworld-default/*/far_field/
       - uses: ./.github/actions/native
         with:
           layer: parity
@@ -603,7 +607,8 @@ jobs:
       (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
        endsWith(github.ref, '-scenario')))
     runs-on: windows-2025
-    timeout-minutes: 40
+    # windows recorded bodies-yard in 590 s and lakeside in 211 s and was cancelled at 40 min (milestone run 39407544864); capacity only (operator, 2026-10-20).
+    timeout-minutes: 100
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -615,6 +620,7 @@ jobs:
             !/presentation/
             /presentation/mineworld-default/*/pack.yaml
             /presentation/mineworld-default/*/manifest.yaml
+            /presentation/mineworld-default/*/far_field/
       - uses: ./.github/actions/native
         with:
           layer: parity

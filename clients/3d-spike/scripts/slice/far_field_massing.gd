@@ -71,3 +71,11 @@ static func tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, facing: Vec
 	for v in [a, b, c]:
 		st.set_color(colour.srgb_to_linear())   # vertex colours are linear
 		st.add_vertex(v)
+
+
+## The massing's material: vertex colours as albedo, matte.
+static func material() -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.vertex_color_use_as_albedo = true
+	mat.roughness = 0.9
+	return mat

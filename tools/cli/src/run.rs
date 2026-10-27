@@ -53,6 +53,9 @@ pub const PACE: SimDuration = SimDuration::from_seconds(900);
 /// (`step-19-time-weather.md` §4.6; `step-11-bodies.md` SD-N15). A divisor of [`PACE`], so seat `k`'s
 /// step instants `genesis + k + n·RUN_STEP` include its lattice instants and, while there are fewer
 /// than `RUN_STEP` seats, never meet another seat's (`DECISIONS.md` `ARC-27` note, 2026-10-09).
+///
+/// The default of `--stride` (`ARC-341`): a larger world passes a larger divisor of its pace, which
+/// raises the seat cap to one less than that stride.
 pub const RUN_STEP: SimDuration = SimDuration::from_seconds(30);
 
 /// A simulated day, in seconds: the command's unit, never the kernel's (`INV-12`).
@@ -70,8 +73,12 @@ pub struct RunRequest {
     /// Where the world's requirements are resolved (`ARC-54`). Never saved: a resume resolves again.
     pub roots: PackRoots,
     /// World seconds between a paced seat's consults (`--pace`, default [`PACE`]). A measurement knob for the
-    /// FX-24 feasibility test (`ARC-69` item 11); a multiple of [`RUN_STEP`].
+    /// FX-24 feasibility test (`ARC-69` item 11); a multiple of `stride`.
     pub pace: SimDuration,
+    /// World seconds between a walking seat's stride consults (`--stride`, default [`RUN_STEP`];
+    /// `ARC-341`). A divisor of `pace`; a run takes at most `stride − 1` seats, so seat instants never
+    /// meet. Never saved, like `pace`: a resume is given the same value.
+    pub stride: SimDuration,
     /// `--decisions` and `--seat-model` (`ARC-84`). Never saved: a resume reads the list it is given.
     pub decisions: DecisionArgs,
 }
@@ -80,12 +87,16 @@ pub struct RunRequest {
 pub fn run(request: &RunRequest) -> Result<(), String> {
     let started = Instant::now();
     let pace = request.pace;
-    if pace.seconds() < RUN_STEP.seconds() || pace.seconds() % RUN_STEP.seconds() != 0 {
+    let stride = request.stride;
+    if stride.seconds() < 1
+        || pace.seconds() < stride.seconds()
+        || pace.seconds() % stride.seconds() != 0
+    {
         return Err(format!(
             "[mineworld] --pace {} is not a multiple of RUN_STEP {}: a run's stride rounds fall on the pace's \
              lattice only in whole rounds",
             pace.seconds(),
-            RUN_STEP.seconds(),
+            stride.seconds(),
         ));
     }
     let pack = WorldPack::read_with(&request.world, &request.roots).map_err(described)?;
@@ -96,14 +107,14 @@ pub fn run(request: &RunRequest) -> Result<(), String> {
             pack.id()
         ));
     }
-    if i64::try_from(seats.len()).unwrap_or(i64::MAX) >= RUN_STEP.seconds() {
+    if i64::try_from(seats.len()).unwrap_or(i64::MAX) >= stride.seconds() {
         return Err(format!(
             "[mineworld] {} offers {} seats; a headless run consults at most {} (one per second of \
-             its stride cadence, RUN_STEP {})",
+             its stride cadence, RUN_STEP {}); pass --stride with a larger divisor of the pace",
             pack.id(),
             seats.len(),
-            RUN_STEP.seconds() - 1,
-            RUN_STEP,
+            stride.seconds() - 1,
+            stride,
         ));
     }
     let days = i64::try_from(request.days)
@@ -155,13 +166,18 @@ pub fn run(request: &RunRequest) -> Result<(), String> {
     let seat_count = i64::try_from(seats.len()).unwrap_or(i64::MAX);
 
     let mut next_day = ((begun.start - genesis) / DAY + 1).max(1);
-    // Rounds of RUN_STEP: every PACE / RUN_STEP-th round is the lattice (ARC-27 note, 2026-10-09).
-    let per_pace = pace.seconds() / RUN_STEP.seconds();
-    let first_round = ((begun.start - genesis - seat_count) / RUN_STEP.seconds()).max(0);
+    // Rounds of the stride: every pace / stride-th round is the lattice (ARC-27 note, 2026-10-09).
+    let per_pace = pace.seconds() / stride.seconds();
+    let first_round = ((begun.start - genesis - seat_count) / stride.seconds()).max(0);
     'rounds: for round in first_round.. {
         let lattice = round % per_pace == 0;
         for (k, (seat, observer)) in seats.iter().zip(&observers).enumerate() {
-            let at = instant(genesis, i64::try_from(k).unwrap_or(0), round);
+            let at = instant(
+                genesis,
+                i64::try_from(k).unwrap_or(0),
+                round,
+                stride.seconds(),
+            );
             if at >= end {
                 break 'rounds;
             }
@@ -190,6 +206,7 @@ pub fn run(request: &RunRequest) -> Result<(), String> {
                 at,
                 lattice,
                 bucket: (at - genesis) / (BUCKET_DAYS * DAY),
+                stride,
             };
             consult.run(&**model, seed, pace, &mut begun, &mut tally)?;
         }
@@ -212,9 +229,9 @@ pub fn run(request: &RunRequest) -> Result<(), String> {
     Ok(())
 }
 
-/// Seat `k`'s instant in round `round`: `genesis + k + round·RUN_STEP`.
-const fn instant(genesis: i64, k: i64, round: i64) -> i64 {
-    genesis + k + round * RUN_STEP.seconds()
+/// Seat `k`'s instant in round `round`: `genesis + k + round·stride`.
+const fn instant(genesis: i64, k: i64, round: i64, stride: i64) -> i64 {
+    genesis + k + round * stride
 }
 
 /// One consult of one seat at one instant: observe, ask the controller, dispatch what it asked.
@@ -226,6 +243,8 @@ struct Consult<'a> {
     /// (step-11 N-D13). Between lattice instants: only the next stride (SD-N15, SD-N16).
     lattice: bool,
     bucket: i64,
+    /// The run's stride cadence (`--stride`, `ARC-341`), told to the model as `Consult::stride`.
+    stride: SimDuration,
 }
 
 impl Consult<'_> {
@@ -246,7 +265,7 @@ impl Consult<'_> {
         let asked = mineworld_decision::Consult {
             seed,
             pace,
-            stride: RUN_STEP,
+            stride: self.stride,
             observation: &seen,
         };
         let decided = if self.lattice {
@@ -646,7 +665,7 @@ mod tests {
         let mut lattice = 0;
         for round in 0..rounds {
             for k in 0..seats {
-                let at = instant(genesis, k, round);
+                let at = instant(genesis, k, round, RUN_STEP.seconds());
                 assert!(
                     at > previous,
                     "round {round}, seat {k}: {at} after {previous}"

@@ -254,6 +254,13 @@ def main():
     final = list(pos)
     for i in body_ids:
         final[i] = pos[i] + disp[i]
+    # S32-p (Ivan): further passes from the fitted surface reach a body whose belly or chest lies beyond the
+    # first pass's 50 mm ray (a heavy, stooped trunk); `fit_passes` 1 is #211-era registration unchanged.
+    for _ in range(int(p.get("fit_passes", 1)) - 1):
+        more, again = surface_fit(final, nrm, body_ids, regions, region_names, bvh, adj)
+        for i in body_ids:
+            final[i] = final[i] + more[i]
+        fitted |= again
     kd = KDTree(len(body_ids))
     for k, i in enumerate(body_ids):
         kd.insert(pos[i], k)

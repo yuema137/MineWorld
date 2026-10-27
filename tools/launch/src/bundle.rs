@@ -69,15 +69,14 @@ impl Bundle {
         Ok(path)
     }
 
-    /// A client's exported executable, checked to exist (step-23 D-Ra-1: official release templates refuse
-    /// `--main-pack`, so each client is a full export with its pack): `clients/mineworld-<2d|3d>.exe` on
-    /// Windows, `clients/mineworld-<2d|3d>` on Linux, and on macOS the one executable in
-    /// `clients/mineworld-<2d|3d>.app/Contents/MacOS/`, whose name the export takes from the project.
-    pub fn client(&self, client: Client) -> Result<PathBuf, Failure> {
-        let name = format!("mineworld-{}", client.label());
+    /// The executable that starts `client`, checked to exist: the bundle's one Godot runtime for both
+    /// clients (step-23 PR S23-RT), which loads the client's pack named by `--client=` (`children.rs`).
+    /// `clients/mineworld-client.exe` on Windows, `clients/mineworld-client` on Linux, and on macOS the one
+    /// executable in `clients/MineWorld.app/Contents/MacOS/`, whose name the export takes from the project.
+    pub fn client(&self, _client: Client) -> Result<PathBuf, Failure> {
         let clients = self.runtime.join("clients");
         if cfg!(target_os = "macos") {
-            let folder = clients.join(format!("{name}.app/Contents/MacOS"));
+            let folder = clients.join("MineWorld.app/Contents/MacOS");
             exists(&folder)?;
             let files: Vec<PathBuf> = std::fs::read_dir(&folder)
                 .map_err(|error| {
@@ -96,7 +95,7 @@ impl Bundle {
                 ))),
             };
         }
-        let path = clients.join(format!("{name}{}", std::env::consts::EXE_SUFFIX));
+        let path = clients.join(format!("mineworld-client{}", std::env::consts::EXE_SUFFIX));
         exists(&path)?;
         Ok(path)
     }

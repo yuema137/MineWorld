@@ -1,0 +1,25 @@
+{
+  "run_time": {
+    "application/config/name": "title",
+    "application/config/quit_on_go_back": "quit_on_go_back",
+    "display/window/stretch/mode": "stretch_mode",
+    "display/window/stretch/aspect": "stretch_aspect",
+    "rendering/textures/canvas_textures/default_texture_filter": "canvas_texture_filter",
+    "rendering/anti_aliasing/quality/msaa_2d": "msaa_2d",
+    "rendering/anti_aliasing/quality/msaa_3d": "msaa_3d",
+    "rendering/anti_aliasing/quality/screen_space_aa": "screen_space_aa",
+    "rendering/occlusion_culling/use_occlusion_culling": "occlusion_culling",
+    "rendering/textures/default_filters/anisotropic_filtering_level": "anisotropic_filtering",
+    "rendering/lights_and_shadows/directional_shadow/size": "directional_shadow_size",
+    "rendering/lights_and_shadows/directional_shadow/soft_shadow_filter_quality": "directional_soft_shadow",
+    "rendering/lights_and_shadows/positional_shadow/soft_shadow_filter_quality": "positional_soft_shadow",
+    "rendering/environment/defaults/default_clear_color": "clear_color"
+  },
+  "ignored": [
+    "config_version",
+    "application/config/features",
+    "application/run/main_scene",
+    "application/run/main_scene.mineworld_release",
+    "rendering/textures/vram_compression/import_etc2_astc"
+  ]
+}

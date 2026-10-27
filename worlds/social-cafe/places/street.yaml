@@ -9,7 +9,9 @@
 # (`docs/MODULE_SPEC.md` §4.1).
 #
 # Every place joins the street and nothing else, so any place is at most two doors from any other:
-# out onto the street, and in through the next.
+# out onto the street, and in through the next. The station is the one group behind a door: its hall
+# opens onto the street's west end, past the forecourt, and the ticket bay and the platform open off
+# the hall (docs/MODULE_SPEC.md §4.3).
 
 tags:
   - street
@@ -20,24 +22,27 @@ note: >-
   Somewhere to step out to, and the way from any place to any other.
 
 # Owned by the `bodies` system (`ARC-39`): the floor between the façades and the street's two ends, and
-# the 62 solids the 3D slice collides with on it, as boxes (step-11 §19.3.1, E-TD1). A slice cylinder
+# the 60 solids the 3D slice collides with on it, as boxes (step-11 §19.3.1, E-TD1). A slice cylinder
 # is held by its inscribed square (radius ≤ 500 mm) or by two crossed boxes (the terrace tables); each
 # box is within 150 mm of the slice's collider. One slice collider is left out by name: a tree on the
 # east bank whose foliage overhangs the pavement 1.66 m up — an overhang a floor-standing box cannot
 # hold (step-11 §19.13, TD-D4's amendment; FU-12d-1).
 body:
-  floor: { min: { x: -37450, y: -13000 }, max: { x: 30550, y: 3200 } }
+  # The floor runs 25 m further west than the frontage: the station forecourt, which the hall's
+  # east façade closes (step-29 §6.3; S29-a).
+  floor: { min: { x: -62450, y: -13000 }, max: { x: 30550, y: 3200 } }
   solids:
     # the retaining wall
     - { min: { x: 15050, y: 1000 }, max: { x: 26050, y: 3200 }, height: 1900 }
-    # lamps (r 130)
-    - { min: { x: -27541, y: -691 }, max: { x: -27359, y: -509 }, height: 2400 }
-    - { min: { x: -11541, y: -691 }, max: { x: -11359, y: -509 }, height: 2400 }
-    - { min: { x: 5459, y: -691 }, max: { x: 5641, y: -509 }, height: 2400 }
-    - { min: { x: 21459, y: -691 }, max: { x: 21641, y: -509 }, height: 2400 }
-    - { min: { x: -20541, y: -9291 }, max: { x: -20359, y: -9109 }, height: 2400 }
-    - { min: { x: -2541, y: -9291 }, max: { x: -2359, y: -9109 }, height: 2400 }
-    - { min: { x: 14459, y: -9291 }, max: { x: 14641, y: -9109 }, height: 2400 }
+    # lamps: the drawn post's base, r 148 mm in the body band, in a 300 mm square (S36-P5c; the
+    # r 130 inscribed square left 57 mm of the base outside it)
+    - { min: { x: -27600, y: -750 }, max: { x: -27300, y: -450 }, height: 2400 }
+    - { min: { x: -11600, y: -750 }, max: { x: -11300, y: -450 }, height: 2400 }
+    - { min: { x: 5400, y: -750 }, max: { x: 5700, y: -450 }, height: 2400 }
+    - { min: { x: 21400, y: -750 }, max: { x: 21700, y: -450 }, height: 2400 }
+    - { min: { x: -20600, y: -9350 }, max: { x: -20300, y: -9050 }, height: 2400 }
+    - { min: { x: -2600, y: -9350 }, max: { x: -2300, y: -9050 }, height: 2400 }
+    - { min: { x: 14400, y: -9350 }, max: { x: 14700, y: -9050 }, height: 2400 }
     # bollards (r 160)
     - { min: { x: -5563, y: -1093 }, max: { x: -5337, y: -867 }, height: 1000 }
     - { min: { x: -3213, y: -1093 }, max: { x: -2987, y: -867 }, height: 1000 }
@@ -69,30 +74,34 @@ body:
     - { min: { x: -98, y: -9998 }, max: { x: 198, y: -9702 }, height: 2200 }
     - { min: { x: 8389, y: -10011 }, max: { x: 8711, y: -9689 }, height: 2200 }
     - { min: { x: 17377, y: -10023 }, max: { x: 17723, y: -9677 }, height: 2200 }
-    # stone planters
-    - { min: { x: -10425, y: -955 }, max: { x: -8875, y: -5 }, height: 600 }
-    - { min: { x: -3825, y: -955 }, max: { x: -2275, y: -5 }, height: 600 }
-    - { min: { x: 10375, y: -955 }, max: { x: 11925, y: -5 }, height: 600 }
-    - { min: { x: 17975, y: -955 }, max: { x: 19525, y: -5 }, height: 600 }
+    # stone planters. The north row stands 200 mm further from the kerb than it did: two of its
+    # planters stood on the bollard line, a bollard 88 mm inside each (ARC-332, S36-P5a)
+    - { min: { x: -10425, y: -755 }, max: { x: -8875, y: 195 }, height: 600 }
+    - { min: { x: -3825, y: -755 }, max: { x: -2275, y: 195 }, height: 600 }
+    - { min: { x: 10375, y: -755 }, max: { x: 11925, y: 195 }, height: 600 }
+    - { min: { x: 17975, y: -755 }, max: { x: 19525, y: 195 }, height: 600 }
     - { min: { x: -28625, y: -9770 }, max: { x: -27275, y: -8870 }, height: 600 }
     - { min: { x: -14125, y: -9770 }, max: { x: -12775, y: -8870 }, height: 600 }
     - { min: { x: 2375, y: -9770 }, max: { x: 3725, y: -8870 }, height: 600 }
-    # the café's three terrace tables (r 620), each two crossed boxes
-    - { min: { x: 530, y: 997 }, max: { x: 1770, y: 1803 }, height: 850 }
-    - { min: { x: 747, y: 780 }, max: { x: 1553, y: 2020 }, height: 850 }
-    - { min: { x: 2580, y: 997 }, max: { x: 3820, y: 1803 }, height: 850 }
-    - { min: { x: 2797, y: 780 }, max: { x: 3603, y: 2020 }, height: 850 }
-    - { min: { x: 4630, y: 997 }, max: { x: 5870, y: 1803 }, height: 850 }
-    - { min: { x: 4847, y: 780 }, max: { x: 5653, y: 2020 }, height: 850 }
-    # planter boxes
-    - { min: { x: -2849, y: 2180 }, max: { x: -1951, y: 2720 }, height: 408 }
-    - { min: { x: 6851, y: 2180 }, max: { x: 7749, y: 2720 }, height: 408 }
+    # the café's three terrace tables (r 620), each two crossed boxes, the east-west one widened to
+    # hold the set's two chairs, which stand east and west of the table (their drawn footprints;
+    # S36-P5c: the chairs had no solid). The two boxes of one set share a `group` (`ARC-332`), the
+    # only solids here that overlap
+    - { min: { x: 329, y: 997 }, max: { x: 2060, y: 1803 }, height: 860, group: terrace-table.1 }
+    - { min: { x: 747, y: 780 }, max: { x: 1553, y: 2020 }, height: 850, group: terrace-table.1 }
+    - { min: { x: 2424, y: 997 }, max: { x: 4106, y: 1866 }, height: 860, group: terrace-table.2 }
+    - { min: { x: 2797, y: 780 }, max: { x: 3603, y: 2020 }, height: 850, group: terrace-table.2 }
+    - { min: { x: 4488, y: 855 }, max: { x: 6110, y: 2006 }, height: 860, group: terrace-table.3 }
+    - { min: { x: 4847, y: 780 }, max: { x: 5653, y: 2020 }, height: 850, group: terrace-table.3 }
+    # planter boxes, each with the shrub it holds, which spills 0.35 m past the box (S36-P5c)
+    - { min: { x: -3016, y: 1899 }, max: { x: -1784, y: 3183 }, height: 1300 }
+    - { min: { x: 6684, y: 1899 }, max: { x: 7916, y: 3183 }, height: 1300 }
     # clay pots
     - { min: { x: -1310, y: 2561 }, max: { x: -990, y: 2879 }, height: 213 }
     - { min: { x: 1010, y: 2561 }, max: { x: 1330, y: 2879 }, height: 213 }
     - { min: { x: 5090, y: 2191 }, max: { x: 5410, y: 2509 }, height: 213 }
     # A-boards
-    - { min: { x: -1643, y: 1131 }, max: { x: -557, y: 2169 }, height: 1449 }
+    - { min: { x: -1690, y: 1085 }, max: { x: -510, y: 2215 }, height: 1449 }
     - { min: { x: -31179, y: 909 }, max: { x: -30121, y: 1891 }, height: 1449 }
     # benches
     - { min: { x: -19400, y: -150 }, max: { x: -17500, y: 550 }, height: 840 }
@@ -101,8 +110,17 @@ body:
     - { min: { x: -4448, y: -548 }, max: { x: -4252, y: -352 }, height: 2200 }
     # the bicycle (r 500)
     - { min: { x: 8597, y: 1797 }, max: { x: 9303, y: 2503 }, height: 1100 }
-    # the west parapets
-    - { min: { x: -37450, y: -1200 }, max: { x: -36950, y: 3200 }, height: 740 }
-    - { min: { x: -37450, y: -13000 }, max: { x: -36950, y: -8600 }, height: 740 }
+    # (no west parapets: the street opens into the station forecourt; step-29 §6.3)
     # the east bank
     - { min: { x: 29550, y: -1900 }, max: { x: 30550, y: 3200 }, height: 1800 }
+
+# Owned by the `posture` system (`ARC-147`): three places on each 1.9 m bench, one person per 600 mm
+# (Q-S34-8), on free floor 260 mm in front of the bench's box (S34-c SD-c-1). Each faces the road, as
+# the 3D slice draws it: the bench on the north pavement faces south, the one on the south side north.
+sit-points:
+  - { key: street-bench-north.1, group: street-bench-north, at: { x: -19050, y: -410 }, facing: 180000 }
+  - { key: street-bench-north.2, group: street-bench-north, at: { x: -18450, y: -410 }, facing: 180000 }
+  - { key: street-bench-north.3, group: street-bench-north, at: { x: -17850, y: -410 }, facing: 180000 }
+  - { key: street-bench-south.1, group: street-bench-south, at: { x: -7050, y: -9390 }, facing: 0 }
+  - { key: street-bench-south.2, group: street-bench-south, at: { x: -6450, y: -9390 }, facing: 0 }
+  - { key: street-bench-south.3, group: street-bench-south, at: { x: -5850, y: -9390 }, facing: 0 }

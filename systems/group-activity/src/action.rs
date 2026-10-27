@@ -6,7 +6,9 @@
 //! activity — because a client points at people, and a process is not an entity anybody can point at
 //! (`step-09-social.md` B-4). `leave-group-activity` targets nobody.
 
-use mineworld_contracts::{Action, ActionTypeId, Millimetres, SpatialRequirement, SystemId};
+use mineworld_contracts::{
+    Action, ActionCategory, ActionTypeId, Millimetres, SpatialRequirement, SystemId,
+};
 use mineworld_kernel::SystemIdentity;
 use serde::{Deserialize, Serialize};
 
@@ -30,6 +32,7 @@ pub struct Invite {
 impl Action for Invite {
     const ACTION_TYPE: ActionTypeId = ActionTypeId::from_static("invite");
     const OWNER: SystemId = GroupActivitySystem::ID;
+    const CATEGORY: ActionCategory = ActionCategory::Social;
 }
 
 impl Invite {
@@ -51,6 +54,7 @@ pub struct AcceptInvitation {}
 impl Action for AcceptInvitation {
     const ACTION_TYPE: ActionTypeId = ActionTypeId::from_static("accept-invitation");
     const OWNER: SystemId = GroupActivitySystem::ID;
+    const CATEGORY: ActionCategory = ActionCategory::Social;
 }
 
 /// Say no to the target's invitation.
@@ -60,6 +64,7 @@ pub struct DeclineInvitation {}
 impl Action for DeclineInvitation {
     const ACTION_TYPE: ActionTypeId = ActionTypeId::from_static("decline-invitation");
     const OWNER: SystemId = GroupActivitySystem::ID;
+    const CATEGORY: ActionCategory = ActionCategory::Social;
 }
 
 /// Join what the target is doing.
@@ -73,6 +78,7 @@ pub struct JoinGroupActivity {}
 impl Action for JoinGroupActivity {
     const ACTION_TYPE: ActionTypeId = ActionTypeId::from_static("join-group-activity");
     const OWNER: SystemId = GroupActivitySystem::ID;
+    const CATEGORY: ActionCategory = ActionCategory::Social;
 }
 
 /// Stop taking part in one's activity.
@@ -82,6 +88,7 @@ pub struct LeaveGroupActivity {}
 impl Action for LeaveGroupActivity {
     const ACTION_TYPE: ActionTypeId = ActionTypeId::from_static("leave-group-activity");
     const OWNER: SystemId = GroupActivitySystem::ID;
+    const CATEGORY: ActionCategory = ActionCategory::Social;
 }
 
 /// `invite`: the same place, within [`INVITE_RANGE`], of somebody available — not already part of an

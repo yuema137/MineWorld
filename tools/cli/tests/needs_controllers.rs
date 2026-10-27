@@ -8,6 +8,7 @@
 //! AC-Nc-4   3 days, seed 7, all rule: every seated person falls asleep at least once between 22:00 and
 //!           02:00, and eats at least one nourishing item per day of the run (F-Nc-6)         default
 //! AC-Nc-3   30 days × seeds 1, 7, 42: every shift present, nobody late                        milestone
+//! AC-Nc3-4  the same, every seat `motivated` (`pr-s35-nc3-motivated-sleep.md` §5)                milestone
 //! AC-Nc-1   neither pack: `run` output identical to the base for all-rule and all-motivated  milestone
 //!           (the base is a binary built before N-c, named by MINEWORLD_BASE_BINARY; Lakeside and
 //!           Bodies Yard by the milestone's baseline digests)
@@ -223,21 +224,44 @@ fn shifts(facts: &[EventEnvelope]) -> (usize, usize, usize) {
 #[test]
 #[ignore = "acceptance at the milestone (SPEED FIRST): AC-Nc-3, 30 days × seeds 1, 7, 42 in two worlds"]
 fn with_needs_and_sleep_every_shift_is_still_present() {
-    // AC-LE2-1's literal counts: Market Town two shifts a day, Commute Town four.
-    for (world, per_day) in [(MARKET, 2), (COMMUTE, 4)] {
+    every_shift_is_present(None);
+}
+
+#[test]
+#[ignore = "acceptance at the milestone (SPEED FIRST): AC-Nc3-4, all motivated, 30 days × seeds 1, 7, 42 in two worlds"]
+fn with_motivated_seats_every_shift_is_still_present() {
+    every_shift_is_present(Some(ALL_MOTIVATED));
+}
+
+/// AC-Nc-3 (and, with every seat `motivated`, AC-Nc3-4): 30 days × seeds 1, 7, 42, every shift present.
+fn every_shift_is_present(decisions: Option<&str>) {
+    // AC-LE2-1's literal counts: Market Town three shifts a day (Alice's and Felix's, and since S29-b
+    // Ivan's 07:00 morning shift at the station newsstand, `pr-s29b-newsstand.md` §2 item 4), Commute
+    // Town four.
+    for (world, per_day) in [(MARKET, 3), (COMMUTE, 4)] {
         for seed in [1, 7, 42] {
-            let save = fresh(&format!("needs-ac3-save-{seed}"));
-            let output = mineworld(&[
+            let tag = if decisions.is_some() {
+                "motivated"
+            } else {
+                "rule"
+            };
+            let save = fresh(&format!("needs-ac3-save-{tag}-{seed}"));
+            let seed_text = seed.to_string();
+            let mut arguments = vec![
                 "run",
                 world,
                 "--headless",
                 "--seed",
-                &seed.to_string(),
+                &seed_text,
                 "--days",
                 "30",
                 "--save",
                 save.to_str().expect("a printable path"),
-            ]);
+            ];
+            if let Some(decisions) = decisions {
+                arguments.extend(["--decisions", decisions]);
+            }
+            let output = mineworld(&arguments);
             assert!(output.status.success(), "{}", headless::stderr(&output));
             let (started, present, late) = shifts(&social::facts_of(&Tables::read(&save)));
             println!("{world} seed {seed}: {present} of {started} present, {late} late");

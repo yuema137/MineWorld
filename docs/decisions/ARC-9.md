@@ -97,9 +97,9 @@ render:
   tool: <renderer and script>
   date: <date>
   camera: { projection, elevation_deg, yaw_from_walk_deg, view, faces }
-  pose: { stride_deg, frame, lead_leg,
-          arms, stand_abduction_deg, frame_abduction_deg, forearm_in_deg, elbow_deg,
-          stand_clearance_mm }                     # the arms' solved stand (2026-10-19 fix: arms off the body)
+  pose: { frame, lead_leg, source, pose_file, pose_sha256 }  # the 3D client's own pose of this export (PR
+          # S26-c-pose, 2026-10-19): the Walk clip's stride frames as the client retargets and draws them,
+          # dumped by `cast.py ground --dump-pose`; nothing is posed or solved by the renderer
   lighting: <summary>
 postprocess: { supersample, downsample, outline_px, normalized, height_m, pixel_height, anchor, size }
 human_curated: false

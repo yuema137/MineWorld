@@ -1,72 +1,80 @@
 [mineworld] run Social Café (social-cafe): seats alice, bob, carol, dev, erin, felix, grace, hana, ivan, visitor, wanderer; seed 7; to day 30; pace 900s; in memory
-day 1  revision -  facts 4562
-day 2  revision -  facts 8926
-day 3  revision -  facts 13100
-day 4  revision -  facts 17037
-day 5  revision -  facts 21071
-day 6  revision -  facts 25241
-day 7  revision -  facts 29452
-day 8  revision -  facts 33799
-day 9  revision -  facts 37700
-day 10  revision -  facts 42013
-day 11  revision -  facts 46253
-day 12  revision -  facts 50359
-day 13  revision -  facts 55168
-day 14  revision -  facts 58990
-day 15  revision -  facts 63416
-day 16  revision -  facts 67538
-day 17  revision -  facts 71254
-day 18  revision -  facts 75270
-day 19  revision -  facts 79071
-day 20  revision -  facts 83479
-day 21  revision -  facts 87544
-day 22  revision -  facts 91759
-day 23  revision -  facts 95595
-day 24  revision -  facts 99626
-day 25  revision -  facts 103784
-day 26  revision -  facts 107844
-day 27  revision -  facts 112021
-day 28  revision -  facts 116183
-day 29  revision -  facts 120339
-day 30  revision -  facts 124437
-consults   87701
-requests   accept-invitation accepted 994
-requests   decline-invitation accepted 407
-requests   invite accepted 1568
-requests   join-group-activity accepted 470
-requests   kick accepted 1
-requests   leave-group-activity accepted 457
-requests   shove accepted 1861
-requests   talk accepted 9351
-requests   walk-step accepted 56327
-requests   walk-to accepted 11010
+day 1  revision -  facts 4350
+day 2  revision -  facts 8046
+day 3  revision -  facts 11717
+day 4  revision -  facts 15562
+day 5  revision -  facts 19413
+day 6  revision -  facts 23143
+day 7  revision -  facts 27025
+day 8  revision -  facts 30701
+day 9  revision -  facts 34511
+day 10  revision -  facts 38321
+day 11  revision -  facts 42181
+day 12  revision -  facts 45895
+day 13  revision -  facts 49656
+day 14  revision -  facts 53270
+day 15  revision -  facts 56948
+day 16  revision -  facts 60794
+day 17  revision -  facts 64598
+day 18  revision -  facts 68308
+day 19  revision -  facts 72101
+day 20  revision -  facts 75925
+day 21  revision -  facts 79673
+day 22  revision -  facts 83399
+day 23  revision -  facts 87198
+day 24  revision -  facts 91034
+day 25  revision -  facts 94701
+day 26  revision -  facts 98377
+day 27  revision -  facts 101995
+day 28  revision -  facts 105643
+day 29  revision -  facts 109392
+day 30  revision -  facts 113294
+consults   81235
+requests   accept-invitation accepted 877
+requests   decline-invitation accepted 401
+requests   invite accepted 1407
+requests   join-group-activity accepted 500
+requests   leave-group-activity accepted 416
+requests   shove accepted 1550
+requests   sit accepted 50
+requests   stand accepted 9
+requests   talk accepted 9173
+requests   walk-step accepted 50016
+requests   walk-to accepted 11190
+requests   walk-to rejected System { code: RejectionCode("no-route"), detail: Some("no way leads there inside the place") } 80
 facts      agenda-changed 1182
 facts      appeared 12
-facts      arrived 64922
+facts      arrived 57187
 facts      became-acquainted 132
 facts      body-formed 4
-facts      conversation-started 6145
-facts      group-activity-ended 990
-facts      group-activity-started 991
-facts      invitation-accepted 994
-facts      invitation-declined 407
-facts      invited 1568
-facts      joined-group-activity 473
-facts      left-group-activity 630
+facts      calendar-configured 1
+facts      conversation-started 6010
+facts      day-began 31
+facts      daylight-changed 180
+facts      gave-way 5923
+facts      group-activity-ended 873
+facts      group-activity-started 875
+facts      invitation-accepted 877
+facts      invitation-declined 401
+facts      invited 1407
+facts      joined-group-activity 502
+facts      left-group-activity 556
 facts      named 12
-facts      object-moved 2
 facts      object-placed 4
-facts      passage-opened 5
-facts      person-entered-place 2117
-facts      person-shoved 1861
+facts      passage-opened 8
+facts      person-entered-place 2179
+facts      person-shoved 1550
 facts      persona-authored 9
-facts      place-shaped 6
-facts      relationship-changed 362
+facts      place-shaped 9
+facts      place-sit-points 3
+facts      relationship-changed 357
 facts      routine-assigned 12
-facts      spoke 9351
-facts      stopped-short 10226
-facts      walk-ended 11010
-facts      walk-started 11010
-activity   days 1-30  alice move 5295 talk 836  bob move 5521 talk 898  carol move 5161 talk 889  dev move 4587 talk 845  erin move 5047 talk 986  felix move 5042 talk 858  grace move 4687 talk 935  hana move 4686 talk 762  ivan move 5500 talk 796  visitor move 5687 talk 850  wanderer move 5114 talk 696
+facts      sat-down 50
+facts      spoke 9173
+facts      stood-up 50
+facts      stopped-short 1345
+facts      walk-ended 11190
+facts      walk-started 11190
+activity   days 1-30  alice move 3881 talk 890  bob move 6889 talk 796  carol move 3868 talk 919  dev move 3924 talk 732  erin move 5235 talk 846  felix move 3881 talk 874  grace move 3546 talk 979  hana move 3586 talk 747  ivan move 6211 talk 897  visitor move 4635 talk 821  wanderer move 4360 talk 672
 faults     0
-history    124437 facts, fingerprint 4c0eb33f3cf63a8d (FNV-1a 64, for reading; not evidence)
+history    113294 facts, fingerprint 7f84155701a5ef05 (FNV-1a 64, for reading; not evidence)

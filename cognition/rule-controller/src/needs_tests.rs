@@ -267,8 +267,8 @@ fn the_bed_band_fires_in_the_night_from_tired_from_and_at_any_hour_from_exhauste
     assert!(bed(View::at(AFTERNOON).feeling(0, 999)).is_none());
     let exhausted = bed(View::at(AFTERNOON).feeling(0, 1_000)).expect("exhausted");
     // Begun before the night, a sleep still runs to its end (06:00, 960 minutes), cut by the commute's
-    // leave-by (05:16, 916) and the world's longest (840) — not at rested (480), which would wake me at
-    // 22:00.
+    // leave-by (05:16, 916) and the world's longest (840) — not at rested (429), which would wake me at
+    // 21:09.
     assert_eq!(slept_for(&exhausted), 840);
     let rested = NeedsPolicy {
         sleep_until: SleepUntil::Rested,
@@ -277,7 +277,11 @@ fn the_bed_band_fires_in_the_night_from_tired_from_and_at_any_hour_from_exhauste
     let early = rested
         .bed(&View::at(AFTERNOON).feeling(0, 1_000).build(), 7, commute())
         .expect("exhausted");
-    assert_eq!(slept_for(&early), 480, "1 000 ÷ 125 per hour");
+    assert_eq!(
+        slept_for(&early),
+        429,
+        "1 000 to rested (50), recovering at 125 per hour at 300"
+    );
     let mut nowhere = View::at(LATE_EVENING).feeling(0, 1_000);
     nowhere.sleep_offered = false;
     assert!(
@@ -290,7 +294,7 @@ fn the_bed_band_fires_in_the_night_from_tired_from_and_at_any_hour_from_exhauste
             .expect("goes to bed");
         assert_eq!(kind(&decided), Sleep::ACTION_TYPE.as_str(), "seed {seed}");
         // Q-S35-OP1 (a): a sleep begun in the night runs to its end (06:00, 390 minutes from 23:30),
-        // cut by the leave-by for work at 05:16 (346) — no longer at rested (336).
+        // cut by the leave-by for work at 05:16 (346) — no longer at rested (378).
         assert_eq!(slept_for(&decided), 346, "seed {seed}");
     }
 }
@@ -308,8 +312,8 @@ fn a_night_sleep_runs_to_the_nights_end_unless_the_policy_says_rested() {
     };
     assert_eq!(
         slept_for(&rested.bed(&free.build(), 7, commute()).expect("bed")),
-        336,
-        "700 ÷ 125 per hour"
+        378,
+        "700 to rested (50), recovering at 125 per hour at 300"
     );
     // Past midnight the night's end is the same morning: 02:00 → 06:00.
     let mut late = View::at(86_400 + 2 * 3_600).feeling(0, 700);
@@ -370,10 +374,11 @@ fn the_sleep_length_comes_from_each_of_its_limits() {
     let minutes = |view: View, wake: bool| {
         sleep_minutes(&view.build(), &felt(&view), wake, commute()).expect("bounds")
     };
-    // Rested: 600 ÷ 125 per hour = 288 minutes, with no punctual part.
+    // Rested: from 600 to 50 recovering at 125 per hour at level 300 (Q-Nc3-5) = 355 minutes, with no
+    // punctual part.
     let mut view = View::at(FROM - 12 * 3_600).feeling(0, 600);
     view.punctual = false;
-    assert_eq!(minutes(view.clone(), true), 288);
+    assert_eq!(minutes(view.clone(), true), 355);
     // The world's longest.
     view.terms = (15, 60);
     assert_eq!(minutes(view.clone(), true), 60);
@@ -383,14 +388,14 @@ fn the_sleep_length_comes_from_each_of_its_limits() {
         minutes(commuting.clone(), true),
         (3 * 3_600 - LEAD) as u16 / 60
     );
-    assert_eq!(minutes(commuting, false), 288, "not waking for work");
+    assert_eq!(minutes(commuting, false), 355, "not waking for work");
     // The world's shortest, when the commute leaves almost no time.
     assert_eq!(minutes(View::at(FROM - 900).feeling(0, 600), true), 15);
     // A slower rest per hour sleeps longer.
     let mut slow = View::at(FROM - 12 * 3_600).feeling(0, 600);
     slow.punctual = false;
     slow.rest_per_hour = 100;
-    assert_eq!(minutes(slow, true), 360);
+    assert_eq!(minutes(slow, true), 444);
 }
 
 #[test]
@@ -715,7 +720,10 @@ fn hungry_with_no_food_a_person_buys_what_is_offered_here_and_not_already_held()
     // 9 is held and does not nourish me (a mug, or a coffee): known not to help. 12 is out of stock.
     shop.held = vec![(9, 0)];
     shop.buys = vec![(12, false), (11, true), (9, true), (10, true)];
-    let bought = policy.fetch(&shop.build()).expect("applies").expect("asks");
+    let bought = policy
+        .fetch(&shop.build(), false)
+        .expect("applies")
+        .expect("asks");
     assert_eq!((kind(&bought), eaten(&bought)), ("buy", json!("10")));
     for seed in 0..SEEDS {
         let decided = controller(seed).decide(&shop.build()).expect("buys");
@@ -723,14 +731,42 @@ fn hungry_with_no_food_a_person_buys_what_is_offered_here_and_not_already_held()
     }
     // Nothing left that could help: the shop is where food is, so I do not walk out.
     shop.buys = vec![(12, false), (9, true)];
-    assert_eq!(policy.fetch(&shop.build()), None);
+    assert_eq!(policy.fetch(&shop.build(), false), None);
     // Below fetch_from, or holding something that nourishes (the eat band's), the band is silent.
     shop.buys = vec![(10, true)];
     shop.hunger = 599;
-    assert_eq!(policy.fetch(&shop.build()), None);
+    assert_eq!(policy.fetch(&shop.build(), false), None);
     shop.hunger = 700;
     shop.held = vec![(9, 0), (13, 200)];
-    assert_eq!(policy.fetch(&shop.build()), None);
+    assert_eq!(policy.fetch(&shop.build(), false), None);
+}
+
+#[test]
+fn waiting_early_at_a_punctual_place_a_hungry_person_still_buys_there_but_never_walks_off() {
+    // F-Nd-8: arrived early at a shop that is also the next punctual part's place, `holds` keeps me
+    // there; a purchase here moves nobody, so it is still made — a walk away is not (D-Nc2-5).
+    let policy = NeedsPolicy::default();
+    let mut shop = Errand::at(STORE);
+    shop.place_tags = vec!["shop"];
+    shop.doors = vec![(STREET, vec!["street"])];
+    shop.buys = vec![(10, true)];
+    let bought = policy
+        .fetch(&shop.build(), true)
+        .expect("applies")
+        .expect("asks");
+    assert_eq!((kind(&bought), eaten(&bought)), ("buy", json!("10")));
+    // Nothing sold here: waiting, I do not walk out to look elsewhere.
+    shop.buys = Vec::new();
+    shop.place_tags = Vec::new();
+    assert_ne!(
+        policy.fetch(&shop.build(), false),
+        None,
+        "not waiting: out the one door"
+    );
+    assert_eq!(policy.fetch(&shop.build(), true), None);
+    let mut street = Errand::at(STREET);
+    street.doors = vec![(HOME, vec!["residential"]), (STORE, vec!["shop"])];
+    assert_eq!(policy.fetch(&street.build(), true), None);
 }
 
 #[test]
@@ -743,14 +779,14 @@ fn hungry_with_no_food_a_person_walks_to_a_shop_tagged_door_or_out_of_a_dead_end
         (OFFICE, vec!["office"]),
     ];
     let walk = policy
-        .fetch(&street.build())
+        .fetch(&street.build(), false)
         .expect("applies")
         .expect("asks");
     assert_eq!(kind(&walk), WalkTo::ACTION_TYPE.as_str());
     assert_eq!(walked_to(&walk), destination(STORE));
     // Already on my way there: nothing is asked, and nothing redirects the walk.
     street.walking_to = Some(STORE);
-    assert_eq!(policy.fetch(&street.build()), Some(None));
+    assert_eq!(policy.fetch(&street.build(), false), Some(None));
     street.walking_to = None;
     // The world tags its shops otherwise: the policy names the tag, the code names no place.
     let bakers = NeedsPolicy {
@@ -759,15 +795,21 @@ fn hungry_with_no_food_a_person_walks_to_a_shop_tagged_door_or_out_of_a_dead_end
     };
     let mut lane = Errand::at(STREET);
     lane.doors = vec![(HOME, vec!["residential"]), (OFFICE, vec!["bakery"])];
-    let walk = bakers.fetch(&lane.build()).expect("applies").expect("asks");
+    let walk = bakers
+        .fetch(&lane.build(), false)
+        .expect("applies")
+        .expect("asks");
     assert_eq!(walked_to(&walk), destination(OFFICE));
     // A street with several doors and no shop among them: the band has nowhere to send me.
-    assert_eq!(policy.fetch(&lane.build()), None);
+    assert_eq!(policy.fetch(&lane.build(), false), None);
     // At home, one door: out to the street, where a shop may be seen.
     let mut home = Errand::at(HOME);
     home.place_tags = vec!["residential"];
     home.doors = vec![(STREET, vec!["street"])];
-    let walk = policy.fetch(&home.build()).expect("applies").expect("asks");
+    let walk = policy
+        .fetch(&home.build(), false)
+        .expect("applies")
+        .expect("asks");
     assert_eq!(walked_to(&walk), destination(STREET));
     for seed in 0..SEEDS {
         let decided = controller(seed).decide(&home.build()).expect("goes out");
@@ -778,9 +820,9 @@ fn hungry_with_no_food_a_person_walks_to_a_shop_tagged_door_or_out_of_a_dead_end
         fetch_food: false,
         ..policy.clone()
     };
-    assert_eq!(off.fetch(&home.build()), None);
+    assert_eq!(off.fetch(&home.build(), false), None);
     home.needs = false;
-    assert_eq!(policy.fetch(&home.build()), None);
+    assert_eq!(policy.fetch(&home.build(), false), None);
     for seed in 0..SEEDS {
         let base = PacedRuleController::new(seed, seconds(PACE))
             .commuting(Commute::default(), seconds(STRIDE));

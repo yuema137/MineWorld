@@ -554,6 +554,74 @@ SitPoint
 Each client draws a sit point's bench, its seated figure and its settling animation from the same
 disclosure; what the server answers about sitting is the same for a 2D click and a 3D look.
 
+## 6.5 Furnishing: what stands on a place's floor, as place data
+
+A **furnishing** is a named piece that stands on a place's floor and that a body can meet: a table, a
+chair, a stool, a shelf unit, a potted plant, a bench, a lamp post. It is semantic place data, owned by
+the `bodies` System Pack (`DECISIONS.md` `ARC-307`), and written in the place file's `body:` section
+beside the solids. It is not an Entity and not an Item: it never moves, is never owned or carried, and
+has no state.
+
+```text
+Furnishing
+    key       slug, 1 to 48 bytes of a–z, 0–9, '-' and '.'; unique within its place
+    kind      slug, the same grammar: what it is (`table.round`), never what it looks like
+    at        x and y in millimetres in the place's frame: the centre of its drawn footprint
+    facing    yaw in millidegrees, clockwise from north (0 north, 90 000 east): where its front faces
+
+Solid.furnishing   optional key: the furnishing this solid belongs to
+```
+
+- **Three things, three owners.** The furnishing says what stands where. Its solids — every solid that
+  names its key — are what a body meets; the server resolves against them as against any solid. Its
+  look belongs to a Presentation Pack, which binds a `kind` to a model or a sprite. Example: the café
+  lists `{ key: table.east, kind: table.round, at: (4 860, 3 160) }`, one solid names `table.east`, and
+  the 3D pack draws `round_wooden_table_02` there. A world whose table stands a metre further west is
+  drawn a metre further west, with no client change.
+- **The link is total.** Every furnishing is named by at least one solid, and every solid's
+  `furnishing` names a furnishing of its place, so a piece with nothing a body can meet cannot be
+  written (`ARC-306`). One piece may have several solids: a terrace table set is two crossed boxes,
+  both naming it. `at` lies on the floor and inside the rectangle that bounds its own solids.
+- **A kind is a label, not a closed list.** A client that binds no `chair.painted` draws `chair`,
+  dropping one `.`-segment at a time; a kind nothing binds is drawn as plain boxes over its solids and
+  reported, never left out, because an undrawn solid is an invisible wall.
+- **Furnishing or shell.** A piece is a furnishing when it stands free and another layout of the room
+  could put it elsewhere: tables, chairs, stools, shelf units, potted plants, benches, lamp posts. It is
+  the place's **shell** when it is part of the building: walls, a fitted counter, a built-in bench, a
+  dresser built into the wall, a door leaf. A shell solid names no furnishing and is drawn by the
+  Presentation Pack's depiction of the place, or, where the pack has none, plainly from disclosure
+  (`ARC-52`).
+- **"Fixture" is not the term.** The repository uses it for test fixtures and sample worlds.
+
+A furnishing is disclosed inside the place's `place-shape`, to whoever perceives the place: today the
+observer's own place. Both clients draw it from that disclosure; neither places a piece in its code.
+
+## 6.6 Role tags: tags whose meaning the framework fixes
+
+A **role tag** is a tag whose meaning the framework fixes, so that validation and every client read it
+alike (`DECISIONS.md` `ARC-105`). Role tags are authored content, written in a place file's `tags`
+like any other tag. They grant no behaviour; behaviour comes only from Systems. A client may choose a
+drawing or order lines by a role tag; what a person can do in a Place still comes only from Systems.
+
+The role tags are: `station`, `stop`, `platform`, `ticket-office`, `landmark`.
+
+- A **station** is the group of Places tagged `station` joined, through passages between
+  `station`-tagged Places, to the station hall a town declares (`MODULE_SPEC.md` §4.3).
+- A **stop** is a Place a line serves. In a station it is the platform Place, tagged `stop` and
+  `platform`.
+- The origin of a `stop` Place is its **platform anchor**: a point on the platform edge, mid-length,
+  at platform height. The track lies beyond that edge, so the origin lies on exactly one edge of the
+  platform's floor. The rule is held by the content tests of the towns and, once lines exist, by the
+  System that serves the stop; the World Pack loader does not read floors (`ARC-31`).
+- A **ticket office** is the station Place, tagged `ticket-office`, where tickets are sold once a shop
+  is there. Without a shop nothing is sold, and nothing pretends to be.
+- A **landmark** is the Place a town declares as its signature building, tagged `landmark`. It may be
+  the station hall.
+
+Example: Market Town's hall `station` is tagged `[station, public, landmark]`, its ticket bay
+`[station, ticket-office, public]` and its platform `[station, stop, platform, public, outdoor]`.
+Lakeside's waiting room is tagged `[station, public]`; its landmark is the pier.
+
 ---
 
 # 7. Item
@@ -577,6 +645,10 @@ of forks, plates, and coins.
 
 In MVP-0, an Item authored in a World Pack is an item kind, and what anybody holds of it is a count
 of that kind: stacked items only ([`DECISIONS.md`](DECISIONS.md) `ARC-36`).
+
+An item kind may carry an authored **reference value**, its typical worth in the world's currency. It is never a
+price: nobody is charged it, and what a kind costs is always the asking price of the seller one buys from
+(`ARC-113`, `ARC-112`).
 
 ---
 
@@ -608,6 +680,10 @@ Alice         --employee---> Lakeside Cafe
 Lakeside Cafe --occupies---> Building_12
 Bob           --student----> UCSD
 ```
+
+An Organization sells through a shop: a Place where its asking prices are on display and can be bought without
+the Organization being present. The Persons its shop names as keepers change those prices while standing in the
+shop (`ARC-112`). A Person sells for itself, face to face.
 
 ---
 

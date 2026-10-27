@@ -1,0 +1,10 @@
+# The memory stack the nightly scale gates run (pr-s28g §5.5): the default policy and bound, and the three bundled
+# recall scopes at their defaults (S28-d's `place` and `item`). The harness gives this choice to every person.
+memory:
+  default:
+    policy: consolidate
+    store_bound_mib: 20
+    scopes:
+      - { id: person }
+      - { id: place }
+      - { id: item }

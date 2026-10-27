@@ -1,0 +1,77 @@
+# recorded 2026-10-20 at S33-b C1 30b7c521 (the doorway move, before any body)
+# reason 2026-10-26: re-recorded at main 3f288d1e. First moved by #439 (210ec53c, ARC-75 amendment 1: a walk to a person ends at a stand point on the walker's side of a counter); the summary at 210ec53c equals main's. No bodies or doorway change: person-entered-place stays 2402.
+[mineworld] run Lakeside (lakeside): seats alba, bruno, celia, dario, elin, finn, greta, hugo, ines, nils; seed 7; to day 30; pace 900s; in memory
+day 1  revision -  facts 2502
+day 2  revision -  facts 4907
+day 3  revision -  facts 7398
+day 4  revision -  facts 9768
+day 5  revision -  facts 12212
+day 6  revision -  facts 14662
+day 7  revision -  facts 17085
+day 8  revision -  facts 19510
+day 9  revision -  facts 21919
+day 10  revision -  facts 24325
+day 11  revision -  facts 26743
+day 12  revision -  facts 29123
+day 13  revision -  facts 31536
+day 14  revision -  facts 33904
+day 15  revision -  facts 36310
+day 16  revision -  facts 38736
+day 17  revision -  facts 41162
+day 18  revision -  facts 43575
+day 19  revision -  facts 46060
+day 20  revision -  facts 48508
+day 21  revision -  facts 50914
+day 22  revision -  facts 53387
+day 23  revision -  facts 55853
+day 24  revision -  facts 58250
+day 25  revision -  facts 60633
+day 26  revision -  facts 63026
+day 27  revision -  facts 65377
+day 28  revision -  facts 67718
+day 29  revision -  facts 70108
+day 30  revision -  facts 72498
+consults   54803
+requests   accept-invitation accepted 951
+requests   decline-invitation accepted 404
+requests   drink accepted 9
+requests   eat accepted 396
+requests   fish accepted 457
+requests   give accepted 948
+requests   invite accepted 1406
+requests   join-group-activity accepted 247
+requests   leave-group-activity accepted 418
+requests   talk accepted 8979
+requests   walk-step accepted 26003
+requests   walk-to accepted 9877
+facts      agenda-changed 1210
+facts      appeared 10
+facts      arrived 25867
+facts      became-acquainted 82
+facts      conversation-started 5806
+facts      fishing-ended 457
+facts      fishing-spot 2
+facts      fishing-started 457
+facts      group-activity-ended 950
+facts      group-activity-started 951
+facts      invitation-accepted 951
+facts      invitation-declined 404
+facts      invited 1406
+facts      item-kind-declared 13
+facts      items-consumed 405
+facts      items-produced 388
+facts      items-transferred 948
+facts      joined-group-activity 247
+facts      left-group-activity 578
+facts      named 10
+facts      passage-opened 9
+facts      person-entered-place 2402
+facts      relationship-changed 181
+facts      routine-assigned 10
+facts      spoke 8979
+facts      stocked 21
+facts      walk-ended 9877
+facts      walk-started 9877
+activity   days 1-30  alba move 2480 talk 1000  bruno move 2607 talk 917  celia move 2932 talk 955  dario move 2245 talk 925  elin move 2521 talk 926  finn move 2287 talk 982  greta move 3089 talk 895  hugo move 2950 talk 645  ines move 2623 talk 880  nils move 2269 talk 854
+faults     0
+history    72498 facts, fingerprint 480c4505a4748e5e (FNV-1a 64, for reading; not evidence)

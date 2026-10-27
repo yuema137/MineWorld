@@ -17,12 +17,99 @@ use mineworld_contracts::{
 use mineworld_kernel::Emission;
 use serde::Deserialize;
 
-use crate::component::{BodyShape, Floor, PlaceShape, Solid};
+use crate::component::{BodyShape, Corner, Floor, PlaceShape, Solid};
 use crate::event::{body_formed, place_shaped};
+use crate::furnishing::{self, Furnishing, FurnishingKey};
 use crate::system::BodiesSystem;
 
 /// Why a form was refused on the kind of file it was found in.
 const SECTION_KIND: RejectionCode = RejectionCode::from_static("bodies-section-kind");
+
+/// Why a place's body was refused for two solids of different things standing in each other
+/// (`ARC-332`). It leads the author's message, since a decoding error carries no code of its own.
+const SOLIDS_OVERLAP: &str = "bodies-solids-overlap";
+
+/// The name an author gives the solids of one thing (`ARC-332`): `terrace-table.1`, `table.east`. The
+/// slug grammar of a furnishing key, and of `posture`'s sit group: 1 to 48 bytes of `a`–`z`, `0`–`9`,
+/// `-` and `.`. Authoring data only: a [`PlaceShape`] does not store it, so nothing is disclosed and
+/// no digest depends on it.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, schemars::JsonSchema)]
+#[serde(try_from = "String")]
+#[schemars(extend("pattern" = "^[a-z0-9.-]+$", "minLength" = 1, "maxLength" = furnishing::FURNISHING_SLUG_MAX))]
+struct SolidGroup(String);
+
+impl TryFrom<String> for SolidGroup {
+    type Error = String;
+
+    fn try_from(value: String) -> Result<Self, String> {
+        furnishing::checked("solid group", value).map(Self)
+    }
+}
+
+/// A solid as a place file writes it: its footprint, its height, the furnishing it belongs to, and
+/// the `group` it shares with the other solids of the same thing.
+#[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct AuthoredSolid {
+    /// The footprint's south-west corner.
+    min: Corner,
+    /// The footprint's north-east corner; the footprint is not empty.
+    max: Corner,
+    /// How high it stands above the floor, in millimetres: 1 to 10000.
+    #[schemars(with = "mineworld_authoring::schema::Length")]
+    height: Millimetres,
+    /// The furnishing this solid belongs to, if any: the key of one of the place's `furnishings`.
+    #[serde(default)]
+    furnishing: Option<FurnishingKey>,
+    /// The thing this solid is part of, when another solid of the same thing overlaps it — a chair
+    /// tucked under its table, two crossed boxes holding one round table. Two solids whose footprints
+    /// share any area must share a `group` or name one `furnishing`; otherwise the place is refused
+    /// (`bodies-solids-overlap`). Authoring data only: never stored or disclosed.
+    #[serde(default)]
+    group: Option<SolidGroup>,
+}
+
+impl AuthoredSolid {
+    /// Whether `self` and `other` are parts of one thing: the same `group`, or the same `furnishing`.
+    fn one_thing_with(&self, other: &Self) -> bool {
+        let same_group = self.group.is_some() && self.group == other.group;
+        let same_piece = self.furnishing.is_some() && self.furnishing == other.furnishing;
+        same_group || same_piece
+    }
+
+    /// How far the two footprints overlap, east–west and north–south, in millimetres; `None` when
+    /// they share no area (touching along an edge or at a corner shares none).
+    fn overlap(&self, other: &Self) -> Option<(i32, i32)> {
+        let wide = self.max.x().value().min(other.max.x().value())
+            - self.min.x().value().max(other.min.x().value());
+        let deep = self.max.y().value().min(other.max.y().value())
+            - self.min.y().value().max(other.min.y().value());
+        (wide > 0 && deep > 0).then_some((wide, deep))
+    }
+
+    fn into_solid(self) -> Solid {
+        Solid::authored(self.min, self.max, self.height, self.furnishing)
+    }
+}
+
+/// The rule of `ARC-332`: no two solids of different things overlap. The first offending pair, in
+/// authored order, is named by index (from 0) with its overlap and the remedy.
+fn apart(solids: &[AuthoredSolid]) -> Result<(), String> {
+    for (i, first) in solids.iter().enumerate() {
+        for (j, second) in solids.iter().enumerate().skip(i + 1) {
+            if let Some((wide, deep)) = first.overlap(second)
+                && !first.one_thing_with(second)
+            {
+                return Err(format!(
+                    "{SOLIDS_OVERLAP}: solids {i} and {j} (from 0, in the order written) overlap by \
+                     {wide} mm x {deep} mm; solids of different things may not overlap, and solids \
+                     of one thing share a `group` (or name one `furnishing`)"
+                ));
+            }
+        }
+    }
+    Ok(())
+}
 
 /// Where an object lies, as authored: a place by key, and a point on its floor.
 #[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
@@ -45,7 +132,11 @@ pub struct Lies {
 #[serde(try_from = "Written")]
 #[schemars(with = "Written", example = serde_json::json!({
     "floor": { "min": { "x": 0, "y": 0 }, "max": { "x": 4000, "y": 3000 } },
-    "solids": [{ "min": { "x": 0, "y": 2400 }, "max": { "x": 2000, "y": 3000 }, "height": 900 }]
+    "furnishings": [{ "key": "table.1", "kind": "table.round", "at": { "x": 3000, "y": 1500 }, "facing": 0 }],
+    "solids": [
+        { "min": { "x": 0, "y": 2400 }, "max": { "x": 2000, "y": 3000 }, "height": 900 },
+        { "min": { "x": 2600, "y": 1100 }, "max": { "x": 3400, "y": 1900 }, "height": 720, "furnishing": "table.1" }
+    ]
 }))]
 pub enum Body {
     /// A place's floor and solids.
@@ -67,8 +158,13 @@ struct Written {
     /// a place's body.
     floor: Option<Floor>,
     /// The solid boxes standing on a place's floor — counters, tables, pillars: at most 64. Nobody
-    /// stands inside one or walks through it.
-    solids: Option<Vec<Solid>>,
+    /// stands inside one or walks through it. Two whose footprints share any area must be parts of
+    /// one thing: the same `group`, or the same `furnishing` (`ARC-332`).
+    solids: Option<Vec<AuthoredSolid>>,
+    /// The named pieces standing on a place's floor that a body can meet — tables, chairs, shelf
+    /// units: at most 64 (`ARC-307`). Each is named by at least one solid's `furnishing`; a
+    /// Presentation Pack draws it by its `kind`.
+    furnishings: Option<Vec<Furnishing>>,
     /// An object's shape. Required, with `at`, in an item's body.
     shape: Option<BodyShape>,
     /// Where an object lies: a place and a point on its floor. Required, with `shape`, in an item's
@@ -83,16 +179,26 @@ impl TryFrom<Written> for Body {
         let Written {
             floor,
             solids,
+            furnishings,
             shape,
             at,
         } = written;
-        let place_keys = floor.is_some() || solids.is_some();
+        let place_keys = floor.is_some() || solids.is_some() || furnishings.is_some();
         let object_keys = shape.is_some() || at.is_some();
         match (floor, shape, at) {
             (Some(floor), None, None) => {
-                PlaceShape::checked(floor, solids.unwrap_or_default()).map(Self::Place)
+                let solids = solids.unwrap_or_default();
+                let apart = apart(&solids);
+                let shape = PlaceShape::checked(
+                    floor,
+                    solids.into_iter().map(AuthoredSolid::into_solid).collect(),
+                    furnishings.unwrap_or_default(),
+                )?;
+                apart.map(|()| Self::Place(shape))
             }
-            (None, Some(shape), Some(at)) if solids.is_none() => Ok(Self::Object { shape, at }),
+            (None, Some(shape), Some(at)) if solids.is_none() && furnishings.is_none() => {
+                Ok(Self::Object { shape, at })
+            }
             _ if place_keys && object_keys => Err(
                 "a body is a place's (floor, solids) or an object's (shape, at), never both"
                     .to_owned(),
@@ -123,8 +229,11 @@ impl AuthoredSection for BodiesSystem {
     /// ```yaml
     /// body:            # in a place file
     ///   floor: { min: { x: 0, y: 0 }, max: { x: 8320, y: 10320 } }
+    ///   furnishings:   # optional (ARC-307): what stands here, drawn by its kind
+    ///     - { key: table.east, kind: table.round, at: { x: 4860, y: 3160 }, facing: 0 }
     ///   solids:
     ///     - { min: { x: 3860, y: 6570 }, max: { x: 8320, y: 7170 }, height: 1100 }
+    ///     - { min: { x: 4443, y: 2743 }, max: { x: 5277, y: 3577 }, height: 716, furnishing: table.east }
     ///
     /// body:            # in an item file: one loose object
     ///   shape: { ball: 110 }

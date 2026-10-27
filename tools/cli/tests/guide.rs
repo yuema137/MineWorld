@@ -889,7 +889,7 @@ fn model_and_reference_probes_turn_a_wrong_flag_red() {
         "guide-probes",
         &[(
             "docs/guide/features.toml",
-            "[features]\nmotivated = false\nrelationship-decay = false\nlm-controller = false\nhappenings = true\n",
+            "[features]\nmotivated = false\nrelationship-decay = false\nlm-controller = false\nhappenings = false\n",
         )],
     );
     let found = failures(&run_repo("guide-probes-run", &repo));
@@ -906,7 +906,7 @@ fn model_and_reference_probes_turn_a_wrong_flag_red() {
         "{found}"
     );
     assert!(
-        found.contains("happenings = true, but pack mineworld-happenings is not in the build"),
+        found.contains("happenings = false, but pack mineworld-happenings is in the build"),
         "{found}"
     );
 }

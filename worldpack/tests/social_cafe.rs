@@ -77,12 +77,25 @@ fn the_pack_says_what_world_it_is() {
             Capability::Bodies,
             Capability::Persona,
             Capability::Appearance,
+            Capability::Calendar,
+            Capability::Posture,
         ],
         "in the order the pack states, which is installation order",
     );
     assert_eq!(
         pack.places().keys().cloned().collect::<Vec<_>>(),
-        ["apartments", "cafe", "park", "store", "street", "workplace"].map(key),
+        [
+            "apartments",
+            "cafe",
+            "park",
+            "station",
+            "station-platform",
+            "station-tickets",
+            "store",
+            "street",
+            "workplace",
+        ]
+        .map(key),
     );
     assert_eq!(
         pack.people().keys().cloned().collect::<Vec<_>>(),
@@ -109,10 +122,11 @@ fn the_world_is_the_one_the_yaml_describes() {
     let world = loaded();
     let read = world.world().read();
 
+    let pack = pack();
     assert_eq!(
         world.world().entities().len(),
-        22,
-        "six places, twelve people, four loose objects"
+        pack.places().len() + pack.people().len() + 4,
+        "every place and person the pack declares, and the four loose objects",
     );
     let systems = world.world().systems();
     for system in [PresenceSystem::ID, ConversationSystem::ID] {
@@ -163,26 +177,29 @@ fn entity_keys_resolve_to_ids_deterministically() {
         (key("apartments"), EntityId::from_raw(1)),
         (key("cafe"), EntityId::from_raw(2)),
         (key("park"), EntityId::from_raw(3)),
-        (key("store"), EntityId::from_raw(4)),
-        (key("street"), EntityId::from_raw(5)),
-        (key("workplace"), EntityId::from_raw(6)),
-        (key("alice"), EntityId::from_raw(7)),
-        (key("bob"), EntityId::from_raw(8)),
-        (key("carol"), EntityId::from_raw(9)),
-        (key("dev"), EntityId::from_raw(10)),
-        (key("erin"), EntityId::from_raw(11)),
-        (key("felix"), EntityId::from_raw(12)),
-        (key("grace"), EntityId::from_raw(13)),
-        (key("hana"), EntityId::from_raw(14)),
-        (key("ivan"), EntityId::from_raw(15)),
-        (key("otto"), EntityId::from_raw(16)),
-        (key("visitor"), EntityId::from_raw(17)),
-        (key("wanderer"), EntityId::from_raw(18)),
+        (key("station"), EntityId::from_raw(4)),
+        (key("station-platform"), EntityId::from_raw(5)),
+        (key("station-tickets"), EntityId::from_raw(6)),
+        (key("store"), EntityId::from_raw(7)),
+        (key("street"), EntityId::from_raw(8)),
+        (key("workplace"), EntityId::from_raw(9)),
+        (key("alice"), EntityId::from_raw(10)),
+        (key("bob"), EntityId::from_raw(11)),
+        (key("carol"), EntityId::from_raw(12)),
+        (key("dev"), EntityId::from_raw(13)),
+        (key("erin"), EntityId::from_raw(14)),
+        (key("felix"), EntityId::from_raw(15)),
+        (key("grace"), EntityId::from_raw(16)),
+        (key("hana"), EntityId::from_raw(17)),
+        (key("ivan"), EntityId::from_raw(18)),
+        (key("otto"), EntityId::from_raw(19)),
+        (key("visitor"), EntityId::from_raw(20)),
+        (key("wanderer"), EntityId::from_raw(21)),
         // The loose objects (step-11 §19.6): items come after people, in key order.
-        (key("cafe-ball"), EntityId::from_raw(19)),
-        (key("cafe-box"), EntityId::from_raw(20)),
-        (key("street-ball"), EntityId::from_raw(21)),
-        (key("street-box"), EntityId::from_raw(22)),
+        (key("cafe-ball"), EntityId::from_raw(22)),
+        (key("cafe-box"), EntityId::from_raw(23)),
+        (key("street-ball"), EntityId::from_raw(24)),
+        (key("street-box"), EntityId::from_raw(25)),
     ]
     .into_iter()
     .collect();
@@ -224,13 +241,11 @@ fn the_same_pack_loaded_twice_produces_the_same_history() {
         history(&second),
         "identical event identities, kinds, causes and payload bytes — the AC-12 claim at this layer",
     );
-    assert_eq!(
-        first.genesis().len(),
-        88,
-        "the five places' doors onto the street, then one arrival per person the pack placed, then \
-         per person their name and their routine (the sections, ARC-31) and the first agenda that \
-         routine implies (ARC-32); the four objects' bodies, the six places' shapes, and each object \
-         placed (ARC-39); the nine authored personas (ARC-74), and each person's look (ARC-91)",
+    // No literal count: it moved with every content PR. What each fact is, and in which order, is held
+    // by the tests that read them (the passages and arrivals first, the sections after them, below).
+    assert!(
+        !first.genesis().is_empty(),
+        "the pack states its genesis: passages, arrivals, then each section's facts",
     );
 }
 
@@ -398,9 +413,9 @@ fn every_person_has_the_look_their_file_authors() {
 
 #[test]
 fn sections_do_not_move_the_facts_stated_before_them() {
-    // The same pack without `naming`, `schedule`, `bodies`, `persona` and `appearance` and without their
-    // sections (a world that does not enable a section's owner refuses the section; the loose objects
-    // are then inert items): the first seventeen genesis facts must be the same bytes with or without
+    // The same pack without `naming`, `schedule`, `bodies`, `persona`, `appearance` and `calendar`, and
+    // without their sections (a world that does not enable a section's owner refuses the section; the loose objects
+    // are then inert items): the bare pack's genesis facts (its passages and arrivals) must be the same bytes with or without
     // sections — passages and arrivals keep their event ids (ARC-31).
     let root = mineworld_test_support::scratch!("unnamed").within("social-cafe");
     for directory in ["people", "places", "items"] {
@@ -438,7 +453,10 @@ fn sections_do_not_move_the_facts_stated_before_them() {
             .replace("  - schedule\n", "")
             .replace("  - bodies\n", "")
             .replace("  - persona\n", "")
-            .replace("  - appearance\n", ""),
+            .replace("  - appearance\n", "")
+            // `calendar` (ARC-269) and its configuration go too: its genesis fact follows the sections.
+            .replace("configure:\n  - calendar\n", "")
+            .replace("  - calendar\n", ""),
     )
     .expect("writable");
 
@@ -447,7 +465,14 @@ fn sections_do_not_move_the_facts_stated_before_them() {
         .load(WorldTime::EPOCH)
         .expect("and loads");
     let full = loaded();
-    assert_eq!(bare.genesis().len(), 17, "passages and arrivals only");
+    let n = bare.genesis().len();
+    assert!(
+        n > 0
+            && bare.genesis().iter().all(|fact| {
+                ["passage-opened", "arrived"].contains(&fact.event_type().as_str())
+            }),
+        "passages and arrivals only"
+    );
     let bytes = |fact: &mineworld_contracts::EventEnvelope| {
         (
             fact.id(),
@@ -457,7 +482,7 @@ fn sections_do_not_move_the_facts_stated_before_them() {
     };
     assert_eq!(
         bare.genesis().iter().map(bytes).collect::<Vec<_>>(),
-        full.genesis()[..17].iter().map(bytes).collect::<Vec<_>>(),
+        full.genesis()[..n].iter().map(bytes).collect::<Vec<_>>(),
         "the facts before the sections are byte-identical, ids included"
     );
 }
@@ -467,9 +492,15 @@ fn an_authored_position_is_a_recorded_fact_rather_than_a_write() {
     let world = loaded();
 
     // The passages come first — facts about places, which exist before anybody is in them — and they
-    // are movement's, stated by movement: one per place that opens onto the street.
-    const DOORS: usize = 5;
-    for door in &world.genesis()[..DOORS] {
+    // are movement's, stated by movement: one per passage the pack declares, however many places it has
+    // (S29 added the station's three).
+    let doors = world
+        .genesis()
+        .iter()
+        .take_while(|fact| fact.event_type().as_str() == "passage-opened")
+        .count();
+    assert!(doors > 0, "the passages come first");
+    for door in &world.genesis()[..doors] {
         assert_eq!(
             *door.event_type(),
             EventTypeId::new("passage-opened").expect("a legal event type")
@@ -479,7 +510,7 @@ fn an_authored_position_is_a_recorded_fact_rather_than_a_write() {
     }
 
     for (nth, person) in ["alice", "bob", "carol"].into_iter().enumerate() {
-        let event = &world.genesis()[nth + DOORS];
+        let event = &world.genesis()[nth + doors];
         assert_eq!(
             *event.event_type(),
             EventTypeId::new("arrived").expect("a legal event type"),
@@ -662,18 +693,43 @@ fn a_seat_is_a_person_the_world_can_resolve() {
 fn every_place_is_at_most_two_doors_from_any_other() {
     use mineworld_movement::Passages;
 
+    // The rule holds for the places some routine of the pack visits (operator ruling 2026-10-20; step-09
+    // SD-3): a stateless controller walks between those. A place no routine names, such as a station's
+    // platform or ticket bay behind its hall, may lie further in. The routines are read from the people's
+    // files, so no place is named here.
+    let pack = pack();
+    let mut visited: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    for person in pack.people().keys() {
+        let file = pack
+            .root()
+            .join("people")
+            .join(format!("{}.yaml", person.as_str()));
+        let text = std::fs::read_to_string(&file).expect("a person file reads");
+        let value: serde_json::Value = serde_saphyr::from_str(&text).expect("a person file parses");
+        for segment in value["routine"].as_array().into_iter().flatten() {
+            if let Some(place) = segment["place"].as_str() {
+                visited.insert(place.to_owned());
+            }
+        }
+    }
+    assert!(
+        visited.len() >= 2,
+        "the pack's routines visit places: {visited:?}"
+    );
+
     let world = loaded();
     let read = world.world().read();
-    let places: Vec<(EntityKey, EntityId)> = pack()
+    let places: Vec<(EntityKey, EntityId)> = pack
         .places()
         .keys()
+        .filter(|place| visited.contains(place.as_str()))
         .map(|place| (place.clone(), world.id(place).expect("declared")))
         .collect();
     let name = |id: EntityId| {
-        places
-            .iter()
-            .find(|(_, place)| *place == id)
-            .map(|(key, _)| key.as_str().to_owned())
+        pack.places()
+            .keys()
+            .find(|key| world.id(key) == Some(id))
+            .map(|key| key.as_str().to_owned())
             .expect("a declared place")
     };
     let doors = |id: EntityId| -> Vec<EntityId> {
@@ -699,11 +755,12 @@ fn every_place_is_at_most_two_doors_from_any_other() {
         }
     }
     let street = world.id(&key("street")).expect("declared");
-    assert_eq!(
-        doors(street).len(),
-        places.len() - 1,
-        "the street opens onto every other place",
-    );
+    for (to, b) in &places {
+        assert!(
+            *b == street || doors(street).contains(b),
+            "the street opens onto every place a routine visits: {to}",
+        );
+    }
 }
 
 /// Where a customer stands at the café counter, in the café's frame: 6.0 m along the frontage from the
@@ -722,15 +779,16 @@ const IN_THE_DOORWAY: (i32, i32) = (1_610, 400);
 /// `step-09-social.md` §2.5, CP-5 — the check the 3D client failed before S8: a person who walks to the
 /// counter can talk to Alice, and the same person standing in the doorway cannot.
 ///
-/// The person walks there in `move` strides the server accepts, from wherever the pack seated them,
-/// so the positions are reached the way a client reaches them. Whether `talk` is in reach is decided by
+/// The person walks there as every client and controller does (`ARC-75`): one `walk-to`, for which the
+/// movement system plans the route round the café's solids and people (every drawn chair is a solid
+/// since ARC-306), then `walk-step`s until the walk is over. Whether `talk` is in reach is decided by
 /// the conversation system against `INTERACTION_RANGE`; this test computes no distance to Alice. With
 /// the pre-S8 café — Alice at (1 200, 2 400), the door on the east wall — the same walk ends 6.1 m from
 /// her and the talk is refused, which is the defect this test exists to keep fixed.
 #[test]
 fn a_person_at_the_counter_can_talk_to_alice() {
     use mineworld_contracts::{LocalPosition, Millimetres, PlaceId};
-    use mineworld_movement::{MAX_STRIDE, Move};
+    use mineworld_movement::{Destination, WalkStep, WalkTo};
 
     let mut world = loaded();
     let alice = world.id(&key("alice")).expect("alice resolves");
@@ -740,56 +798,49 @@ fn a_person_at_the_counter_can_talk_to_alice() {
     let seated = where_is(&world, "visitor")
         .and_then(|location| location.local())
         .expect("the pack seats the visitor at a position");
-    let mut here = (seated.x().value(), seated.y().value());
     let mut next_action = 0_u64;
 
-    // Straight-line strides of at most MAX_STRIDE, the same division `tools/cli/tests/support` uses:
-    // the fewest equal strides such that every consecutive pair is within the published limit.
-    let strides = |from: (i32, i32), to: (i32, i32)| -> Vec<(i32, i32)> {
-        let (dx, dy) = (i64::from(to.0 - from.0), i64::from(to.1 - from.1));
-        let limit = i64::from(MAX_STRIDE.value());
-        let point = |k: i64, n: i64| {
-            (
-                i32::try_from(i64::from(from.0) + dx * k / n).expect("on the map"),
-                i32::try_from(i64::from(from.1) + dy * k / n).expect("on the map"),
-            )
-        };
-        let fits = |n: i64| {
-            (1..=n).all(|k| {
-                let (a, b) = (point(k - 1, n), point(k, n));
-                let (sx, sy) = (i64::from(b.0 - a.0), i64::from(b.1 - a.1));
-                sx * sx + sy * sy <= limit * limit
-            })
-        };
-        let n = (1_i64..)
-            .find(|n| fits(*n))
-            .expect("some number of strides fits");
-        (1..=n).map(|k| point(k, n)).collect()
+    let dispatch = |world: &mut LoadedWorld, id: &mut u64, record: ActionRecord| -> ActionResult {
+        *id += 1;
+        let request = ActionIntent::new(ActionId::from_raw(*id), visitor, record, WorldTime::EPOCH);
+        world
+            .world_mut()
+            .dispatch(&request, WorldTime::EPOCH)
+            .expect("dispatch answers")
+            .result()
+            .clone()
     };
-    let walk_to = |world: &mut LoadedWorld, here: &mut (i32, i32), to: (i32, i32), id: &mut u64| {
-        for point in strides(*here, to) {
-            *id += 1;
-            let to = Location::in_place(cafe).with_local(LocalPosition::on_ground(
-                Millimetres::new(point.0),
-                Millimetres::new(point.1),
-            ));
-            let request = ActionIntent::new(
-                ActionId::from_raw(*id),
-                visitor,
-                ActionRecord::new::<Move>(serde_json::to_vec(&Move::new(to)).expect("encodes")),
-                WorldTime::EPOCH,
+    let walk_to = |world: &mut LoadedWorld, to: (i32, i32), id: &mut u64| {
+        let to = Location::in_place(cafe).with_local(LocalPosition::on_ground(
+            Millimetres::new(to.0),
+            Millimetres::new(to.1),
+        ));
+        let planned = dispatch(
+            world,
+            id,
+            ActionRecord::new::<WalkTo>(
+                serde_json::to_vec(&WalkTo::new(Destination::Place(to))).expect("encodes"),
+            ),
+        );
+        assert!(
+            matches!(planned, ActionResult::Accepted { .. }),
+            "the walk to {to:?} is planned: {planned:?}"
+        );
+        for _ in 0..200 {
+            let step = dispatch(
+                world,
+                id,
+                ActionRecord::new::<WalkStep>(
+                    serde_json::to_vec(&WalkStep::default()).expect("encodes"),
+                ),
             );
-            let answer = world
-                .world_mut()
-                .dispatch(&request, WorldTime::EPOCH)
-                .expect("dispatch answers");
-            assert!(
-                matches!(answer.result(), ActionResult::Accepted { .. }),
-                "the stride to {point:?} is legal: {:?}",
-                answer.result(),
-            );
-            *here = point;
+            match step {
+                ActionResult::Accepted { .. } => {}
+                ActionResult::Rejected(Rejection::PreconditionFailed) => return,
+                other => panic!("a step is accepted, or refused once the walk is over: {other:?}"),
+            }
         }
+        panic!("the walk to {to:?} did not end in 200 steps");
     };
     let talk = |world: &mut LoadedWorld, id: &mut u64| -> ActionResult {
         *id += 1;
@@ -814,9 +865,9 @@ fn a_person_at_the_counter_can_talk_to_alice() {
             .clone()
     };
 
-    walk_to(&mut world, &mut here, AT_THE_COUNTER, &mut next_action);
+    walk_to(&mut world, AT_THE_COUNTER, &mut next_action);
     let at_counter = talk(&mut world, &mut next_action);
-    walk_to(&mut world, &mut here, IN_THE_DOORWAY, &mut next_action);
+    walk_to(&mut world, IN_THE_DOORWAY, &mut next_action);
     let at_door = talk(&mut world, &mut next_action);
     println!(
         "seated at {:?}; at the counter {AT_THE_COUNTER:?}: {at_counter:?}; in the doorway \

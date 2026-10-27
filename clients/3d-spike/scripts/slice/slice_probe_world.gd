@@ -17,13 +17,29 @@ class_name SliceProbeWorld
 extends SliceProbe
 
 ## The connected modes.
-const WORLD_MODES := ["link", "conversation", "target", "settings", "controls", "cast"]
+const WORLD_MODES := ["link", "conversation", "target", "settings", "controls", "cast", "station-walk",
+	"observe"]
 ## Where on a perceived figure the probe aims, as a player aims at a face.
 const HEAD_Y := 1.55
 ## The targeting rule before PR 16a (`slice_link.gd` at 47c81d1): the figure
 ## whose head lies within this cosine of the view's centre. Computed here only
 ## to show that the wall case would have gone the other way under it.
 const CONE_COS := 0.80
+## What the probe types into the talk line when a check needs a line said (PR 16g1: the 3D client has no
+## fixed words any more). The same words 2D's checks type, so AC-13's payloads stay equal.
+const SAID := "Hello! A coffee, please."
+
+
+## Says `said` to the person the camera faces, the way a player does: E opens the talk line, the
+## words are typed and Enter sends them (`MineWorldLineInput.type_and_send`). Returns the request's
+## token, or "" when E opened no line (nobody in view).
+func _say_facing(link: SliceLink, said: String) -> String:
+	var line := slice.talk_line
+	line.last_token = ""
+	if link.ask_words_facing() == "" or not line.is_open():
+		return ""
+	line.line.type_and_send(said)
+	return line.last_token
 
 
 static func requested() -> bool:
@@ -49,6 +65,8 @@ func _run(mode: String) -> void:
 		"settings": await _settings_check()
 		"controls": await _controls_check()
 		"cast": await _cast_frames()
+		"station-walk": await _station_walk()
+		"observe": await _observe_from_street()
 		_: await super(mode)
 
 
@@ -131,7 +149,7 @@ func _target_check() -> void:
 		print("FAIL: no --server= given")
 		return
 	var waited := 0.0
-	while waited < 10.0 and (not link.client.is_seated() or link.here == "" or link._reconcile):
+	while waited < 10.0 and not link.has_first_view():
 		await get_tree().process_frame
 		waited += get_process_delta_time()
 	await _hold(0.8)
@@ -163,8 +181,7 @@ func _target_check() -> void:
 		fails += 1
 		print("FAIL T-1: the counter stands between the door and her knees")
 	# at the counter, first person and third person rear
-	await _walk_to(Vector3(8.16, 0.0, -10.20), 6.0)
-	await _walk_to(Vector3(alice.x, 0.0, alice.z + 1.85), 6.0)
+	await _to_counter(link, barista)
 	await _hold(0.6)
 	for m in [FP, REAR]:
 		player.set_camera(m)
@@ -179,7 +196,7 @@ func _target_check() -> void:
 	await _aim_at(player.global_position + Vector3(0, 6.0, -0.5))
 	a = _report_aim(link, "at the ceiling")
 	var sent_before := link.answers.size()
-	var tok := link.talk_to_facing(SliceIntents.DEFAULT_UTTERANCE)
+	var tok := _say_facing(link, SAID)
 	await _hold(1.0)
 	print("talk     aimed at nothing -> token '%s', %d answers arrived" % [tok,
 		link.answers.size() - sent_before])
@@ -188,10 +205,7 @@ func _target_check() -> void:
 		print("FAIL T-4: aimed at nothing, nobody is targeted and nothing is sent")
 
 	# out onto the street
-	await _walk_to(Vector3(8.16, 0.0, -10.20), 6.0)
-	await _walk_to(Vector3(6.0 + SliceCafe.DOOR_X, 0.0, -9.6), 6.0)
-	player.rotation.y = PI
-	await _walk_dist(3.6, 6.0)
+	await _out_to_street(link)
 	await _hold(1.0)
 	print("street   body at %s, server place %s, %d people perceived" % [player.global_position,
 		_where(link), link.figures.size()])
@@ -261,6 +275,13 @@ func _target_check() -> void:
 ## server's last view of the player equal to the last report, millimetre for
 ## millimetre; then a `talk` answered by the server.
 func _link_check() -> void:
+	if SliceWorlds.current is SlicePlainDepiction:
+		await _passages_check()
+		return
+	var route: Array = SliceWorlds.current.viewpoints().get("probe_route", [])
+	if not route.is_empty():
+		await _route_check(route)
+		return
 	print("== VISUAL_SLICE.md sec.9 -- the slice as a MineWorld presentation ==\n")
 	var link := slice.link
 	var fails := 0
@@ -268,7 +289,7 @@ func _link_check() -> void:
 		print("FAIL: no --server= given")
 		return
 	var waited := 0.0
-	while waited < 10.0 and (not link.client.is_seated() or link.here == "" or link._reconcile):
+	while waited < 10.0 and not link.has_first_view():
 		await get_tree().process_frame
 		waited += get_process_delta_time()
 	if not link.client.is_seated():
@@ -397,9 +418,7 @@ func _link_check() -> void:
 		# to the counter on foot: east along the room's clear lane, then north to it
 		var moves_before := link.answers.filter(
 			func(a): return a["action"] == SliceLink.MOVE_ACTION).size()
-		await _walk_to(Vector3(8.16, 0.0, -10.20), 6.0)
-		var bp: Vector3 = (link.figures[barista] as Node3D).global_position
-		await _walk_to(Vector3(bp.x, 0.0, bp.z + 1.85), 6.0)
+		await _to_counter(link, barista)
 		await _hold(0.8)
 		var walked := link.answers.filter(func(a): return a["action"] == SliceLink.MOVE_ACTION)
 		var walked_bad := walked.slice(moves_before).filter(func(a): return a["result"] != "accepted")
@@ -445,7 +464,7 @@ func _conversation_frames() -> void:
 		print("FAIL: no --server= given")
 		return
 	var waited := 0.0
-	while waited < 10.0 and (not link.client.is_seated() or link.here == "" or link._reconcile):
+	while waited < 10.0 and not link.has_first_view():
 		await get_tree().process_frame
 		waited += get_process_delta_time()
 	await _hold(0.8)
@@ -467,9 +486,7 @@ func _conversation_frames() -> void:
 	await _save("conversation_1_from_door")
 	print("door     %.2f m -> %s; on screen: %s" % [near_door[1], near_door[0],
 		slice.hud._toast.text])
-	await _walk_to(Vector3(8.16, 0.0, -10.20), 6.0)
-	var bp: Vector3 = (link.figures[barista] as Node3D).global_position
-	await _walk_to(Vector3(bp.x, 0.0, bp.z + 1.85), 6.0)
+	await _to_counter(link, barista)
 	await _hold(0.8)
 	print("counter  body at %s, %s at %s" % [player.global_position, link.display_label(barista),
 		(link.figures[barista] as Node3D).global_position])
@@ -526,10 +543,7 @@ func _street_watch(link: SliceLink) -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--watch="):
 			secs = float(a.substr(8))
-	await _walk_to(Vector3(8.16, 0.0, -10.20), 6.0)
-	await _walk_to(Vector3(6.0 + SliceCafe.DOOR_X, 0.0, -9.6), 6.0)
-	player.rotation.y = PI
-	await _walk_dist(3.6, 6.0)
+	await _out_to_street(link)
 	await _hold(1.0)
 	print("\n-- the street's people, %.0f s on the pavement at %s, server place %s --"
 		% [secs, player.global_position, _where(link)])
@@ -582,7 +596,7 @@ func _talk_to(link: SliceLink, id: String) -> Array:
 		var off: Vector3 = (link.figures[id] as Node3D).global_position - player.global_position
 		return ["WRONG TARGET %s" % met, Vector2(off.x, off.z).length()]
 	var to: Vector3 = (link.figures[id] as Node3D).global_position - player.global_position
-	var tok := link.talk_to_facing(SliceIntents.DEFAULT_UTTERANCE)
+	var tok := _say_facing(link, SAID)
 	var t := 0.0
 	while t < 4.0 and tok != "" and not _answered(link, tok):
 		await get_tree().process_frame
@@ -628,6 +642,100 @@ func _clear_aim(link: SliceLink, id: String) -> bool:
 	return false
 
 
+## Walk the body to `goal` (millimetres in the place it stands in) by the route the world's own
+## wayfinder plans round that place's walls and solids, as a player follows a planned path: a
+## `walk-to`, then the waypoints the world discloses in `walking.next` (four at most), walked by the
+## body, whose own `move` reports end the server's walk; asked again from where the body now is until
+## the world discloses no more. A fixed scene path does not survive a place furnished later (the
+## café's stools since ARC-307 stood on the old one), and a route the world plans does. With
+## `round_people`, each leg also steps round the people standing on it (`_walk_round_people`).
+func _route_to(link: SliceLink, goal: Dictionary, max_secs: float, round_people := false) -> void:
+	var place := link.here
+	var to := {"place": {"place": {"entity": place, "entity_type": "place"},
+		"local": {"x": int(goal["x"]), "y": int(goal["y"]), "z": 0}, "facing": null}}
+	for round in 6:
+		var tok := link.intents.walk_to(link.client, to)
+		var next: Array = []
+		var waited := 0.0
+		while tok != "" and waited < 4.0:
+			await get_tree().process_frame
+			waited += get_process_delta_time()
+			var obs: MineWorldObservation = link.client.latest
+			var walking: Dictionary = obs.component(link.client.observer, "walking") if obs != null else {}
+			if not walking.is_empty():
+				next = walking.get("next", [])
+				break
+			if _refused(link, tok):
+				break
+		for p in next:
+			await _leg(link, link.to_scene(place, p), max_secs, round_people)
+		if next.size() < 4:
+			break
+	await _leg(link, link.to_scene(place, goal), max_secs, round_people)
+
+
+func _leg(link: SliceLink, to: Vector3, max_secs: float, round_people: bool) -> void:
+	if round_people:
+		await _walk_round_people(link, to, max_secs)
+	else:
+		await _walk_to(to, max_secs)
+
+
+## Walk straight to the floor point `goal`, stepping round each person drawn standing on the way: a
+## waypoint 1 m to their side, away from the line. People are bodies to the server too (`ARC-307`), so a
+## stride into one stops short; the world's route plans round walls and solids, not round people.
+func _walk_round_people(link: SliceLink, goal: Vector3, max_secs: float) -> void:
+	var from := player.global_position
+	var line := Vector3(goal.x - from.x, 0.0, goal.z - from.z)
+	var length := line.length()
+	var stops := []
+	if length > 0.01:
+		var dir := line / length
+		var side := Vector3(-dir.z, 0.0, dir.x)
+		for id in link.figures:
+			var p := (link.figures[id] as Node3D).global_position
+			var rel := Vector3(p.x - from.x, 0.0, p.z - from.z)
+			var along := rel.dot(dir)
+			var across := rel.dot(side)
+			if along > 0.3 and along < length - 0.3 and absf(across) < 0.8:
+				stops.append([along, Vector3(p.x, from.y, p.z) + side * (-1.0 if across > 0.0 else 1.0)])
+	stops.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
+	for s in stops:
+		await _walk_to(s[1], max_secs)
+	await _walk_to(goal, max_secs)
+
+
+## To the counter, 1.85 m in front of `who` (the barista), by the world's route.
+func _to_counter(link: SliceLink, who: String) -> void:
+	var at: Vector3 = (link.figures[who] as Node3D).global_position
+	await _route_to(link, link.to_world(link.here, Vector3(at.x, 0.0, at.z + 1.85)), 6.0)
+
+
+## Out onto the street through the doorway the world discloses from here to it: by the world's
+## route to the doorway's near point, then across to its far point and on, the way it faces.
+func _out_to_street(link: SliceLink) -> void:
+	var street := link.layout.street
+	for p in link.layout.passages.get(link.here, []):
+		if String(p["to"]) != street:
+			continue
+		await _route_to(link, p["here"], 6.0)
+		var there := link.to_scene(street, p["there"])
+		var d := there - player.global_position
+		await _walk_to(there, 6.0)
+		player.rotation.y = atan2(-d.x, -d.z)
+		await _walk_dist(1.5, 4.0)
+		return
+	print("FAIL: the world discloses no doorway from %s to the street" % link.here)
+
+
+## Whether the world answered `tok` with anything but an acceptance.
+func _refused(link: SliceLink, tok: String) -> bool:
+	for a in link.answers:
+		if a["token"] == tok:
+			return String(a.get("result", "")) != "accepted"
+	return false
+
+
 ## Turn toward a floor point and walk until within 0.15 m of it, or `max_secs`.
 func _walk_to(p: Vector3, max_secs: float) -> void:
 	var d := p - player.global_position
@@ -661,7 +769,7 @@ func _settings_check() -> void:
 	link.client.submitted_request.connect(func(token: String, request: Dictionary) -> void:
 		print("REQUEST ", JSON.stringify({"token": token, "request": request})))
 	var waited := 0.0
-	while waited < 10.0 and (not link.client.is_seated() or link.here == "" or link._reconcile):
+	while waited < 10.0 and not link.has_first_view():
 		await get_tree().process_frame
 		waited += get_process_delta_time()
 	_set_check(link.client.is_seated(), "seated")
@@ -677,7 +785,7 @@ func _settings_check() -> void:
 	for id in link.figures:
 		someone = id if someone == "" or id < someone else someone
 	if someone != "":
-		link.intents.talk(link.client, someone, SliceIntents.DEFAULT_UTTERANCE,
+		link.intents.talk(link.client, someone, SAID,
 			link._location(link.here, link.to_world(link.here, player.global_position)))
 	# Long enough for an answer's toast to fade (ControlsHud: 1.6 s held, 0.6 s fading).
 	await _hold(3.0)
@@ -862,7 +970,7 @@ func _controls_check() -> void:
 	link.client.submitted_request.connect(func(token: String, request: Dictionary) -> void:
 		print("REQUEST ", JSON.stringify({"token": token, "request": request})))
 	var waited := 0.0
-	while waited < 10.0 and (not link.client.is_seated() or link.here == "" or link._reconcile):
+	while waited < 10.0 and not link.has_first_view():
 		await get_tree().process_frame
 		waited += get_process_delta_time()
 	_set_check(link.client.is_seated(), "seated")
@@ -978,8 +1086,28 @@ func _plant_occluder(centre: Vector3, yaw: float) -> StaticBody3D:
 ## S12 13a's keys and meanings, read back from the drawn scene. Returns the report.
 func _print_shown(link: SliceLink) -> Dictionary:
 	var report := link.shown()
+	report["affordances"] = _menu_reports(link)
 	print("SHOWN ", JSON.stringify(report))
 	return report
+
+
+## The offers each menu would list -- your own (B), then each drawn person's (Tab) -- in the server's
+## order with the server's verdict: `SHOWN`'s `affordances` (PR 16e, `clients/protocol/ADOPTION.md`
+## §7). Labels and `enabled` are presentation and left out.
+func _menu_reports(link: SliceLink) -> Array:
+	var out := []
+	var menu: SliceOfferMenu = slice.offer_menu
+	var obs := link.client.latest if link.client != null else null
+	if menu == null or obs == null:
+		return out
+	var subjects := [link.client.observer]
+	subjects.append_array(link.figures.keys())
+	for subject in subjects:
+		for entry in menu.entries_for(obs, subject):
+			out.append({"subject": subject, "action_type": entry["action_type"], "target": entry["target"],
+				"about": entry["about"], "complete": entry["complete"], "available": entry["available"],
+				"reason": entry["reason"]})
+	return out
 
 
 ## The server's place for the body, as an id and how the scene draws it.
@@ -1004,7 +1132,7 @@ func _cast_frames() -> void:
 		print("FAIL: no --server= given")
 		return
 	var waited := 0.0
-	while waited < 10.0 and (not link.client.is_seated() or link.here_key == "" or link._reconcile):
+	while waited < 10.0 and not link.has_first_view():
 		await get_tree().process_frame
 		waited += get_process_delta_time()
 	await _hold(1.5)
@@ -1054,3 +1182,554 @@ func _cast_frames() -> void:
 	cam.queue_free()
 	link.client.disconnect_from_world("probe done")
 	await _hold(0.2)
+
+
+# --- a depiction's probe route (S33-c, AC-c-3, AC-c-4) ------------------------------------------
+
+## `--slice-link` for a depiction that names a probe route (`SliceDepiction.viewpoints().probe_route`):
+## any world, walked on the real controller against a real server, never teleported. Each step names
+## a depiction entry by its tags; the probe walks to the door of the place bound to it and through it.
+## Pass: seated in a drawn place; the server's place changes at every doorway of the route; every move
+## accepted; the server's view of the body where it was last reported; every place the street
+## discloses bound (SHOWN, with the misses named); and the world's people drawn by the cast binding.
+func _route_check(route: Array) -> void:
+	print("== S33-c -- the depiction's probe route, against the server ==\n")
+	var link := slice.link
+	if link == null:
+		print("FAIL: no --server= given")
+		return
+	var waited := 0.0
+	while waited < 10.0 and (not link.client.is_seated() or link.here == "" or link._reconcile):
+		await get_tree().process_frame
+		waited += get_process_delta_time()
+	if not link.client.is_seated():
+		print("FAIL: not seated after 10 s")
+		return
+	await _hold(0.8)
+	var lay := link.layout
+	var fails := 0
+	print("seated   observer %s in %s; the anchor %s, the street %s" % [link.client.observer, _where(link),
+		lay.anchor, lay.street])
+	var cast := {}
+	_people(link, cast)
+	if not lay.is_drawn(link.here):
+		fails += 1
+		print("FAIL: the seat's place is not drawn by this depiction (misses %s)" % JSON.stringify(lay.misses))
+	else:
+		for step in route:
+			var tags := _step_tags(step)
+			var target := _place_of_entry(lay, tags)
+			if target == "":
+				fails += 1
+				print("FAIL: no bound place is drawn as the entry tagged %s; misses %s"
+					% [",".join(tags), JSON.stringify(lay.misses)])
+				break
+			if target != link.here:
+				var ok: bool = await _cross(link, target)
+				print("cross    to the entry tagged %s: body at %s, server place %s"
+					% [",".join(tags), player.global_position, _where(link)])
+				if not ok:
+					fails += 1
+					print("FAIL: the server did not move the player into %s" % target)
+					break
+				_people(link, cast)
+				fails += _fixture_check(link)
+			if step is Dictionary:
+				fails += await _to_route_point(link, tags, step["at_mm"])
+	print("places   the server's place, as observed: %s" % [link.place_changes])
+	var moves := link.answers.filter(func(a): return a["action"] == SliceLink.MOVE_ACTION)
+	var refusals := moves.filter(func(a): return a["result"] != "accepted")
+	print("move     %d reports, %d accepted, %d not" % [moves.size(), moves.size() - refusals.size(),
+		refusals.size()])
+	for r in refusals:
+		print("         NOT ACCEPTED: %s" % JSON.stringify(r))
+	if moves.is_empty() or not refusals.is_empty():
+		fails += 1
+		print("FAIL: every move along the route must be accepted")
+	var tok := link.report_position()
+	var sent: Dictionary = link.last_sent_local.duplicate()
+	var t := 0.0
+	while t < 3.0 and not _answered(link, tok):
+		await get_tree().process_frame
+		t += get_process_delta_time()
+	await _hold(0.6)
+	var seen: Variant = link.client.latest.self_location().get("local")
+	print("position sent %s, server now says %s" % [sent, seen])
+	if typeof(seen) != TYPE_DICTIONARY or int(seen.get("x", -1)) != int(sent["x"]) \
+			or int(seen.get("y", -1)) != int(sent["y"]):
+		fails += 1
+		print("FAIL: the server's view of the player is not where the player reported")
+	# every place the street discloses is bound, or named as a miss
+	for p in lay.passages.get(lay.street, []):
+		if not lay.drawn_as.has(p["to"]):
+			fails += 1
+			print("FAIL: the street's doorway to %s binds nothing: %s" % [p["to"],
+				JSON.stringify(lay.misses.get(p["to"], {}))])
+	print("bound    %s" % JSON.stringify(lay.drawn_as))
+	_print_shown(link)
+	print("cast     %d people drawn by the cast binding along the route: %s" % [cast.size(),
+		JSON.stringify(cast)])
+	if cast.is_empty():
+		fails += 1
+		print("FAIL: nobody was drawn as a cast character along the route")
+	fails += _people_check(link, cast)
+	print("\n%s" % ("all link checks pass" if fails == 0 else "%d LINK CHECKS FAILED" % fails))
+	link.client.disconnect_from_world("probe done")
+	await _hold(0.2)
+
+
+## Every station fixture standing in the observer's place shows what this observation disclosed
+## (`ARC-108`; S33-e AC-e-3): the board's text, the window's and the kiosk's state and the clock's hands,
+## from `MineWorldStationState` and `MineWorldStationClock` over the same observation -- never from a
+## world's name. Returns the failures.
+func _fixture_check(link: SliceLink) -> int:
+	var obs := link.client.latest
+	var want := MineWorldStationState.of(obs)
+	var hands := MineWorldStationClock.from_observation(obs) >= 0
+	var fails := 0
+	for r in StationFixtures.rows():
+		var place := String(r["place"])
+		if place == "":
+			place = link.layout.place_of_volume(String(r["volume"]))
+		if place != link.here:
+			continue
+		var expect := ""
+		match String(r["fixture"]):
+			"board":
+				expect = StationPieces.board_text(want["board"])
+			"window", "kiosk":
+				expect = String(want[r["fixture"]])
+			"clock":
+				expect = "hands" if hands else "no hands"
+		var ok := String(r["shows"]) == expect
+		print("fixture  %s in %s shows %s" % [r["fixture"], place, String(r["shows"]).replace("\n", " / ")])
+		if not ok:
+			fails += 1
+			print("FAIL: the %s in %s shows %s; the disclosure says %s%s" % [r["fixture"], place, r["shows"], expect,
+				" (station.window_closed)" if r["fixture"] == "window" else ""])
+	return fails
+
+
+## `--slice-station-walk` (S29-d AC-d-3): from the seat, out to the street, along the depiction's
+## `station_walk` points and in through the station's arch, on the real controller against a real server.
+## Pass: the server's place changes to the place bound to the station's main entry, drawn as a room with
+## the entry's tags; every move accepted; every doorway that place discloses bound (none a miss).
+func _station_walk() -> void:
+	print("== S29-d -- the walk into the station, against the server ==\n")
+	var link := slice.link
+	var walk: Dictionary = SliceWorlds.current.viewpoints().get("station_walk", {})
+	if link == null or walk.is_empty():
+		print("FAIL: no --server= given, or this depiction draws no station\n\n1 STATION CHECKS FAILED")
+		return
+	var waited := 0.0
+	while waited < 10.0 and (not link.client.is_seated() or link.here == "" or link._reconcile):
+		await get_tree().process_frame
+		waited += get_process_delta_time()
+	await _hold(0.8)
+	var lay := link.layout
+	var fails := 0
+	print("seated   in %s; the street %s" % [_where(link), lay.street])
+	if link.here != lay.street and not await _cross(link, lay.street):
+		fails += 1
+		print("FAIL: could not step out onto the street")
+	for p in walk["via"]:
+		await _walk_to(p, 60.0)
+	var target := _place_of_entry(lay, walk["tags"])
+	if target == "":
+		fails += 1
+		print("FAIL: no bound place is drawn as the entry tagged %s; misses %s"
+			% [",".join(walk["tags"]), JSON.stringify(lay.misses)])
+	else:
+		var d: Array = lay.depiction.doors()[lay.doors[target]]
+		var outp := SliceLayout.out_point(d)
+		var inp := SliceLayout.in_point(d)
+		var outward := Vector3(outp.x - inp.x, 0.0, outp.z - inp.z).normalized()
+		await _walk_to(outp + outward * 0.8, 20.0)
+		await _walk_to(outp, 4.0)
+		await _walk_to(inp - outward * 1.5, 6.0)
+		var t := 0.0
+		while t < 3.0 and link.here != target:
+			await get_tree().process_frame
+			t += get_process_delta_time()
+		await _hold(0.8)
+		print("station  body at %s; the server's place %s, drawn as %s, tags %s" % [player.global_position,
+			_where(link), lay.drawn_as.get(target, "undrawn"), lay.tags.get(target, [])])
+		if link.here != target or lay.drawn_as.get(target, "") != SliceLayout.ROOM:
+			fails += 1
+			print("FAIL: the server did not move the player into the station, drawn as a room")
+		for tg in walk["tags"]:
+			if not (tg in lay.tags.get(target, [])):
+				fails += 1
+				print("FAIL: the station's place does not carry the tag %s" % tg)
+		for p in lay.passages.get(target, []):
+			if not lay.drawn_as.has(p["to"]):
+				fails += 1
+				print("FAIL: the station's doorway to %s binds nothing: %s" % [p["to"],
+					JSON.stringify(lay.misses.get(p["to"], {}))])
+	print("places   the server's place, as observed: %s" % [link.place_changes])
+	var moves := link.answers.filter(func(a): return a["action"] == SliceLink.MOVE_ACTION)
+	var refusals := moves.filter(func(a): return a["result"] != "accepted")
+	print("move     %d reports, %d accepted, %d not" % [moves.size(), moves.size() - refusals.size(),
+		refusals.size()])
+	if moves.is_empty() or not refusals.is_empty():
+		fails += 1
+		print("FAIL: every move along the walk must be accepted")
+	print("bound    %s" % JSON.stringify(lay.drawn_as))
+	print("misses   %s" % JSON.stringify(lay.misses))
+	_print_shown(link)
+	print("\n%s" % ("all station checks pass" if fails == 0 else "%d STATION CHECKS FAILED" % fails))
+	link.client.disconnect_from_world("probe done")
+	await _hold(0.2)
+
+
+# --- an observer on the street (S33-i, ARC-175) ----------------------------------------------------
+
+## `--slice-observe`: the seat walks out onto the depiction's street through its own door, on the real
+## controller, as a player would; prints `OBSERVE READY {"place": …}` and stands there, drawing whoever the
+## world shows, until the file `--observe-until=<path>` exists or `--watch=<s>` (default 300) has passed;
+## then `OBSERVE DONE`. What it drew is in `--observe-log=` (`SliceLink._log_drawn`). It names no place.
+func _observe_from_street() -> void:
+	print("== S33-i -- an observer on the street ==\n")
+	var link := slice.link
+	if link == null:
+		print("FAIL: no --server= given\n\nOBSERVE FAILED")
+		return
+	var waited := 0.0
+	while waited < 20.0 and (not link.client.is_seated() or link.here == "" or link._reconcile):
+		await get_tree().process_frame
+		waited += get_process_delta_time()
+	await _hold(0.8)
+	var street := link.layout.street
+	if street == "" or (link.here != street and not await _cross(link, street)):
+		_exit_code = 1
+		print("FAIL: could not step out onto the street (%s); in %s\n\nOBSERVE FAILED" % [street, link.here])
+		return
+	print("OBSERVE READY %s" % JSON.stringify({"place": link.here}))
+	var until := ""
+	var limit := 300.0
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--observe-until="):
+			until = a.substr(16)
+		elif a.begins_with("--watch="):
+			limit = float(a.substr(8))
+	var t := 0.0
+	while t < limit and not (until != "" and FileAccess.file_exists(until)):
+		await _hold(0.25)
+		t += 0.25
+	print("places   the server's place, as observed: %s" % [link.place_changes])
+	print("OBSERVE DONE")
+	link.client.disconnect_from_world("probe done")
+	await _hold(0.2)
+
+
+# --- a world drawn plainly from disclosure (16f-b, ARC-52; AC-16f-6) -------------------------------
+
+## `--slice-link` for a world this client has no depiction of (`SlicePlainDepiction`): from the seat's
+## place, through every doorway it discloses and back, on the real controller against a real server,
+## never teleported. Nothing names a place: the walk is the world's own passages, in disclosed order.
+## Pass: seated in a drawn place; each place reached is drawn as a shell from its `place-shape`; the
+## server's place changes at every doorway, there and back; every move accepted; the server's view of
+## the body where it was last reported; SHOWN lists every place walked through.
+func _passages_check() -> void:
+	print("== 16f-b -- a world drawn plainly from disclosure, walked through its doorways ==\n")
+	var link := slice.link
+	if link == null:
+		print("FAIL: no --server= given")
+		return
+	var waited := 0.0
+	while waited < 10.0 and (not link.client.is_seated() or link.here == "" or link._reconcile):
+		await get_tree().process_frame
+		waited += get_process_delta_time()
+	if not link.client.is_seated():
+		print("FAIL: not seated after 10 s")
+		return
+	await _hold(0.8)
+	var lay := link.layout
+	var fails := 0
+	var home := link.here
+	print("seated   observer %s in %s; the anchor %s" % [link.client.observer, _where(link), lay.anchor])
+	if lay.drawn_as.get(home, "") != SliceLayout.SHELL or not link.shells.nodes.has(home):
+		fails += 1
+		print("FAIL: the seat's place is not drawn as a shell from its disclosure (%s)" % _where(link))
+	var walked := [home]
+	for p in lay.passages.get(home, []).duplicate():
+		var to: String = p["to"]
+		var there: bool = await _cross_doorway(link, p)
+		print("cross    %s -> %s: body at %s, server place %s" % [home, to, player.global_position, _where(link)])
+		if not there:
+			fails += 1
+			print("FAIL: the server did not move the player into %s" % to)
+			break
+		await _hold(0.5)
+		if not link.shells.nodes.has(to):
+			fails += 1
+			print("FAIL: %s is not drawn from its disclosure once stood in" % to)
+		walked.append(to)
+		var back := {}
+		for q in lay.passages.get(to, []):
+			if q["to"] == home:
+				back = q
+		if back.is_empty():
+			fails += 1
+			print("FAIL: %s discloses no doorway back to %s" % [to, home])
+			break
+		var returned: bool = await _cross_doorway(link, back)
+		print("cross    %s -> %s: body at %s, server place %s" % [to, home, player.global_position, _where(link)])
+		if not returned:
+			fails += 1
+			print("FAIL: the server did not move the player back into %s" % home)
+			break
+	if walked.size() < 2:
+		fails += 1
+		print("FAIL: the seat's place discloses no doorway to walk through")
+	print("places   the server's place, as observed: %s" % [link.place_changes])
+	var moves := link.answers.filter(func(a): return a["action"] == SliceLink.MOVE_ACTION)
+	var refusals := moves.filter(func(a): return a["result"] != "accepted")
+	print("move     %d reports, %d accepted, %d not" % [moves.size(), moves.size() - refusals.size(),
+		refusals.size()])
+	for r in refusals:
+		print("         NOT ACCEPTED: %s" % JSON.stringify(r))
+	if moves.is_empty() or not refusals.is_empty():
+		fails += 1
+		print("FAIL: every move through the doorways must be accepted")
+	var tok := link.report_position()
+	var sent: Dictionary = link.last_sent_local.duplicate()
+	var t := 0.0
+	while t < 3.0 and not _answered(link, tok):
+		await get_tree().process_frame
+		t += get_process_delta_time()
+	await _hold(0.6)
+	var seen: Variant = link.client.latest.self_location().get("local")
+	print("position sent %s, server now says %s" % [sent, seen])
+	if typeof(seen) != TYPE_DICTIONARY or int(seen.get("x", -1)) != int(sent["x"]) \
+			or int(seen.get("y", -1)) != int(sent["y"]):
+		fails += 1
+		print("FAIL: the server's view of the player is not where the player reported")
+	var shown := _print_shown(link)
+	var listed := []
+	for entry in shown.get("places", []):
+		listed.append(entry["place"])
+	for place in walked:
+		if not listed.has(place):
+			fails += 1
+			print("FAIL: SHOWN does not list %s" % place)
+	print("bound    %s" % JSON.stringify(lay.drawn_as))
+	print("\n%s" % ("all link checks pass" if fails == 0 else "%d LINK CHECKS FAILED" % fails))
+	link.client.disconnect_from_world("probe done")
+	await _hold(0.2)
+
+
+## Walk through the doorway of passage `p` of the place the body is in (`p` as `SliceLayout.passages`
+## keeps it), on the real controller: to a point a metre inside the doorway, then out past the floor's
+## edge through the wall's gap. True when the server's next observations put the body in `p["to"]`.
+func _cross_doorway(link: SliceLink, p: Dictionary) -> bool:
+	var from := link.here
+	var shape: Variant = link.client.latest.component_value(from, "place-shape")
+	if typeof(shape) != TYPE_DICTIONARY:
+		print("FAIL: %s discloses no place-shape to find its doorway's side" % from)
+		return false
+	var at := link.layout.to_scene(from, p["here"])
+	var n := SliceShells.outward(shape, p["here"])
+	var out := MineWorldSpace.to_3d({"x": n.x * 1000.0, "y": n.y * 1000.0})
+	out = Vector3(out.x, 0.0, out.z).normalized()
+	await _walk_to(at - out * 1.0, 15.0)
+	await _walk_to(at + out * 1.2, 6.0)
+	var t := 0.0
+	while t < 3.0 and link.here != p["to"]:
+		await get_tree().process_frame
+		t += get_process_delta_time()
+	await _hold(0.5)
+	return link.here == p["to"]
+
+
+## A route step's tags: the step itself, or the tags of a step that names a point.
+static func _step_tags(step: Variant) -> PackedStringArray:
+	return step["tags"] if step is Dictionary else PackedStringArray(step)
+
+
+## A route step's point in the place the body stands in (`at`, millimetres in that place's frame), walked
+## to by the world's route on the real controller, round the people on it, then held against the server's
+## own view of the body: still in `place`, within 0.5 m (two capsule radii) of the point. Then back the same
+## way to where the step began, so the next step leaves by the door as any step does. Returns the failures.
+func _to_route_point(link: SliceLink, tags: PackedStringArray, at: Vector2) -> int:
+	var place := link.here
+	var back := link.to_world(place, player.global_position)
+	var goal := {"x": int(at.x), "y": int(at.y)}
+	await _route_to(link, goal, 20.0, true)
+	await _hold(0.5)
+	var tok := link.report_position()
+	var t := 0.0
+	while t < 3.0 and not _answered(link, tok):
+		await get_tree().process_frame
+		t += get_process_delta_time()
+	await _hold(0.6)
+	var seen: Variant = link.client.latest.self_location().get("local")
+	var off := INF
+	if typeof(seen) == TYPE_DICTIONARY and link.here == place:
+		off = Vector2(float(seen.get("x", 0)) - at.x, float(seen.get("y", 0)) - at.y).length() / 1000.0
+	print("point    in the entry tagged %s, to (%d, %d) mm: server place %s, local %s, %.2f m off"
+		% [",".join(tags), goal["x"], goal["y"], _where(link), JSON.stringify(seen), off])
+	if off > 0.5:
+		print("FAIL: the body did not reach the route's point in %s (%.2f m off; 0.5 m allowed)" % [place, off])
+		return 1
+	await _route_to(link, back, 20.0, true)
+	print("point    back in %s at %s" % [_where(link), player.global_position])
+	return 0
+
+
+## The bound place drawn as the depiction entry with exactly `entry_tags`, or "".
+static func _place_of_entry(lay: SliceLayout, entry_tags: PackedStringArray) -> String:
+	for e in lay.depiction.depictions():
+		if ",".join(e["tags"]) != ",".join(entry_tags):
+			continue
+		if e["drawn_as"] == SliceLayout.STREET:
+			return lay.street
+		for p in lay.doors:
+			if p != lay.street and lay.doors[p] == e["door"]:
+				return p
+	return ""
+
+
+## Walk through the bound doors into `target` (or out to the street), on the real controller; true when
+## the server's next observations put the body there. A room opens off the street or off another room
+## (a ticket office off a waiting room, ARC-179): the walk leaves rooms until it stands in one the target
+## opens off, directly or through others, then enters room by room.
+func _cross(link: SliceLink, target: String) -> bool:
+	var lay := link.layout
+	var chain := [target]
+	while chain[-1] != lay.street and chain.size() < 8:
+		chain.append(_opens_off(lay, chain[-1]))
+	while not (link.here in chain):
+		if not await _through_door(link, _opens_off(lay, link.here), false):
+			return false
+	for k in range(chain.find(link.here) - 1, -1, -1):
+		if not await _through_door(link, chain[k], true):
+			return false
+	return link.here == target
+
+
+## The place a room's bound door opens from: the drawn place whose volume holds the door's out-point,
+## else the street.
+static func _opens_off(lay: SliceLayout, room: String) -> String:
+	if room == lay.street or not lay.doors.has(room):
+		return lay.street
+	var outp := SliceLayout.out_point(lay.depiction.doors()[lay.doors[room]])
+	for v in lay.depiction.place_volumes():
+		var place := lay.place_of_volume(String(v.get_meta("place_id", "")))
+		if place == "" or place == room or place == lay.street:
+			continue
+		var cs := v.get_child(0) as CollisionShape3D
+		if cs == null or not (cs.shape is BoxShape3D):
+			continue
+		var half := (cs.shape as BoxShape3D).size * 0.5
+		var local := v.global_transform.affine_inverse() * outp
+		if absf(local.x) <= half.x and absf(local.z) <= half.z:
+			return place
+	return lay.street
+
+
+## One doorway: in through `place`'s bound door (`inward`), or out through the door of the room the body
+## stands in, to `place`.
+func _through_door(link: SliceLink, place: String, inward: bool) -> bool:
+	var lay := link.layout
+	var d: Array = lay.depiction.doors()[lay.doors[place if inward else link.here]]
+	var outp := SliceLayout.out_point(d)
+	var inp := SliceLayout.in_point(d)
+	var outward := Vector3(outp.x - inp.x, 0.0, outp.z - inp.z).normalized()
+	if inward:
+		await _walk_to(outp + outward * 0.8, 15.0)
+		await _walk_to(outp, 4.0)
+		await _walk_to(inp - outward * 1.0, 6.0)
+	else:
+		await _walk_to(inp, 12.0)
+		await _walk_to(outp + outward * 1.2, 6.0)
+	var t := 0.0
+	while t < 3.0 and link.here != place:
+		await get_tree().process_frame
+		t += get_process_delta_time()
+	await _hold(0.5)
+	return link.here == place
+
+
+## The people drawn here now, each with the look the world disclosed and the character the cast binding
+## resolved; every one drawn as a cast character is kept in `cast` (id -> character), and every figure's
+## look, character and body kind in `_route_people` for `_people_check`.
+func _people(link: SliceLink, cast: Dictionary) -> void:
+	for id in link.figures:
+		var n := link.figures[id] as NPC
+		var look: String = n.get_meta("look", "")
+		var character: String = n.get_meta("character", "")
+		var body := _body_kind(link, character)
+		print("person   %s (%s) in %s: look %s, character %s, body %s" % [id, link.display_label(id),
+			link.here, look if look != "" else "-", character if character != "" else "(town figure)", body])
+		if character != "":
+			cast[id] = character
+		_route_people[id] = {"look": look, "character": character, "body": body,
+			"clips": SliceActivities.undisclosed(n)}
+
+
+## id -> { look, character, body, clips } for every person drawn along the route.
+var _route_people := {}
+
+
+static func _body_kind(link: SliceLink, character: String) -> String:
+	return String(link.cast.body_for(character).get("kind", "town")) if link.cast != null else "town"
+
+
+## S33-g (AC-g-1, AC-g-3, AC-g-4; ARC-173), for any world: every person whose disclosed look the pack
+## binds is drawn as that look's own character, never as an extra; no extra and no decor figure is one
+## of this world's own people (`casts`); no figure and no decor figure can play an activity clip,
+## because no disclosure names one. A body drawn as the town figure only because its files are Git LFS
+## pointers (CI's checkout) is reported, not failed: the binding is what is checked here. Returns the
+## failures.
+func _people_check(link: SliceLink, _cast: Dictionary) -> int:
+	var fails := 0
+	var c := link.cast
+	if c == null:
+		return 0
+	var key := SliceWorlds.current.key if SliceWorlds.current != null else ""
+	var own: Array = c.casts.get(key, []) if typeof(c.casts.get(key, [])) == TYPE_ARRAY else []
+	var own_characters := own.map(func(l: String) -> String: return String(c.looks.get(l, "")))
+	var bodies := {}
+	for id in _route_people:
+		var s: Dictionary = _route_people[id]
+		var look: String = s["look"]
+		bodies[s["body"]] = int(bodies.get(s["body"], 0)) + 1
+		if look != "" and c.looks.has(look) and s["character"] != String(c.looks[look]):
+			fails += 1
+			print("FAIL: %s has the look %s but is drawn as %s, not as their own character"
+				% [id, look, s["character"]])
+		if (look == "" or not c.looks.has(look)) and s["character"] in own_characters:
+			fails += 1
+			print("FAIL: %s is drawn as an extra who is one of this world's own people (%s)"
+				% [id, s["character"]])
+		if not (s["clips"] as PackedStringArray).is_empty():
+			fails += 1
+			print("FAIL: %s can be drawn playing %s, which no disclosure names (ARC-173)"
+				% [id, ",".join(s["clips"])])
+	for e in c.extras:
+		if e in own_characters:
+			fails += 1
+			print("FAIL: the extras hold %s, one of this world's own people" % e)
+	var decor := 0
+	for n in get_tree().root.find_children("Decor_*", "NPC", true, false):
+		var npc := n as NPC
+		decor += 1
+		var ch: String = npc.get_meta("character", "")
+		if ch in own_characters:
+			fails += 1
+			print("FAIL: decor figure %s is drawn as %s, one of this world's own people" % [npc.name, ch])
+		if npc.pose == NPC.Pose.SIT:
+			fails += 1
+			print("FAIL: decor figure %s sits (F-S33g-4)" % npc.name)
+		var clips := SliceActivities.undisclosed(npc)
+		if not clips.is_empty():
+			fails += 1
+			print("FAIL: decor figure %s can be drawn playing %s (ARC-173)" % [npc.name, ",".join(clips)])
+	if decor > SliceDecor.MAX:
+		fails += 1
+		print("FAIL: %d decor figures, more than %d" % [decor, SliceDecor.MAX])
+	print("people   %d drawn along the route, bodies %s; extras %s; decor %d %s" % [_route_people.size(),
+		JSON.stringify(bodies), JSON.stringify(c.extras), decor, JSON.stringify(SliceDecor.drawn.map(
+			func(d: Dictionary) -> String: return "%s %s" % [d["character"], d["pose"]]))])
+	return fails

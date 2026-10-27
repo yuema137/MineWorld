@@ -58,6 +58,9 @@ signal said(key: String, args: Dictionary, notice: bool)
 signal spoke(line: String)
 ## Every observation the link receives, before anything is drawn (S35 N-e: the needs rows show in any place).
 signal observed(obs: MineWorldObservation)
+## The player asked to say something to `target` (E facing them, or "talk" in their menu): the
+## words are typed in the talk line (`SliceTalkLine`, PR 16g1), which sends them with `talk_to`.
+signal wants_words(target: String)
 
 ## The kinds of answer a result can be, by their catalog keys (S20).
 const RESULT_KINDS := {
@@ -70,6 +73,8 @@ const RESULT_KINDS := {
 const GENERIC_TAGS := ["public", "staff", "outdoor", "residential"]
 
 var client: MineWorldClient
+## The world instance the latest welcome named (`PROTOCOL.md` §5): which running world this is.
+var instance := ""
 var player: SlicePlayer
 var world_root: Node3D
 
@@ -94,6 +99,15 @@ var _reconcile := true             ## put the body where the next observation sa
 ## The current place's disclosed walls and solids, as invisible colliders
 ## (step-11 §22 SD-E4).
 var bodies := SliceClientBodies.new()
+## The furniture of every place stood in, drawn from the world's data (ARC-307).
+var furnishings: SliceFurnishings = null
+## Who is drawn seated where: the shared sit decision, drawn with the world's sit-point depictions
+## (S33-f, ARC-145).
+var seating: SliceSeating = null
+## Every place no depiction draws, drawn plainly from its disclosure, styled by the pack (16f-b, ARC-52).
+var shells: SliceShells = null
+## The world instance the layout was learned in; a new one drops it (`ARC-45` point 2).
+var _instance := ""
 ## The drawn place's loose objects (SD-E7).
 var objects: SliceObjects
 ## When the drawn body must take the server's position (SD-E8, ARC-50). No
@@ -143,8 +157,13 @@ static func nickname_from_args() -> String:
 
 
 func start(address: String, seat: String, invite: String, nickname: String) -> void:
-	cast = SliceCast.load_pack(
-		ProjectSettings.globalize_path("res://").path_join(SliceMain.PACK_DIR).simplify_path())
+	cast = SliceCast.load_pack(SlicePack.select().dir)
+	# the extras this world's depiction asks for (step-26 E-2, S33-g): another world's people
+	if SliceWorlds.current != null:
+		cast.use_extras_from(SliceWorlds.current.extras_from(), SliceWorlds.current.key)
+	furnishings = SliceFurnishings.load_pack(SlicePack.select().dir)
+	shells = SliceShells.load_pack(SlicePack.select().dir)
+	seating = SliceSeating.new(SlicePack.select().dir, SliceWorlds.key())
 	_figures = SliceFigures.new()
 	_figures.name = "Figures"
 	_figures.world_root = world_root
@@ -186,8 +205,23 @@ func _say(log_line: String, key: String, args: Dictionary = {}, notice := false,
 
 
 func _on_welcomed(seat: String, observer: String, world: Dictionary) -> void:
+	# A new world instance: what was learned of the last one, and drawn from it, is dropped.
+	instance = String(world.get("instance", ""))
+	if _instance != "" and instance != _instance:
+		layout.forget()
+		shells.forget()
+	_instance = instance
 	_say("seated as %s" % seat, "link.seated", {"seat": seat}, true,
 		"observer %s, world %s" % [observer, world.get("instance", "?")])
+
+
+## Whether the link is seated and has drawn its first view: the world has named the
+## place the body is in, the body stands where the first observation put it, and an
+## observation is at hand. Probes wait on this before they act, through this one
+## predicate rather than each re-reading the link's fields.
+func has_first_view() -> bool:
+	return client != null and client.is_seated() and client.latest != null \
+		and here != "" and not _reconcile
 
 
 ## THE ONE PLACE an entity is named for the player: every figure label, every
@@ -269,7 +303,11 @@ func _on_observed(obs: MineWorldObservation) -> void:
 		return
 	var misses_before := layout.misses.size()
 	layout.learn(obs)
+	shells.observe(obs, layout, world_root)
 	things.learn(obs)
+	# The station's fixtures show what the world disclosed in their places (S29-e §5.6, ARC-108).
+	StationFixtures.learn(obs)
+	StationFixtures.refresh(layout)
 	if layout.misses.size() != misses_before:
 		for p in layout.misses:
 			var m: Dictionary = layout.misses[p]
@@ -290,11 +328,12 @@ func _on_observed(obs: MineWorldObservation) -> void:
 	_hear(obs)
 	_wear(obs)
 	# Nothing can be drawn in a place the layout has not bound to the scene.
+	_observe_bodies(obs)
 	if not layout.is_drawn(place):
-		bodies.observe(obs, layout, world_root)
 		objects.observe(obs)
 		return
-	bodies.observe(obs, layout, world_root)
+	if furnishings.observe(obs, layout, world_root):
+		print("FURNISHED ", JSON.stringify(furnishings.furnished()))
 	objects.observe(obs)
 	_stopped(obs)
 	_prev_auth = _mm(obs.self_location().get("local"))
@@ -309,6 +348,10 @@ func _on_observed(obs: MineWorldObservation) -> void:
 			player.global_position = to_scene(place, me) + Vector3(0, 0.02, 0)
 			player.velocity = Vector3.ZERO
 			_last_pos = player.global_position
+			# The facing it stands in is the baseline too: a body placed and never turned has
+			# nothing to report. Left at 0, any placed yaw over REPORT_TURN sent one spurious
+			# `move` whenever a physics frame ran before the first deliberate report.
+			_last_yaw = player.rotation.y
 			correction.adopted(_mm(me), place)
 			_say("placed where the world says you are", "link.placed", {}, false,
 				"%s %s" % [place, JSON.stringify(me)])
@@ -340,7 +383,7 @@ func _on_observed(obs: MineWorldObservation) -> void:
 		if String(loc["place"].get("entity", "")) != place:
 			continue
 		# a name disclosed later replaces the role on the label
-		seen[id] = {"at": to_scene(place, loc.get("local")),
+		seen[id] = {"at": on_drawn_ground(to_scene(place, loc.get("local"))),
 			"yaw": MineWorldSpace.yaw_to_3d_radians(loc.get("facing")) + PI, "label": shown_text(id)}
 		seen[id]["look"] = obs.look(id)
 		seen[id]["name"] = obs.display_name(id)
@@ -349,6 +392,7 @@ func _on_observed(obs: MineWorldObservation) -> void:
 		if not seen.has(id):
 			gone[id] = (figures[id] as Node3D).global_position
 	var change := _figures.observe(seen)
+	seating.observe(obs, _figures, layout)
 	for id in seen:
 		if figures.has(id):
 			_show_sleep(figures[id] as Node3D, id, obs)
@@ -358,6 +402,41 @@ func _on_observed(obs: MineWorldObservation) -> void:
 	for id in change["left"]:
 		_say("%s is no longer in view" % display_label(id), "link.left_view",
 			{"who": shown_label(id)}, false, "lose %s at %s" % [id, gone[id]])
+	_log_drawn(obs, place)
+
+
+## `--observe-log=<file>` (S33-i, ARC-175): one JSON line per observation drawn -- the world's clock, the
+## place the body is in, and each figure drawn now with its entity id, the place it is bound to and where
+## it is drawn, in that place's frame (mm). A log only: nothing reads it back, and nothing drawn or sent
+## changes with it.
+var _observe_log: FileAccess = null
+var _observe_log_opened := false
+
+
+static func observe_log_from_args() -> String:
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--observe-log="):
+			return a.substr(14)
+	return ""
+
+
+func _log_drawn(obs: MineWorldObservation, place: String) -> void:
+	if not _observe_log_opened:
+		_observe_log_opened = true
+		var path := observe_log_from_args()
+		if path != "":
+			_observe_log = FileAccess.open(path, FileAccess.WRITE)
+			if _observe_log == null:
+				push_error("the observe log %s cannot be written: %s" % [path, FileAccess.get_open_error()])
+	if _observe_log == null:
+		return
+	var drawn := []
+	for id in figures:
+		var at := to_world(place, (figures[id] as Node3D).global_position)
+		drawn.append({"id": id, "place": place, "x": int(round(float(at.get("x", 0)))),
+			"y": int(round(float(at.get("y", 0))))})
+	_observe_log.store_line(JSON.stringify({"at": obs.at(), "place": place, "figures": drawn}))
+	_observe_log.flush()
 
 
 ## A figure carries a Zz while the world discloses it asleep (S35 N-e, AC-S35-10). The sleeping state is decided here,
@@ -366,13 +445,11 @@ func _on_observed(obs: MineWorldObservation) -> void:
 func _show_sleep(fig: Node3D, id: String, obs: MineWorldObservation) -> void:
 	var zz := fig.get_node_or_null("Zz") as Label3D
 	if zz == null:
-		zz = Label3D.new()
+		# where the name is, one line above it on screen: a screen-sized text keeps a world-sized
+		# gap only near the camera
+		zz = SliceFigures.overhead_label(MineWorldText.text("ui.glyph.asleep"), 2.05, 56)
+		zz.offset = Vector2(0, 56 * 1.2)
 		zz.name = "Zz"
-		zz.text = MineWorldText.text("ui.glyph.asleep")
-		zz.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-		zz.position = Vector3(0, 2.35, 0)
-		zz.font_size = 56
-		zz.pixel_size = 0.004
 		fig.add_child(zz)
 	zz.visible = not MineWorldNeeds.asleep_of(obs, id).is_empty()
 
@@ -429,6 +506,39 @@ func _wear(obs: MineWorldObservation) -> void:
 			character if character != "" else "(town figure)", me, obs.display_name(me), look])
 
 
+## How far above and below its place's floor a person is looked for on the drawn ground, metres.
+## (A presentation tolerance, not a rule: the server's floor is planar and decides nothing here.)
+const GROUND_SEARCH_M := 1.0
+
+
+## A person stands on what is drawn (`DECISIONS.md` ARC-178): the depiction's ground colliders (the group
+## `SliceProbeGeometry.GROUND_GROUP`: its terrain and its decks) under `at`, within GROUND_SEARCH_M. Where
+## the depiction draws no such ground (Social Café's floors), `at` is unchanged.
+func on_drawn_ground(at: Vector3) -> Vector3:
+	if world_root == null or not world_root.is_inside_tree():
+		return at
+	var space := world_root.get_world_3d().direct_space_state
+	var q := PhysicsRayQueryParameters3D.create(at + Vector3.UP * GROUND_SEARCH_M,
+		at - Vector3.UP * GROUND_SEARCH_M, Build.LAYER_WORLD)
+	var skip: Array[RID] = []
+	for i in 8:
+		q.exclude = skip
+		var hit := space.intersect_ray(q)
+		if hit.is_empty():
+			return at
+		var c := hit["collider"] as Node
+		if c != null and c.is_in_group(SliceProbeGeometry.GROUND_GROUP) and (hit["normal"] as Vector3).y > 0.7:
+			return Vector3(at.x, (hit["position"] as Vector3).y, at.z)
+		skip.append(hit["rid"])
+	return at
+## The current place's disclosed walls and solids (`SliceClientBodies`), and with them what stops the
+## body: where the place discloses its walls only they do, and the scene's art only decorates; where it
+## discloses none, art still blocks (16f-b, `ARC-52`).
+func _observe_bodies(obs: MineWorldObservation) -> void:
+	if bodies.observe(obs, layout, world_root) and player != null:
+		player.set_art_blocks(bodies.node == null)
+
+
 ## World millimetres in a bound place's frame -> a point in this scene.
 func to_scene(place: String, local: Variant) -> Vector3:
 	return layout.to_scene(place, local)
@@ -452,7 +562,8 @@ func _physics_process(delta: float) -> void:
 	# Which of the world's places the body is in, by this slice's volumes and the
 	# places the layout bound them to. In the door's reveal it is in no volume,
 	# and there is nothing to report.
-	var volume := SliceWorld.place_at(world_root, player.global_position)
+	var volume := SliceShells.keep(world_root, SliceWorld.place_at(world_root, player.global_position),
+		layout.volumes.get(here, ""), player.global_position)
 	var at := layout.place_of_volume(volume)
 	if at == "":
 		if volume != "" and not _unknown_said:
@@ -563,14 +674,23 @@ func _location(place: String, local: Dictionary) -> Dictionary:
 	return MineWorldSpace.location(place, local, MineWorldSpace.yaw_from_3d_radians(player.rotation.y))
 
 
-## Talk to whoever the camera is looking at. Targeting is presentation; whether
-## a conversation may happen is the server's, and the request is sent regardless
-## of what the affordance says (ADOPTION.md sec.3.3).
-func talk_to_facing(utterance: String) -> String:
+## E: ask for words for whoever the camera is looking at (PR 16g1 D-3DS-1). The
+## person is pinned now, so turning while typing never sends the line to someone
+## else (D-3DS-3). Whether they are still near enough when it is sent is the
+## server's. Returns the person asked for, or "" when nobody is in view.
+func ask_words_facing() -> String:
 	var target := facing_person()
 	if target == "":
 		_say("nobody in view to talk to", "link.nobody", {}, true)
 		return ""
+	wants_words.emit(target)
+	return target
+
+
+## Say `utterance` to `target`, exactly as typed. The request is sent regardless
+## of what the affordance says (ADOPTION.md sec.3.3), and nothing typed is
+## checked here: an empty or over-long line is the server's to refuse (D-3DS-4).
+func talk_to(target: String, utterance: String) -> String:
 	var obs := client.latest
 	if not SliceIntents.talk_offered(obs, target):
 		var reason: Variant = SliceIntents.talk_reason(obs, target)
@@ -703,7 +823,8 @@ func nobody_to_offer() -> void:
 ## What this client shows of the world, for the parity test (S12 13a's `SHOWN`
 ## report; step-15 D-16c-7): the layout's bound places and doorways, and every
 ## drawn figure with the observer, each at the position it is DRAWN at -- so the
-## report is an instrument of the scene, not a copy of the observation.
+## report is an instrument of the scene, not a copy of the observation. Since PR 16e it also lists
+## every loose object drawn (`objects`, `{id, kind}` as `clients/protocol/ADOPTION.md` §7 says).
 func shown() -> Dictionary:
 	var people := []
 	if client != null and player != null:
@@ -712,7 +833,15 @@ func shown() -> Dictionary:
 	for id in figures:
 		people.append({"id": id, "label": display_label(id),
 			"at": (figures[id] as Node3D).global_position})
-	return layout.shown(here, people)
+	var report := layout.shown(here, people)
+	var drawn := []
+	if objects != null:
+		for id in objects.nodes:
+			var kind := objects.shape_of(id)
+			if kind != "":
+				drawn.append({"id": id, "kind": kind})
+	report["objects"] = drawn
+	return report
 
 
 ## The person the player is looking at, by the name the HUD shows, or "".
@@ -815,7 +944,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not (event is InputEventKey and event.pressed and not event.echo) or client == null:
 		return
 	match (event as InputEventKey).physical_keycode:
-		KEY_E: talk_to_facing(SliceIntents.DEFAULT_UTTERANCE)
+		KEY_E: ask_words_facing()
 		KEY_F: kick_facing()
 		KEY_G: throw_press()
 		KEY_R: shove_facing()

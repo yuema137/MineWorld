@@ -19,17 +19,17 @@
 ```console
 $ mineworld run corner-shop --headless --seed 1 --days 3
 ...
-requests   talk accepted 335
+requests   talk accepted 324
 ...
-activity   days 1-3  ana move 145 talk 108  ben move 157 talk 120  cai move 158 talk 107
+activity   days 1-3  ana move 150 talk 99  ben move 156 talk 116  cai move 152 talk 109
 ...
 ```
 
-**你应该看到**这几个数字。三天里 Ana 说了 108 次话。seed 一样，每次跑的结果都一样，所以下一次可以拿来跟这次比。
+**你应该看到**这几个数字。三天里 Ana 说了 99 次话。seed 一样，每次跑的结果都一样，所以下一次可以拿来跟这次比。
 
 ### Step 7.2 — 告诉世界它有配置文件
 
-**照着做。** 用下面这整份文件替换 `corner-shop/world.yaml`。新加的是最后的 `configure`：
+**照着做。** 用下面这整份文件替换 `corner-shop/world.yaml`。新加的是最后 `configure` 下面的 `classes` 和 `conversation`：
 
 ```yaml file=corner-shop/world.yaml
 # Corner Shop: the world this guide builds.
@@ -76,8 +76,13 @@ seats:
   - cai
 
 configure:
+  - economy
   - classes
   - conversation
+
+# Not a town: a town names its station hall and its landmark (docs/MODULE_SPEC.md §4.3).
+settlement:
+  kind: none
 ```
 
 `configure` 下面每个 key 对应 `configure` 文件夹里的一份文件：`classes` 对应
@@ -95,7 +100,7 @@ $ mineworld validate corner-shop
 规则不会点某一个人的名，它点的是一个 **class**：带同一个 tag 的一组人或东西。
 Ana 从第 02 章起就带着 `shopkeeper` 这个 tag。
 
-**照着做。** 新建文件夹 `corner-shop/configure`，在里面写 `classes.yaml`：
+**照着做。** 在 `corner-shop/configure` 里写 `classes.yaml`：
 
 ```yaml file=corner-shop/configure/classes.yaml
 - class: shopkeeper
@@ -181,6 +186,7 @@ section  conversation:
     "scoped": []
   }
 }
+section  employment: default (compiled)
 section  relationships: default (compiled)
 class    ana              shopkeeper
 class    ben              person
@@ -203,9 +209,9 @@ class    tea              item
 ```console
 $ mineworld run corner-shop --headless --seed 1 --days 3
 ...
-requests   talk accepted 298
+requests   talk accepted 280
 ...
-activity   days 1-3  ana move 155 talk 81  ben move 159 talk 118  cai move 170 talk 99
+activity   days 1-3  ana move 161 talk 72  ben move 165 talk 106  cai move 170 talk 102
 ...
 ```
 
@@ -213,8 +219,8 @@ activity   days 1-3  ana move 155 talk 81  ben move 159 talk 118  cai move 170 t
 
 | | 第 7.1 步 | 第 7.6 步 |
 | --- | --- | --- |
-| 所有人的 `talk accepted` | 335 | 298 |
-| Ana 的 `talk` | 108 | 81 |
+| 所有人的 `talk accepted` | 324 | 280 |
+| Ana 的 `talk` | 99 | 72 |
 
 Ana 说话少了：在店里她一句也不说，只在家里说。Ben 和 Cai 在店里还是可以跟她说话。
 另外两个人的数字也变了一点，因为大家的一天都跟着有点不一样了。变的是世界，System Pack 一点没改。

@@ -22,6 +22,7 @@
 #![deny(unsafe_code)]
 #![warn(missing_docs)]
 
+pub mod manifest;
 pub mod process;
 
 use std::collections::{BTreeMap, BTreeSet};

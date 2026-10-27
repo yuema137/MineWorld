@@ -166,3 +166,29 @@ item ◄── inventory ◄── item-transfer ──► presence
   world states, as `ARC-26`'s note says of constants that are not yet configuration.
 - **A pack owns one section** (F-47): economy's shop is authored on its operator. The limit is worked
   within, not changed; lifting it would be framework work justified only by the market.
+
+---
+
+## ARC-38 note — sellers set prices; item 5 lifted; QS-44 superseded (2026-10-18, S31-a)
+
+Amended by [`ARC-112`](ARC-112.md) (step-31, S31-a; operator-approved 2026-10-15, frozen 2026-10-18).
+
+- **Item 3, the shop and `buy`.** `Shop` on the place keeps its operator and gains `keepers`; its prices move to
+  the operator's `asks`, the same record a keeper changes. `buy { item }` becomes `buy { item, price }`, the price
+  the buyer observed, from a shop (no target) or from a Person seller (targeted). A purchase states `sold` before
+  the payment and the transfer, in the same dispatch. Everything else in item 3 — wallets, `money-transferred` as
+  the one mover of money, wages — is unchanged.
+- **Item 3's single reason, `TargetUnavailable` (step-10 QS-44), is superseded.** A buy is refused with a named
+  code — `not-for-sale`, `price-changed`, `insufficient-funds`, `out-of-stock`, `cannot-carry` — in the offer and
+  at dispatch alike, because `Offer::refused` carries it (`ARC-34` note). The limitation "one reason for an
+  unavailable buy" no longer holds.
+- **Item 5 is lifted.** Shops and Persons may sell any kind; what a seller lists is the seller's choice. The
+  reason behind item 5 — a bought good would fill one of a person's six places — is kept by inventory's capacity
+  (`cannot-carry`), not by a ban.
+- Amounts gain a declared scale: the world's currency is economy's configuration (`ARC-111`).
+
+**Note (2026-10-20, S29-b) — a newsstand sells goods before item 5 is lifted.** Market Town's `station-news`
+shop sells `newspaper` (category `goods`), approved by step-29 §7.2 and step-31 §16.4 (F-S31-6, R-S31-6). Item 5
+("shops sell consumables only") is a content rule that no code enforces; this shop departs from it until S31-a
+lifts it (`ARC-112`). Item 5's reason, that a bought good keeps one of a person's six places, still holds for the
+paper and is measured at the milestone (`pr-s29b-newsstand.md` F-S29b-4).

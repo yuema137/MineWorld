@@ -15,7 +15,7 @@ from mineworld_sdk.wire.ids import EntityKey
 from mineworld_cognition.config import ConfigError
 from mineworld_cognition.controller.assignment import read_assignment
 
-FIXTURE = Path(__file__).parent / "fixtures" / "decisions_format2.json"
+FIXTURE = Path(__file__).parent / "fixtures" / "decisions_format3.json"
 
 
 def _write(directory: Path, data: dict[str, object]) -> Path:
@@ -37,6 +37,11 @@ def test_the_fixture_selects_alice_with_her_memory_choice() -> None:
     assert memory is not None
     assert memory.policy == "consolidate"
     assert memory.store_bound_mib == 40  # FG-b2's format 2 field reaches the choice (D-P6b-39)
+    assert memory.scopes is not None  # format 3's stack, with its positions (pr-s28c §5.5)
+    assert [(scope.id, str(scope.source)) for scope in memory.scopes] == [
+        ("person", "decisions.yaml:6:9")
+    ]
+    assert memory.scopes[0].parameters == {"l0_window_s": 43200}
 
 
 def test_narrowing_to_an_lm_seat_keeps_it_and_a_non_lm_seat_is_refused(tmp_path: Path) -> None:
@@ -45,12 +50,13 @@ def test_narrowing_to_an_lm_seat_keeps_it_and_a_non_lm_seat_is_refused(tmp_path:
         read_assignment(FIXTURE, ["bob"])
 
 
-@pytest.mark.parametrize("version", [1, 3])
+@pytest.mark.parametrize("version", [1, 2, 4])
 def test_an_unknown_format_is_refused_by_name(tmp_path: Path, version: int) -> None:
-    """Format 1 predates `store_bound_mib`; format 3 is from a newer binary. Both are refused by name."""
+    """Format 1 predates `store_bound_mib`, format 2 `scopes` (F-S28c-12); format 4 is from a newer binary.
+    Each is refused by name, with no compatibility layer."""
     data = _fixture()
     data["format"] = version
-    with pytest.raises(ConfigError, match="this reader reads format 2") as refused:
+    with pytest.raises(ConfigError, match="this reader reads format 3") as refused:
         read_assignment(_write(tmp_path, data), None)
     assert str(tmp_path) in str(refused.value)
 

@@ -29,10 +29,13 @@
 
 mod support;
 
+use std::collections::BTreeMap;
 use std::path::Path;
 
-use mineworld_contracts::{ActionRequest, ActionResult};
-use mineworld_server::{RequestField, WirePayload, differing_fields, semantic_core};
+use mineworld_contracts::{ActionRequest, ActionResult, EntityId, Rejection};
+use mineworld_server::{
+    RequestField, WireObservation, WirePayload, differing_fields, semantic_core,
+};
 use serde_json::Value;
 use support::{Client, Server};
 
@@ -83,6 +86,82 @@ struct Submitted {
     request: ActionRequest<WirePayload>,
 }
 
+/// What each entity id in the recorded frames names in the world a replay meets.
+///
+/// Ids are allocated per world instance, so a pack that gains a place renumbers the people in it and
+/// a frame recorded before that names somebody else. The client chose each id by a role, never by a
+/// literal — itself (the seat it joined), whoever the world tags `barista`, and the place it stood
+/// in — so each is translated by that same role, read from this world's own first observation.
+/// Positions are not translated: they are the café's, and a change to the café is a change to what
+/// the client would send, which needs a new recording.
+fn translation(
+    recorded: &[Submitted],
+    observer: EntityId,
+    seen: &WireObservation,
+) -> BTreeMap<String, String> {
+    let named = |action: &str, read: fn(&Value) -> &Value| -> String {
+        let frame = &recorded
+            .iter()
+            .find(|submitted| submitted.action_type == action)
+            .unwrap_or_else(|| panic!("the run submitted a {action}"))
+            .frame;
+        read(frame)
+            .as_str()
+            .unwrap_or_else(|| panic!("the {action} names an entity: {frame}"))
+            .to_owned()
+    };
+    let place = seen
+        .entity(observer)
+        .and_then(|me| me.location())
+        .map(|at| {
+            serde_json::to_value(at).expect("a location serializes")["place"]["entity"].clone()
+        })
+        .and_then(|entity| entity.as_str().map(str::to_owned))
+        .expect("the seat is placed in this world");
+    let barista = support::tagged(seen, "barista").expect("this world has a barista");
+    BTreeMap::from([
+        (named("talk", |frame| &frame["actor"]), observer.to_string()),
+        (named("talk", |frame| &frame["target"]), barista.to_string()),
+        (
+            named("walk-to", |frame| {
+                &frame["payload"]["payload"]["to"]["place"]["place"]["entity"]
+            }),
+            place,
+        ),
+    ])
+}
+
+/// A recorded frame with every entity it names — `actor`, `target`, and each `entity` of a
+/// reference — replaced by what [`translation`] says it names in this world. An id the translation
+/// does not know fails the test rather than being sent as recorded.
+fn translated(frame: Value, into: &BTreeMap<String, String>) -> Value {
+    match frame {
+        Value::Object(fields) => Value::Object(
+            fields
+                .into_iter()
+                .map(|(field, value)| {
+                    let value = match (&value, field.as_str()) {
+                        (Value::String(id), "actor" | "target" | "entity") => {
+                            Value::String(into.get(id).cloned().unwrap_or_else(|| {
+                                panic!("the recorded {field} {id} has no role in this replay")
+                            }))
+                        }
+                        _ => translated(value, into),
+                    };
+                    (field, value)
+                })
+                .collect(),
+        ),
+        Value::Array(items) => Value::Array(
+            items
+                .into_iter()
+                .map(|item| translated(item, into))
+                .collect(),
+        ),
+        other => other,
+    }
+}
+
 /// The `talk` request out of one client's run.
 fn talk_from(flavour: &str) -> ActionRequest<WirePayload> {
     submitted_by(flavour)
@@ -129,11 +208,15 @@ fn a_click_and_a_walk_up_submit_the_same_semantic_core() {
 /// `AC-13`'s second half: **resolved by the same system to the same result.**
 ///
 /// Both frames are replayed against a server of their own — the real binary, the real pack — so that
-/// each meets an identical world and the two answers are comparable. The `move` strides that precede
-/// each `talk` are the client's own, replayed as they were sent: without them the server refuses for
-/// distance, which is the server deciding and not this test. Each stride must be accepted — the client
-/// followed the reporting rule (`server/PROTOCOL.md` §6.2), and this is where that is checked against
-/// what it actually sent.
+/// each meets an identical world and the two answers are comparable. The walk that precedes each
+/// `talk` is the client's own, replayed as it was sent — its entity ids translated by role into the
+/// replay's world ([`translation`]), so a pack that gains a place does not stale the evidence: one
+/// `walk-to` naming the point beside Alice,
+/// then the `walk-step`s the client paced (`ADOPTION.md` §4.2, `ARC-75`). Without it the server
+/// refuses for distance, which is the server deciding and not this test. The server plans the route
+/// round the café's furniture; each request the client sent must be one it accepts, except that the
+/// walk's last `walk-step` may be answered `precondition_failed` — the walk being over — and nothing
+/// of the walk may follow that.
 #[tokio::test]
 async fn both_are_resolved_by_the_same_system_to_the_same_result() {
     let mut answers = Vec::new();
@@ -141,34 +224,58 @@ async fn both_are_resolved_by_the_same_system_to_the_same_result() {
         let server = Server::start(&["server", support::PACK]).await;
         let mut client = Client::connect(server.address).await;
         let (observer, _) = client.join("visitor").await;
-        assert_eq!(
-            observer.raw(),
-            17,
-            "the recorded frames were submitted as this observer, and a request naming another is \
-             refused",
-        );
-        client.observation().await;
+        let seen = client.observation().await;
+        let recorded = submitted_by(flavour);
+        let into_this_world = translation(&recorded, observer, &seen);
 
-        let mut answer = None;
-        let mut strides = 0;
-        for submitted in submitted_by(flavour) {
-            let is_move = submitted.action_type == "move";
-            let (_, result) = client.submit(submitted.frame).await;
-            if is_move {
-                strides += 1;
-                assert!(
-                    matches!(result, ActionResult::Accepted { .. }),
-                    "{flavour}: every stride the client sent is one the server accepts: {result:?}"
-                );
+        let mut talk = None;
+        let mut walks = 0;
+        let mut steps = 0;
+        let mut walk_over = false;
+        for submitted in recorded {
+            let kind = submitted.action_type.as_str();
+            if kind == "walk-step" {
+                // Paced as the client paced it, inside the host's request budget (`ARC-97`).
+                tokio::time::sleep(support::STEP_PACE).await;
             }
-            answer = Some(result);
+            let (_, result) = client
+                .submit(translated(submitted.frame, &into_this_world))
+                .await;
+            match kind {
+                "walk-to" => {
+                    walks += 1;
+                    assert!(
+                        matches!(result, ActionResult::Accepted { .. }),
+                        "{flavour}: the walk the client asked for is one the server plans: {result:?}"
+                    );
+                }
+                "walk-step" => {
+                    assert!(!walk_over, "{flavour}: no step follows the walk's end");
+                    match result {
+                        ActionResult::Accepted { .. } => steps += 1,
+                        ActionResult::Rejected(Rejection::PreconditionFailed) => walk_over = true,
+                        other => panic!(
+                            "{flavour}: every step the client sent is one the server accepts, or \
+                             the walk is over: {other:?}"
+                        ),
+                    }
+                }
+                "talk" => talk = Some(result),
+                other => panic!("{flavour}: the client walked and spoke, and sent no {other}"),
+            }
         }
-        println!("{flavour}: the client walked in {strides} stride(s) before it spoke");
-        assert!(
-            strides >= 2,
-            "{flavour}: the walk to Alice is more than one stride"
+        println!(
+            "{flavour}: the client walked in {steps} step(s) of {walks} walk(s) before it spoke"
         );
-        answers.push((flavour, answer.expect("the run submitted something")));
+        assert_eq!(
+            walks, 1,
+            "{flavour}: one walk-to, to the point beside Alice"
+        );
+        assert!(
+            steps >= 2,
+            "{flavour}: the walk to Alice is more than one step"
+        );
+        answers.push((flavour, talk.expect("the run submitted a talk")));
     }
 
     let (first_flavour, first) = &answers[0];

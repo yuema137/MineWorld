@@ -53,8 +53,8 @@ fn inspect_reports_a_run_s_save_and_every_cause_in_it_resolves() {
     assert_eq!(facts, u64::try_from(before.facts.len()).expect("fits"));
     assert!(facts > 10_000, "a month of a busy world: {facts}");
     assert!(report.contains(
-        "systems    presence v3, movement v2, conversation v4, group-activity v3, relationships v3, \
-         naming v1, schedule v1, bodies v5, persona v1, appearance v1\n"
+        "systems    presence v3, movement v3, conversation v4, group-activity v3, relationships v3, \
+         naming v1, schedule v1, bodies v7, persona v1, appearance v1, calendar v1, posture v2\n"
     ));
     for kind in [
         "causes     action ",

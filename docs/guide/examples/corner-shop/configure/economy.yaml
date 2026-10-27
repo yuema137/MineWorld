@@ -1,0 +1,5 @@
+currency:
+  name: dollar
+  symbol: "$"
+  exponent: 2
+  symbol_at: before

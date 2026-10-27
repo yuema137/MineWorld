@@ -21,6 +21,7 @@ Ana 和 Cai 照常过他们的一天，Ben 的一天由你来过。
 $ mineworld validate corner-shop
 ...
   seats      ana, ben, cai
+  settlement none
 ...
 corner-shop is a valid World Pack.
 ```
