@@ -1,6 +1,8 @@
 # PR S31-b2 — `notices` adopts S30's `AttributeOwner`; the `topics` record
 
-## DRAFT — not frozen
+## DESIGN FROZEN 2026-10-26 (operator approved in the primary session: every question answered as recommended)
+
+**Ruled 2026-10-26 (operator, primary session):** every question below is answered as recommended.
 
 ```text
 Design revision:        revision 1 (2026-10-20), DRAFT
