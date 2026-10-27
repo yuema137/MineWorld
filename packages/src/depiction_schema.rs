@@ -961,9 +961,41 @@ pub struct Viewpoints {
     /// The perf breakdown's views, by name.
     #[serde(default)]
     pub perf_breakdown: Vec<String>,
-    /// The link probe's walk, by tags.
+    /// The link probe's walk: each step names a drawn entry by its tags, and may name a point inside
+    /// it to walk to.
     #[serde(default)]
-    pub probe_route: Vec<Vec<Key>>,
+    pub probe_route: Vec<RouteStep>,
+}
+
+/// One step of the link probe's walk.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+pub enum RouteStep {
+    /// Into the entry with these tags (`["pier", "landmark"]`).
+    Tags(Vec<Key>),
+    /// Into the entry with exactly these tags, then on to a point inside it.
+    Point(RoutePoint),
+}
+
+impl RouteStep {
+    /// The tags of the entry the step walks into.
+    pub fn tags(&self) -> &[Key] {
+        match self {
+            Self::Tags(tags) => tags,
+            Self::Point(point) => &point.tags,
+        }
+    }
+}
+
+/// A route step that walks to a point inside its entry.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RoutePoint {
+    /// The tags of exactly one entry: the street's, or one `places` entry's.
+    pub tags: Vec<Key>,
+    /// The point, in the place's frame: millimetres from its footprint's south-west corner, x east,
+    /// y north (`CORE_CONCEPTS.md` §6.1); inside the footprint.
+    pub at_mm: PointMm,
 }
 
 /// A far-field viewpoint.
