@@ -28,6 +28,9 @@ mineworld-schedule = { workspace = true }
 # For `asleep`, `sleep-terms`, `sleep` and `wake`: a tired person goes to bed and a sleeper wakes for
 # work (ARC-286). `needs` is read by its slug instead: its crate links a market pack (ARC-35 check 2).
 mineworld-sleep = { path = "../../systems/sleep" }
+# For the `notice-board` record a pricing policy reads suggestions from (ARC-117). `notices` is not a market
+# pack and depends on none, so ARC-35 check 2 holds; the market itself is read by slug (ARC-182).
+mineworld-notices = { path = "../../systems/notices" }
 mineworld-packages = { workspace = true }
 # The parameter block's JSON Schema, for the generated reference (ARC-90): the commute policy (ARC-282).
 schemars = { workspace = true }

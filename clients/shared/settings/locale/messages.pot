@@ -1288,6 +1288,18 @@ msgstr ""
 msgid "place.street"
 msgstr ""
 
+#. station
+msgid "place.station"
+msgstr ""
+
+#. ticket office
+msgid "place.ticket-office"
+msgstr ""
+
+#. platform
+msgid "place.platform"
+msgstr ""
+
 #. No service yet
 msgid "sign.no_service"
 msgstr ""

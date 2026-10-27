@@ -167,6 +167,8 @@ def forbidden(path: str) -> str | None:
     name = parts[-1]
     if any(part in EVIDENCE_DIRS for part in parts[:-1]):
         return "an evidence folder"
+    if parts[0] == "tools":
+        return "tooling (ARC-80)"
     if "tools/blender" in "/".join(parts):
         return "the GPL Blender scripts"
     if name.lower().endswith(".md"):
@@ -1193,7 +1195,7 @@ def smoke_cases(cases: list[tuple[str, bool]]) -> None:
 def self_test() -> int:
     cases: list[tuple[str, bool]] = []
     for path, bad in (("runtime/clients/x.pck", False), ("a/shots/x.png", True), ("README.md", True),
-                      ("clients/3d-spike/tools/blender/x.py", True), ("tools/physics_engine.gdc", False),
+                      ("clients/3d-spike/tools/blender/x.py", True), ("tools/physics_engine.gdc", True),
                       ("x/.env", True), ("presentation/x/2D/references/y.png", True)):
         cases.append((f"forbidden({path}) is {bad}", (forbidden(path) is not None) == bad))
     with tempfile.TemporaryDirectory(prefix="mineworld-package-") as tmp:
@@ -1212,6 +1214,8 @@ def self_test() -> int:
         shutil.rmtree(bundle / "shots")
         write_pck(pack, {"tools/blender/x.py": b"x"})
         cases.append(("a GPL file inside a pack fails A-R3", len(check_contents(bundle)) == 1))
+        write_pck(pack, {"tools/x.gd": b"x"})
+        cases.append(("a tools/x.gd inside a pack fails A-R3 (ARC-80)", len(check_contents(bundle)) == 1))
         write_pck(pack, {"big.bin": os.urandom(3000)})
         small = {k: Limit(1000, 500) for k in LIMITS}
         cases.append(("a planted oversize pack fails the budget (A-R4)", len(budget(bundle, None, small)) == 1))

@@ -46,6 +46,8 @@ var floor_node: Node3D
 var pin := 1.0
 ## The rest sole's height in the scene instance's frame (negative: below its origin), from the vertices.
 var sole_y := 0.0
+## False when the body's skin never read back whole (`SkinArrays`): no sole, no support point, nothing lifted.
+var measured := true
 ## The last correction applied, metres in the floor node's frame (diagnostics and the probe).
 var last_lift := 0.0
 ## The ground under each foot, metres in the floor node's frame (PR S36-P4). 0 is the floor node's own floor, the
@@ -68,13 +70,15 @@ var _d: Dictionary
 static func for_body(sk: Skeleton3D, key: String, chain: Transform3D) -> GroundContact:
 	var g := GroundContact.new()
 	g.name = "GroundContact"
-	if key == "":
-		g._d = _prepare(sk, chain)
-	else:
-		if not _cache.has(key):
-			_cache[key] = _prepare(sk, chain)
+	if key != "" and _cache.has(key):
 		g._d = _cache[key]
+	else:
+		g._d = _prepare(sk, chain)
+		# an unmeasured body is not cached: the next body built from the scene reads its skin again
+		if key != "" and g._d["measured"]:
+			_cache[key] = g._d
 	g.sole_y = float(g._d["sole_y"])
+	g.measured = bool(g._d["measured"])
 	return g
 
 
@@ -93,6 +97,8 @@ static func _prepare(sk: Skeleton3D, chain: Transform3D) -> Dictionary:
 	var cand: Array = []  # [rest position, bind-space vertex, bones, weights, binds, is_left]
 	var sole := INF
 	var low := INF
+	# false when a skinned surface never read back whole (`SkinArrays`): the body is then left unmeasured
+	var measured := true
 	for mi: MeshInstance3D in sk.find_children("*", "MeshInstance3D", true, false):
 		if mi.skin == null or mi.mesh == null:
 			continue
@@ -107,11 +113,15 @@ static func _prepare(sk: Skeleton3D, chain: Transform3D) -> Dictionary:
 			bind.append(skin.get_bind_pose(b))
 			rest_bind.append(sk.get_bone_global_rest(bone) * skin.get_bind_pose(b))
 		for s in mi.mesh.get_surface_count():
-			var arr := mi.mesh.surface_get_arrays(s)
-			var v: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
-			var bi: PackedInt32Array = arr[Mesh.ARRAY_BONES]
-			var bw: PackedFloat32Array = arr[Mesh.ARRAY_WEIGHTS]
-			var per := bi.size() / maxi(v.size(), 1)
+			var read := SkinArrays.read(mi.mesh, s, skin.get_bind_count(), "GroundContact: %s" % mi.name)
+			if read.has("unreadable"):
+				measured = false
+			if not read.has("v"):
+				continue
+			var v: PackedVector3Array = read["v"]
+			var bi: PackedInt32Array = read["bi"]
+			var bw: PackedFloat32Array = read["bw"]
+			var per: int = read["per"]
 			for i in v.size():
 				var best := -1.0
 				var dom := -1
@@ -155,7 +165,11 @@ static func _prepare(sk: Skeleton3D, chain: Transform3D) -> Dictionary:
 				if not at.is_empty():
 					keep[at] = true
 	var out := {"pts": PackedVector3Array(), "bones": [], "w": [], "binds": [], "left": [],
-		"sole_y": sole if sole < INF else 0.0}
+		"sole_y": sole if sole < INF else 0.0, "measured": measured}
+	if not measured:
+		# no support point and no sole from a partial read: the body is not held to the floor at all
+		out["sole_y"] = 0.0
+		return out
 	for c: Array in keep:
 		out["pts"].append(c[1])
 		out["bones"].append(c[2])

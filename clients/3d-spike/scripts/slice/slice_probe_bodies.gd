@@ -804,7 +804,7 @@ func _c_free_walk(link: SliceLink) -> void:
 	# counted from inside the café: the walk out through its door is one crossing
 	var c0 := link.correction.history.size()
 	var x0 := link.place_changes.size()
-	await _walk_to_x(6.0 + SliceCafe.DOOR_X)
+	await _walk_to_x(_anchor_sill().x)
 	player.rotation.y = PI
 	await _walk_dist(3.2, 6.0)
 	await _until_place(link, lay.street)

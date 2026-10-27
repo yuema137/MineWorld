@@ -9,7 +9,7 @@
 ## stretch, a kerb up and down, a ramp up and down, three stairs up and down, an uneven patch -- at its own
 ## measured walk speed, its root at the ground under its centre (as a terrain-following figure stands), and then
 ## stands still for 2 s straddling every kerb and stair edge. `--scene street` builds the slice's street
-## (`SliceStreet`, the shipped scene of `social-cafe` and `market-town`) instead, finds its kerb edges by rays (no
+## (`builders/street.gd` of Social Café's authoring source, the street of the place art `social-cafe` and `market-town` ship) instead, finds its kerb edges by rays (no
 ## coordinate literal), stands every body across three of them and walks the first body over the kerb and along it.
 ##
 ## Every frame, read in `skeleton_updated` (after every modifier): per foot, the least clearance of its support
@@ -52,6 +52,10 @@ var _frame := 0
 var _body_speed := 0.0
 var _last_foot := {}
 var _fails: Array[String] = []
+## The street's builder: since 16f-d2 the street is pack art, and this is the authoring source's builder
+## that draws it (`tools/presentation/social_cafe/`), outside the Godot project, loaded by its path.
+const STREET_BUILDER := "../../tools/presentation/social_cafe/builders/street.gd"
+var _street_script: GDScript = null
 
 
 func _initialize() -> void:
@@ -96,7 +100,7 @@ func _run() -> void:
 	Human.foot_grounding = not _args.has("no-ik")
 	var course := {}
 	if scene == "street":
-		SliceStreet.build(_stage)
+		_street().build(_stage)
 	else:
 		course = _build_course()
 	_judge_layer(_stage)
@@ -427,22 +431,29 @@ func _straddle(h: Human, at: Vector3, up_dir: Vector3, frames: int, segment: Str
 
 # --- the street -----------------------------------------------------------------------------------------------------
 
+## The street's builder script (STREET_BUILDER, beside the project), loaded once.
+func _street() -> GDScript:
+	if _street_script == null:
+		_street_script = load(ProjectSettings.globalize_path("res://").path_join(STREET_BUILDER).simplify_path())
+	return _street_script
+
+
 ## The slice's street (built before the judge layer). Its kerb edges are found by rays across the pavement line at three stations along the
 ## street, from the street's own extent (no coordinate literal).
 func _find_kerbs() -> Dictionary:
-	var x0 := SliceStreet.X_MIN
-	var x1 := SliceStreet.X_MAX
+	var x0: float = _street().X_MIN
+	var x1: float = _street().X_MAX
 	var stations: Array = []
 	for frac in [0.3, 0.5, 0.7]:
 		var x: float = lerpf(x0, x1, frac)
-		var top: Variant = _ground_at(Vector3(x, 2.0, SliceStreet.NORTH_FACE + 0.5), Build.LAYER_WORLD, 0.0, 4.0)
+		var top: Variant = _ground_at(Vector3(x, 2.0, _street().NORTH_FACE + 0.5), Build.LAYER_WORLD, 0.0, 4.0)
 		var road: Variant = _ground_at(Vector3(x, 2.0, 0.0), Build.LAYER_WORLD, 0.0, 4.0)
 		if top == null or road == null:
 			continue
 		# from the centreline toward the north frontage: the drawn surface's step from road to pavement
 		var z := 0.0
 		var edge := INF
-		while z > SliceStreet.NORTH_FACE:
+		while z > _street().NORTH_FACE:
 			var y: Variant = _ground_at(Vector3(x, 2.0, z), JUDGE_LAYER, 0.0, 4.0)
 			if y != null and float(y) > (float(road) + float(top)) * 0.5:
 				edge = z
@@ -583,7 +594,7 @@ func _self_test(out: String) -> void:
 	# the floor: x -6..2, z -5..5, top at y = 0
 	Build.slab(_stage, -2.0, 0.0, 8.0, 10.0, -0.4, 0.4, null, 0.0, true)
 	# a 0.14 m step (the slice street's kerb height) over x >= 2, its edge along x = 2, for the straddle
-	Build.slab(_stage, 4.0, 0.0, 4.0, 10.0, -0.4, 0.4 + SliceStreet.KERB_H, null, 0.0, true)
+	Build.slab(_stage, 4.0, 0.0, 4.0, 10.0, -0.4, 0.4 + _street().KERB_H, null, 0.0, true)
 	_judge_layer(_stage)
 	var ref := {"id": "reference", "reference": true}
 	# 1. the per-side rule with both grounds 0 is the S26-c-ground rule, over a walk cycle
@@ -634,12 +645,12 @@ func _self_test(out: String) -> void:
 	# 2. grounds 0.14 / 0: the hips settle on the lower (right) foot
 	a.set_gait(0.0)
 	b.set_gait(0.0)
-	a._ground.ground_left = SliceStreet.KERB_H
+	a._ground.ground_left = _street().KERB_H
 	a._ground.ground_right = 0.0
 	await _frames_n(SETTLE_FRAMES)
 	# the body's lowest point, against the lower (right) ground: the hips settled there, not on the kerb
 	var lh: Dictionary = a._ground.last_heights
-	var on_lower := minf(float(lh["left"]) + SliceStreet.KERB_H, float(lh["right"]))
+	var on_lower := minf(float(lh["left"]) + _street().KERB_H, float(lh["right"]))
 	_check("settle-lower", absf(on_lower) < 0.0005, "lowest point above the lower ground %.3f mm" % (on_lower * 1000.0))
 	a._ground.ground_left = 0.0
 	# 3. straddling the 0.14 m step: the upper foot on the step top within 1 mm after 0.5 s

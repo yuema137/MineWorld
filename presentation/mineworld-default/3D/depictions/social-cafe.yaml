@@ -1,0 +1,491 @@
+{
+  "format": 1,
+  "scope": {
+    "world": "social-cafe"
+  },
+  "frame": {
+    "origin_m": [
+      3.45,
+      0.0,
+      -4.9
+    ]
+  },
+  "street": {
+    "tags": [
+      "street"
+    ],
+    "footprint_mm": [
+      -62450,
+      -13000,
+      93000,
+      16200
+    ]
+  },
+  "places": [
+    {
+      "tags": [
+        "cafe"
+      ],
+      "label": "The Daily Bean",
+      "footprint_mm": [
+        -1610,
+        3540,
+        8320,
+        10320
+      ],
+      "doorway_mm": [
+        0,
+        2800
+      ]
+    },
+    {
+      "tags": [
+        "store"
+      ],
+      "label": "The Flower Room",
+      "footprint_mm": [
+        7350,
+        3550,
+        7900,
+        7350
+      ],
+      "doorway_mm": [
+        8390,
+        2800
+      ]
+    }
+  ],
+  "spawn": {
+    "at_mm": [
+      -14950,
+      650
+    ],
+    "up_m": 0.45,
+    "yaw_deg": -78.0
+  },
+  "models": [
+    {
+      "asset": "social-cafe-street",
+      "depicts": null,
+      "anchor": {
+        "at_mm": [
+          0,
+          0
+        ],
+        "yaw_deg": 0
+      }
+    },
+    {
+      "asset": "social-cafe-north-frontage",
+      "depicts": null,
+      "anchor": {
+        "at_mm": [
+          0,
+          0
+        ],
+        "yaw_deg": 0
+      }
+    },
+    {
+      "asset": "social-cafe-south-frontage",
+      "depicts": null,
+      "anchor": {
+        "at_mm": [
+          0,
+          0
+        ],
+        "yaw_deg": 0
+      }
+    },
+    {
+      "asset": "social-cafe-cafe",
+      "depicts": [
+        "cafe"
+      ],
+      "anchor": {
+        "entrance": "front_door",
+        "at_doorway": true
+      }
+    },
+    {
+      "asset": "social-cafe-florist",
+      "depicts": [
+        "store"
+      ],
+      "anchor": {
+        "entrance": "front_door",
+        "at_doorway": true
+      }
+    }
+  ],
+  "station_kit": {
+    "kit": "depot",
+    "facade_mm": [
+      -62450,
+      -4900
+    ],
+    "facing": "east",
+    "floor_m": 0.14,
+    "eaves": [
+      {
+        "corner_mm": [
+          -37450,
+          3200
+        ],
+        "eaves_m": 11.04
+      },
+      {
+        "corner_mm": [
+          -35450,
+          -13000
+        ],
+        "eaves_m": 6.44
+      }
+    ],
+    "views": [
+      {
+        "name": "st_1_spawn_west",
+        "at_mm": [
+          -14950,
+          650
+        ],
+        "eye_m": 1.8,
+        "yaw_deg": 90.0,
+        "pitch_deg": 4.0
+      },
+      {
+        "name": "st_2_east_end_west",
+        "at_mm": [
+          26550,
+          -4900
+        ],
+        "eye_m": 1.8,
+        "yaw_deg": 90.0,
+        "pitch_deg": 2.0
+      }
+    ],
+    "landmark_shots": [
+      "ff_5_west_aerial"
+    ],
+    "walk_via": [
+      {
+        "at_mm": [
+          0,
+          300
+        ],
+        "up_m": 0.45
+      },
+      {
+        "at_mm": [
+          900,
+          300
+        ],
+        "up_m": 0.45
+      },
+      {
+        "at_mm": [
+          900,
+          -4900
+        ],
+        "up_m": 0.45
+      }
+    ],
+    "source": "S29-d sec.5.5 and sec.5.8 (ARC-192): the depot kit's façade 0.40 m behind the street's doorway to the station (-62 050, -4 900) mm, on the street's axis, the arch facing east; its floors on the pavement (the street's WALK_Y); the eaves are the terrace's as built"
+  },
+  "light": {
+    "gi": [
+      {
+        "box_mm": [
+          -4450,
+          -5800,
+          14000,
+          20000
+        ],
+        "height_m": 9.0,
+        "subdiv": 128
+      }
+    ],
+    "probes": [
+      {
+        "box_mm": [
+          -1950,
+          3200,
+          9000,
+          11000
+        ],
+        "height_m": 3.4,
+        "centre_up_m": 1.84,
+        "update": "once"
+      },
+      {
+        "box_mm": [
+          -8450,
+          -4700,
+          22000,
+          9000
+        ],
+        "height_m": 9.0,
+        "centre_up_m": 3.2,
+        "update": "once"
+      }
+    ]
+  },
+  "viewpoints": {
+    "farfield": [
+      {
+        "id": "VP-spawn",
+        "at_mm": [
+          -14950,
+          650
+        ],
+        "eye_m": 1.8,
+        "roles": [
+          "protected"
+        ]
+      },
+      {
+        "id": "VP-street",
+        "at_mm": [
+          -3450,
+          -4900
+        ],
+        "eye_m": 1.66,
+        "roles": []
+      },
+      {
+        "id": "VP-cafe",
+        "at_mm": [
+          0,
+          700
+        ],
+        "eye_m": 1.8,
+        "roles": []
+      },
+      {
+        "id": "VP-florist",
+        "at_mm": [
+          8390,
+          700
+        ],
+        "eye_m": 1.8,
+        "roles": []
+      },
+      {
+        "id": "VP-west",
+        "at_mm": [
+          -36950,
+          -4900
+        ],
+        "eye_m": 1.8,
+        "roles": [
+          "protected",
+          "judged"
+        ]
+      },
+      {
+        "id": "VP-east",
+        "at_mm": [
+          30050,
+          -4900
+        ],
+        "eye_m": 1.66,
+        "roles": [
+          "protected",
+          "judged"
+        ]
+      },
+      {
+        "id": "VP-high",
+        "at_mm": [
+          -3450,
+          -4900
+        ],
+        "eye_m": 40.0,
+        "roles": [
+          "judged",
+          "high"
+        ]
+      }
+    ],
+    "farfield_shots": [
+      {
+        "name": "ff_1_north_street",
+        "at_mm": [
+          -3450,
+          -3900
+        ],
+        "eye_m": 1.8,
+        "yaw_deg": 0.0,
+        "pitch_deg": 8.0
+      },
+      {
+        "name": "ff_2_north_aerial",
+        "at_mm": [
+          -3450,
+          -29900
+        ],
+        "eye_m": 40.0,
+        "yaw_deg": 0.0,
+        "pitch_deg": -4.0
+      },
+      {
+        "name": "ff_3_south_aerial",
+        "at_mm": [
+          -3450,
+          20100
+        ],
+        "eye_m": 40.0,
+        "yaw_deg": 180.0,
+        "pitch_deg": -4.0
+      },
+      {
+        "name": "ff_4_east_aerial",
+        "at_mm": [
+          -33450,
+          -4900
+        ],
+        "eye_m": 40.0,
+        "yaw_deg": -90.0,
+        "pitch_deg": -4.0
+      },
+      {
+        "name": "ff_5_west_aerial",
+        "at_mm": [
+          26550,
+          -4900
+        ],
+        "eye_m": 40.0,
+        "yaw_deg": 90.0,
+        "pitch_deg": -4.0
+      },
+      {
+        "name": "ff_6_west_street_end",
+        "at_mm": [
+          -27450,
+          -4900
+        ],
+        "eye_m": 1.8,
+        "yaw_deg": 90.0,
+        "pitch_deg": 2.0
+      },
+      {
+        "name": "ff_7_east_street_end",
+        "at_mm": [
+          20550,
+          -4900
+        ],
+        "eye_m": 1.8,
+        "yaw_deg": -90.0,
+        "pitch_deg": 2.0
+      },
+      {
+        "name": "ff_8_southwest_aerial",
+        "at_mm": [
+          -3450,
+          -4900
+        ],
+        "eye_m": 40.0,
+        "yaw_deg": 135.0,
+        "pitch_deg": -4.0
+      },
+      {
+        "name": "ff_9_ring_aerial",
+        "at_mm": [
+          -3450,
+          -4900
+        ],
+        "eye_m": 40.0,
+        "yaw_deg": 0.0,
+        "pitch_deg": -27.0
+      }
+    ],
+    "perf": [
+      {
+        "name": "street wide",
+        "at_mm": [
+          -23450,
+          300
+        ],
+        "eye_m": 0.45,
+        "yaw_deg": -75.0,
+        "pitch_deg": -1.0
+      },
+      {
+        "name": "cafe frontage",
+        "at_mm": [
+          -3150,
+          650
+        ],
+        "eye_m": 0.45,
+        "yaw_deg": -52.0,
+        "pitch_deg": 3.0
+      },
+      {
+        "name": "interior",
+        "at_mm": [
+          -700,
+          5700
+        ],
+        "eye_m": 0.6,
+        "yaw_deg": -38.0,
+        "pitch_deg": -3.0
+      },
+      {
+        "name": "doorway",
+        "at_mm": [
+          0,
+          2000
+        ],
+        "eye_m": 0.45,
+        "yaw_deg": 0.0,
+        "pitch_deg": 0.0
+      },
+      {
+        "name": "street east",
+        "at_mm": [
+          18550,
+          400
+        ],
+        "eye_m": 0.45,
+        "yaw_deg": 96.0,
+        "pitch_deg": -1.0
+      },
+      {
+        "name": "south side",
+        "at_mm": [
+          -1450,
+          -300
+        ],
+        "eye_m": 0.45,
+        "yaw_deg": 165.0,
+        "pitch_deg": 1.0
+      },
+      {
+        "name": "florist interior",
+        "at_mm": [
+          7950,
+          4200
+        ],
+        "eye_m": 0.45,
+        "yaw_deg": -38.0,
+        "pitch_deg": -6.0
+      },
+      {
+        "name": "skyline east",
+        "at_mm": [
+          -23450,
+          300
+        ],
+        "eye_m": 0.45,
+        "yaw_deg": -90.0,
+        "pitch_deg": 4.0
+      }
+    ],
+    "perf_breakdown": [
+      "street wide",
+      "cafe frontage",
+      "interior"
+    ],
+    "probe_route": []
+  }
+}

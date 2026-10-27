@@ -32,6 +32,8 @@ use mineworld_contracts::{ActionRequest, ActionTypeId, Affordance, Observation};
 use mineworld_decision::Draw;
 use serde_json::Value;
 
+use crate::price::{self, Pricing};
+
 /// Out of 100: how often a consult that is offered something complete attempts one of the offers.
 pub(crate) const ATTEMPTS_OFFERED: u64 = 20;
 
@@ -52,6 +54,7 @@ pub(crate) fn attempt(
     draw: &Draw,
     decided_by_name: &[ActionTypeId],
     excluded: &dyn Fn(&Affordance<Value>) -> bool,
+    pricing: &Pricing,
 ) -> Option<ActionRequest> {
     let offered: Vec<&Affordance<Value>> = observation
         .affordances()
@@ -70,12 +73,11 @@ pub(crate) fn attempt(
         return None;
     }
     let chosen = draw.below(offered.len() as u64, OFFERED_CHOICE_DRAW);
-    offered
-        .get(usize::try_from(chosen).ok()?)?
-        .request(observation.observer(), encoded)
-}
-
-/// This controller's payload encoding, as for every request it builds: JSON bytes.
-fn encoded(payload: &Value) -> Vec<u8> {
-    serde_json::to_vec(payload).expect("a JSON value is JSON-representable")
+    // The pricing block's buyer hook: the chosen affordance's own request, unless `buy.choose` says to
+    // buy the same kind more cheaply (`price/buy.rs`; no draw).
+    price::on_chosen_buy(
+        observation,
+        pricing,
+        offered.get(usize::try_from(chosen).ok()?)?,
+    )
 }

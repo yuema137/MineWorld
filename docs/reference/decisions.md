@@ -18,7 +18,7 @@ Which decision model drives each seat of the world, and which memory policy each
 | Field | Type | Required | Default | Bounds | Description |
 | --- | --- | --- | --- | --- | --- |
 | `assign` | list of [Assignment](#decisions-assignment) | no | — | — | Which model drives a seat, or every seat of a class. A seat's entry wins over its class's, and a class's over the default; one entry per seat and one per class. |
-| `default` | one of `rule`, `motivated`, `lm` | no | — | — | The model that drives every seat no assignment names. Absent, the rule model. |
+| `default` | one of `rule`, `motivated`, `price-reporter`, `lm` | no | — | — | The model that drives every seat no assignment names. Absent, the rule model. |
 | `memory` | [Memory](#decisions-memory) | no | — | — | Which memory policy each seat's controller uses. Absent, the cognition process's own default for every seat. |
 | `models` | [`models`](#decisions-models) | no | — | — | The models this file configures, each once, by id: an in-process model's parameters, an out-of-process model's fallback. A model used but not listed runs with its defaults. |
 
@@ -55,7 +55,7 @@ One assignment: exactly one of seat and class, and the model.
 | Field | Type | Required | Default | Bounds | Description |
 | --- | --- | --- | --- | --- | --- |
 | `class` | text | no | — | — | A class of persons defined in configure/classes.yaml; not person, which default: covers. |
-| `model` | one of `rule`, `motivated`, `lm` | yes | — | — | The model that drives it. |
+| `model` | one of `rule`, `motivated`, `price-reporter`, `lm` | yes | — | — | The model that drives it. |
 | `seat` | text | no | — | — | A person of the world listed under seats: in world.yaml. |
 
 <a id="decisions-models"></a>
@@ -68,6 +68,7 @@ The models this file configures, each once, by id: an in-process model's paramet
 | --- | --- | --- | --- | --- | --- |
 | `lm` | [`models.lm`](#decisions-models-lm) | no | — | — | The lm model, which runs out of process; it must name a fallback. |
 | `motivated` | [`models.motivated`](#decisions-models-motivated) | no | — | — | The motivated model, which the host runs in process. |
+| `price-reporter` | [`models.price-reporter`](#decisions-models-price-reporter) | no | — | — | The price-reporter model, which the host runs in process. |
 | `rule` | [`models.rule`](#decisions-models-rule) | no | — | — | The rule model, which the host runs in process. |
 
 <a id="decisions-models-lm"></a>
@@ -78,7 +79,7 @@ The lm model, which runs out of process; it must name a fallback.
 
 | Field | Type | Required | Default | Bounds | Description |
 | --- | --- | --- | --- | --- | --- |
-| `fallback` | one of `rule`, `motivated`, `lm`, `none` | yes | — | — | The model that drives the seat while this one is absent or out of budget, or none to leave the seat idle; at most four steps, no cycle. |
+| `fallback` | one of `rule`, `motivated`, `price-reporter`, `lm`, `none` | yes | — | — | The model that drives the seat while this one is absent or out of budget, or none to leave the seat idle; at most four steps, no cycle. |
 
 <a id="decisions-models-motivated"></a>
 
@@ -89,6 +90,16 @@ The motivated model, which the host runs in process.
 | Field | Type | Required | Default | Bounds | Description |
 | --- | --- | --- | --- | --- | --- |
 | `parameters` | [`models.motivated.parameters`](#decisions-models-motivated-parameters) | no | — | — | The motivated model's parameters; a key it does not take, or a value outside its bound, is refused. An empty mapping when it takes none. |
+
+<a id="decisions-models-price-reporter"></a>
+
+#### `models.price-reporter`
+
+The price-reporter model, which the host runs in process.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `parameters` | [`models.price-reporter.parameters`](#decisions-models-price-reporter-parameters) | no | — | — | The price-reporter model's parameters; a key it does not take, or a value outside its bound, is refused. An empty mapping when it takes none. |
 
 <a id="decisions-models-rule"></a>
 
@@ -115,10 +126,30 @@ The motivated model's parameters; a key it does not take, or a value outside its
 | `curve` | mapping: each key is text, each value is list of list | no | — | — | Per-world overrides of single curves, by name, as the points written. |
 | `curves` | one of `atus-a3-2025` | no | — | — | The named curve set. Only `atus-a3-2025` ships (SD-DLb-8). |
 | `homeward` | whole number | no | — | 0 to 600 | The tiredness a door home adds before it reads `pressure`, 0 … 600 (`pr-s35-nc3` SD-Nc3-2). |
+| `pricing` | [Pricing](#decisions-pricing) | no | — | — | How a seat prices what it sells and chooses what it buys: `rule`'s block (`ARC-117`). |
 | `reply_floor` | whole number | no | — | 0 to 1000 | Per mille, 0 … 1 000: the least chance an addressed person replies. |
 | `roles` | [Roles](#decisions-roles) | no | — | — | The tags each role names. |
 | `social_need_hours` | whole number | no | — | 1 to 72 | Hours without contact at which loneliness reaches its top, 1 … 72. |
 | `top_band` | whole number | no | — | 0 to 500 | Out of 1 000 (per mille), 0 … 500: the band a draw chooses from. |
+
+<a id="decisions-models-price-reporter-parameters"></a>
+
+#### `models.price-reporter.parameters`
+
+The price-reporter model's parameters; a key it does not take, or a value outside its bound, is refused. An empty mapping when it takes none.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `every_minutes` | whole number | no | — | 15 to 1440 | Minutes between slots, 15 … 1 440 (240). |
+| `first_minute` | whole number | no | — | 0 to 1439 | The first publish slot, minute of the day, 0 … 1 439 (480: 08:00). |
+| `last_minute` | whole number | no | — | 0 to 1439 | No slot after this minute of the day, `first_minute` … 1 439 (1 200: 20:00). |
+| `min_basis` | whole number | no | — | 1 to 64 | Notes a line must rest on, 1 … 64 (3). |
+| `plenty_above` | whole number | no | — | 1 to 100000 | Median shop stock above this lowers the line, 1 … 100 000 (20). |
+| `plenty_permille` | whole number | no | — | 0 to 900 | Per mille subtracted when plentiful, 0 … 900 (50). |
+| `scarce_below` | whole number | no | — | 0 to 1000 | Median shop stock below this raises the line, 0 … 1 000 (3; 0: off). |
+| `scarce_permille` | whole number | no | — | 0 to 1000 | Per mille added when scarce, 0 … 1 000 (100). |
+| `topic` | [TopicId](#decisions-topicid) | no | — | — | The topic the bulletin is posted on: a dotted slug, 1 … 64 bytes (`prices.ingredients`). |
+| `valid_minutes` | whole number | no | — | 1 to 43200 | The notice's validity in minutes, 1 … 43 200 (360); the topic's own bounds are the server's check. |
 
 <a id="decisions-models-rule-parameters"></a>
 
@@ -131,6 +162,7 @@ The rule model's parameters; a key it does not take, or a value outside its boun
 | `boss` | [Boss](#decisions-boss) | no | — | — | When a manager penalizes lateness, and how hard (`ARC-287`). |
 | `commute` | [Commute](#decisions-commute) | no | — | — | When to set out for a punctual part of the day. |
 | `needs` | [NeedsPolicy](#decisions-needspolicy) | no | — | — | When to eat, go to bed and wake for work, in a world with `needs` and `sleep` (`ARC-286`). |
+| `pricing` | [Pricing](#decisions-pricing) | no | — | — | How a seat prices what it sells and chooses what it buys; default `hold` / `any` (`ARC-117`). |
 
 <a id="decisions-attributerule"></a>
 
@@ -177,6 +209,28 @@ A boss policy (§0.5). Every field may be omitted and keeps its default.
 | `penalize_from` | [PenalizeFrom](#decisions-penalizefrom) | no | — | — | `notice`, `warning`, `final` or `never`: the least serious lateness penalized. |
 | `share` | whole number | no | — | 1 to 1000 | Per mille of the offered bound taken, 1 … 1 000. |
 
+<a id="decisions-buy"></a>
+
+#### `Buy`
+
+The buyer half.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `choose` | [BuyChoice](#decisions-buychoice) | no | — | — | `any` or `cheapest`. |
+| `tags` | list of text | no | — | at most 8 entries | Only seats carrying one of these tags, 0 … 8; empty: every seat on this model. |
+
+<a id="decisions-buychoice"></a>
+
+#### `BuyChoice`
+
+Which offer to buy a kind from, once a model has chosen to buy it.
+
+**Type:** `any` or `cheapest`.
+
+- `any`: The offer the model chose: today's behaviour.
+- `cheapest`: The cheapest available offer of the same kind; the first in observation order on a tie.
+
 <a id="decisions-commute"></a>
 
 #### `Commute`
@@ -203,6 +257,16 @@ One way to free a hand, as a world writes it in `free_hand`.
 - `eat`: Eat a held kind that feeds me least.
 - `put-down`: Put a held thing down where I stand.
 - `give`: Give a held thing to somebody present.
+
+<a id="decisions-listrule"></a>
+
+#### `ListRule`
+
+Which held kinds a seller lists at their reference value.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `categories` | list of text | no | — | at most 16 entries | Item categories, 0 … 16: a held kind of one of these with no ask of mine is listed. Empty: none. |
 
 <a id="decisions-memory"></a>
 
@@ -331,6 +395,17 @@ Where a due departure stands among a model's hard rungs.
 - `first`: Before answering an invitation or a line: a due departure is asked first.
 - `after-replies`: After answering an invitation or a line.
 
+<a id="decisions-pricing"></a>
+
+#### `Pricing`
+
+The whole block: how a seat prices what it sells, and how it chooses what it buys.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `buy` | [Buy](#decisions-buy) | no | — | — | How a seat chooses among offers to buy one kind. |
+| `sell` | [Sell](#decisions-sell) | no | — | — | How a seat prices its own asks, and a shop's it keeps. |
+
 <a id="decisions-roles"></a>
 
 #### `Roles`
@@ -345,6 +420,37 @@ The tags that make a place a role (§5.4): the first role whose tags intersect a
 | `shop` | list of text | no | — | at most 8 entries | Places a person shops in. |
 | `work` | list of text | no | — | at most 8 entries | Places a person works in. |
 
+<a id="decisions-sell"></a>
+
+#### `Sell`
+
+The seller half.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `ceiling_permille` | whole number | no | — | 1000 to 10000 | Per mille of the reference value, 1 000 … 10 000: the highest ask a policy proposes. |
+| `deadband_permille` | whole number | no | — | 0 to 500 | Per mille of the ask, 0 … 500: a gap no larger than this is ignored. |
+| `every_minutes` | whole number | no | — | 60 to 10080 | The pricing period in minutes, 60 … 10 080: each priceable ask is considered once per period. |
+| `floor_permille` | whole number | no | — | 1 to 1000 | Per mille of the reference value, 1 … 1 000: the lowest ask a policy proposes. |
+| `full_above` | whole number | no | — | 1 to 100000 | `scarcity`: more than this in stock lowers the ask, 1 … 100 000. |
+| `list` | [ListRule](#decisions-listrule) | no | — | — | Which held kinds are listed at their reference value. |
+| `low_below` | whole number | no | — | 0 to 1000 | `scarcity`: fewer than this in stock raises the ask, 0 … 1 000. |
+| `policy` | [SellPolicy](#decisions-sellpolicy) | no | — | — | `hold`, `toward-suggestion` or `scarcity`. |
+| `step_permille` | whole number | no | — | 1 to 500 | Per mille, 1 … 500: how far one move goes. |
+| `tags` | list of text | no | — | at most 8 entries | Only seats carrying one of these tags, 0 … 8; empty: every seat on this model. |
+
+<a id="decisions-sellpolicy"></a>
+
+#### `SellPolicy`
+
+What a seller does with its asks.
+
+**Type:** `hold` or `toward-suggestion` or `scarcity`.
+
+- `hold`: Never move a price.
+- `toward-suggestion`: Move a bounded step toward the current suggestion on the notice board.
+- `scarcity`: Raise when stock is low, lower when it is full.
+
 <a id="decisions-sleepuntil"></a>
 
 #### `SleepUntil`
@@ -355,3 +461,11 @@ How long a person who goes to bed inside the night sleeps for (Q-S35-OP1 (a)).
 
 - `night-end`: Until the night ends (`night.until`), or the commute's leave-by, whichever comes first.
 - `rested`: Until rested (tiredness at or below [`RESTED`], recovering at the disclosed rate), as before the ruling.
+
+<a id="decisions-topicid"></a>
+
+#### `TopicId`
+
+A topic's name: dotted lowercase segments, such as `prices.ingredients` or `news.daily`.
+
+**Type:** text. **Bounds:** at most 64 characters; matches `^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$`.

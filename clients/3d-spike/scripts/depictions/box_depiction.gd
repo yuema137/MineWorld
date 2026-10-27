@@ -64,11 +64,11 @@ func build(root: Node3D, far_field: MineWorldFarField, _connected: bool) -> Node
 
 ## The world's far field, drawn round the protected viewpoints; its flat ground inside the boundary
 ## `near_ground_drop` below where it stands for a world drawn on it (`SliceFarFieldView.build`).
-func draw_far_field(g: Node3D, far_field: MineWorldFarField, near_ground_drop := 0.0) -> void:
+func draw_far_field(g: Node3D, far_field: MineWorldFarField, near_ground_drop := 0.0) -> SliceFarFieldView:
 	var eyes := PackedVector3Array()
 	for vp in far_field_viewpoints("protected"):
 		eyes.append(vp[1])
-	SliceFarFieldView.build(g, far_field, eyes, near_ground_drop)
+	return SliceFarFieldView.build(g, far_field, eyes, near_ground_drop)
 
 
 ## The stub's flat ground.
@@ -172,10 +172,10 @@ func _door(g: Node3D, p: Dictionary, volume: String) -> int:
 	var at := to_scene(p["doorway"])
 	var sill := at - out * SliceLayout.DOOR_INSET
 	# the room's floor height (a deck's surface, ARC-178) puts its in-point, and so its frame, on that floor
-	SliceTerrace.doors.append([sill, yaw, door_label(p["label"]), volume, 0.0, float(p.get("floor_m", 0.0))])
+	SliceDoors.rows.append([sill, yaw, door_label(p["label"]), volume, 0.0, float(p.get("floor_m", 0.0))])
 	Build.label(g, sill + Vector3(0.0, WALL_H + 0.35, 0.0) + out * 0.05, p["label"], 0.45,
 		Color(0.95, 0.95, 0.92), yaw)
-	return SliceTerrace.doors.size() - 1
+	return SliceDoors.rows.size() - 1
 
 
 ## Four walls on the footprint's edges, inside it, with a DOOR_W gap on the street side at the doorway.

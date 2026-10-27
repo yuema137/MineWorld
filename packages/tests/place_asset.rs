@@ -87,17 +87,13 @@ fn the_default_pack_carries_social_cafes_place_art() {
         [
             "social-cafe-cafe",
             "social-cafe-florist",
-            "social-cafe-halt",
             "social-cafe-north-frontage",
             "social-cafe-south-frontage",
             "social-cafe-street",
         ]
     );
-    for enterable in [
-        "social-cafe-cafe",
-        "social-cafe-florist",
-        "social-cafe-halt",
-    ] {
+    // the station is the pack's station kit, drawn at run time (S29-d, `station_kit`), not place art
+    for enterable in ["social-cafe-cafe", "social-cafe-florist"] {
         let entrances = assets.entrances(enterable).expect("listed");
         assert!(
             entrances.iter().any(|e| e == "front_door"),

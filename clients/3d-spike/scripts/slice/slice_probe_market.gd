@@ -56,6 +56,10 @@ const APPROACH_M := 1.2
 ## How far short of an object or a person a `walk_near` stops (PR 16e): clear of the body's 250 mm
 ## radius and the thing's own, inside a kick's 800 mm and a shove's 1 000 mm reach.
 const NEAR_M := 0.6
+## How short of its aim one straight leg stops (`SliceProbeWorld._walk_to`'s arrival slack).
+const LEG_SLACK_M := 0.15
+## How many straight legs a `walk_near` takes at most: a turn round a table needs two or three.
+const WALK_LEGS := 4
 const SHOTS := "res://shots/16d"
 ## The whole run's bound, in wall seconds.
 const RUN_LIMIT_S := 420
@@ -410,14 +414,31 @@ func _walk_near(id: String, link: SliceLink) -> String:
 		at = link.objects.drawn_at(id)
 	else:
 		return "%s is neither a drawn person nor a drawn object" % id
+	# An open menu takes W (O-4): a player closes it to walk, as the `walk` choice does.
+	if slice.offer_menu != null:
+		slice.offer_menu.close()
+		await _frames(2)
 	var from := player.global_position
-	var flat := Vector3(at.x - from.x, 0.0, at.z - from.z)
-	var stop := at - flat.normalized() * NEAR_M
-	await _walk_to(Vector3(stop.x, from.y, stop.z), 12.0)
+	# A straight leg can slide along a table or a chair and end short and aside of where it aimed; a
+	# player then turns toward the thing again. Each leg aims NEAR_M short of it from where the body
+	# stands, and legs repeat while the last one gained more than a leg's own arrival slack.
+	var left := _flat_distance(at, player.global_position)
+	for leg in WALK_LEGS:
+		var p := player.global_position
+		var stop := at - Vector3(at.x - p.x, 0.0, at.z - p.z).normalized() * NEAR_M
+		await _walk_to(Vector3(stop.x, p.y, stop.z), 12.0)
+		var now := _flat_distance(at, player.global_position)
+		if now <= NEAR_M + LEG_SLACK_M or left - now <= LEG_SLACK_M:
+			break
+		left = now
 	await _hold(1.0)
-	var left := Vector2(at.x - player.global_position.x, at.z - player.global_position.z).length()
+	left = _flat_distance(at, player.global_position)
 	print("walk     near %s: stopped %.2f m from it, from %s to %s" % [id, left, from, player.global_position])
 	return ""
+
+
+static func _flat_distance(a: Vector3, b: Vector3) -> float:
+	return Vector2(a.x - b.x, a.z - b.z).length()
 
 
 ## Resolves a selector against the built entries by their data, presses that entry, and waits until
@@ -434,13 +455,18 @@ func _choose(i: int, selector: Dictionary, link: SliceLink, menu: SliceOfferMenu
 		await _approach(link, who)
 	else:
 		var index := -1
+		var chosen := {}
 		for entry in menu.entries:
 			if (_object == "" or entry["about"] == _object) and _matches(entry, selector):
 				index = entry["index"]
+				chosen = entry
 				break
 		if index < 0:
 			return "no built entry%s matches %s" % ["" if _object == "" else " about %s" % _object,
 				JSON.stringify(selector)]
+		if not chosen.get("enabled", true):
+			# pressing a disabled entry sends nothing; the step would pass silently and leave the menu open
+			return "the entry %s is disabled (%s)" % [JSON.stringify(selector), chosen.get("reason")]
 		var line: SliceTalkLine = slice.talk_line
 		if input != "" and line != null:
 			line.last_token = ""

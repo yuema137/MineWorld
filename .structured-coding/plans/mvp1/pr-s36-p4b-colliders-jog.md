@@ -207,3 +207,7 @@ down for samples 2–22 (17 % of the cycle), moving back at a steady 5.9–6.6 m
 | --- | --- | --- |
 | Q-S36-P4b-1 | The jog's foot-slip is the clip's timing (stance 14 % of the cycle), not its speed constant (F-P4b-2). Fix it in the clip: a measured stance-phase time warp in the animation tooling that stretches each foot's contact to the duty its stride implies (about 39 % here) and compresses the swing, keeping the cycle length — so the contact reading equals the stride reading and `jog_mps` stays as measured; or replace the clip with a recorded jog; or, last, IK foot locking for the jog? | The time warp, as a follow-up PR on the animation tooling (generic: driven by the contact reading this PR adds, no per-body number); a recorded jog if the warped clip reads wrong in review |
 | Q-S36-P4b-2 | The street walker's 6 touchdown foot-frames (F-P4b-3): keep the street run record-only with the courses until the step/kerb-clip follow-up of Q-S36-P4-3, or gate the straddles alone now (a segment filter in `cast.py feet`)? | Gate the straddles alone in the follow-up that gates the courses; record-only until then |
+
+**Ruled 2026-10-26 (operator, "all pending questions as recommended", relayed by the coordinator).** Q-S36-P4b-1:
+the jog's stance-phase time warp, as recommended, is a follow-up PR on the animation tooling. Q-S36-P4b-2: the
+street run stays record-only until that follow-up. Both are **known issues deferred to after the milestone**.

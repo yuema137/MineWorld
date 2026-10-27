@@ -237,7 +237,9 @@ func _room(area: Dictionary) -> void:
 	else:
 		draw_colored_polygon(quad, Color(_c("floor", Color("d2c2a8")), alpha))
 	var centre := r.get_center()
-	var wall_h: float = projection.height_px(2.8) if projection.kind == "isometric" else 0.0
+	# The far walls' height: the spec's `wall_m` (an open platform lowers it; 0 draws no walls).
+	var wall_h: float = projection.height_px(float(area.get("wall_m", 2.8))) \
+		if projection.kind == "isometric" else 0.0
 	for i in range(4):
 		var a: Vector2 = corners[i]
 		var b: Vector2 = corners[(i + 1) % 4]

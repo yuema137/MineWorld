@@ -30,7 +30,7 @@ Implementer:            split by commit (step-31 §16.2, the S31-d row: "Haiku f
                         policies from a commit plan; Opus for the LM cassette wiring"): Haiku-class for C0 …
                         C5 and C8; Opus-class for C6 and C7. No independent reviewer per PR (speed first);
                         acceptance criteria and planted mutations run at the milestone
-Lifecycle:              DRAFT
+Lifecycle:              FROZEN 2026-10-20; implemented 2026-10-26 on mvp0/pr-s31d (§15)
 ```
 
 **Effort:** `mvp0`, release-blocking (Q-S31-1 re-ruled) · **Step:**
@@ -1289,7 +1289,14 @@ STOP CONDITION:          S31-d MERGE-READY (PR number and head SHA reported) —
 
 ### 14.1 Rulings
 
-(none yet)
+Ruled 2026-10-20 by the operator in the primary session (the freeze header above; relayed in the
+implementation dispatch of 2026-10-26): **every question is answered as recommended.**
+
+- Q-S31d-1 → (a): wire mirrors read and build by slug, `ARC-182` with a note under `ARC-35` (C1, C2, C3).
+- Q-S31d-2 → yes: a closed registry of typed fillers, `ARC-183` with a note under `ARC-72` (C1, C6).
+- Q-S31d-3 → (a): the `due` trigger on calendar's `day-began` (C6).
+- Q-S31d-4 → yes: `sell:` / `buy:` halves, each with a `tags:` filter (C2, C3).
+- Q-S31d-5 → accept: an LM clerk sees only where it stands; the swap test places the clerk in the store (C7).
 
 ---
 
@@ -1299,19 +1306,109 @@ STOP CONDITION:          S31-d MERGE-READY (PR number and head SHA reported) —
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C8 | — | [ ] | [ ] | [ ] |
+| C0 | ff7b7e66 | [x] | [x] `check_decision_ids.py` PASS | [x] §2.3 holds (below) |
+| C1 | c9ba481a | [x] ARC-117, ARC-182, ARC-183 new; notes under ARC-116, ARC-35, ARC-72; MODULE_SPEC §5.1 | [x] `check_decision_ids.py` (254 ids, index current), `check_doc_headings.py` PASS | [x] no new ontology term; every key of §5 is in ARC-117 / MODULE_SPEC |
+| C2 + C3 | 785ab050 | [x] one commit (bounded: the block, mirrors, policies and call sites are one reviewable unit) | [x] `cargo test -p mineworld-rule-controller --lib` 87 PASS (15 new in `price_tests`); `-p mineworld-motivated --lib` 50 PASS (2 new in `price_tests`); `-p mineworld-economy --test controller_wire` 4 PASS; clippy `-D warnings` clean on the three crates | [x] `git grep "mineworld[-_]\(economy\|item\|inventory\)" cognition/` empty; no `below(`/`offset(` in `price/`; `offered.rs` constants unchanged |
+| C4 | c030fa23 | [x] crate, install line, `packs.rs`, reference regenerated | [x] `-p mineworld-price-reporter` 8 PASS; `-p mineworld-installed-models` PASS; `--test packs` 7 PASS; `ac1_composability check_2` PASS; `mineworld reference --check` PASS | [x] no market crate named; publish band fires once per slot (offsets 0 and 3) |
+| C6 | 463b20eb | [x] by an Opus sub-agent in a separate worktree, cherry-picked (fillers, `due` trigger, config, cassette) | [x] `test_fill_publish_notice.py` 30, `test_fill_registry.py` 7, `test_price_reporter_replay.py` 4 PASS; regression set (choice, consult, milestone_d_replay, lm_summarise_replay, needs_prompt, attributes, parts, config, reference, needs_triggers, leave_early) 96 PASS 1 skip; full cognition suite (no live/real-binary/slow/scale) 744 PASS 3 skip; ruff, pyright clean | [x] no entity id in a prompt; payload built by the filler only; `offers.request` only; scripted/replay only |
+| C7 | 81186733 | [x] same sub-agent, cherry-picked | [x] compiles; clippy clean; run by the python layer at the milestone (`ci_layer.py python` now lists it) | [x] the sink accepts nothing; only the decisions file differs |
+| C5 | 346bd518 | [x] after C6/C7 (bounded reorder: its world builder became `tests/price_world/`, shared with C7's file) | [x] **run locally** (cheap: ≈ 12 s per 10-day run): AC-d-4 PASS (Social Café, Lakeside), AC-d-8 (a) (b) (d) (e) PASS, AC-d-9 PASS, AC-d-10 PASS; **AC-d-8 (c) FAIL** (6 moves away, F-S31d-13) | [x] floors as written, not tuned |
+| C8 | (this commit) | [x] READMEs, ledger, handoff | [ ] `fast` on the exact head (PR) | [x] deviations below |
 
 ### Evidence
 
-(none yet)
+**C0 — base and prerequisites (2026-10-26).**
+
+1. Base: `origin/main` = `0b2faf2f989c2497b809e45adf4dfb6720a13ca9` (GitHub `commits/main` agrees). Dispatch: the
+   coordinator's implementation brief of 2026-10-26 ("Execute its §9 commit plan under its §12 contract"; the
+   design "DESIGN FROZEN 2026-10-20; all questions ruled as recommended — record that at C0"). Milestone F's
+   checklist: the dispatch is the coordinator's statement that the start condition holds (the S29 timing rule is
+   the coordinator's to judge; the operator's "autonomous until milestone" ruling of 10-19 runs past F).
+2. Merged on the base: S31-a (#380), S31-b (#349), S31-c (#424, W5 #435), S31-e (#422), S31-g (#418).
+   `systems/economy/src/sale.rs`, `systems/notices/src/lib.rs`, `systems/price-survey/src/lib.rs` exist.
+3. Real names (all read on the base):
+   - economy (`SystemId "economy"`): `asks` view = component type `asks`, schema 1, `{ asks: [{ item, price,
+     available }] }` (`AsksView`, `component.rs:345-380`, disclosed about a person seller to whoever perceives
+     it, `system.rs:669`); `currency` schema 1, `{ name, symbol, exponent, symbol_at, references: [{ item, value
+     }] }` (`currency.rs:66-80`), to each living Person about itself; the shop listing = component type `shop`,
+     **schema 2** (WE-a bumped `Shop`; the listing view is disclosed under `Shop`'s labels, `system.rs:675`),
+     `{ operator, listed: [{ item, price, in_stock }] }` (`component.rs:300-330`); `set-price` / `list-for-sale`
+     `{ item, price, for?: "shop" }` (`deny_unknown_fields`, `ShopSide` snake_case, `action.rs:57-110`); `buy`
+     `{ item, price }`.
+   - inventory (`"inventory"`): `holdings` schema 1, `{ held: [{ item, count }] }` plus **`capacity` when
+     bounded** (`system.rs:144-175`, `DisclosedHoldings` flattens) — the mirror admits the optional key.
+   - item (`"item"`): `item-catalogue` schema 1, `{ kinds: [{ item, category, name }] }` (`component.rs:44-111`).
+   - price-survey: `mineworld_price_survey::{PriceBook, KindNotes, Note, Source, Survey}`; `PriceBook` is
+     `survey-book` schema 1 with `kinds()`, `kind(item)`, `KindNotes::{item, notes}`, `Note::{at, place, seller,
+     price, source, in_stock}`; `Survey {}` is `survey`, `deny_unknown_fields`; codes in `judge::codes`.
+   - notices: `PublishNotice::new(TopicId, NoticeBody, u32)`, `NoticeBody::Prices(Vec<PriceLine>)`,
+     `PriceLine::new(EntityId, u64, u16)`, `NOTICE_PRICE_MAX = 10^12`, `PRICE_LINES_MAX = 32`,
+     `NoticeBoardRecord { pub notices }` (`notice-board`, schema 1), `Notice::{topic, publisher, body,
+     issued_at, valid_until}`, `TopicId::new`.
+4. S31-h (#426) is **OPEN**, owned by another agent: §2.3's "S31-d merges first" branch — `price/` carries the
+   two `// S31-h:` call sites that do nothing, and the decoder refuses `buy.haggle` and
+   `sell.accept_at_least_permille` until S31-h adds them. WE-a (#189) is **MERGED**: a shop's active adjustment
+   shows **only as the adjusted `price` in the listing**; the listing does not disclose `adjustments`, and the
+   `shop` record on a place is the listing view (`component.rs:310-325`, `Listing::of` applies
+   `Shop::adjust`). R-S31d-4's second branch therefore holds: the policy cannot tell an adjusted listing price
+   from the ask, and the overshoot (or a `price-unchanged` refusal) while a happening runs is a **recorded
+   limitation** until economy discloses the adjustment.
+5. Rulings: §14.1 (all as recommended): C2/C3 take the wire-mirror branch, C6 the filler registry and the
+   `day-began` trigger.
+6. Anchor drift (statements unchanged unless noted): A-2 **changed** — `rule` is no longer parameterless: since
+   S35/LE it has `RuleParameters { commute, boss, needs }` (`model.rs:27-40`) with builder methods
+   `commuting/bossing/needing` on `PacedRuleController`. Bounded: `pricing` becomes the fourth key and a
+   `pricing(..)` builder replaces §5.4's `decide_priced` (same behaviour, same default parity). A-3:
+   `MODULE_SPEC.md:816`. A-5: `cognition/installed/src/lib.rs:20-24` unchanged;
+   `tools/cli/tests/decision_models.rs:52`. A-6: `packs.rs:119`. A-7 **moved**: `paced.rs` now has more hard
+   rungs (asleep, commute, eat, boss, bed, fetch); draw indices 0–6, 8–15 still taken, 7 free; the seller
+   band goes after the boss rung and before bed (no draw, so position cannot move a draw). A-8: `offered.rs`
+   `attempt(observation, draw, decided_by_name, excluded)`; constants unchanged. A-9: `motivated::decide`
+   takes `&Settings`; the `pricing` block is carried in `Settings`. A-13: `ac1_composability.rs:651-662,
+   884-917`. A-21: `run.rs:48`. A precedent for slug reading already exists in `rule-controller`:
+   `fetch.rs:100-140` reads `holdings`, `shop-stock`, `buy` by slug (S35 N-h).
 
 ### Mutations
 
-(none yet; X-6, M-d-1 … M-d-9 as §8.1 lists them)
+Not run per PR (speed first): X-6, M-d-1 … M-d-9 run at the milestone, as §8.1 lists them.
 
 ### Deviations and findings
 
-F-S31d-1 … F-S31d-12 (§3.2) and SD-S31d-1 … 14 (§11), recorded at design time.
+F-S31d-1 … F-S31d-12 (§3.2) and SD-S31d-1 … 14 (§11), recorded at design time. During implementation:
+
+- **D-1 (bounded, A-2 drift).** `rule` already had `RuleParameters { commute, boss, needs }`; `pricing` is the
+  fourth key, and a `PacedRuleController::pricing(..)` builder replaces §5.4's `decide_priced` (same behaviour,
+  same default parity). `motivated` carries the block in its derived `Settings`.
+- **D-2 (bounded, A-7 drift).** The seller band sits after the boss rung and before bed (the hard rungs added
+  since the audit — asleep, commute, eat — come first). It takes no draw, so its place cannot move a draw.
+- **D-3 (bounded).** `ListingSeen` is schema **2** (WE-a bumped `Shop`, whose labels the listing view carries);
+  `HoldingsSeen` admits inventory's optional `capacity`.
+- **D-4 (bounded).** C2 and C3 are one commit; C5 follows C6 and C7 (its world builder is shared with C7's
+  file as `tools/cli/tests/price_world/`). C6 and C7 were written by an Opus sub-agent in its own worktree
+  (`impl-s31d-lm`, removed after the cherry-pick).
+- **D-5 (bounded, C6, from the sub-agent).** Fillables travel in `ConsultInput`; `log.py` is unchanged (the
+  logged observation and config rebuild them). The `due` trigger carries "A new day began." in `words`. The
+  book section shows one line per kind, `<label> (<N> notes): sales …; asks …`, N = sales + newest ask per
+  (seller, place), and a line's basis must be ≤ N; an unnamed seller is `<place label> shop`; amounts are in the
+  currency's minor units. The test fixture is a Python module (`tests/reporter_fixtures.py`). The cognition-TOML
+  reference shows `[fill.publish-notice]` as one row (the generator does not expand nested tables).
+- **D-6 (bounded, A-20 drift).** Market Town's shop prices moved on main (store apple 55, bread 130, milk 45,
+  juice 40; café 80/70/95/110/175/160). The W2/W3/W6 copies read reference values from the organization files;
+  the café's juice is the store's × 1 400 ‰. C7's arms use `min_basis: 1`, `--cadence 30` and an LM
+  `valid_minutes` of 300 to tell its notice from the fallback's.
+- **D-7 (bounded).** The design's `systems/economy/tests/controller_wire.rs` also checks item's category rule
+  against the one `price::block` restates.
+- **F-S31d-13 (material for the milestone — needs an operator ruling).** AC-d-8 (c) "none moves away" FAILS on
+  W2: 6 `price-set` facts by the corner store move away from the current suggestion, all on Saturdays (days 2
+  and 9, e.g. `{from: 55, to: 51}` with the suggestion at 60). Market Town's `configure/economy.yaml` has
+  `{ during: market-day, shop: store, permille: 900 }`: during market day the store's listing shows the
+  adjusted price and discloses no adjustment (C0 item 4), so the keeper steps from 49.5 → toward 60 and economy
+  applies the step to the base 55. This is R-S31d-4's recorded limitation, but the frozen W2 inherits the
+  modifier, so the frozen criterion cannot hold. Not tuned; the test is left as written. Options: (a) a small
+  economy PR discloses a shop's adjustment (or the base ask) in its listing, and the policy then prices from the
+  base / skips while adjusted (R-S31d-4's first branch; recommended); (b) the oracle classifies moves under an
+  active adjustment as the recorded limitation; (c) W2 drops the store's modifier. Every other criterion run
+  locally passed.
 
 ---
 

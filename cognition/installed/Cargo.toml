@@ -13,6 +13,7 @@ mineworld-decision = { workspace = true }
 # ARC-33 note of 2026-10-13). A model is installed by one line here and one there.
 mineworld-rule-controller = { workspace = true }
 mineworld-motivated = { workspace = true }
+mineworld-price-reporter = { workspace = true }
 
 [dev-dependencies]
 # The consistency guard's negative control installs two stub models, which return contract requests.

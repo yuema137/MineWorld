@@ -39,8 +39,12 @@
 class_name SliceFarFieldView
 extends Node3D
 
-## The street's eye at standing height above the pavement (Social Café's spawn at eye height).
-const EYE0 := SliceStreet.WALK_Y + CameraRig.EYE_HEIGHT
+## A pavement's height above the carriageway: a kerb upstand of 140 mm, inside `VISUAL_SLICE.md` sec.3's
+## 0.10-0.16 m kerb range (the value Social Café's street was built with). A physical default shared by
+## every world, not one street's number (16f-d2, I-16f-6).
+const PAVEMENT_M := 0.14
+## The far field's reference eye: standing height above the pavement.
+const EYE0 := PAVEMENT_M + CameraRig.EYE_HEIGHT
 ## Proxy radii (SD-1): a camera-anchored column at real distance d is drawn at
 ## P(d) = P_MIN + (P_MAX - P_MIN) * clamp(ln(d / D_LO) / ln(D_HI / D_LO), 0, 1). P_MIN lies beyond
 ## the world-anchored foreground and water (OUTER_M), P_MAX inside the camera's far plane

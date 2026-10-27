@@ -57,6 +57,13 @@ invites a sleeper. Every threshold is data in the `needs` block of `rule`'s para
 ([`docs/MODULE_SPEC.md`](../../docs/MODULE_SPEC.md) §5.1), so a town of night owls needs no code. In a world
 without those packs it decides exactly as before.
 
+It can also price what it sells (`src/price/`; [`ARC-117`](../../docs/decisions/ARC-117.md)). By default it
+never changes a price. Give `rule` (or `motivated`) a `pricing:` block and a shopkeeper moves its asks a small
+step toward the suggested price on its notice board, or by its own stock, always within bounds set by each
+kind's reference value; a buyer can be told to buy from the cheapest offer. The market's records are read by
+name through small mirror types, so this crate still links no market pack
+([`ARC-182`](../../docs/decisions/ARC-182.md)).
+
 Both controllers name people by the name the world discloses, so Alice says "Earlier, Vera Lindgren
 said …". When the observation discloses no name, she says "someone else", never an id.
 

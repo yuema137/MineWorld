@@ -8,6 +8,12 @@ PR to the commit (Markdown only, in §17's PR section), and the primary session 
 code begins. **R-b and R-d** stay at medium scope (§13) and are frozen on their own later. Nothing here
 authorizes a merge: every PR merges only after the primary session's review and the operator's
 authorization (`CLAUDE.md` §3.1). Progress, evidence and bounded corrections stay writable.
+**Note of 2026-10-26 (operator ruling QB-14, `overall.md` §5).** The packaged clients are published
+publicly: the macOS, Windows and Linux bundles of §3 go to GitHub Releases, with the itch.io mirror and the
+Zenodo archive of §4 (ARC-79). The operator's words: "要不要公开发布打包好的客户端 当然要啊，要不然别人玩不了".
+This settles QB-14, which this step listed as a binding parent. It changes no scope, invariant or
+criterion here; the timing of the first tag stays QR-12's, and nothing is published before the operator's
+go-ahead after milestone acceptance.
 **Author:** the release planning session, 2026-10-10. Draft: worktree
 `/Users/yuema137/mineworld-worktrees/plan-release`, branch `docs/release-design`, from
 `origin/main @ 5ccc402`, merged as PR #136 (`a926fbf`). Freeze: branch `docs/s23-freeze` from
@@ -1304,6 +1310,7 @@ D-Ra-4; C4's 3D half and C6 wait for the rulings.
 | 2026-10-10 | **Stopped** at MS-Ra-1 and MS-Ra-2; C0 committed for the primary session's review | this section |
 | 2026-10-10 | C0 frozen by the primary session; RL-b's head checked (§18.7); C1 committed | §18.7, `a5601f0` |
 | 2026-10-17 | Revival session: `origin/main @ e51ffc0` merged (CI sharding ARC-110, nightly classifiers ARC-83, persona/authoring seam, memory, P7). Conflicts: `docs/DECISIONS.md` (ARC-80, DEP-38, DEP-41 kept beside main's ARC-81, DEP-43; ids distinct) and `scripts/ci_layer.py` `fast` (package.py self-test kept beside main's ci_* self-tests). RL-b (#131) is merged; RL-b2 (#212, the 512 px texture PR of the MS-Ra-2 ruling) is still an open draft, so C4's 3D half and C6 stay paused. Heavy local jobs paused by the operator: no Godot export or cargo run locally this session | `check_decision_ids` 155 distinct; `check_doc_headings` 240 sections; `package.py --self-test` 17/17; `ci_parity`, `ci_stability`, `check_ci_pins` self-tests ok (Python 3.12) |
+| 2026-10-26 | Operator size ruling: (1) one shared Godot runtime — delivered in full by #419 (S23-RT); (2) every character base colour ships at 1024², overriding Q-S26-5 — the town body's albedo role now takes the cast's cap (`DEP-162` dated note, PR `fix/pack-size-1024`). Measured after, `3d.pck` / archive: macOS universal 236.4 / 344.6 MB, Linux x86_64 236.4 / 312.1 MB, Windows x86_64 236.4 / 322.2 MB, all under the hard limits (250 / 400). Linux and Windows archives use the macOS server as a stand-in, so they are upper bounds | `DEP-162`; `package.py assemble` budget lines |
 
 ## 18.7 RL-b's head checked against MS-Ra-1 and MS-Ra-2 (2026-10-10)
 

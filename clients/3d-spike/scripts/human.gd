@@ -419,6 +419,12 @@ static func build_character(m: Dictionary) -> Human:
 	return h
 
 
+## Whether the body's contact data was measured from its own skin: false when its skin did not read back
+## whole (`SkinArrays`), and the body then stands on its scene origin with no sole and no contact.
+func contact_measured() -> bool:
+	return _ground != null and _ground.measured
+
+
 ## The body's ground contact, from its own geometry (`ground_contact.gd`, PR S26-c-ground): the scene
 ## instance is raised by its rest sole's depth (the cast exports' soles are at y = -0.0177, pipeline
 ## standard G-4), and a `GroundContact` modifier, after `Posture`, keeps the lowest sole on the floor

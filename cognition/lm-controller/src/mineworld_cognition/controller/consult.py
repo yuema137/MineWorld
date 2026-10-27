@@ -41,6 +41,7 @@ from mineworld_cognition.controller.failures import (
     from_refused,
     from_semantic,
 )
+from mineworld_cognition.controller.fill.base import Fillable
 from mineworld_cognition.controller.intent import SemanticFailure, build
 from mineworld_cognition.controller.persona import Persona
 from mineworld_cognition.controller.prompt import Feedback, Reask, Replan, Trigger, build_request
@@ -102,6 +103,8 @@ class ConsultInput:
     memory: MemorySection
     trigger: Trigger
     attributes: SelfAttributes = NO_ATTRIBUTES
+    fillables: tuple[Fillable, ...] = ()
+    """The fillers listed for this consult's observation (S31-d §5.8); none, and the consult is as before."""
 
 
 class AttemptRecord(CognitionModel):
@@ -187,6 +190,7 @@ async def consult(input: ConsultInput, deps: ConsultDeps) -> ConsultRecord:
             input.trigger,
             feedback,
             attributes=input.attributes,
+            fillables=input.fillables,
         )
         key = str(cassette_key(request))
         gate = await deps.ask(request, remaining())
@@ -206,10 +210,10 @@ async def consult(input: ConsultInput, deps: ConsultDeps) -> ConsultRecord:
 
         assert isinstance(gate, Completed)
         text = gate.completion.text
-        parsed = parse_choice(gate.completion)
+        parsed = parse_choice(gate.completion, fillers=bool(input.fillables))
         proposal: Proposal | ContentFailure
         if isinstance(parsed, SocialChoice):
-            proposal = validate(parsed, situation, input.memory)
+            proposal = validate(parsed, situation, input.memory, input.fillables)
         else:
             proposal = parsed
         if isinstance(proposal, ContentFailure):
