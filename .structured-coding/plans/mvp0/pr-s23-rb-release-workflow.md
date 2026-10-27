@@ -1,21 +1,21 @@
 # PR S23 R-b — The CI release workflow: tag, smoke, checksums, provenance, draft release
 
-## DESIGN FROZEN 2026-10-27 (operator approved in the primary session: every question answered as recommended) (not frozen)
+## DESIGN FROZEN 2026-10-27 (operator approved in the primary session: every question answered as recommended)
 
 **Ruled 2026-10-27 (operator, primary session):** every question below is answered as recommended.
 
 ```text
-Design revision:        revision 1 (2026-10-26), DRAFT (not frozen)
+Design revision:        revision 1 (2026-10-26), frozen 2026-10-27
 Author:                 design sub-agent (Opus), worktree /Users/yuema137/mineworld-worktrees/design-s23-rb-rd,
                         branch docs/pr-design-s23-rb-rd, planning base origin/main @ 0b2faf2f
 Builds on:              PR #498 (draft, branch release-dry-run/workflow, head 5cb3c313): "R-b part 1", the
                         dispatch dry run. This document specifies the remainder ("R-b part 2")
-Approved by / evidence: nobody yet. Only the operator freezes this design (CLAUDE.md §3.1)
-Implementation base:    origin/main after #498 merges (or #498's head, stacked, if the operator prefers)
-Start condition:        this design frozen; #498 merged; R-c C5 landed (Q-Rb-2); #497 (ARC-79) merged
-Execution contract:     §11, left unfilled on purpose
-Implementer:            Opus-class (workflow logic, cross-OS jobs, provenance)
-Lifecycle:              DRAFT (not frozen)
+Approved by / evidence: the operator, 2026-10-27 (primary session; relayed by the coordinator)
+Implementation base:    PR #498's head 469ffa8c plus origin/main 315a50a9 merged in (stacked on #498)
+Start condition:        met: frozen; R-c C5 landed (#517); ARC-79 on main; #498 still open (stacked)
+Execution contract:     §11, filled 2026-10-27
+Implementer:            implementation session, worktree impl-s23-rb, branch mvp0/pr-s23-rb
+Lifecycle:              FROZEN; implementation in progress
 ```
 
 **Effort:** `mvp0` · **Step:** [`step-23-release.md`](step-23-release.md) §§3, 5, 7, 9, 10, 13.4, 14 (A-R2,
@@ -589,19 +589,40 @@ CI IMPACT          ci.yml unchanged; fast gains one self-test line. The PR's own
 
 ## 11. Execution contract
 
-Left unfilled on purpose. The operator freezes this design and the coordinator fills the contract
-(`.claude/skills/structured-coding/prompts/implementation-working-rules.md`) before any code.
+Filled 2026-10-27 by the lane lead (the implementation session) on the coordinator's relay of the
+operator's ruling of 2026-10-27 (the design frozen; Q-Rb-1 … Q-Rb-7 answered as recommended), with the
+coordinator's narrowing of Q-Rb-6 recorded below.
 
 ```text
-PROJECT / PR:              (unfilled)
-PRIMARY DESIGN DOC:        (unfilled)
-IMPLEMENTATION BASE:       (unfilled)
-APPROVED SCOPE:            (unfilled)
-FROZEN INVARIANTS:         (unfilled)
-AUTONOMOUS ACTIONS:        (unfilled)
-STOP CONDITIONS:           (unfilled)
-VALIDATION BUDGET:         (unfilled)
-MERGE AUTHORITY:           (unfilled)
+PROJECT / PR:              MineWorld mvp0, PR S23 R-b — the CI release workflow
+PRIMARY DESIGN DOC:        .structured-coding/plans/mvp0/pr-s23-rb-release-workflow.md (this file)
+RELATED / BINDING DOCS:    step-23-release.md §§3, 5, 9, 10, 14, 19 (R-c C5, F-RC-6, F-RC-7, D-RC-5);
+                           docs/decisions ARC-48, ARC-79, ARC-80, DEP-38, DEP-41, DEP-45
+IMPLEMENTATION BASE:       PR #498's head 469ffa8c (branch release-dry-run/workflow, not merged) plus
+                           origin/main merged in (315a50a9: R-c C5 #517, 3D tools filter #512). Stacked
+                           on #498, the design's allowed alternative; this PR merges after #498. If #498
+                           merges first, origin/main is merged again.
+APPROVED SCOPE:            §3 as frozen, with Q-Rb-1 … Q-Rb-7 answered as recommended, except Q-Rb-6 (below)
+FROZEN INVARIANTS:         §4.1 (I-Rb-1 … I-Rb-6), and: nothing is published. `draft` creates drafts only;
+                           on a dispatch only `test-<run id>` drafts, deleted after the evidence is taken.
+                           The artifact interface of §4.3 is kept exactly (another PR, 25g layer B,
+                           consumes it).
+AUTONOMOUS ACTIONS:        implement, validate, commit, push, open the PR, dispatch release.yml on this
+                           branch (or push it to a release-dry-run/** branch, the dry-run trigger, while
+                           the workflow is not on main). Not: merge, arm auto-merge, push any tag (the
+                           A-R2 scratch tag included), create a non-draft release.
+Q-Rb-6 (narrowed):         the coordinator's instruction of 2026-10-27 replaces the recommended "yes": no
+                           scratch tag is pushed by this session. A-R2 is proven by the script's
+                           self-test and the CLI against a mismatched tag; the real scratch-tag run is
+                           pending operator action.
+STOP CONDITIONS:           any change to frozen scope, a public contract, an ownership boundary, or a
+                           dependency beyond the design's pins.
+VALIDATION BUDGET:         local: ci_release.py and ci_parity.py self-tests, check_ci_pins.py, actionlint
+                           if available; cargo and Godot only through cast-slots/with-slot.sh. Platform
+                           evidence: release.yml runs on this branch, at most ONE in flight, polled at
+                           most every 5 minutes; only heads expected green are pushed.
+MERGE AUTHORITY:           the coordinator only. This session never merges.
+NORMAL STOP:               READY FOR OPERATOR REVIEW — DO NOT MERGE
 ```
 
 ---
