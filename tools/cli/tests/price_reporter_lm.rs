@@ -32,9 +32,10 @@
 
 mod headless;
 mod market;
+mod price_world;
 mod support;
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 use std::io::{BufRead, BufReader, Read};
 use std::net::TcpListener;
 use std::path::{Path, PathBuf};
@@ -42,10 +43,12 @@ use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use headless::Tables;
-use market::{MARKET_TOWN, Town};
-use mineworld_contracts::{EntityId, EventEnvelope, Visibility};
-use mineworld_persistence::format;
+use market::Town;
+use mineworld_contracts::{EntityId, EventEnvelope};
+use price_world::{
+    CAROL, Clerk, HANA, PLACED, Posted, assert_audiences, entity, facts, files, notices, payload,
+    world,
+};
 use serde_json::{Value, json};
 use support::{Client, INVITE, SaveDir, Server, run_command};
 
@@ -59,263 +62,17 @@ const CADENCE: &str = "30";
 /// The LM clerk's `valid_minutes` (cognition.toml): unlike the deterministic clerk's 360, so its notice is
 /// told apart in the save.
 const LM_VALID_MINUTES: u64 = 300;
-/// Where the clerk and the visitor stand in the store at genesis: clear of every solid of `places/store.yaml`.
-const CLERK_AT: (i32, i32) = (2_000, 2_000);
-const VISITOR_AT: (i32, i32) = (2_000, 4_500);
 /// The visitor's purchases, and of what.
 const BUYS: usize = 3;
 const BOUGHT: &str = "bread";
-/// How much more than the store's juice the café asks (F-S31d-9: two sellers of one kind), per mille.
-const CAFE_JUICE_PERMILLE: u64 = 1_400;
-/// The food and drink kinds, which shop prices become their reference values.
-const FOOD_AND_DRINK: [&str; 10] = [
-    "apple",
-    "bread",
-    "milk",
-    "juice",
-    "coffee",
-    "tea",
-    "croissant",
-    "cake",
-    "sandwich",
-    "soup",
-];
-
-/// The clerk of one world: who, on which topic, in which currency.
-#[derive(Clone, Copy)]
-struct Clerk {
-    key: &'static str,
-    topic: &'static str,
-    euro: bool,
-}
 
 /// W6: Carol on `prices.ingredients`, in US dollars.
-const W6: Clerk = Clerk {
-    key: "carol",
-    topic: "prices.ingredients",
-    euro: false,
-};
+const W6: Clerk = CAROL;
 /// W6b: Hana on `market.daily`, in euros.
-const W6B: Clerk = Clerk {
-    key: "hana",
-    topic: "market.daily",
-    euro: true,
-};
+const W6B: Clerk = HANA;
 
 fn repository() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
-}
-
-fn copy_dir(from: &Path, to: &Path) {
-    std::fs::create_dir_all(to).expect("a directory");
-    for entry in std::fs::read_dir(from).expect("the pack lists") {
-        let entry = entry.expect("an entry");
-        let target = to.join(entry.file_name());
-        if entry.file_type().expect("a type").is_dir() {
-            copy_dir(&entry.path(), &target);
-        } else {
-            std::fs::copy(entry.path(), &target).expect("a copy");
-        }
-    }
-}
-
-/// Every file of a pack, relative to it, with its bytes.
-fn files(root: &Path) -> BTreeMap<PathBuf, Vec<u8>> {
-    let mut found = BTreeMap::new();
-    let mut pending = vec![root.to_path_buf()];
-    while let Some(directory) = pending.pop() {
-        for entry in std::fs::read_dir(&directory).expect("lists") {
-            let path = entry.expect("an entry").path();
-            if path.is_dir() {
-                pending.push(path);
-            } else {
-                let bytes = std::fs::read(&path).expect("reads");
-                found.insert(
-                    path.strip_prefix(root).expect("inside").to_path_buf(),
-                    bytes,
-                );
-            }
-        }
-    }
-    found
-}
-
-fn edit(path: &Path, change: impl FnOnce(String) -> String) {
-    let text = std::fs::read_to_string(path).expect("reads");
-    std::fs::write(path, change(text)).expect("writes");
-}
-
-/// `text` with `from` replaced by `to`, which must occur exactly once.
-fn once(text: &str, from: &str, to: &str) -> String {
-    assert_eq!(text.matches(from).count(), 1, "{from:?} occurs once");
-    text.replacen(from, to, 1)
-}
-
-/// A person file with its `location:` block moved to the store at `at`.
-fn placed_in_store(text: &str, at: (i32, i32)) -> String {
-    let lines: Vec<&str> = text.lines().collect();
-    let start = lines
-        .iter()
-        .position(|line| *line == "location:")
-        .expect("a location block");
-    let mut out: Vec<String> = lines[..start]
-        .iter()
-        .map(|line| (*line).to_owned())
-        .collect();
-    out.extend([
-        "location:".to_owned(),
-        "  place: store".to_owned(),
-        "  position:".to_owned(),
-        format!("    x: {}", at.0),
-        format!("    y: {}", at.1),
-    ]);
-    out.extend(lines[start + 5..].iter().map(|line| (*line).to_owned()));
-    out.join("\n") + "\n"
-}
-
-/// An organization's `prices: { key: n, … }` line, parsed.
-fn prices(text: &str) -> BTreeMap<String, u64> {
-    let line = text
-        .lines()
-        .find(|line| line.trim_start().starts_with("prices:"))
-        .expect("a prices line");
-    let inner = line
-        .split_once('{')
-        .and_then(|(_, rest)| rest.rsplit_once('}'))
-        .expect("a flow mapping")
-        .0;
-    inner
-        .split(',')
-        .map(|pair| {
-            let (key, value) = pair.split_once(':').expect("key: value");
-            (
-                key.trim().to_owned(),
-                value.trim().parse().expect("a price"),
-            )
-        })
-        .collect()
-}
-
-/// W6 (or W6b): the copy, asserted to differ from Market Town only in the edited files.
-fn world(scratch: &Path, clerk: Clerk) -> PathBuf {
-    let root = scratch.join("market-town");
-    copy_dir(Path::new(MARKET_TOWN), &root);
-    let manifest = root.join("world.yaml");
-    edit(&manifest, |text| {
-        let text = once(
-            &text,
-            "\n  - posture\n",
-            "\n  - posture\n  - notices\n  - price-survey\n",
-        );
-        once(
-            &text,
-            "  - needs\n\norganizations:",
-            "  - needs\n  - notices\n\norganizations:",
-        )
-    });
-    std::fs::write(
-        root.join("configure/notices.yaml"),
-        format!(
-            "topics:\n  {}:\n    body: prices\n    publishers: [{}]\n    valid_for: {{ min: \"1h\", max: \"48h\" }}\n    per_day: 4\n",
-            clerk.topic, clerk.key
-        ),
-    )
-    .expect("writes");
-    let people = root.join("people");
-    edit(&people.join(format!("{}.yaml", clerk.key)), |text| {
-        let text = if clerk.key == "hana" {
-            once(
-                &text,
-                "{ from: \"08:00\", place: workplace, label: work }",
-                "{ from: \"08:00\", place: store, label: work }",
-            )
-        } else {
-            text
-        };
-        placed_in_store(&text, CLERK_AT)
-            + "price-survey: { kinds: { categories: [food, drink] } }\n"
-    });
-    edit(&people.join("visitor.yaml"), |text| {
-        placed_in_store(&text, VISITOR_AT)
-    });
-    for keeper in ["alice", "felix"] {
-        edit(&people.join(format!("{keeper}.yaml")), |text| {
-            text + &format!("notices: {{ subscribe: [{}] }}\n", clerk.topic)
-        });
-    }
-    let organizations = root.join("organizations");
-    let store = std::fs::read_to_string(organizations.join("corner-store.yaml")).expect("reads");
-    let cafe = std::fs::read_to_string(organizations.join("cafe-company.yaml")).expect("reads");
-    let mut references = prices(&store);
-    references.extend(prices(&cafe));
-    let cafe_juice = references["juice"] * CAFE_JUICE_PERMILLE / 1_000;
-    edit(&organizations.join("corner-store.yaml"), |text| {
-        let line = text
-            .lines()
-            .find(|line| line.trim_start().starts_with("prices:"))
-            .expect("prices")
-            .to_owned();
-        once(&text, &line, &format!("{line}\n    keepers: [felix]"))
-    });
-    edit(&organizations.join("cafe-company.yaml"), |text| {
-        let line = text
-            .lines()
-            .find(|line| line.trim_start().starts_with("prices:"))
-            .expect("prices")
-            .to_owned();
-        let priced = line.replacen(" }", &format!(", juice: {cafe_juice} }}"), 1);
-        let text = once(&text, &line, &format!("{priced}\n    keepers: [alice]"));
-        let held = text
-            .lines()
-            .find(|line| line.starts_with("holdings:"))
-            .expect("holdings")
-            .to_owned();
-        once(&text, &held, &held.replacen(" }", ", juice: 10 }", 1))
-    });
-    for kind in FOOD_AND_DRINK {
-        edit(&root.join(format!("items/{kind}.yaml")), |text| {
-            text + &format!("economy: {{ reference: {} }}\n", references[kind])
-        });
-    }
-    if clerk.euro {
-        edit(&root.join("configure/economy.yaml"), |text| {
-            once(
-                &text,
-                "  name: US dollar\n  symbol: \"$\"\n  exponent: 2\n  symbol_at: before\n",
-                "  name: euro\n  symbol: \"€\"\n  exponent: 2\n  symbol_at: after\n",
-            )
-        });
-    }
-    let (ours, theirs) = (files(&root), files(Path::new(MARKET_TOWN)));
-    let differing: BTreeSet<PathBuf> = ours
-        .iter()
-        .filter(|(path, bytes)| theirs.get(*path) != Some(bytes))
-        .map(|(path, _)| path.clone())
-        .collect();
-    let mut expected: BTreeSet<PathBuf> = [
-        "world.yaml",
-        "configure/notices.yaml",
-        "people/visitor.yaml",
-        "people/alice.yaml",
-        "people/felix.yaml",
-        "organizations/corner-store.yaml",
-        "organizations/cafe-company.yaml",
-    ]
-    .into_iter()
-    .map(PathBuf::from)
-    .collect();
-    expected.insert(PathBuf::from(format!("people/{}.yaml", clerk.key)));
-    expected.extend(FOOD_AND_DRINK.map(|kind| PathBuf::from(format!("items/{kind}.yaml"))));
-    if clerk.euro {
-        expected.insert(PathBuf::from("configure/economy.yaml"));
-    }
-    assert_eq!(differing, expected, "only the edits differ");
-    assert_eq!(
-        ours.len(),
-        theirs.len() + 1,
-        "only configure/notices.yaml is added"
-    );
-    root
 }
 
 /// The clerk's `price-reporter` block, the same in both arms' files.
@@ -430,90 +187,6 @@ fn drain(pipe: impl Read + Send + 'static, sink: &Arc<Mutex<Vec<String>>>) {
     });
 }
 
-/// The facts of a save, in order.
-fn facts(save: &Path) -> Vec<EventEnvelope> {
-    Tables::read(save)
-        .facts
-        .iter()
-        .map(|(_, bytes)| format::decode(bytes, "fact").expect("a fact"))
-        .collect()
-}
-
-fn payload(fact: &EventEnvelope) -> Value {
-    serde_json::from_slice(fact.payload().payload()).expect("a JSON payload")
-}
-
-fn entity(value: &Value) -> EntityId {
-    let raw = value["entity"]
-        .as_str()
-        .or_else(|| value.as_str())
-        .unwrap_or_else(|| panic!("an entity: {value}"));
-    EntityId::from_raw(raw.parse().expect("a numeric id"))
-}
-
-/// One posted notice, as the save states it.
-#[derive(Debug)]
-struct Posted {
-    at: i64,
-    topic: String,
-    publisher: EntityId,
-    body: Value,
-    valid_for: i64,
-    audience: BTreeSet<EntityId>,
-}
-
-fn notices(facts: &[EventEnvelope]) -> Vec<Posted> {
-    facts
-        .iter()
-        .filter(|fact| fact.event_type().as_str() == "notice-published")
-        .map(|fact| {
-            let notice = &payload(fact)["notice"];
-            let Visibility::Entities(audience) = fact.visibility() else {
-                panic!(
-                    "a notice is seen by named entities: {:?}",
-                    fact.visibility()
-                );
-            };
-            Posted {
-                at: fact.at().seconds(),
-                topic: notice["topic"].as_str().expect("a topic").to_owned(),
-                publisher: entity(&notice["publisher"]),
-                body: notice["body"].clone(),
-                valid_for: notice["valid_until"].as_i64().expect("an instant")
-                    - notice["issued_at"].as_i64().expect("an instant"),
-                audience: audience.clone(),
-            }
-        })
-        .collect()
-}
-
-/// The subscribers of `topic` just before `at`, folded from the save's subscription facts.
-fn subscribers(facts: &[EventEnvelope], topic: &str, at: i64) -> BTreeSet<EntityId> {
-    let mut found = BTreeSet::new();
-    for fact in facts.iter().filter(|fact| fact.at().seconds() <= at) {
-        let body = payload(fact);
-        match fact.event_type().as_str() {
-            "subscriptions-seeded" => {
-                let person = entity(&body["person"]);
-                let topics = body["topics"].as_array().expect("topics");
-                if topics.iter().any(|seeded| seeded == topic) {
-                    found.insert(person);
-                } else {
-                    found.remove(&person);
-                }
-            }
-            "subscribed" if body["topic"] == topic => {
-                found.insert(entity(&body["person"]));
-            }
-            "unsubscribed" if body["topic"] == topic => {
-                found.remove(&entity(&body["person"]));
-            }
-            _ => {}
-        }
-    }
-    found
-}
-
 /// The kinds in the clerk's book at `at`: every item of its `price-noted` facts up to then.
 fn book_kinds(facts: &[EventEnvelope], clerk: EntityId, at: i64) -> BTreeSet<EntityId> {
     facts
@@ -530,15 +203,6 @@ fn book_kinds(facts: &[EventEnvelope], clerk: EntityId, at: i64) -> BTreeSet<Ent
                 .collect::<Vec<_>>()
         })
         .collect()
-}
-
-/// Every posted notice is seen by exactly the topic's subscribers at that instant and its publisher.
-fn assert_audiences(facts: &[EventEnvelope], posted: &[Posted]) {
-    for notice in posted {
-        let mut expected = subscribers(facts, &notice.topic, notice.at);
-        expected.insert(notice.publisher);
-        assert_eq!(notice.audience, expected, "the audience of {notice:?}");
-    }
 }
 
 /// The acted `publish-notice` requests of the clerk's decision log.
@@ -597,7 +261,7 @@ async fn same_kind_of_notice(clerk: Clerk) {
     let directory = SaveDir::new(&format!("price-reporter-lm-{}", clerk.key));
     let root = PathBuf::from(directory.path());
     std::fs::create_dir_all(&root).expect("the scratch directory");
-    let world = world(&root, clerk);
+    let world = world(&root, clerk, PLACED);
     let pack = world.to_str().expect("UTF-8").to_owned();
     let before = files(&world);
     let town = Town::read(&world);
