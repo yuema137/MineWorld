@@ -67,9 +67,12 @@ PACK_2D = "presentation/mineworld-default/2D"
 PACK_2D_PARTS = ("art", "assets", "i18n", "renderer", "far_field", "daylight.json", "manifest.yaml",
                  "pack.yaml")
 # What the exported 3D client reads from its Presentation Pack (D-Ra-5): the far field (ARC-102) and
-# the cast binding (cast.yaml and each character's character.yaml).
+# the cast binding (cast.yaml and each character's character.yaml); and, since S33/16f, what the slice
+# reads from the pack at run time: depictions, sit points, station kits, places, furniture, materials,
+# assets and its wording (step-23 F-RC-6: without `stations/` the 3D client refuses STATION_KIT_MISSING).
 PACK_3D = "presentation/mineworld-default/3D"
-PACK_3D_PARTS = ("far_field", "characters/cast.yaml", "characters/cast", "manifest.yaml", "pack.yaml")
+PACK_3D_PARTS = ("far_field", "characters/cast.yaml", "characters/cast", "manifest.yaml", "pack.yaml",
+                 "assets", "depictions", "furniture", "i18n", "materials", "places", "sit_points", "stations")
 SHARED_FILES = ("clients/shared/settings/locale", "clients/shared/settings/fonts")
 
 
@@ -946,6 +949,13 @@ def clean_exit(user: Path) -> list[str]:
     return problems
 
 
+def client_code(launch: str, key: str) -> int | None:
+    """A client's own exit code, from the launcher's log line `client <k> exited: exit status: <n>`
+    (`exit code:` on Windows), so that in `both` one client's failure is not charged to the other."""
+    match = re.search(rf"^client {key} exited: exit (?:status|code): (-?\d+)", launch, re.M)
+    return int(match.group(1)) if match else None
+
+
 def run_entry(executable: Path, mode: str, user: Path, timeout: float) -> tuple[int | None, str]:
     """The entry point itself, as a player's double-click would start it, in smoke mode. No `--bundle`:
     the launcher finds the bundle from its own path. Over `timeout` it is killed with what it started."""
@@ -969,10 +979,11 @@ def smoke_mode(bundle: Path, target: Target, mode: str, user: Path, timeout: flo
     entry = ENTRY_POINTS[mode]
     code, output = run_entry(entry_executable(bundle, target, entry), mode, user, timeout)
     found = run_logs(user)
+    launch = read_text(found[0] / f"{found[1]}-launch.log") if found else ""
     verdicts = []
     for key in MODE_CLIENTS[mode]:
         log = read_text(found[0] / f"{found[1]}-client-{key}.log") if found else ""
-        verdicts.append(judge_client(CLIENTS[key], log, code, bundle / "runtime"))
+        verdicts.append(judge_client(CLIENTS[key], log, client_code(launch, key), bundle / "runtime"))
     what = f"{entry.name!r} --smoke={mode}, headless, through the launcher"
     passed = code == 0 and all(verdicts)
     why = "" if passed else f"launcher exit {code}; its output: {output.strip()[-400:]}"
@@ -1163,6 +1174,9 @@ def smoke_cases(cases: list[tuple[str, bool]]) -> None:
         (logs / "1-2-launch.log").write_text(launch, encoding="utf-8")
         (user / "scratch" / "1-2").mkdir(parents=True)
         cases.append(("a smoke scratch left behind fails step 6", len(clean_exit(user)) == 1))
+    both = "client 2d exited: exit status: 0\nclient 3d exited: exit code: 3\n"
+    cases.append(("in `both` each client is judged by its own exit code",
+                  (client_code(both, "2d"), client_code(both, "3d"), client_code("", "2d")) == (0, 3, None)))
 
     report = io.StringIO()
     with contextlib.redirect_stdout(report):
