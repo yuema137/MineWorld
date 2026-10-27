@@ -876,7 +876,7 @@ Bounded decisions recorded here, not asked: D-k-1 (readers select, §5.6), D-k-2
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 | | [ ] | [ ] | [ ] |
+| C0 | (this commit) | [x] base recorded | [x] doc checks PASS | [x] rulings applied (all as recommended) |
 | C1 | | [ ] | [ ] | [ ] |
 | C2 | | [ ] | [ ] | [ ] |
 | C3 | | [ ] | [ ] | [ ] |
@@ -895,7 +895,12 @@ Bounded decisions recorded here, not asked: D-k-1 (readers select, §5.6), D-k-2
 
 ### Evidence
 
-(empty)
+- **C0 (S30-k1, 2026-10-27).** Base `origin/main @ 315a50a9` (#513). §15 ruled as recommended (header). PDN: only
+  its design merged (#499), no `Locale` in code, so C1 adds it to `mineworld-authoring`. S31-b2: design only;
+  the one caller of `disclose_owned` is `systems/employment/src/system.rs` `discloses`. Anchors A-k-1 … A-k-24
+  re-read; the cited files hold the cited facts (line numbers drifted by a few lines only; no fact moved).
+  `python3 scripts/check_doc_headings.py` → PASS (254 sections, none duplicated);
+  `python3 scripts/check_decision_ids.py` → PASS (257 ids, index current).
 
 ### Sizes (AC-k-9)
 
