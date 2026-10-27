@@ -84,7 +84,7 @@ func _layout_check() -> void:
 	_check_people(link, "the café")
 
 	# out through the café's door onto the pavement, on foot
-	await _walk_to_x(6.0 + SliceCafe.DOOR_X)
+	await _walk_to_x(_anchor_sill().x)
 	player.rotation.y = PI
 	await _walk_dist(3.2, 6.0)
 	var t := 0.0
@@ -126,14 +126,14 @@ func _check_doorways(link: SliceLink) -> void:
 				nearest[0], nearest[1]])
 			continue
 		var i: int = lay.doors[to]
-		var d: Array = SliceTerrace.doors[i]
+		var d: Array = SliceDoors.rows[i]
 		var dist := _plan_distance(at, d)
 		var distinct := not used.has(i)
 		used[i] = to
 		var volume: String = d[3] if d.size() > 3 else ""
-		if volume == SliceWorld.FLORIST_PLACE:
+		if volume == str(_room(1).get("volume", "")):
 			to_florist += 1
-		var anchor_ok := to != lay.anchor or volume == SliceWorld.CAFE_PLACE
+		var anchor_ok := to != lay.anchor or volume == str(_room(0).get("volume", ""))
 		print("doorway  to place %s (tags %s) at street (%d, %d) -> scene (%.2f, %.2f): bound to %s at %s, %.2f m%s"
 			% [to, lay.tags.get(to, []), int(p["here"]["x"]), int(p["here"]["y"]), at.x, at.z, d[2], d[0],
 			dist, "" if distinct else "  (DOOR ALREADY BOUND)"])
@@ -153,7 +153,7 @@ func _check_doorways(link: SliceLink) -> void:
 ## The drawn door whose plan out-point is nearest a scene point: [label, metres].
 func _nearest_door(at: Vector3) -> Array:
 	var best := ["none", INF]
-	for d in SliceTerrace.doors:
+	for d in SliceDoors.rows:
 		var dd := _plan_distance(at, d)
 		if dd < best[1]:
 			best = [d[2], dd]
@@ -173,21 +173,21 @@ static func _plan_distance(at: Vector3, d: Array) -> float:
 ## someone perceived inside P. P is whichever place L-1 bound to its door.
 func _florist(link: SliceLink) -> void:
 	var lay := link.layout
-	var shop := lay.place_of_volume(SliceWorld.FLORIST_PLACE)
+	var shop := lay.place_of_volume(str(_room(1).get("volume", "")))
 	if shop == "":
 		print("L-2 does not run: no place's doorway is bound to The Flower Room's door")
 		_verdict_line("L-2", false, "The Flower Room depicts no place of this world")
 		return
 	print("florist  The Flower Room depicts place %s, tagged %s" % [shop, lay.tags.get(shop, [])])
-	var door: Array = SliceTerrace.doors[lay.doors[shop]]
+	var door: Array = SliceDoors.rows[lay.doors[shop]]
 	var sill: Vector3 = door[0]
 	var changes_before := link.place_changes.size()
 	var moves_before := _moves(link).size()
 	# the 16a T-2 route along the door's centre line, then to the middle of the
 	# floor's depth in the west lane (the display table stands at its centre)
-	await _walk_to(Vector3(sill.x, 0.0, SliceStreet.NORTH_FACE + 2.70), 8.0)
-	await _walk_to(Vector3(sill.x, 0.0, SliceStreet.NORTH_FACE - 1.40), 6.0)
-	var room: AABB = SliceShopInterior.room_box
+	await _walk_to(_from_sill(door, 2.70), 8.0)
+	await _walk_to(_from_sill(door, -1.40), 6.0)
+	var room: AABB = _volume_box(str(door[3]))
 	var middle := Vector3(sill.x + 0.25, 0.0, room.position.z + room.size.z * 0.5)
 	await _walk_to(middle, 8.0)
 	await _hold(0.6)
@@ -210,8 +210,8 @@ func _florist(link: SliceLink) -> void:
 	await _settled_report(link)
 	_check_shown(link, "the shop")
 	# and back out onto the pavement
-	await _walk_to(Vector3(sill.x, 0.0, SliceStreet.NORTH_FACE - 1.40), 8.0)
-	await _walk_to(Vector3(sill.x, 0.0, SliceStreet.NORTH_FACE + 2.70), 6.0)
+	await _walk_to(_from_sill(door, -1.40), 8.0)
+	await _walk_to(_from_sill(door, 2.70), 6.0)
 	await _hold(1.0)
 	var changes := link.place_changes.slice(changes_before)
 	var moves := _moves(link).slice(moves_before)
@@ -430,7 +430,7 @@ func _street_check() -> void:
 		_verdict_line("S-0", false, "the seat starts in the place tagged %s" % lay.anchor_tags())
 		_finish(link, "street")
 		return
-	await _walk_to_x(6.0 + SliceCafe.DOOR_X)
+	await _walk_to_x(_anchor_sill().x)
 	player.rotation.y = PI
 	await _walk_dist(3.2, 6.0)
 	await _hold(1.5)
@@ -607,7 +607,7 @@ func _street_check() -> void:
 func _nearest_point(link: SliceLink, at: Vector3) -> Array:
 	var best := ["none", INF]
 	for place in link.layout.doors:
-		var d: Array = SliceTerrace.doors[link.layout.doors[place]]
+		var d: Array = SliceDoors.rows[link.layout.doors[place]]
 		var yaw: float = d[1]
 		var n := Vector3(sin(yaw), 0.0, cos(yaw))
 		var points := [(d[0] as Vector3) + n * PLAN_INSET]
@@ -625,7 +625,7 @@ func _nearest_point(link: SliceLink, at: Vector3) -> Array:
 func _nearest_door_point(link: SliceLink, at: Vector3) -> Array:
 	var best := [Vector3.INF, Vector3.ZERO]
 	for place in link.layout.doors:
-		var d: Array = SliceTerrace.doors[link.layout.doors[place]]
+		var d: Array = SliceDoors.rows[link.layout.doors[place]]
 		var yaw: float = d[1]
 		var n := Vector3(sin(yaw), 0.0, cos(yaw))
 		var points := [[(d[0] as Vector3) + n * PLAN_INSET, n]]

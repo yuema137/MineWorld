@@ -47,17 +47,19 @@ from mineworld_sdk.wire.frames import Invite
 from mineworld_sdk.wire.ids import ActionTypeId, EntityId, EntityKey, JsonValue
 from pydantic import Field
 
-from mineworld_agent.disclosed import Kind
+from mineworld_agent.disclosed import Kind, proposal_buyer
 from mineworld_agent.handle import Handle
 from mineworld_agent.inbox import INBOX_BOUND, Inbox, offered
 from mineworld_agent.lexicon import Lexicon
 from mineworld_agent.models import (
+    AcceptProposalArgs,
     ActResult,
     AgentModel,
     AnyEvent,
     AttemptArgs,
     ClockArgs,
     ClockResult,
+    DeclineProposalArgs,
     EventLine,
     EventsArgs,
     EventsResult,
@@ -80,6 +82,7 @@ from mineworld_agent.models import (
     PlayerRefusal,
     Point,
     PricesBody,
+    ProposePriceArgs,
     PublishNoticeArgs,
     Refused,
     SayArgs,
@@ -107,6 +110,7 @@ from mineworld_agent.models import (
     WalkEnded,
     WalkToArgs,
     WithdrawArgs,
+    WithdrawProposalArgs,
     WorldLine,
     WorldText,
     json_bytes,
@@ -177,6 +181,15 @@ PUBLISH_NOTICE, SUBSCRIBE, UNSUBSCRIBE = (
     ActionTypeId("unsubscribe"),
 )
 """The notices pack's actions (S31-b): incomplete offers with no target, each sent with its own payload."""
+
+PROPOSE_PRICE, ACCEPT_PROPOSAL, DECLINE_PROPOSAL, WITHDRAW_PROPOSAL = (
+    ActionTypeId("propose-price"),
+    ActionTypeId("accept-proposal"),
+    ActionTypeId("decline-proposal"),
+    ActionTypeId("withdraw-proposal"),
+)
+"""economy's haggling actions (S31-h, `ARC-118`): incomplete offers, each sent with its own payload.
+`propose-price` targets the person seller (none for a shop), `accept-proposal` the proposal's buyer."""
 
 _JOIN_CODES: Final = frozenset(get_args(JoinRefusalCode))
 
@@ -652,6 +665,44 @@ class Player:
         """Unsubscribe from `topic`. Refusal code: `not-subscribed`."""
         handle = self._seated(args.handle)
         return await self._request(handle, UNSUBSCRIBE, None, {"topic": args.topic})
+
+    async def propose_price(self, args: ProposePriceArgs) -> ActResult:
+        """Offer to buy one of `item` at `price` (minor units) from the person `to`, or, with no `to`, from the shop
+        I stand in. The proposal waits 15 world minutes for the seller's answer (`me.proposals.outgoing`). Refusal
+        codes include `proposal-limit`, `not-for-sale`, `price-out-of-range`, `insufficient-funds` and
+        `out-of-stock`."""
+        handle = self._seated(args.handle)
+        try:
+            item = handle.refs.resolve(args.item)
+            seller = None if args.to is None else handle.refs.resolve(args.to)
+        except UnknownRef:
+            return self._act_result(handle, Refused(code="unknown_ref"))
+        payload: JsonValue = {"item": _typed(item, "item"), "price": args.price}
+        return await self._request(handle, PROPOSE_PRICE, seller, payload)
+
+    async def accept_proposal(self, args: AcceptProposalArgs) -> ActResult:
+        """Accept the proposal numbered `proposal` in `me.proposals.incoming`: it settles at once as a sale at the
+        proposed price, every check of a purchase re-run. `not_offered` when no proposal of that number is mine
+        to answer in the newest view."""
+        handle = self._seated(args.handle)
+        observation = handle.rendered().observation
+        me = next((e for e in observation.entities if e.id == observation.observer), None)
+        buyer = proposal_buyer(me, args.proposal)
+        if buyer is None:
+            return self._act_result(handle, Refused(code="not_offered"))
+        return await self._request(handle, ACCEPT_PROPOSAL, buyer, {"proposal": args.proposal})
+
+    async def decline_proposal(self, args: DeclineProposalArgs) -> ActResult:
+        """Decline the proposal numbered `proposal` in `me.proposals.incoming`; its buyer sees the no until it
+        expires. Refusal code: `no-such-proposal`."""
+        handle = self._seated(args.handle)
+        return await self._request(handle, DECLINE_PROPOSAL, None, {"proposal": args.proposal})
+
+    async def withdraw_proposal(self, args: WithdrawProposalArgs) -> ActResult:
+        """Take back the proposal numbered `proposal` in `me.proposals.outgoing`, while it is still open. Refusal
+        code: `no-such-proposal`."""
+        handle = self._seated(args.handle)
+        return await self._request(handle, WITHDRAW_PROPOSAL, None, {"proposal": args.proposal})
 
     async def _market(
         self,

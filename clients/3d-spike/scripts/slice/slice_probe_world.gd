@@ -238,7 +238,7 @@ func _target_check() -> void:
 	var eye := player.get_viewport().get_camera_3d().global_position
 	var head := pp + Vector3.UP * HEAD_Y
 	var mid := (eye + head) * 0.5
-	var box := _plant_occluder(Vector3(mid.x, SliceStreet.WALK_Y + 1.5, mid.z), atan2(head.x - eye.x, head.z - eye.z))
+	var box := _plant_occluder(Vector3(mid.x, _anchor_sill().y + 1.5, mid.z), atan2(head.x - eye.x, head.z - eye.z))
 	await _hold(0.3)
 	await _aim_at(head)
 	a = _report_aim(link, "across the planted wall")
@@ -314,7 +314,7 @@ func _link_check() -> void:
 		print("FAIL: expected at least two other people perceived, got %d" % link.figures.size())
 
 	# OUT: to the door's centre line, then south through it onto the pavement
-	var door_x := 6.0 + SliceCafe.DOOR_X
+	var door_x := _anchor_sill().x
 	await _walk_to_x(door_x)
 	player.rotation.y = PI
 	await _walk_dist(3.2, 6.0)
@@ -555,7 +555,7 @@ func _street_watch(link: SliceLink) -> void:
 			var at := link.to_scene(link.layout.street, p.get("here"))
 			var near := ""
 			var best := INF
-			for d in SliceTerrace.doors:
+			for d in SliceDoors.rows:
 				var dd := Vector2(at.x - d[0].x, at.z - d[0].z).length()
 				if dd < best:
 					best = dd

@@ -55,6 +55,10 @@ ACTS: tuple[dict[str, Any], ...] = (
     },
     {"kind": "subscribe", "topic": "news.daily"},
     {"kind": "unsubscribe", "topic": "news.daily"},
+    {"kind": "propose_price", "item": "E1", "price": 350},
+    {"kind": "accept_proposal", "proposal": 7},
+    {"kind": "decline_proposal", "proposal": 7},
+    {"kind": "withdraw_proposal", "proposal": 7},
 )
 """Every kind of `act`, each with arguments the schema accepts."""
 

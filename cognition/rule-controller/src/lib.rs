@@ -181,6 +181,9 @@ pub mod commute;
 /// Needs and sleep as a controller reads them, and `rule`'s needs policy (`ARC-286`;
 /// `pr-s35-nc-controllers.md` SD-Nc-1 … SD-Nc-6).
 pub mod needs;
+/// Pricing policies shared by the decision models: the `pricing:` block, the seller band, the buyer hook,
+/// and the market packs read by slug (`ARC-117`, `ARC-182`; `pr-s31d-reporter-policies.md` §5).
+pub mod price;
 /// Observation readers shared by the decision models: what an observation discloses, decoded once
 /// (`pr-dl-b-motivated.md` SD-DLb-1).
 pub mod read;
@@ -218,3 +221,6 @@ mod needs_tests;
 
 #[cfg(test)]
 mod fetch_tests;
+
+#[cfg(test)]
+mod price_tests;

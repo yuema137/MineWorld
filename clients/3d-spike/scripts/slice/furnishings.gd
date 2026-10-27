@@ -82,8 +82,10 @@ func observe(obs: MineWorldObservation, layout: SliceLayout, world_root: Node3D)
 ## The standalone slice (no server): the recorded observation's place, drawn under `parent` with
 ## the place's frame origin at `origin` (parent-local). Returns the place id drawn, or "".
 func draw_recorded(parent: Node3D, origin: Vector3) -> String:
-	return draw_recorded_file(ProjectSettings.globalize_path("res://").path_join(RECORDED).simplify_path(),
-		parent, origin)
+	var parsed := read_recorded()
+	if parsed.is_empty():
+		return ""
+	return draw_parsed(parent, parsed, origin)
 
 
 ## The recorded observations beside RECORDED whose names begin `<world>-<prefix>`, as absolute paths
@@ -110,14 +112,32 @@ static func recorded_tags(path: String) -> PackedStringArray:
 
 ## `draw_recorded` for any recorded observation file.
 func draw_recorded_file(path: String, parent: Node3D, origin: Vector3) -> String:
+	var parsed := read_recorded_file(path)
+	if parsed.is_empty():
+		return ""
+	return draw_parsed(parent, parsed, origin)
+
+
+## The recorded observation ({world, place, place-shape}), or {} when it cannot be read.
+static func read_recorded() -> Dictionary:
+	return read_recorded_file(ProjectSettings.globalize_path("res://").path_join(RECORDED).simplify_path())
+
+
+## A recorded observation file ({world, place, place-shape}), or {} when it cannot be read.
+static func read_recorded_file(path: String) -> Dictionary:
 	var file := FileAccess.open(path, FileAccess.READ)
 	if file == null:
 		push_warning("furnishings: cannot read the recorded observation %s" % path)
-		return ""
+		return {}
 	var parsed: Variant = JSON.parse_string(file.get_as_text())
 	if typeof(parsed) != TYPE_DICTIONARY or typeof(parsed.get("place-shape")) != TYPE_DICTIONARY:
 		push_warning("furnishings: %s holds no place-shape" % path)
-		return ""
+		return {}
+	return parsed
+
+
+## Draws a recorded observation (`read_recorded`) under `parent`, the place's frame origin at `origin`.
+func draw_parsed(parent: Node3D, parsed: Dictionary, origin: Vector3) -> String:
 	var place := String(parsed.get("place", "recorded"))
 	world_id = String(parsed.get("world", ""))
 	_build_into(parent, place, parsed["place-shape"], origin)

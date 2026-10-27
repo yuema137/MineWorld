@@ -204,7 +204,7 @@ func _leave(id: String) -> void:
 	var label := ""
 	var bound: Dictionary = layout.doors if layout != null else {}
 	for place in bound:
-		var door: Array = SliceTerrace.doors[layout.doors[place]]
+		var door: Array = SliceDoors.rows[layout.doors[place]]
 		var points := [SliceLayout.out_point(door)]
 		if door.size() > 3 and door[3] != "":
 			points.append(SliceLayout.in_point(door))

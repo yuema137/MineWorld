@@ -368,3 +368,11 @@ async fn market_town_one_world_two_views() {
 async fn market_town_street_one_world_two_views() {
     one_world_two_views(MARKET_TOWN, "market-town-street", Some("street")).await;
 }
+
+/// Social Café's street, the second world for a seat standing in the street: neither client may need
+/// to have entered a room first to show the street and its doorways.
+#[tokio::test]
+#[ignore = "needs Godot 4.7: cargo test -p mineworld-cli --test shown_parity -- --ignored"]
+async fn social_cafe_street_one_world_two_views() {
+    one_world_two_views(SOCIAL_CAFE, "social-cafe-street", Some("street")).await;
+}

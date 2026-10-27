@@ -199,8 +199,13 @@ pub fn depiction(pack: &str) -> String {
         .to_owned()
 }
 
-/// The non-`move` requests a run sent (`REQUEST {token, request}`, both clients' format), each with
-/// its token, read through the contract: a request the server could not parse fails here.
+/// The requests that move a body rather than act on the world (`clients/protocol/ADOPTION.md` §4): the
+/// 3D client walks by `move` strides, the 2D client by `walk-to` and paced `walk-step`s (§4.2). How a
+/// client walks is its own; AC-13 compares what it then does.
+pub const LOCOMOTION: [&str; 3] = ["move", "walk-to", "walk-step"];
+
+/// The requests a run sent other than LOCOMOTION (`REQUEST {token, request}`, both clients' format),
+/// each with its token, read through the contract: a request the server could not parse fails here.
 pub fn interactions(
     lines: &[String],
 ) -> Vec<(
@@ -209,7 +214,7 @@ pub fn interactions(
 )> {
     crate::godot2d::tagged(lines, "REQUEST ")
         .into_iter()
-        .filter(|r| r["request"]["action_type"] != "move")
+        .filter(|r| !LOCOMOTION.contains(&r["request"]["action_type"].as_str().unwrap_or_default()))
         .map(|r| {
             let request = serde_json::from_value(whole(&r["request"]))
                 .unwrap_or_else(|e| panic!("{r} is not a legal ActionRequest: {e}"));

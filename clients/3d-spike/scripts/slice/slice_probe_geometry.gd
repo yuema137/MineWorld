@@ -107,7 +107,7 @@ func _walk_places(visit: Callable) -> bool:
 		return true
 	await visit.call(link, link.here, "GE-1 café")
 	# out through the café's door onto the pavement, on foot
-	await _walk_to_x(6.0 + SliceCafe.DOOR_X)
+	await _walk_to_x(_anchor_sill().x)
 	player.rotation.y = PI
 	await _walk_dist(3.2, 6.0)
 	await _until_place(link, lay.street)
@@ -117,14 +117,14 @@ func _walk_places(visit: Callable) -> bool:
 	else:
 		_geo_fail("GE-2", "the server did not put the player on the street (%s)" % _where(link))
 	# into the store, the 16c route (§20.4 L-2)
-	var shop := lay.place_of_volume(SliceWorld.FLORIST_PLACE)
+	var shop := lay.place_of_volume(str(_room(1).get("volume", "")))
 	if shop == "":
 		_geo_fail("GE-3", "no place's doorway is bound to The Flower Room's door")
 	else:
-		var door: Array = SliceTerrace.doors[lay.doors[shop]]
+		var door: Array = SliceDoors.rows[lay.doors[shop]]
 		var sill: Vector3 = door[0]
-		await _walk_to(Vector3(sill.x, 0.0, SliceStreet.NORTH_FACE + 2.70), 8.0)
-		await _walk_to(Vector3(sill.x, 0.0, SliceStreet.NORTH_FACE - 1.40), 6.0)
+		await _walk_to(_from_sill(door, 2.70), 8.0)
+		await _walk_to(_from_sill(door, -1.40), 6.0)
 		await _settled_report(link)
 		await _until_place(link, shop)
 		if link.here == shop:

@@ -73,8 +73,63 @@ pub struct Depiction {
     /// Decorative figures on the street (S33-g §5.3; absent: none).
     #[serde(default)]
     pub decor: Vec<DecorFigure>,
+    /// The pack's station kit sited on this street (S29-d, `ARC-192`; 16f-d2; absent: none).
+    #[serde(default)]
+    pub station_kit: Option<StationKitSite>,
     /// The checks' and captures' views.
     pub viewpoints: Viewpoints,
+}
+
+/// A station kit sited on the street (S29-d, `ARC-192`; moved from Social Café's depiction script into
+/// its file in 16f-d2): which kit of the pack's `stations/`, where its arch's façade stands and which
+/// way it faces (the client refuses a facing it cannot draw by the kit's own code), and what the
+/// station's checks read from the street the depot closes.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct StationKitSite {
+    /// The kit's name: `stations/<kit>.yaml` in the pack.
+    pub kit: Key,
+    /// The façade's point on the arch's axis.
+    pub facade_mm: PointMm,
+    /// The way the arch faces.
+    pub facing: Key,
+    /// The station's floors above the street frame's origin, metres.
+    pub floor_m: f64,
+    /// The westernmost eaves of each frontage at their façade corners: the landmark band's top.
+    #[serde(default)]
+    pub eaves: Vec<Eaves>,
+    /// The street's views toward the station (its shots `st_1`, `st_2` and the landmark's LM-1).
+    #[serde(default)]
+    pub views: Vec<View>,
+    /// The far-field shots, by name, that are the landmark's footprint rows (LM-2).
+    #[serde(default)]
+    pub landmark_shots: Vec<String>,
+    /// The street points the walk into the station goes through.
+    #[serde(default)]
+    pub walk_via: Vec<WalkPoint>,
+    /// Where the numbers come from.
+    #[serde(default)]
+    pub source: Option<String>,
+}
+
+/// A frontage's eaves at its façade corner.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Eaves {
+    /// The corner on the façade.
+    pub corner_mm: PointMm,
+    /// The eaves' height above the street frame's origin, metres.
+    pub eaves_m: f64,
+}
+
+/// A point a walk goes through.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WalkPoint {
+    /// Where.
+    pub at_mm: PointMm,
+    /// The body above the street frame's origin, metres.
+    pub up_m: f64,
 }
 
 /// A decorative figure (S33-g §5.3): a presentation person with no world entity. A walking figure

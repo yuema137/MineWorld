@@ -82,7 +82,7 @@ static func _hall(kit: StationKit, space: PhysicsDirectSpaceState3D) -> int:
 static func _doors(kit: StationKit, space: PhysicsDirectSpaceState3D) -> int:
 	var fails := 0
 	for d in kit.doors():
-		var entry: Array = SliceTerrace.doors[int(StationDepot.report["doors"][d["name"]])]
+		var entry: Array = SliceDoors.rows[int(StationDepot.report["doors"][d["name"]])]
 		var sill: Vector3 = entry[0]
 		var out := Vector3(sin(entry[1]), 0.0, cos(entry[1]))
 		var side := Vector3(out.z, 0.0, -out.x)

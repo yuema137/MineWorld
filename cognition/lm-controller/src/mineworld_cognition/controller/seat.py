@@ -22,7 +22,7 @@ the same submit lock as the consults, so one request is in flight. Nothing walks
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping
 from pathlib import Path
 from typing import Literal
 
@@ -51,7 +51,7 @@ from mineworld_cognition.config import (
     controller_for,
     layer_policy,
 )
-from mineworld_cognition.controller import resume_file
+from mineworld_cognition.controller import fill, resume_file
 from mineworld_cognition.controller.assignment import LmSeat
 from mineworld_cognition.controller.attributes import SelfAttributes
 from mineworld_cognition.controller.breaker import BreakerRegistry, CircuitBreaker
@@ -195,6 +195,7 @@ class SeatRunner:
         # pr-s28f §5.4: the memory file is the process's `SeatHomes`'; resume files and decision logs stay here.
         self._homes = homes
         self._verify = config.memory.verify
+        self._fill = config.fill
         self._resume_path = store_dir / f"{key}.resume"
         self._log = DecisionLog(store_dir / f"{key}.decisions.jsonl")
         self._cursor = _StoreCursor()
@@ -368,7 +369,7 @@ class SeatRunner:
             self._note_lines(batch.events)
             here, now_at = self._here()
             heard_at = {fact.id: fact.at for fact in fresh}
-            for trigger in detect(
+            arguments = (
                 fresh,
                 seat.observer,
                 store,
@@ -376,10 +377,23 @@ class SeatRunner:
                 now_at,
                 self._greeted,
                 self._controller.greet_cooldown_s,
-            ):
+            )
+            # A seat no filler lists detects exactly as before fillers (I-d-8): no `due_events` is passed.
+            due = self._due_events(store)
+            found = detect(*arguments, due_events=due) if due else detect(*arguments)
+            for trigger in found:
                 if trigger.kind == "arrived" and trigger.speaker is not None:
                     self._greeted[trigger.speaker] = now_at
                 self._pending.offer(trigger, heard_at[trigger.event], self._clock())
+
+    def _due_events(self, store: SeatView) -> Mapping[str, str]:
+        """The fact types that raise a `due` consult now: those of the fillers the newest observation lists
+        (S31-d §5.8.4). None before the first observation, and none for a seat no filler lists."""
+        if self._newest is None:
+            return {}
+        return fill.due_events(
+            fill.listed(self._newest.frame.observation, NameBook.load(store), self._fill)
+        )
 
     async def _absorb(
         self, store: SeatView, events: tuple[PerceivedEvent, ...], through: EventId
@@ -622,6 +636,7 @@ class SeatRunner:
                 memory=memory,
                 trigger=trigger,
                 attributes=attributes,
+                fillables=fill.listed(observation, names, self._fill),
             ),
             deps,
         )

@@ -78,6 +78,7 @@ use crate::act::{GREETINGS, Walked, head_for, record, reply_to, walk_to};
 use crate::boss::Boss;
 use crate::commute::{Commute, Precedence};
 use crate::needs::{NeedsPolicy, is_asleep, sleeping};
+use crate::price::{self, Pricing};
 use crate::read::{
     disclosed_history, distance, doorways, in_activity, may_talk_to, newest_per_speaker, others,
 };
@@ -142,6 +143,8 @@ pub struct PacedRuleController {
     boss: Option<Boss>,
     /// The needs policy; [`None`] eats, sleeps and wakes by no band (`needs.rs`).
     needs: Option<NeedsPolicy>,
+    /// The pricing block; the default holds every price and buys what the draw chose (`price/`).
+    pricing: Pricing,
 }
 
 impl PacedRuleController {
@@ -157,7 +160,15 @@ impl PacedRuleController {
             commute: None,
             boss: None,
             needs: None,
+            pricing: Pricing::DEFAULT,
         }
+    }
+
+    /// The same controller, pricing what it sells and choosing what it buys by `pricing` (`ARC-117`).
+    #[must_use]
+    pub fn pricing(mut self, pricing: Pricing) -> Self {
+        self.pricing = pricing;
+        self
     }
 
     /// The same controller, setting out for a punctual part of its day by `commute`, with the host
@@ -265,6 +276,11 @@ impl PacedRuleController {
         if let Some(penalty) = self.boss.and_then(|boss| boss.decide(observation)) {
             return Some(penalty);
         }
+        // A seller prices one ask per slot of its pricing period, with no draw (`price/`, `ARC-117`). The
+        // default block holds every price, so nothing here changes.
+        if let Some(priced) = price::seller_band(observation, self.pace, &self.pricing) {
+            return Some(priced);
+        }
         // Tired where the world lets me sleep: go to bed, with the alarm set for work, no draw
         // (`needs.rs`). No `needs` disclosed, nothing here changes.
         // Bedtime by a doorway: first to my own spot clear of the doors (`needs.rs`, D-Nc2-4).
@@ -332,7 +348,9 @@ impl PacedRuleController {
                 .as_ref()
                 .is_some_and(|needs| needs.beyond_chance_budget(observation, affordance))
         };
-        if let Some(offered) = offered::attempt(observation, &draw, &DECIDED_BY_NAME, &beyond) {
+        if let Some(offered) =
+            offered::attempt(observation, &draw, &DECIDED_BY_NAME, &beyond, &self.pricing)
+        {
             return Some(offered);
         }
         // Heading for a door: never while part of an activity, never away from the agenda's place, and

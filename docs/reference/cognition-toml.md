@@ -118,6 +118,15 @@ The `[breaker]` table: the per-seat circuit breaker. Unset uses the bundled defa
 | `policy` | text | yes | none | none | The policy's id, one of the installed policies (for example `exponential-backoff`). |
 | `parameters` | table | no | none | none | The policy's parameters. The policy checks them; an unknown one is refused by name. |
 
+## `[fill]`
+
+The `[fill]` table: the operator's settings of the LM controller's fillers, one table per filler
+(`ARC-183`). A filler with no table never lists itself.
+
+| Key | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `publish-notice` | see the description, or unset | no | unset | none | The `[fill.publish-notice]` table: the price clerk's filler. Unset, an LM seat never posts a notice. |
+
 ## `[seat_overrides.<name>]`
 
 The `[seat_overrides.<key>]` tables: per-seat controller bounds and retry layers. The name `seat_overrides` is used so that `seats` can name the subset of seats (D-P6b-3).

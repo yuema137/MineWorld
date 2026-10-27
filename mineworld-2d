@@ -22,6 +22,8 @@
 #   ./mineworld-2d --drive=farfield [--capture] the far-field check (RL-e0): windowed; the clear
 #                                               colour is never on screen; --capture also writes the
 #                                               far-field views (--shots=<dir>)
+#   ./mineworld-2d --drive=station [--capture]  into the station, its ticket office and its platform,
+#                                               each found by its tag (S29-f)
 #   ./mineworld-2d --server ADDRESS --invite TOKEN --world-key=KEY
 #                                               a joined world is named for its far field
 #   ./mineworld-2d --settings=<path>|none       another settings file, or the defaults; play uses the

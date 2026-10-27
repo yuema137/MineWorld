@@ -65,6 +65,9 @@ LAYERS: dict[str, list[list[str]]] = {
         # The cast binding's structure (`ARC-92`): the committed file, then the checker's own cases.
         ["python3", "scripts/check_cast.py"],
         ["python3", "scripts/check_cast.py", "--self-test"],
+        # Every pack's place art within its 10 MB budget (operator ruling on F-d1-5, S14 16f-d2).
+        ["python3", "scripts/check_pack_size.py"],
+        ["python3", "scripts/check_pack_size.py", "--self-test"],
         ["python3", "scripts/ci_changes.py", "--self-test"],
         # The packaging script's A-R3 exclusions, A-R4 budget and archive determinism (S23 R-a).
         ["python3", "scripts/package.py", "--self-test"],
@@ -366,6 +369,9 @@ LAYERS["python"] = [
         "cargo", "test", "-p", "mineworld-cli", "--test", "milestone_d", "--",
         "--ignored", "--exact", "she_remembers_across_the_two_views",
     ],
+    # S31-d AC-d-11: the price clerk on a scripted LM (the real cognition process) and on `price-reporter`
+    # post the same kind of notice, in two worlds; ignored in `core` for the same reason as Milestone D.
+    ["cargo", "test", "-p", "mineworld-cli", "--test", "price_reporter_lm", "--", "--ignored"],
     [sys.executable, "scripts/check_scratch.py", "left", "--target-dir", "target"],
 ]
 # IC-7 (S10 P7): a copy of the checkout without `cognition/lm-controller/` and its workspace line still

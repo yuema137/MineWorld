@@ -45,7 +45,7 @@ use gdscript::lex;
 mod client_3d;
 
 /// The GDScript string literals that name an action: (file, literal, why it may be written there).
-const ACTION_LITERALS: [(&str, &str, &str); 30] = [
+const ACTION_LITERALS: [(&str, &str, &str); 38] = [
     (
         "clients/2d/scripts/intents.gd",
         "walk-to",
@@ -117,6 +117,26 @@ const ACTION_LITERALS: [(&str, &str, &str); 30] = [
     ),
     (
         "clients/2d/scripts/intents.gd",
+        "propose-price",
+        "composed by the client's only submitter from the buy row's item and the typed price (S31-h §5.13)",
+    ),
+    (
+        "clients/2d/scripts/intents.gd",
+        "accept-proposal",
+        "composed by the client's only submitter from the answer row's proposal (S31-h §5.13)",
+    ),
+    (
+        "clients/2d/scripts/intents.gd",
+        "decline-proposal",
+        "composed by the client's only submitter from the answer row's proposal (S31-h §5.13)",
+    ),
+    (
+        "clients/2d/scripts/intents.gd",
+        "withdraw-proposal",
+        "composed by the client's only submitter from the answer row's proposal (S31-h §5.13)",
+    ),
+    (
+        "clients/2d/scripts/intents.gd",
         "throw",
         "composed by the 2D client's only submitter as the offered complete throw with `toward` set to \
          the clicked floor point (S12 PR 13d, ARC-342); the server decides the throw",
@@ -181,6 +201,26 @@ const ACTION_LITERALS: [(&str, &str, &str); 30] = [
         client_3d!("scripts/slice/intents.gd"),
         "withdraw",
         "composed by the client's only submitter from the player's item and price (S31-e §5.6)",
+    ),
+    (
+        client_3d!("scripts/slice/intents.gd"),
+        "propose-price",
+        "composed by the client's only submitter from the buy row's item and the typed price (S31-h §5.13)",
+    ),
+    (
+        client_3d!("scripts/slice/intents.gd"),
+        "accept-proposal",
+        "composed by the client's only submitter from the answer row's proposal (S31-h §5.13)",
+    ),
+    (
+        client_3d!("scripts/slice/intents.gd"),
+        "decline-proposal",
+        "composed by the client's only submitter from the answer row's proposal (S31-h §5.13)",
+    ),
+    (
+        client_3d!("scripts/slice/intents.gd"),
+        "withdraw-proposal",
+        "composed by the client's only submitter from the answer row's proposal (S31-h §5.13)",
     ),
     (
         client_3d!("scripts/human.gd"),
@@ -460,7 +500,7 @@ fn no_client_script_names_an_action_copies_a_rule_or_reads_a_pack() {
 
 /// String literals in the 3D client that equal a place key and are not used as one, each reviewed:
 /// (file, literal, why). An entry for a literal compared with a place's key is forbidden (S33-c §5.6).
-const PLACE_KEY_LITERALS: [(&str, &str, &str); 10] = [
+const PLACE_KEY_LITERALS: [(&str, &str, &str); 8] = [
     (
         "clients/3d-spike/scripts/depictions/data/depiction_file.gd",
         "street",
@@ -489,16 +529,6 @@ const PLACE_KEY_LITERALS: [(&str, &str, &str); 10] = [
         "cafe",
         "the promenade spike's own interior id in its building table, an offline scene that never \
          connects to a world (CLAUDE.md, mineworld-3d); not a place of any world",
-    ),
-    (
-        client_3d!("scripts/slice/slice_world.gd"),
-        "street",
-        "a build-timing stage label printed by SliceWorld._tick",
-    ),
-    (
-        client_3d!("scripts/slice/slice_world.gd"),
-        "cafe",
-        "a build-timing stage label printed by SliceWorld._tick",
     ),
     (
         client_3d!("scripts/slice/slice_probe.gd"),
@@ -1022,6 +1052,43 @@ fn rule_names_and_pack_paths_are_recognised() {
     assert!(names_a_pack_path("systems/bodies/src/lib.rs"));
     assert!(!names_a_pack_path("res://scripts/slice/intents.gd"));
     assert!(!names_a_pack_path("worlds"));
+}
+
+/// AC-16f-12 (16f-d2): a world is drawn from its pack's data, never from client code. No directory
+/// under the 3D client's `scripts/depictions/` is a world's own (named by a world key under `worlds/`):
+/// what is there is the shared seam, registry and builders (`data/`). A planted
+/// `scripts/depictions/<world key>/` fails this, naming it.
+#[test]
+fn no_world_has_a_depiction_script_of_its_own() {
+    let root = root();
+    // The removability check (16e) runs this crate on a checkout with the 3D client removed.
+    if !client_3d::present(&root, "no world has a depiction script (AC-16f-12)") {
+        return;
+    }
+    let depictions = root.join(client_3d!("scripts/depictions"));
+    let mut own = Vec::new();
+    let mut seen = 0;
+    for entry in std::fs::read_dir(&depictions).expect("scripts/depictions/ reads") {
+        let entry = entry.expect("an entry reads");
+        if !entry.path().is_dir() {
+            continue;
+        }
+        seen += 1;
+        let name = entry.file_name().to_string_lossy().to_string();
+        if root.join("worlds").join(&name).join("world.yaml").is_file() {
+            own.push(relative(&entry.path()));
+        }
+    }
+    assert!(seen >= 1, "the shared builders' directory is scanned");
+    assert!(
+        root.join("worlds/social-cafe/world.yaml").is_file(),
+        "the scan knows a world key when it sees one"
+    );
+    assert!(
+        own.is_empty(),
+        "a world is drawn by client code of its own, not by its pack's depiction file:\n{}",
+        own.join("\n")
+    );
 }
 
 /// What check (e) refuses in a depiction's script: a way of moving a prop the world does not move.

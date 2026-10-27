@@ -19,7 +19,8 @@ from mineworld_sdk.wire.ids import EntityId, EntityKey, EventId, JsonValue
 
 from mineworld_cognition.backend.model import CognitionModel, CompletionRequest, Message, Sampling
 from mineworld_cognition.controller.attributes import NO_ATTRIBUTES, SelfAttributes
-from mineworld_cognition.controller.choice import choice_schema
+from mineworld_cognition.controller.choice import choice_schema, with_fill
+from mineworld_cognition.controller.fill.base import Fillable
 from mineworld_cognition.controller.persona import Persona
 from mineworld_cognition.controller.situation import Person, Situation, clock
 from mineworld_cognition.memory.retrieve import MemorySection
@@ -36,8 +37,9 @@ DELIMITER_SAFE = {"<<<": chr(0x2039) * 3, ">>>": chr(0x203A) * 3}
 
 class Trigger(CognitionModel):
     event: EventId
-    kind: Literal["spoken_to", "arrived", "upcoming", "complaint", "feeling"]
-    """`feeling` (S35 N-e): a change in how I feel, or my waking; `words` is the line the seat is told."""
+    kind: Literal["spoken_to", "arrived", "upcoming", "complaint", "feeling", "due"]
+    """`feeling` (S35 N-e): a change in how I feel, or my waking; `words` is the line the seat is told. `due`
+    (S31-d §5.8.4): a fact a listed filler names, such as calendar's `day-began`; `words` is its line."""
     speaker: EntityId | None
     words: str
 
@@ -76,13 +78,16 @@ def build_request(
     output_schema: dict[str, JsonValue] | None = None,
     *,
     attributes: SelfAttributes = NO_ATTRIBUTES,
+    fillables: tuple[Fillable, ...] = (),
 ) -> CompletionRequest:
     """The request for one attempt. `feedback` is empty for the first attempt; a re-ask adds the previous
     raw answer and the reason; a re-plan adds the refusal. The schema defaults to `choice_schema` of the
-    situation. `attributes` adds who I am and how I speak (S30-f §5.6); empty, it adds nothing."""
+    situation. `attributes` adds who I am and how I speak (S30-f §5.6); empty, it adds nothing. `fillables`
+    adds the `fill` act, its rule line, the `TO FILL` sections and the `fill` property (S31-d §5.8.3); empty, it
+    adds nothing, so the request is byte for byte what it was before fillers (I-d-8)."""
     messages = [
-        Message(role="system", text=_system(persona, attributes, situation)),
-        Message(role="user", text=_user(situation, memory, trigger)),
+        Message(role="system", text=_system(persona, attributes, situation, bool(fillables))),
+        Message(role="user", text=_user(situation, memory, trigger, fillables)),
     ]
     for note in feedback:
         if note.kind == "reask":
@@ -108,18 +113,24 @@ def build_request(
                     ),
                 )
             )
+    schema = (
+        choice_schema(
+            go=bool(situation.places),
+            amount=any(o.up_to for o in situation.offers),
+            sleep=situation.sleep_offered,
+        )
+        if output_schema is None
+        else output_schema
+    )
+    if fillables:
+        schema = with_fill(
+            schema,
+            [(item.number, item.filler.key, item.filler.schema()) for item in fillables],
+        )
     return CompletionRequest(
         purpose="decide",
         messages=tuple(messages),
-        output_schema=(
-            choice_schema(
-                go=bool(situation.places),
-                amount=any(o.up_to for o in situation.offers),
-                sleep=situation.sleep_offered,
-            )
-            if output_schema is None
-            else output_schema
-        ),
+        output_schema=schema,
         sampling=Sampling(
             temperature_milli=TEMPERATURE_MILLI,
             max_output_tokens=MAX_OUTPUT_TOKENS,
@@ -128,7 +139,9 @@ def build_request(
     )
 
 
-def _system(persona: Persona, attributes: SelfAttributes, situation: Situation) -> str:
+def _system(
+    persona: Persona, attributes: SelfAttributes, situation: Situation, fill: bool = False
+) -> str:
     lines = [f"You are {situation.me}."]
     if persona.summary:
         lines.append(f"About you: {persona.summary}")
@@ -157,10 +170,14 @@ def _system(persona: Persona, attributes: SelfAttributes, situation: Situation) 
             'For an offer listed "(up to N)", you may set "amount" to how much, from 1 to N; with'
             ' "amount" null it is the whole N.'
         )
+    if fill:
+        lines.append(
+            'Use "fill" only with an F-number listed under TO FILL, and give exactly the fields it asks for.'
+        )
     lines.extend(
         [
             "Rules: answer with one JSON object and nothing else.",
-            f'The object has the keys "act" ({_acts(situation)}), "to" (a person from the list,'
+            f'The object has the keys "act" ({_acts(situation, fill)}), "to" (a person from the list,'
             ' or null), "words" (what you say, or ""), "offer" (a number from the list, or null),'
             ' and "recalls" (a list of citation tokens you rely on, or []).',
             'Use "say" to speak to someone you can talk to; use "attempt" only with a number listed'
@@ -179,7 +196,12 @@ def _system(persona: Persona, attributes: SelfAttributes, situation: Situation) 
     return "\n".join(lines)
 
 
-def _user(situation: Situation, memory: MemorySection, trigger: Trigger) -> str:
+def _user(
+    situation: Situation,
+    memory: MemorySection,
+    trigger: Trigger,
+    fillables: tuple[Fillable, ...] = (),
+) -> str:
     people = ", ".join(_present(person) for person in situation.present) or "nobody"
     talk = ", ".join(situation.talk_to) or "nobody"
     offers = (
@@ -203,6 +225,7 @@ def _user(situation: Situation, memory: MemorySection, trigger: Trigger) -> str:
             offers,
             "",
             *_my_day(situation),
+            *_to_fill(fillables),
             "WHAT I REMEMBER",
             memory.render() or "nothing",
             "",
@@ -212,11 +235,26 @@ def _user(situation: Situation, memory: MemorySection, trigger: Trigger) -> str:
     )
 
 
-def _acts(situation: Situation) -> str:
-    """The acts the rules name in words: `sleep` joins them only when sleep offers it (S35 N-e)."""
-    return (
-        "say, attempt, sleep or nothing" if situation.sleep_offered else "say, attempt or nothing"
-    )
+def _acts(situation: Situation, fill: bool = False) -> str:
+    """The acts the rules name in words: `sleep` joins them only when sleep offers it (S35 N-e), `fill` only
+    when a filler is listed (S31-d)."""
+    acts = [
+        "say",
+        "attempt",
+        *(["sleep"] if situation.sleep_offered else []),
+        *(["fill"] if fill else []),
+    ]
+    return ", ".join(acts) + " or nothing"
+
+
+def _to_fill(fillables: tuple[Fillable, ...]) -> list[str]:
+    """The `TO FILL` section: each listed filler's line and block (S31-d §5.8.3). Nothing when none is listed."""
+    if not fillables:
+        return []
+    lines = ["TO FILL"]
+    for item in fillables:
+        lines.extend(item.filler.section(item.number, item.shown))
+    return [*lines, ""]
 
 
 def _present(person: Person) -> str:
@@ -266,7 +304,7 @@ def _heard(trigger: Trigger, situation: Situation) -> str:
         return "Someone I know came into this place."
     if trigger.kind == "upcoming":
         return "I think about what comes next in my day."
-    if trigger.kind in ("complaint", "feeling"):
+    if trigger.kind in ("complaint", "feeling", "due"):
         return trigger.words
     labels = {person.entity: person.label for person in situation.present}
     speaker = labels.get(trigger.speaker, "Someone") if trigger.speaker is not None else "Someone"

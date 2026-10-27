@@ -9,7 +9,7 @@ use std::time::{Duration, Instant};
 
 use crate::Failure;
 use crate::bundle::{Bundle, Client};
-use crate::config::Seat;
+use crate::config::{Seat, WorldName};
 use crate::join::{self, Join};
 use crate::user::Log;
 
@@ -171,6 +171,8 @@ impl Drop for Server {
 pub struct Clients<'a> {
     pub bundle: &'a Bundle,
     pub join: &'a Join,
+    /// The world the server hosts: the clients draw its far field, and refuse to enter without it.
+    pub world: &'a WorldName,
     pub smoke: bool,
 }
 
@@ -243,7 +245,9 @@ impl Clients<'_> {
             .arg(root)
             .arg(format!("--server={}", self.join.address))
             .arg(format!("--seat={}", seat.as_str()))
-            .arg(format!("--invite={}", self.join.invite));
+            .arg(format!("--invite={}", self.join.invite))
+            // A joining client names the world it draws (RL-e0; `clients/2d/PRESENTATION.md` §8).
+            .arg(format!("--world-key={}", self.world.as_str()));
         if self.smoke {
             command.args(match client {
                 Client::TwoD => ["--drive", "--settings=none"],

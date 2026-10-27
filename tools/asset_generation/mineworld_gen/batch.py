@@ -33,9 +33,12 @@ def _items(recipe: dict, reference_dir: Path) -> list[dict]:
         refs = group.get("references", defaults.get("references", []))
         for item in group.get("items", []):
             prefix = group.get("prefix") or group["name"]
-            out.append(
+            # `count: n` asks for n candidates of one item, keyed `<key>_1` … `<key>_n` (pr-s29f §5.8).
+            count = int(item.get("count", 1))
+            suffixes = [""] if count == 1 else [f"_{n}" for n in range(1, count + 1)]
+            out.extend(
                 {
-                    "key": f"{prefix}_{item['name']}",
+                    "key": f"{prefix}_{item['name']}{suffix}",
                     "group": group["name"],
                     "prompt": f"{style.strip()}\n\n{' '.join(item['subject'].split())}",
                     "references": [reference_dir / r for r in item.get("references", refs)],
@@ -46,6 +49,7 @@ def _items(recipe: dict, reference_dir: Path) -> list[dict]:
                         group.get("transparent", defaults.get("transparent", True)),
                     ),
                 }
+                for suffix in suffixes
             )
     return out
 

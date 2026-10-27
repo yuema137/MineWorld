@@ -199,7 +199,7 @@ S31-e's entries, the same in both clients:
 | `sale_rows(obs, subject, currency)` | one `sale` row per **priced offer** about `subject`, in the server's order. A priced offer is a complete affordance whose payload carries an integer `price` and a typed `item` reference (SD-S31e-3). `subject ""` reads the target-less offers (the shop where the observer stands); a person id reads the offers targeted at that person. Button *Buy* = that offer. Each incomplete offer about the same subject whose entry lists `sale` adds a button with `fill = { item }` (S31-h's *Offer a price…*) |
 | `stall_rows(obs, currency)` | one `ask` row per own ask (buttons from the entries listing `ask`, `fill = { item }`), then one `held` row per held kind without an ask (entries listing `held`) |
 | `shelf_rows(obs, currency)` | while the observer's place discloses a listing and some entry lists `shelf` or `note`: one `shelf` row per listed kind (`fill = { item, shop: true }`) and one `note` row, *List another kind for the shop…*, whose buttons add `item` to `ask` |
-| `answer_rows(obs, currency)` | none in S31-e; S31-h implements it from its record (§5.6) |
+| `answer_rows(obs, currency, clock = none)` | from economy's `proposals` record about the observer (S31-h, §5.6): one `answer` row per open `incoming` line, then one per `outgoing` line; `clock` words `valid_until` (the bare world time without one) |
 | `tag_of(obs, person, currency)` | a person's price tag: the first ask, `trade.tag` or `trade.tag.sold-out`, then `trade.tag.more` for more; `""` for none |
 | `shop_board(listing, currency)` | a shop's board: up to four `trade.tag` lines, then `trade.tag.rest` |
 | `board_rows(obs, currency, clock)` | one row per notice of the board record: `{id, topic, publisher, title, lines}`; a `text` body is one line, a `prices` body one `board.row.price` line per price line |
@@ -248,14 +248,27 @@ instance change.
 
 ### 5.6 The interface S31-h extends
 
-S31-h adds rows without changing this model or these functions:
+S31-h adds rows without changing this model; `answer_rows` gains an optional `clock`:
 
-1. *Offer a price…*: an `inputs` entry `"propose-price": { ask: ["amount"], row: ["sale"], label: … }`;
-   `sale_rows` already attaches a button for each incomplete offer about the subject whose entry lists `sale`.
-2. Offers to answer: S31-h implements `answer_rows`, returning `answer` rows whose buttons carry the incomplete
-   offers with `fill = { proposal: <id> }`; both clients already draw `answer` rows first, with any number of
-   buttons.
-3. `intents` maps `proposal` from `fill` into the payload, as it maps `item` and `shop`.
+1. *Offer a price…*: the entry `"propose-price": { ask: ["amount"], row: ["sale"], label: "trade.offer-price" }`;
+   `sale_rows` attaches it beside each buy row about the subject (target-less for the shop here, targeted at
+   a person seller), with `fill = { item }`.
+2. Offers to answer: `answer_rows` reads the `proposals` record (`{incoming, outgoing}` of lines
+   `{proposal, seller, buyer, item, price, ask, valid_until, status, for_shop}`). The entries tag the rows they
+   serve with `incoming` or `outgoing`, which are match tags, not row kinds (every row here is `answer`):
+
+   ```text
+   "accept-proposal":   { ask: [], row: ["incoming"], label: "trade.accept" }        targeted at the buyer
+   "decline-proposal":  { ask: [], row: ["incoming"], label: "trade.decline" }       target-less
+   "withdraw-proposal": { ask: [], row: ["outgoing"], label: "trade.withdraw-offer" } target-less
+   ```
+
+   An open incoming line is worded `trade.incoming` (`trade.incoming.ask` when the line carries an `ask`), shows
+   the verdict of the accept offer targeted at its buyer, and gets that offer's button and the decline's. An
+   outgoing line is `trade.your-offer` with the withdraw button while open, and `trade.declined` with no button.
+   Every button fills `{ proposal }`. Nothing compares the offered price with the ask or a wallet.
+3. `intents` maps `proposal` from `fill` into the payload (`{ proposal }`), and `propose-price`'s `{ item, price }`;
+   the request's target is the offer's own (the seller, or the buyer for an accept).
 
 ## 6. The scan that holds the boundary
 

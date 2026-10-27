@@ -232,3 +232,4 @@ building engine templates from source (`DEP-41`).
 | 2026-10-20 | `9782023b` | C1: `clients/runtime/`; P-RT-1 PASS on macOS universal (3D social-cafe and market-town `all link checks pass`, 2D market-town `drive complete: PASS`, release template, real packs and server) |
 | 2026-10-20 | `3b5739c3`, `4922da94`, `90298934` | C2 packager + settings check (self-test 24/24), C3 launcher (4/4 tests), docs amendments; PR #419 stacked on #146 |
 | 2026-10-20 | — | C4 measured: one engine (`runtime/clients/MineWorld.app`), `probe` 2D and 3D PASS, archive 396.4 → 335.9 MB (hard 400), `3d.pck` 237.5 MB (hard 250) |
+| 2026-10-26 | — | Operator ruling (1), "the two clients share one Godot runtime", checked against `main @ 0b2faf2f`: delivered in full by this PR. `assemble` for macos-universal, linux-x86_64 and windows-x86_64 each exports `clients/runtime/` once and mounts both client packs. Sizes after the 1024² follow-up are in `DEP-162` |

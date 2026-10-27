@@ -69,6 +69,16 @@ and the paragraph after item 5 (see the notes there); §9's thresholds and §5.5
   punctual part; the fetch band does not pull a person off a due commute): **kept**, as bounded generic additions
   to N-c2.
 
+*Ledger, 2026-10-20 — milestone trace after N-f (`pr-s35-ng-walkers.md` §2, DRAFT):*
+- **F-Ng-1:** 124–162 walks per 30 days end `stalled` in Market Town (seeds 1, 7, 42), 65–74 % last stopped by a
+  person who was **walking**, 53–64 % in the 06:00 rush out of the apartments. Proposed for PR **N-g**.
+- **F-Ng-2:** the famished stretches (48 h, 36 h, 67 h) are people holding `PERSON_CAPACITY` (6) non-nourishing
+  items, so no `buy` is available to them; they reached the store 33–108 times. Proposed for PR **N-h**.
+- **F-Ng-3:** AC-LE-3's early arrivals are the store clerk's 06:00 fetch errand to a shop that is sold out
+  until his own 08:00 restock. Proposed for PR **N-h**.
+- **F-Ng-4:** a solid repeatedly stops walkers at street (7074, 1214) on a leg the planner calls passable.
+  Proposed for PR **N-g** (R3).
+
 *Ledger, 2026-10-20 — PR N-h design (`pr-s35-nh-hands-and-errands.md`, DRAFT), from N-g's trace (#382):*
 - **F-Ng-2:** a full person (six items) is offered every `buy` refused `cannot-carry`; the fetch band ignores the
   reason and goods have no way out but `give`. Proposed: put-down / pick-up (a Place holds items), a free-hand

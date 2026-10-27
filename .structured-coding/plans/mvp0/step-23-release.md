@@ -8,10 +8,19 @@ PR to the commit (Markdown only, in §17's PR section), and the primary session 
 code begins. **R-b and R-d** stay at medium scope (§13) and are frozen on their own later. Nothing here
 authorizes a merge: every PR merges only after the primary session's review and the operator's
 authorization (`CLAUDE.md` §3.1). Progress, evidence and bounded corrections stay writable.
+**Note of 2026-10-26 (operator ruling QB-14, `overall.md` §5).** The packaged clients are published
+publicly: the macOS, Windows and Linux bundles of §3 go to GitHub Releases, with the itch.io mirror and the
+Zenodo archive of §4 (ARC-79). The operator's words: "要不要公开发布打包好的客户端 当然要啊，要不然别人玩不了".
+This settles QB-14, which this step listed as a binding parent. It changes no scope, invariant or
+criterion here; the timing of the first tag stays QR-12's, and nothing is published before the operator's
+go-ahead after milestone acceptance.
 **Author:** the release planning session, 2026-10-10. Draft: worktree
 `/Users/yuema137/mineworld-worktrees/plan-release`, branch `docs/release-design`, from
 `origin/main @ 5ccc402`, merged as PR #136 (`a926fbf`). Freeze: branch `docs/s23-freeze` from
 `origin/main @ a926fbf`.
+**Pointer of 2026-10-26 (R-b, R-d drafts).** PR designs for R-b and R-d exist as DRAFT, not frozen:
+[`pr-s23-rb-release-workflow.md`](pr-s23-rb-release-workflow.md) (builds on PR #498's dispatch dry run) and
+[`pr-s23-rd-publish.md`](pr-s23-rd-publish.md). Neither changes this step's scope until the operator freezes it.
 **Binding parents:** `CLAUDE.md` §§1.1, 2–4; `overall.md` §5 ("Every platform", "Realistic defaults",
 "Late evening of 2026-10-09" CI rule, Milestone F, QB-14), the D-1 licence ruling and its publication
 decisions; `docs/MVP.md` §7; `docs/REUSE_POLICY.md` §§1–15; `docs/DECISIONS.md` ARC-6, DEP-4, DEP-8,
@@ -1304,6 +1313,7 @@ D-Ra-4; C4's 3D half and C6 wait for the rulings.
 | 2026-10-10 | **Stopped** at MS-Ra-1 and MS-Ra-2; C0 committed for the primary session's review | this section |
 | 2026-10-10 | C0 frozen by the primary session; RL-b's head checked (§18.7); C1 committed | §18.7, `a5601f0` |
 | 2026-10-17 | Revival session: `origin/main @ e51ffc0` merged (CI sharding ARC-110, nightly classifiers ARC-83, persona/authoring seam, memory, P7). Conflicts: `docs/DECISIONS.md` (ARC-80, DEP-38, DEP-41 kept beside main's ARC-81, DEP-43; ids distinct) and `scripts/ci_layer.py` `fast` (package.py self-test kept beside main's ci_* self-tests). RL-b (#131) is merged; RL-b2 (#212, the 512 px texture PR of the MS-Ra-2 ruling) is still an open draft, so C4's 3D half and C6 stay paused. Heavy local jobs paused by the operator: no Godot export or cargo run locally this session | `check_decision_ids` 155 distinct; `check_doc_headings` 240 sections; `package.py --self-test` 17/17; `ci_parity`, `ci_stability`, `check_ci_pins` self-tests ok (Python 3.12) |
+| 2026-10-26 | Operator size ruling: (1) one shared Godot runtime — delivered in full by #419 (S23-RT); (2) every character base colour ships at 1024², overriding Q-S26-5 — the town body's albedo role now takes the cast's cap (`DEP-162` dated note, PR `fix/pack-size-1024`). Measured after, `3d.pck` / archive: macOS universal 236.4 / 344.6 MB, Linux x86_64 236.4 / 312.1 MB, Windows x86_64 236.4 / 322.2 MB, all under the hard limits (250 / 400). Linux and Windows archives use the macOS server as a stand-in, so they are upper bounds | `DEP-162`; `package.py assemble` budget lines |
 
 ## 18.7 RL-b's head checked against MS-Ra-1 and MS-Ra-2 (2026-10-10)
 
@@ -1573,13 +1583,116 @@ smoke run, or (for an argument error) when `--no-dialog` is among the raw argume
 
 ### C5 — packaging integration (after R-a merges; merge `origin/main` first)
 
-- [ ] `scripts/package.py`: launcher binaries, `.app` wrappers (ad-hoc signed), `.desktop` files in
-  `assemble`; `smoke` running §9.1 steps 1–6 through the launcher. Additions only (material stop 6).
+- [x] Implementation: `scripts/package.py`: launcher binaries, `.app` wrappers (ad-hoc signed), `.desktop`
+  files in `assemble`; `smoke` running §9.1 steps 1, 2, 4, 5, 6 through the launcher, step 3 `NOT RUN`
+  (D-RC-5). Additions only (material stop 6), plus the bounded corrections F-RC-4 (`--world-key`),
+  F-RC-5 (`PLAY.txt` Linux line), F-RC-6 (`PACK_3D_PARTS`), and `client_code` (in `both`, each client is
+  judged by its own exit status from the launcher log, not by the launcher's first non-zero code).
+- [x] Validation (macOS arm64, 2026-10-26):
+  - `python3 scripts/package.py --self-test`: 52/52 PASS (28 new). Mutations: `missing_entry_points`
+    always empty → 8 cases FAIL by name; step 3 reported `PASS` → "smoke reports step 3 as NOT RUN" FAIL.
+  - `cargo clippy -p mineworld-launch --all-targets -- -D warnings` clean; `cargo test -p mineworld-launch`:
+    unit 7/7, launcher 4/4 (the play case now asserts `--world-key=social-cafe`).
+  - `package.py assemble --target macos-universal` PASS: three `.app` wrappers, each binary `x86_64 arm64`
+    (`lipo -archs`), `codesign --verify --strict` "valid on disk"; archive 353.4 MB (hard 400), 3D pack
+    240.7 MB (hard 250), 2D 13.4 MB.
+  - `package.py smoke <zip>`: step 1 PASS (unpacked into `…/MineWorld 世界/`), step 2 PASS (BUNDLE.toml and
+    entry points; the SHA256SUMS half NOT RUN, no file beside a local archive), step 3 NOT RUN (D-RC-5),
+    **2d: step 4 PASS, step 6 PASS; 3d: step 5 PASS, step 6 PASS; both: step 6 PASS, step 4+5 FAIL** — the
+    2D client passes; the 3D client, seated `wanderer` (LAUNCHER.md §2, AC-15's second player), prints
+    `FAIL: the server did not move the player onto the street` and `1 LINK CHECKS FAILED` and still exits
+    0. Reproduced with 3D alone as `wanderer` (`launch.toml`), so it is not the 2D client's presence:
+    F-RC-7, for the operator. Before F-RC-6, 3D failed `STATION_KIT_MISSING` under `smoke` and under R-a's
+    `probe` alike; with the pack parts present it passes.
+  - Windows and Linux legs (`.exe`, `.desktop`, unsigned path): self-test only locally; CI is the gate.
+- [x] Review: the launcher's paths are unchanged — `bundle.rs` `root_of` finds the root from
+  `<name>.app/Contents/MacOS/<exe>` and from a plain executable, which is where `place_launchers` puts them,
+  so `bundle.rs` needed no change; smoke starts each entry point without `--bundle`, so that derivation is
+  what is tested. Smoke kills only pids the launcher logged, and only on timeout. `package.py` is now about
+  1,330 lines (strong-warning size, §4 of CLAUDE.md): the smoke section (≈ 250 lines) is the candidate to
+  move to its own module beside `runtime_settings.py`; not done here to keep C5 additive.
+
+**Detail (C0 of the C5 session, 2026-10-26; worktree `impl-s23-rc-c5`, branch `mvp0/pr-s23-rc-c5` from
+`origin/main @ b6be8230`).** Within §6.3, §9.1 and §17.2; no change to them. Implemented on today's
+`package.py` (R-a and S23-RT merged), not on the layout §19.2 first assumed.
+
+*Entry points (one table, `ENTRY_POINTS` in `package.py`).* Each mode's launcher binary
+(`mineworld-<2d|3d|both>-launch`, §19.2) is placed at the bundle root under its product name:
+
+| Mode | macOS | Windows | Linux |
+| --- | --- | --- | --- |
+| `2d` | `MineWorld 2D.app` | `MineWorld 2D.exe` | `MineWorld-2D` + `MineWorld-2D.desktop` |
+| `3d` | `MineWorld 3D.app` | `MineWorld 3D.exe` | `MineWorld-3D` + `MineWorld-3D.desktop` |
+| `both` | `MineWorld 2D + 3D.app` | `MineWorld 2D + 3D.exe` | `MineWorld-2D+3D` + `MineWorld-2D+3D.desktop` |
+
+The launcher finds the bundle root from its own path (`bundle.rs` `root_of`: the folder of the executable,
+or the folder holding the `.app`), so these names and `bundle.rs` agree with no change to `bundle.rs`.
+
+*Functions added to `scripts/package.py`:*
+
+- `cargo_out()` — the cargo target folder (`CARGO_TARGET_DIR` when set, else `target/`); `build()` uses it
+  too, because a set `CARGO_TARGET_DIR` made `build()` look for the server where cargo had not written it (a
+  one-line correction, not a structural change).
+- `build_launchers(target)` — `cargo build --release --locked -p mineworld-launch` per triple, path-remapped
+  like `build()`; on macOS the two slices of each binary joined with `lipo -create` (as the server). Returns
+  `{mode: binary}` in `target/package/<T>/launch/`.
+- `info_plist(name, executable, version)` — a minimal `Info.plist` (`CFBundleExecutable`,
+  `CFBundleIdentifier` `org.mineworld.launch.<mode>`, `CFBundleName`, `CFBundlePackageType` `APPL`,
+  versions, `LSUIElement` true: the launcher has no window, so it takes no Dock place) written by `plistlib`.
+- `desktop_entry(name, file)` — a `.desktop` file, `Type=Application`, `Terminal=false`, `Categories=Game;`,
+  and `Exec=sh -c "exec \"$(dirname \"$0\")/<file>\"" %k` (escaped per the Desktop Entry spec), so the entry
+  starts the executable beside it wherever the bundle was unpacked. A copy moved elsewhere cannot know the
+  bundle's folder; `PLAY.txt`'s Linux line is corrected to say "double-click the `.desktop` file in this
+  folder" instead of "copy it to `~/.local/share/applications/`" (finding F-RC-5).
+- `place_launchers(bundle, target, binaries, version)` — the table above: on macOS `<name>.app/Contents/`
+  `{Info.plist, MacOS/<binary>}` then `codesign --force -s - <app>` (ad-hoc; on a non-macOS host the `.app`
+  is left unsigned and the script says so, since `codesign` exists only on macOS); on Windows the `.exe`; on
+  Linux the executable (mode 755) and its `.desktop` file.
+- `missing_entry_points(bundle, target)` — the entry points of the table absent from a bundle (and, on macOS,
+  an `.app` whose `Contents/MacOS/` does not hold its binary). `assemble` fails on any; `smoke` step 2 too.
+- `assemble(...)` gains `--launchers DIR` (binaries already built for the target, as `--server`), else calls
+  `build_launchers`; the launchers are placed before `licences` and `write_bundle_toml`, so the file digest
+  covers them. The `build` command also builds the launchers.
+- `smoke(archive, modes, sums, timeout)` and its helpers `unpack`, `run_entry`, `clean_exit`, `summary` —
+  §9.1 on this machine:
+  1. unpack the `.zip`/`.tar.gz` (modes kept) into `<tmp>/MineWorld 世界/` (a bundle folder is copied
+     instead, for a `--no-archive` assemble);
+  2. `SHA256SUMS` (`--sums FILE`, else the file beside the archive): the archive's line must match; absent,
+     that half is **NOT RUN** and said so; `BUNDLE.toml`'s `files_sha256` must equal the unpacked files'
+     digest; `missing_entry_points` must be empty;
+  3. **NOT RUN** (D-RC-5): the AC-8 reference record does not exist yet (open question Q-Rb-3);
+  4–5. for each mode asked (`2d`, `3d`, `both`; default all three): the mode's entry point itself (on macOS
+     the binary inside its `.app`) with `--smoke=<mode> --no-dialog --user-dir=<tmp>/user`, no `--bundle`,
+     so the root is found from the executable's path; each client's log (`<run>-client-<k>.log`) is judged by
+     `judge_client` with the launcher's exit code (2D: `drive complete: PASS` and the Presentation Pack line
+     from the unpacked bundle; 3D: `all link checks pass`, F-R6);
+  6. `clean_exit`: the run's server log holds `[mineworld] stopping` and the statistics, the launcher log
+     holds `server stopped` and no `killed`, no process whose pid the launcher logged is still alive, and
+     `<user>/scratch/` does not exist. A launcher over `--timeout` is killed with the clients it logged.
+  `summary` prints one line per step (`PASS`, `FAIL`, `NOT RUN`) and exits 1 on any FAIL; a NOT RUN step
+  never counts as a pass and is named in the last line.
+- `self_test()` gains cases that bite: a bundle without its launchers fails `missing_entry_points` for each
+  target and passes once they are planted; the `.desktop` `Exec` line, unescaped per the spec, is the
+  intended `sh -c` argv; the `Info.plist` names the binary placed; an archive unpacked into a path with a
+  space and `世界` keeps the executable bit; `clean_exit` fails on a server log without the shutdown lines,
+  on a left `scratch/`; `summary` reports step 3 as `NOT RUN`, exits 0 without a FAIL and 1 with one.
+
+*Launcher correction (F-RC-4).* Since RL-e0 the exported clients refuse to enter a world without
+`--world-key=<world>` (2D `app.gd` `_load_far_field`, exit 3 in a harness run; 3D `depictions/registry.gd`);
+the root launchers and `probe` pass it, the bundle launcher did not. `children.rs` `Clients` gains the world
+and passes `--world-key=<world>` after `--seat`; `LAUNCHER.md` §7 step 5 and the play test's argument
+assertions say so. This aligns the launcher with the clients' documented interface (`clients/2d/
+PRESENTATION.md` §8); no contract, scope or dependency changes.
+
+Files: `scripts/package.py`, `packaging/PLAY.txt` (Linux line only), `tools/launch/src/{children,lib}.rs`,
+`tools/launch/tests/launcher.rs`, `tools/launch/LAUNCHER.md`, this section.
 
 ### C6 — gate
 
 - [ ] Default suite green on Linux, macOS and Windows in CI on the exact final head.
 - [ ] On macOS, `package.py smoke` PASS for `2d`, `3d` and `both` on an assembled bundle; evidence here.
+  2026-10-26 (C5 session): `2d` and `3d` PASS (steps 4, 5, 6), `both` FAIL on F-RC-7; step 3 NOT RUN
+  (D-RC-5). Open until F-RC-7 is ruled.
 
 ## 19.5 Deviations and findings
 
@@ -1610,6 +1723,27 @@ smoke run, or (for an argument error) when `--no-dialog` is among the raw argume
   empty engine-option list, smoke still asserts `--headless`. Launcher 4/4 and unit 7/7 green on macOS after
   merging `origin/main` (`737e032`); `stop_on_stdin_eof` moved to port 0 read from the listening line, as
   #151 did for the shared harness (its `free_port` is gone).
+
+- **D-RC-5 (bounded; decided by the lane lead, 2026-10-26).** §9.1 step 3 compares the release server's
+  digest with the AC-8 record of the same commit; no such reference record exists yet, and where it comes
+  from is the open operator question Q-Rb-3 (R-b). `package.py smoke` therefore runs steps 1, 2, 4, 5 and 6
+  and reports step 3 as `NOT RUN` with that reason — never as a pass. Step 7 (windowed frame) is not C5's.
+  Owner of closing it: R-b, once Q-Rb-3 is ruled.
+- **F-RC-4 (bounded, launcher defect).** The bundle launcher did not pass `--world-key`, which the exported
+  clients require since RL-e0; fixed in C5 (§19.4 C5 detail).
+- **F-RC-5 (bounded, wording).** A `.desktop` file cannot hold the bundle's absolute path at assemble time;
+  it starts the executable beside it (`%k`), so `PLAY.txt` tells Linux players to double-click it in the
+  bundle folder rather than copy it to `~/.local/share/applications/`.
+- **F-RC-6 (bounded, packaging content).** `PACK_3D_PARTS` predates the 3D client's run-time reads of its
+  pack (depictions, sit points, station kits, places, furniture, materials, assets, i18n); a bundle from
+  `origin/main` failed `STATION_KIT_MISSING` in R-a's `probe` as in `smoke`. The eight folders are added
+  (about 8 MB uncompressed; archive 350.5 → 353.4 MB). Which of them are strictly needed was not minimised.
+- **F-RC-7 (open, for the operator; not C5's to fix).** In `both`, the 3D client is seated `wanderer`
+  (AC-15). The 3D `--slice-link` probe fails for that seat (`the server did not move the player onto the
+  street`), alone or beside the 2D client, and the client exits 0 although it printed `1 LINK CHECKS
+  FAILED` — the verdict-line rule (F-R6) is what catches it. So `smoke --modes both` FAILs until either the
+  slice-link probe works for any seat and exits non-zero on a failed check (3D client lane), or the `both`
+  seats change (a launcher contract change, `LAUNCHER.md` §2). C6's "both" item is blocked on that ruling.
 
 ## 19.6 Validation ledger
 

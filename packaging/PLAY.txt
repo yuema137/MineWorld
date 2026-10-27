@@ -18,8 +18,9 @@ FIRST OPEN (the demo is not signed)
            "Open Anyway". Or, in Terminal:  xattr -dr com.apple.quarantine <this folder>
   Windows  If "Windows protected your PC" appears, press "More info", then
            "Run anyway".
-  Linux    Run ./MineWorld-2D or ./MineWorld-3D. To add menu entries, copy the
-           .desktop files to ~/.local/share/applications/
+  Linux    Run ./MineWorld-2D, ./MineWorld-3D or ./MineWorld-2D+3D, or
+           double-click its .desktop file in this folder (your file manager
+           may ask you to trust it first).
 
 YOUR SAVES AND LOGS
   macOS    ~/Library/Application Support/MineWorld/
@@ -58,7 +59,8 @@ MineWorld 是一个用来构建"活着的"游戏世界的开源框架。这个�
            向下滚动并点击"仍要打开"。或在终端中运行:
            xattr -dr com.apple.quarantine <本文件夹>
   Windows  若出现"Windows 已保护你的电脑",点击"更多信息",再点击"仍要运行"。
-  Linux    运行 ./MineWorld-2D 或 ./MineWorld-3D。
+  Linux    运行 ./MineWorld-2D、./MineWorld-3D 或 ./MineWorld-2D+3D,
+           或在本文件夹中双击对应的 .desktop 文件(文件管理器可能先要求你信任它)。
 
 存档与日志
   位置同上方英文部分。saves/<world>/ 是各个世界的存档;删除它即可让该世界重新开始。

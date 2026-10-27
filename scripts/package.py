@@ -5,17 +5,21 @@ The layout, what is shipped and what never is, and the size budget are specified
 `.structured-coding/plans/mvp0/step-23-release.md` §§3, 7 and 18. This script is the one place that
 knows them; CI's release workflow (R-b) calls the same commands.
 
-    python3 scripts/package.py build    [--target T]          the release server for T
+    python3 scripts/package.py build    [--target T]          the release server and the launchers for T
     python3 scripts/package.py export   [--target T] [--clients 2d,3d] [--godot BIN]
                                                                the shared runtime and the client packs for T
     python3 scripts/package.py assemble [--target T] [--clients 2d,3d] [--godot BIN] [--server FILE]
-                                         [--godot-notices DIR] [--no-archive]
+                                         [--launchers DIR] [--godot-notices DIR] [--no-archive]
                                                                the bundle folder and its archive
     python3 scripts/package.py budget   <bundle folder> [<archive>]
                                                                the hard limits; the 20 largest files of each pack
     python3 scripts/package.py probe    <bundle folder> [--clients 2d,3d] [--timeout S]
                                                                the bundle's server with each exported client,
                                                                headless, from wherever the folder now is
+    python3 scripts/package.py smoke    <archive or bundle folder> [--modes 2d,3d,both] [--sums FILE]
+                                         [--timeout S]
+                                                               step-23 §9.1 steps 1-6 through the launcher's
+                                                               entry points (§9.2); step 3 is reported NOT RUN
     python3 scripts/package.py --self-test
 
 T is macos-universal, windows-x86_64, linux-x86_64 or linux-arm64; absent, the machine's own. Work goes
@@ -32,6 +36,7 @@ import io
 import json
 import os
 import platform
+import plistlib
 import re
 import shutil
 import signal
@@ -62,9 +67,12 @@ PACK_2D = "presentation/mineworld-default/2D"
 PACK_2D_PARTS = ("art", "assets", "i18n", "renderer", "far_field", "daylight.json", "manifest.yaml",
                  "pack.yaml")
 # What the exported 3D client reads from its Presentation Pack (D-Ra-5): the far field (ARC-102) and
-# the cast binding (cast.yaml and each character's character.yaml).
+# the cast binding (cast.yaml and each character's character.yaml); and, since S33/16f, what the slice
+# reads from the pack at run time: depictions, sit points, station kits, places, furniture, materials,
+# assets and its wording (step-23 F-RC-6: without `stations/` the 3D client refuses STATION_KIT_MISSING).
 PACK_3D = "presentation/mineworld-default/3D"
-PACK_3D_PARTS = ("far_field", "characters/cast.yaml", "characters/cast", "manifest.yaml", "pack.yaml")
+PACK_3D_PARTS = ("far_field", "characters/cast.yaml", "characters/cast", "manifest.yaml", "pack.yaml",
+                 "assets", "depictions", "furniture", "i18n", "materials", "places", "sit_points", "stations")
 SHARED_FILES = ("clients/shared/settings/locale", "clients/shared/settings/fonts")
 
 
@@ -113,6 +121,28 @@ RUNTIME_APP = "MineWorld"
 
 
 @dataclass(frozen=True)
+class EntryPoint:
+    mode: str        # the launcher's mode (`tools/launch/LAUNCHER.md` §2)
+    name: str        # the product name: the macOS `.app` and the Windows `.exe` (step-23 §6.3, QR-10)
+    file: str        # the Linux executable, without spaces (`PLAY.txt`: ./MineWorld-2D)
+
+    @property
+    def binary(self) -> str:
+        """The launcher crate's binary for this mode."""
+        return f"mineworld-{self.mode}-launch"
+
+
+# The launcher entry points at the bundle root (step-23 §19.4 C5). The launcher finds the bundle root from
+# its own path (`tools/launch/src/bundle.rs` `root_of`): the executable's folder, or the folder holding its
+# `.app`.
+ENTRY_POINTS = {e.mode: e for e in (
+    EntryPoint("2d", "MineWorld 2D", "MineWorld-2D"),
+    EntryPoint("3d", "MineWorld 3D", "MineWorld-3D"),
+    EntryPoint("both", "MineWorld 2D + 3D", "MineWorld-2D+3D"),
+)}
+
+
+@dataclass(frozen=True)
 class Limit:
     hard: int
     goal: int
@@ -137,6 +167,8 @@ def forbidden(path: str) -> str | None:
     name = parts[-1]
     if any(part in EVIDENCE_DIRS for part in parts[:-1]):
         return "an evidence folder"
+    if parts[0] == "tools":
+        return "tooling (ARC-80)"
     if "tools/blender" in "/".join(parts):
         return "the GPL Blender scripts"
     if name.lower().endswith(".md"):
@@ -207,6 +239,11 @@ def work_dir(target: Target) -> Path:
     return ROOT / "target" / "package" / target.name
 
 
+def cargo_out() -> Path:
+    """Where cargo writes: `CARGO_TARGET_DIR` when set (relative to the repository), else `target/`."""
+    return ROOT / os.environ["CARGO_TARGET_DIR"] if os.environ.get("CARGO_TARGET_DIR") else ROOT / "target"
+
+
 def build(target: Target) -> Path:
     """The release server for `target`, path-remapped (§5.3); a universal binary on macOS."""
     env = dict(os.environ)
@@ -215,7 +252,7 @@ def build(target: Target) -> Path:
     for triple in target.triples:
         run(["cargo", "build", "--release", "--locked", "-p", "mineworld-cli", "--target", triple],
             cwd=ROOT, env=env)
-        built.append(ROOT / "target" / triple / "release" / ("mineworld" + target.exe))
+        built.append(cargo_out() / triple / "release" / ("mineworld" + target.exe))
     out = work_dir(target) / ("mineworld" + target.exe)
     out.parent.mkdir(parents=True, exist_ok=True)
     if len(built) > 1:
@@ -225,6 +262,124 @@ def build(target: Target) -> Path:
     return out
 
 
+# ------------------------------------------------------------------------------------------ the launchers
+
+def build_launchers(target: Target) -> dict[str, Path]:
+    """The launcher's three binaries for `target` (ARC-78), built and joined like the server; by mode."""
+    env = dict(os.environ)
+    env["RUSTFLAGS"] = (env.get("RUSTFLAGS", "") + f" --remap-path-prefix={ROOT}=mineworld").strip()
+    for triple in target.triples:
+        run(["cargo", "build", "--release", "--locked", "-p", "mineworld-launch", "--target", triple],
+            cwd=ROOT, env=env)
+    out = work_dir(target) / "launch"
+    out.mkdir(parents=True, exist_ok=True)
+    binaries = {}
+    for entry in ENTRY_POINTS.values():
+        built = [cargo_out() / triple / "release" / (entry.binary + target.exe) for triple in target.triples]
+        dest = out / (entry.binary + target.exe)
+        if len(built) > 1:
+            run(["lipo", "-create", "-output", str(dest), *map(str, built)])
+        else:
+            shutil.copy2(built[0], dest)
+        binaries[entry.mode] = dest
+    return binaries
+
+
+def given_launchers(folder: str, target: Target) -> dict[str, Path]:
+    """Launcher binaries already built for `target` (`assemble --launchers DIR`), by mode."""
+    binaries = {e.mode: Path(folder) / (e.binary + target.exe) for e in ENTRY_POINTS.values()}
+    missing = [str(p) for p in binaries.values() if not p.is_file()]
+    if missing:
+        raise Failure("--launchers: missing " + ", ".join(missing))
+    return binaries
+
+
+def entry_executable(bundle: Path, target: Target, entry: EntryPoint) -> Path:
+    """The file a player starts for `entry`; on macOS the binary inside its `.app`."""
+    if target.macos:
+        return bundle / f"{entry.name}.app" / "Contents" / "MacOS" / entry.binary
+    if target.exe:
+        return bundle / (entry.name + target.exe)
+    return bundle / entry.file
+
+
+def entry_files(bundle: Path, target: Target, entry: EntryPoint) -> list[Path]:
+    """Every file of `entry`: the executable, plus the `.app`'s Info.plist or the Linux `.desktop` file."""
+    files = [entry_executable(bundle, target, entry)]
+    if target.macos:
+        files.append(bundle / f"{entry.name}.app" / "Contents" / "Info.plist")
+    elif not target.exe:
+        files.append(bundle / f"{entry.file}.desktop")
+    return files
+
+
+def missing_entry_points(bundle: Path, target: Target) -> list[str]:
+    """The launcher files a bundle for `target` lacks; empty when every entry point is there."""
+    return [f"{path.relative_to(bundle).as_posix()}: missing (the entry point {entry.name!r})"
+            for entry in ENTRY_POINTS.values() for path in entry_files(bundle, target, entry)
+            if not path.is_file()]
+
+
+def info_plist(entry: EntryPoint, version: str) -> bytes:
+    """A minimal `.app` Info.plist. `LSUIElement`: the launcher has no window, so it takes no Dock place;
+    the client it starts has its own."""
+    return plistlib.dumps({
+        "CFBundleDisplayName": entry.name,
+        "CFBundleExecutable": entry.binary,
+        "CFBundleIdentifier": f"org.mineworld.launch.{entry.mode}",
+        "CFBundleInfoDictionaryVersion": "6.0",
+        "CFBundleName": entry.name,
+        "CFBundlePackageType": "APPL",
+        "CFBundleShortVersionString": version,
+        "CFBundleVersion": version,
+        "LSUIElement": True,
+    }, sort_keys=True)
+
+
+def desktop_entry(entry: EntryPoint) -> str:
+    """A `.desktop` file that starts the executable beside it, wherever the bundle was unpacked: `%k` (this
+    file's path) is `sh`'s `$0`. Escaped per the Desktop Entry specification: inside the quoted argument
+    `"`, `` ` ``, `$` and `\\` take a backslash, and the file's string escaping doubles every backslash."""
+    script = f'exec "$(dirname "$0")/{entry.file}"'
+    quoted = '"' + re.sub(r'(["`$\\])', r"\\\1", script) + '"'
+    return ("[Desktop Entry]\n"
+            "Type=Application\n"
+            "Version=1.5\n"
+            f"Name={entry.name}\n"
+            "Comment=MineWorld downloadable demo\n"
+            f"Exec=sh -c {quoted.replace(chr(92), chr(92) * 2)} %k\n"
+            "Terminal=false\n"
+            "Categories=Game;\n")
+
+
+def place_launchers(bundle: Path, target: Target, binaries: dict[str, Path], version: str,
+                    sign: bool = True) -> None:
+    """The entry points at the bundle root: macOS `.app` wrappers (ad-hoc signed), Windows `.exe` files
+    (GUI subsystem, set in the crate), Linux executables with their `.desktop` files."""
+    for entry in ENTRY_POINTS.values():
+        exe = entry_executable(bundle, target, entry)
+        exe.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(binaries[entry.mode], exe)
+        exe.chmod(0o755)
+        if target.macos:
+            app = bundle / f"{entry.name}.app"
+            (app / "Contents" / "Info.plist").write_bytes(info_plist(entry, version))
+            if sign:
+                sign_app(app)
+        elif not target.exe:
+            desktop = bundle / f"{entry.file}.desktop"
+            desktop.write_text(desktop_entry(entry), encoding="utf-8")
+            desktop.chmod(0o755)  # file managers start a .desktop file only when it is executable
+
+
+def sign_app(app: Path) -> None:
+    """Ad-hoc signature (`codesign -s -`; step-23 §8.2: unsigned for the pre-alpha, no identity)."""
+    if platform.system() != "Darwin":
+        print(f"[assemble] {app.name} left unsigned: codesign exists only on macOS", flush=True)
+        return
+    run(["codesign", "--force", "-s", "-", str(app)])
+
+
 # ----------------------------------------------------------------------------------------------- export
 
 def has_preset(project: Path, preset: str) -> bool:
@@ -232,13 +387,14 @@ def has_preset(project: Path, preset: str) -> bool:
     return presets.is_file() and f'name="{preset}"' in presets.read_text(encoding="utf-8")
 
 
-def unzip_app(archive: Path, into: Path, name: str) -> Path:
-    """Unpack a Godot macOS export, keeping each file's mode, as `<name>.app`."""
-    staging = into / (name + ".unzip")
-    shutil.rmtree(staging, ignore_errors=True)
+def extract_zip(archive: Path, into: Path) -> None:
+    """Unpack a zip into `into`, keeping each file's mode (Python's `extractall` drops it)."""
+    top = into.resolve()
     with zipfile.ZipFile(archive) as z:
         for info in z.infolist():
-            dest = staging / info.filename
+            dest = into / info.filename
+            if top not in dest.resolve().parents and dest.resolve() != top:
+                raise Failure(f"{archive}: {info.filename} would land outside {into}")
             if info.is_dir():
                 dest.mkdir(parents=True, exist_ok=True)
                 continue
@@ -247,6 +403,13 @@ def unzip_app(archive: Path, into: Path, name: str) -> Path:
             mode = (info.external_attr >> 16) & 0o777
             if mode:
                 dest.chmod(mode)
+
+
+def unzip_app(archive: Path, into: Path, name: str) -> Path:
+    """Unpack a Godot macOS export, keeping each file's mode, as `<name>.app`."""
+    staging = into / (name + ".unzip")
+    shutil.rmtree(staging, ignore_errors=True)
+    extract_zip(archive, staging)
     apps = [p for p in staging.iterdir() if p.suffix == ".app"]
     if len(apps) != 1:
         raise Failure(f"{archive}: expected one .app, found {len(apps)}")
@@ -455,16 +618,21 @@ def layout(bundle: Path, target: Target, server: Path, version: str) -> Path:
 
 
 def assemble(target: Target, keys: list[str], godot: str, server: str | None,
-             notices: str | None, archive: bool) -> Path:
+             notices: str | None, archive: bool, launchers: str | None = None) -> Path:
     version = workspace_version()
     bundle = work_dir(target) / f"MineWorld-{version}-{target.name}"
     built = Path(server) if server else build(target)
+    binaries = given_launchers(launchers, target) if launchers else build_launchers(target)
     executables = export(target, keys, godot)
     runtime = layout(bundle, target, built, version)
     shutil.copytree(work_dir(target) / "clients", runtime / "clients", dirs_exist_ok=True, symlinks=True)
     placed = {k: runtime / "clients" / e.relative_to(work_dir(target) / "clients") for k, e in executables.items()}
+    place_launchers(bundle, target, binaries, version)
     licences(bundle, notices)
     write_bundle_toml(bundle, target, version, placed)
+    missing = missing_entry_points(bundle, target)
+    if missing:
+        raise Failure("the bundle lacks its launcher:\n  " + "\n  ".join(missing))
     problems = check_contents(bundle)
     if problems:
         raise Failure("the bundle holds what must not ship:\n  " + "\n  ".join(problems))
@@ -634,6 +802,239 @@ def probe(bundle: Path, keys: list[str], timeout: float) -> bool:
     return all([probe_client(runtime, info, CLIENTS[k], timeout) for k in keys])
 
 
+# ------------------------------------------------------------------------------------------------ smoke
+
+# step-23 §9.1 through the launcher (§9.2, R-c C5). Each mode's clients, and the §9.1 step it covers.
+MODE_CLIENTS = {"2d": ("2d",), "3d": ("3d",), "both": ("2d", "3d")}
+MODE_STEP = {"2d": "4", "3d": "5", "both": "4+5"}
+UNPACK_FOLDER = "MineWorld 世界"  # a space and a non-ASCII character, as players' folders have (§9.1 step 1)
+PID = re.compile(r"\(pid (\d+)\)")
+
+
+@dataclass(frozen=True)
+class Step:
+    number: str
+    what: str
+    verdict: str     # PASS, FAIL or NOT RUN; a step not run is never a pass
+    why: str = ""
+
+
+def unpack(source: Path, into: Path) -> Path:
+    """§9.1 step 1: the archive unpacked (modes kept) into `into`, or a bundle folder copied there."""
+    into.mkdir(parents=True)
+    if source.is_dir():
+        shutil.copytree(source, into / source.name, symlinks=True)
+    elif source.name.endswith(".zip"):
+        extract_zip(source, into)
+    elif source.name.endswith(".tar.gz"):
+        with tarfile.open(source) as tar:
+            if hasattr(tarfile, "data_filter"):
+                tar.extractall(into, filter="data")
+            else:
+                tar.extractall(into)
+    else:
+        raise Failure(f"{source}: neither a .zip, a .tar.gz nor a bundle folder")
+    tops = list(into.iterdir())
+    if len(tops) != 1 or not tops[0].is_dir():
+        raise Failure(f"{source}: expected one bundle folder at its top, found {len(tops)} entries")
+    return tops[0]
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as f:
+        while chunk := f.read(1 << 20):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def check_sums(source: Path, sums: Path | None) -> Step:
+    """§9.1 step 2, first half: the archive's line of SHA256SUMS. Absent, it is NOT RUN and says so."""
+    what = "the archive against SHA256SUMS"
+    if source.is_dir():
+        return Step("2", what, "NOT RUN", "a bundle folder was given, not an archive")
+    sums = sums or source.parent / "SHA256SUMS"
+    if not sums.is_file():
+        return Step("2", what, "NOT RUN", f"no {sums} (the release workflow writes it)")
+    lines = re.findall(r"^([0-9a-fA-F]{64}) [ *](.+?)\r?$", sums.read_text(encoding="utf-8"), re.M)
+    listed = {name: digest for digest, name in lines}
+    if source.name not in listed:
+        return Step("2", what, "FAIL", f"{sums} has no line for {source.name}")
+    if listed[source.name].lower() != sha256_file(source):
+        return Step("2", what, "FAIL", f"{source.name} does not match its SHA-256 in {sums}")
+    return Step("2", what, "PASS")
+
+
+def check_bundle(bundle: Path) -> tuple[Step, Target | None]:
+    """§9.1 step 2, second half: BUNDLE.toml's file digest, its target, and the launcher entry points."""
+    problems = []
+    try:
+        info = read_bundle_toml(bundle / "runtime")
+    except OSError as error:
+        return Step("2", "BUNDLE.toml", "FAIL", str(error)), None
+    if file_digest(bundle) != info.get("files_sha256"):
+        problems.append("the files do not match BUNDLE.toml's files_sha256")
+    target = TARGETS.get(info.get("target", ""))
+    if target is None:
+        problems.append(f"BUNDLE.toml names no known target ({info.get('target')!r})")
+    else:
+        problems += missing_entry_points(bundle, target)
+    return Step("2", "BUNDLE.toml's file list and the launcher entry points", "FAIL" if problems else "PASS",
+                "; ".join(problems)), target
+
+
+def server_digest_step() -> Step:
+    """§9.1 step 3 is not run (D-RC-5): the AC-8 reference record it compares with does not exist yet."""
+    return Step("3", "the release server alone against the AC-8 record of this commit", "NOT RUN",
+                "no AC-8 reference record exists yet (open question Q-Rb-3; step-23 D-RC-5)")
+
+
+def alive(pid: int) -> bool:
+    if os.name == "nt":
+        listed = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/NH", "/FO", "CSV"],
+                                capture_output=True, text=True).stdout
+        return f'"{pid}"' in listed
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    stat = Path(f"/proc/{pid}/stat")  # an unreaped child in a container is a zombie, not alive
+    with contextlib.suppress(OSError, IndexError):
+        return stat.read_text().rsplit(")", 1)[1].split()[0] not in ("Z", "X")
+    return True
+
+
+def kill(pid: int) -> None:
+    if os.name == "nt":
+        subprocess.run(["taskkill", "/F", "/PID", str(pid)], capture_output=True)
+    else:
+        with contextlib.suppress(OSError):
+            os.kill(pid, signal.SIGKILL)
+
+
+def read_text(path: Path) -> str:
+    try:
+        return path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return ""
+
+
+def run_logs(user: Path) -> tuple[Path, str] | None:
+    """The logs folder and the `<run>` prefix of the one run in `user` (`LAUNCHER.md` §5)."""
+    logs = user / "logs"
+    launched = sorted(logs.glob("*-launch.log"))
+    return (logs, launched[-1].name[:-len("-launch.log")]) if launched else None
+
+
+def clean_exit(user: Path) -> list[str]:
+    """§9.1 step 6 for the run in `user`: the server's shutdown lines, a graceful stop, no process the
+    launcher started still running, and no smoke scratch left."""
+    found = run_logs(user)
+    if found is None:
+        return [f"the launcher wrote no log under {user / 'logs'}"]
+    logs, run_id = found
+    problems = []
+    server = read_text(logs / f"{run_id}-server.log")
+    stopping, ticks = server.find("[mineworld] stopping"), server.find("[world] ticks ")
+    if not 0 <= stopping < ticks:
+        problems.append(f"{run_id}-server.log lacks the shutdown lines ([mineworld] stopping, then [world] ticks)")
+    launch = read_text(logs / f"{run_id}-launch.log")
+    if "server stopped" not in launch or "was killed" in launch:
+        problems.append(f"{run_id}-launch.log shows no graceful server stop")
+    still = [pid for pid in map(int, PID.findall(launch)) if alive(pid)]
+    if still:
+        problems.append(f"still running after the launcher exited: pid {', '.join(map(str, still))}")
+    if (user / "scratch").exists():
+        problems.append(f"{user / 'scratch'} was not removed")
+    return problems
+
+
+def client_code(launch: str, key: str) -> int | None:
+    """A client's own exit code, from the launcher's log line `client <k> exited: exit status: <n>`
+    (`exit code:` on Windows), so that in `both` one client's failure is not charged to the other."""
+    match = re.search(rf"^client {key} exited: exit (?:status|code): (-?\d+)", launch, re.M)
+    return int(match.group(1)) if match else None
+
+
+def run_entry(executable: Path, mode: str, user: Path, timeout: float) -> tuple[int | None, str]:
+    """The entry point itself, as a player's double-click would start it, in smoke mode. No `--bundle`:
+    the launcher finds the bundle from its own path. Over `timeout` it is killed with what it started."""
+    command = [str(executable), f"--smoke={mode}", "--no-dialog", f"--user-dir={user}"]
+    print("$ " + " ".join(command), flush=True)
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    try:
+        output, _ = process.communicate(timeout=timeout)
+        return process.returncode, output.decode("utf-8", "replace")
+    except subprocess.TimeoutExpired:
+        process.kill()
+        output, _ = process.communicate()
+        found = run_logs(user)
+        for pid in map(int, PID.findall(read_text(found[0] / f"{found[1]}-launch.log") if found else "")):
+            kill(pid)
+        return None, output.decode("utf-8", "replace") + f"\n(killed after {timeout:.0f} s)"
+
+
+def smoke_mode(bundle: Path, target: Target, mode: str, user: Path, timeout: float) -> list[Step]:
+    """§9.1 steps 4/5 and 6 for one entry point."""
+    entry = ENTRY_POINTS[mode]
+    code, output = run_entry(entry_executable(bundle, target, entry), mode, user, timeout)
+    found = run_logs(user)
+    launch = read_text(found[0] / f"{found[1]}-launch.log") if found else ""
+    verdicts = []
+    for key in MODE_CLIENTS[mode]:
+        log = read_text(found[0] / f"{found[1]}-client-{key}.log") if found else ""
+        verdicts.append(judge_client(CLIENTS[key], log, client_code(launch, key), bundle / "runtime"))
+    what = f"{entry.name!r} --smoke={mode}, headless, through the launcher"
+    passed = code == 0 and all(verdicts)
+    why = "" if passed else f"launcher exit {code}; its output: {output.strip()[-400:]}"
+    problems = clean_exit(user)
+    return [Step(MODE_STEP[mode], what, "PASS" if passed else "FAIL", why),
+            Step("6", f"clean exit after {entry.name!r}", "FAIL" if problems else "PASS", "; ".join(problems))]
+
+
+def summary(steps: list[Step]) -> int:
+    """One line per step; exits 1 on any FAIL. A step NOT RUN is named, never counted as a pass."""
+    for step in steps:
+        print(f"[smoke] step {step.number} {step.verdict}: {step.what}" + (f" ({step.why})" if step.why else ""))
+    failed = [s.number for s in steps if s.verdict == "FAIL"]
+    not_run = [s.number for s in steps if s.verdict == "NOT RUN"]
+    if failed:
+        print(f"[smoke] FAIL: step(s) {', '.join(failed)}")
+        return 1
+    print("[smoke] no step failed; " + (f"NOT RUN, so not passed: step(s) {', '.join(not_run)}" if not_run
+                                        else "every step passed"))
+    return 0
+
+
+def smoke(source: Path, modes: list[str], sums: Path | None, timeout: float) -> int:
+    """step-23 §9.1 steps 1-6 on this machine (§9.2): unpack, check, then each mode's entry point."""
+    scratch = Path(tempfile.mkdtemp(prefix="mineworld-smoke-")).resolve()
+    steps: list[Step] = []
+    try:
+        try:
+            bundle = unpack(source, scratch / UNPACK_FOLDER)
+            steps.append(Step("1", f"unpacked {source.name} into {bundle}", "PASS"))
+        except (Failure, OSError, zipfile.BadZipFile, tarfile.TarError) as error:
+            steps.append(Step("1", f"unpack {source.name}", "FAIL", str(error)))
+            return summary(steps)
+        steps.append(check_sums(source, sums))
+        contents, target = check_bundle(bundle)
+        steps += [contents, server_digest_step()]
+        if contents.verdict != "PASS" or target is None:
+            return summary(steps)
+        if target != host_target():
+            steps.append(Step("4-6", "the launcher runs", "NOT RUN",
+                              f"a {target.name} bundle cannot run on this {host_target().name} machine"))
+            return summary(steps)
+        for mode in modes:
+            steps += smoke_mode(bundle, target, mode, scratch / "user" / mode, timeout)
+        return summary(steps)
+    finally:
+        shutil.rmtree(scratch, ignore_errors=True)
+
+
 # -------------------------------------------------------------------------------------------- self-test
 
 def write_pck(path: Path, files: dict[str, bytes]) -> None:
@@ -671,10 +1072,130 @@ def settings_cases(cases: list[tuple[str, bool]]) -> None:
         cases.append((f"a client with {what} fails the settings check", len(judge(text, runtime, appliers)[0]) == 1))
 
 
+def desktop_exec_argv(value: str) -> list[str]:
+    """The argv a Desktop Entry `Exec` value means: the file's string escapes, then the quoting rules."""
+    text = re.sub(r"\\([sntr\\])", lambda m: {"s": " ", "n": "\n", "t": "\t", "r": "\r", "\\": "\\"}[m.group(1)],
+                  value)
+    argv, word, quoted, escaped, started = [], "", False, False, False
+    for ch in text:
+        if escaped:
+            word, escaped = word + ch, False
+        elif quoted and ch == "\\":
+            escaped = True
+        elif ch == '"':
+            quoted, started = not quoted, True
+        elif ch == " " and not quoted:
+            if word or started:
+                argv.append(word)
+            word, started = "", False
+        else:
+            word += ch
+    if word or started:
+        argv.append(word)
+    return argv
+
+
+def launcher_cases(cases: list[tuple[str, bool]]) -> None:
+    """R-c C5: a bundle without its launcher fails the entry-point check on every target; the wrappers say
+    what they start."""
+    with tempfile.TemporaryDirectory(prefix="mineworld-package-") as tmp:
+        fake = Path(tmp) / "bin"
+        fake.mkdir()
+        for target in TARGETS.values():
+            bundle = Path(tmp) / target.name
+            (bundle / "runtime").mkdir(parents=True)
+            per_entry = 1 if target.exe else 2
+            cases.append((f"a {target.name} bundle without its launcher fails the entry-point check",
+                          len(missing_entry_points(bundle, target)) == per_entry * len(ENTRY_POINTS)))
+            binaries = {}
+            for entry in ENTRY_POINTS.values():
+                binaries[entry.mode] = fake / (entry.binary + target.exe)
+                binaries[entry.mode].write_bytes(b"launcher " + entry.mode.encode())
+            place_launchers(bundle, target, binaries, "0.0.0", sign=False)
+            cases.append((f"a {target.name} bundle with its launcher passes it",
+                          missing_entry_points(bundle, target) == []))
+            (bundle / "MineWorld 3D.app" / "Contents" / "MacOS" / "mineworld-3d-launch").unlink(missing_ok=True)
+            (bundle / "MineWorld 3D.exe").unlink(missing_ok=True)
+            (bundle / "MineWorld-3D.desktop").unlink(missing_ok=True)
+            cases.append((f"a {target.name} bundle missing one entry point's file fails it",
+                          len(missing_entry_points(bundle, target)) == 1))
+            if target.macos:
+                app = bundle / "MineWorld 2D + 3D.app" / "Contents"
+                plist = plistlib.loads((app / "Info.plist").read_bytes())
+                cases.append(("the .app's Info.plist starts the binary in Contents/MacOS, with no Dock place",
+                              (app / "MacOS" / plist["CFBundleExecutable"]).read_bytes() == b"launcher both"
+                              and plist["LSUIElement"] is True))
+            if target.name == "linux-x86_64":
+                text = (bundle / "MineWorld-2D+3D.desktop").read_text(encoding="utf-8")
+                line = next(l for l in text.splitlines() if l.startswith("Exec="))
+                cases.append(("the .desktop file starts the executable beside it",
+                              desktop_exec_argv(line[len("Exec="):])
+                              == ["sh", "-c", 'exec "$(dirname "$0")/MineWorld-2D+3D"', "%k"]
+                              and "Terminal=false" in text.splitlines()))
+                cases.append(("the Linux entry point is executable", os.name == "nt"
+                              or os.access(bundle / "MineWorld-2D+3D", os.X_OK)))
+
+
+def smoke_cases(cases: list[tuple[str, bool]]) -> None:
+    """R-c C5: smoke's unpacking, its clean-exit judgement and its report (step 3 is NOT RUN)."""
+    with tempfile.TemporaryDirectory(prefix="mineworld-package-") as tmp:
+        root = Path(tmp)
+        bundle = root / "MineWorld-0.0.0-test"
+        (bundle / "runtime").mkdir(parents=True)
+        (bundle / "runtime" / "mineworld").write_bytes(b"#!\n")
+        (bundle / "runtime" / "mineworld").chmod(0o755)
+        for kind in ("zip", "tar.gz"):
+            archive = write_archive(bundle, kind, 1_700_000_000)
+            into = unpack(archive, root / kind / UNPACK_FOLDER)
+            server = into / "runtime" / "mineworld"
+            cases.append((f"a .{kind} unpacks into a folder with a space and 世界, keeping the executable bit",
+                          into.name == bundle.name and server.read_bytes() == b"#!\n"
+                          and (os.name == "nt" or os.access(server, os.X_OK))))
+            (root / "SHA256SUMS").write_text(f"{sha256_file(archive)}  {archive.name}\n", encoding="utf-8")
+            cases.append((f"the .{kind} matches its SHA256SUMS line", check_sums(archive, None).verdict == "PASS"))
+        (root / "SHA256SUMS").write_text(f"{'0' * 64}  {archive.name}\n", encoding="utf-8")
+        cases.append(("an archive unlike its SHA256SUMS line fails", check_sums(archive, None).verdict == "FAIL"))
+        (root / "SHA256SUMS").unlink()
+        cases.append(("without SHA256SUMS the check is NOT RUN", check_sums(archive, None).verdict == "NOT RUN"))
+
+        ended = subprocess.Popen([sys.executable, "--version"], stdout=subprocess.DEVNULL)
+        ended.wait()
+        user = root / "user"
+        logs = user / "logs"
+        logs.mkdir(parents=True)
+        good_server = "[mineworld] invite x\n[mineworld] stopping\n[world] ticks 5\n"
+        (logs / "1-2-server.log").write_text(good_server, encoding="utf-8")
+        launch = f"server started (pid {ended.pid})\nclient 2d started as carol (pid {ended.pid})\nserver stopped: exit status: 0\n"
+        (logs / "1-2-launch.log").write_text(launch, encoding="utf-8")
+        cases.append(("a run that stopped cleanly passes step 6", clean_exit(user) == []))
+        (logs / "1-2-server.log").write_text("[mineworld] invite x\n", encoding="utf-8")
+        cases.append(("a server log without the shutdown lines fails step 6", len(clean_exit(user)) == 1))
+        (logs / "1-2-server.log").write_text(good_server, encoding="utf-8")
+        (logs / "1-2-launch.log").write_text(launch + f"client 3d started as x (pid {os.getpid()})\n", encoding="utf-8")
+        cases.append(("a process the launcher started still running fails step 6", len(clean_exit(user)) == 1))
+        (logs / "1-2-launch.log").write_text(launch, encoding="utf-8")
+        (user / "scratch" / "1-2").mkdir(parents=True)
+        cases.append(("a smoke scratch left behind fails step 6", len(clean_exit(user)) == 1))
+    both = "client 2d exited: exit status: 0\nclient 3d exited: exit code: 3\n"
+    cases.append(("in `both` each client is judged by its own exit code",
+                  (client_code(both, "2d"), client_code(both, "3d"), client_code("", "2d")) == (0, 3, None)))
+
+    report = io.StringIO()
+    with contextlib.redirect_stdout(report):
+        code = summary([Step("1", "unpack", "PASS"), server_digest_step(), Step("6", "clean", "PASS")])
+    last = report.getvalue().splitlines()[-1]
+    cases.append(("smoke reports step 3 as NOT RUN, never as a pass",
+                  server_digest_step().verdict == "NOT RUN" and code == 0 and "NOT RUN" in last and "3" in last
+                  and "every step passed" not in report.getvalue()))
+    with contextlib.redirect_stdout(io.StringIO()):
+        code = summary([server_digest_step(), Step("4", "2d", "FAIL", "exit 3")])
+    cases.append(("a failed step fails smoke", code == 1))
+
+
 def self_test() -> int:
     cases: list[tuple[str, bool]] = []
     for path, bad in (("runtime/clients/x.pck", False), ("a/shots/x.png", True), ("README.md", True),
-                      ("clients/3d-spike/tools/blender/x.py", True), ("tools/physics_engine.gdc", False),
+                      ("clients/3d-spike/tools/blender/x.py", True), ("tools/physics_engine.gdc", True),
                       ("x/.env", True), ("presentation/x/2D/references/y.png", True)):
         cases.append((f"forbidden({path}) is {bad}", (forbidden(path) is not None) == bad))
     with tempfile.TemporaryDirectory(prefix="mineworld-package-") as tmp:
@@ -693,6 +1214,8 @@ def self_test() -> int:
         shutil.rmtree(bundle / "shots")
         write_pck(pack, {"tools/blender/x.py": b"x"})
         cases.append(("a GPL file inside a pack fails A-R3", len(check_contents(bundle)) == 1))
+        write_pck(pack, {"tools/x.gd": b"x"})
+        cases.append(("a tools/x.gd inside a pack fails A-R3 (ARC-80)", len(check_contents(bundle)) == 1))
         write_pck(pack, {"big.bin": os.urandom(3000)})
         small = {k: Limit(1000, 500) for k in LIMITS}
         cases.append(("a planted oversize pack fails the budget (A-R4)", len(budget(bundle, None, small)) == 1))
@@ -709,6 +1232,8 @@ def self_test() -> int:
         cases.append(("the tar keeps the executable bit and the fixed mtime",
                       member.mode & 0o111 != 0 and member.mtime == 1_700_000_000))
     settings_cases(cases)
+    launcher_cases(cases)
+    smoke_cases(cases)
     line = "[mineworld] invite abc123 — join with: 127.0.0.1:5000 seat=carol invite=abc123"
     match = JOIN.match(line)
     cases.append(("the join line is read", bool(match) and match.groups() == ("abc123", "127.0.0.1:5000")))
@@ -743,6 +1268,12 @@ def main(argv: list[str]) -> int:
     p.add_argument("bundle")
     p.add_argument("--clients", default="2d,3d")
     p.add_argument("--timeout", type=float, default=300.0)
+    assemble_parser.add_argument("--launchers", help="a folder holding the launcher binaries built for the target")
+    s = sub.add_parser("smoke")
+    s.add_argument("archive", help="a bundle's .zip or .tar.gz, or an assembled bundle folder")
+    s.add_argument("--modes", default="2d,3d,both")
+    s.add_argument("--sums", help="the SHA256SUMS file; default: the one beside the archive")
+    s.add_argument("--timeout", type=float, default=300.0, help="seconds per entry point")
     args = parser.parse_args(argv)
     try:
         return dispatch(args)
@@ -756,14 +1287,21 @@ def dispatch(args: argparse.Namespace) -> int:
         return 1 if budget(Path(args.bundle), Path(args.archive) if args.archive else None, LIMITS) else 0
     if args.command == "probe":
         return 0 if probe(Path(args.bundle).resolve(), args.clients.split(","), args.timeout) else 1
+    if args.command == "smoke":
+        modes = args.modes.split(",")
+        unknown = [m for m in modes if m not in MODE_CLIENTS]
+        if unknown:
+            raise Failure(f"--modes: unknown {', '.join(unknown)}; expected 2d, 3d, both")
+        return smoke(Path(args.archive).resolve(), modes, Path(args.sums) if args.sums else None, args.timeout)
     target = TARGETS[args.target] if args.target else host_target()
     if args.command == "build":
         print(build(target))
+        print("\n".join(map(str, build_launchers(target).values())))
     elif args.command == "export":
         print(export(target, args.clients.split(","), args.godot))
     else:
         print(assemble(target, args.clients.split(","), args.godot, args.server, args.godot_notices,
-                       not args.no_archive))
+                       not args.no_archive, args.launchers))
     return 0
 
 

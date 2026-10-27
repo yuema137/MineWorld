@@ -1119,6 +1119,7 @@ dependencies = [
  "mineworld-item",
  "mineworld-kernel",
  "mineworld-movement",
+ "mineworld-persistence",
  "mineworld-presence",
  "mineworld-rule-controller",
  "mineworld-sdk",
@@ -1196,6 +1197,7 @@ dependencies = [
  "mineworld-contracts",
  "mineworld-decision",
  "mineworld-motivated",
+ "mineworld-price-reporter",
  "mineworld-rule-controller",
 ]
 
@@ -1475,6 +1477,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "mineworld-price-reporter"
+version = "0.1.0"
+dependencies = [
+ "mineworld-contracts",
+ "mineworld-decision",
+ "mineworld-notices",
+ "mineworld-packages",
+ "mineworld-price-survey",
+ "mineworld-rule-controller",
+ "schemars",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "mineworld-price-survey"
 version = "0.1.0"
 dependencies = [
@@ -1519,6 +1536,7 @@ dependencies = [
  "mineworld-group-activity",
  "mineworld-movement",
  "mineworld-naming",
+ "mineworld-notices",
  "mineworld-packages",
  "mineworld-schedule",
  "mineworld-sleep",

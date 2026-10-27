@@ -465,8 +465,8 @@ scopes); this section states the architecture they rest on.
   sorted, bounded list of Event ID ranges. The world log is not in this store and is never forgotten
   (`CORE_CONCEPTS.md` §5.3). Compaction and archive of the log are a separate concern of persistence.
 - **Save growth is a nightly gate, not a runtime refusal.** The log is never truncated, so the per-day
-  save growth bound (0.25 MiB per simulated day on the baseline profile, 0.5 MiB with walking, for Market
-  Town) is checked by the nightly gate `AC-SAVE-1`, not by refusing facts. Truth is not rationed.
+  save growth bound (0.28 MiB per simulated day on the baseline profile since the operator's 2026-10-26
+  ruling in `ARC-89`, 0.5 MiB with walking, for Market Town) is checked by the nightly gate `AC-SAVE-1`, not by refusing facts. Truth is not rationed.
 - **Replay.** A store built by a no-LLM policy is byte-identical when rebuilt. A store built by an assisted
   policy is byte-identical when rebuilt with its recordings; without them, the rebuild reproduces the
   fallback's store, and the difference is recorded, never silent. A missing recording propagates as an

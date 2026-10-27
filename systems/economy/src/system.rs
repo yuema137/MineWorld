@@ -26,12 +26,14 @@ use crate::configuration::EconomyConfiguration;
 use crate::currency::{self, CurrencyProcess, CurrencyRecord, currency_process};
 use crate::event::{
     CurrencyDeclared, DeductionUnpaid, EconomyConfigured, Funded, Listed, MoneyTransferred,
-    PriceSet, PricesAdjusted, PricesRestored, ReferenceDeclared, ShopOpened, Sold, WageUnpaid,
-    Withdrawn,
+    PriceProposed, PriceSet, PricesAdjusted, PricesRestored, ProposalAccepted, ProposalDeclined,
+    ProposalWithdrawn, ReferenceDeclared, ShopOpened, Sold, WageUnpaid, Withdrawn,
 };
+use crate::haggle::{self, AcceptProposal, DeclineProposal, ProposePrice, WithdrawProposal};
 use crate::listing::{self, judge_listing, seller_offers};
 use crate::money::{admit_payment, balance, is_holder, pay, price_in_range};
 use crate::offer::{asks_of, asks_view, listing, living_person, shop_stock, wealth};
+use crate::proposal::{self, Proposals};
 use crate::sale;
 
 /// Money: wallets, shops, buying, and wages.
@@ -149,8 +151,9 @@ impl System for EconomySystem {
     /// 2 since WE-a: the declaration grew a configuration, two facts and two subscriptions, so a save
     /// written by version 1 is refused by name (`ARC-25`). 3 since PR LE-b (`ARC-287`): it answers
     /// `wage-deduction-due` and states `deduction-unpaid`. 4 since S31-a (`ARC-111`, `ARC-112`): the
-    /// currency is required configuration, and prices are the sellers' asks.
-    const VERSION: SystemVersion = SystemVersion::new(4);
+    /// currency is required configuration, and prices are the sellers' asks. 5 since S31-h
+    /// (`ARC-118`): it owns `proposals`, provides four haggling actions and states four facts.
+    const VERSION: SystemVersion = SystemVersion::new(5);
 
     /// Depends on inventory, whose `items-transferred` a purchase states and whose stock a listing
     /// reads (`ARC-26`), and on presence, whose positions it reads. Subscribes to employment's
@@ -172,6 +175,15 @@ impl System for EconomySystem {
             .providing::<ListForSale>()
             .providing::<SetPrice>()
             .providing::<Withdraw>()
+            .owning::<Proposals>()
+            .providing::<ProposePrice>()
+            .providing::<AcceptProposal>()
+            .providing::<DeclineProposal>()
+            .providing::<WithdrawProposal>()
+            .emitting::<PriceProposed>()
+            .emitting::<ProposalDeclined>()
+            .emitting::<ProposalWithdrawn>()
+            .emitting::<ProposalAccepted>()
             .emitting::<CurrencyDeclared>()
             .emitting::<ReferenceDeclared>()
             .emitting::<Funded>()
@@ -202,6 +214,10 @@ impl System for EconomySystem {
             .subscribing_to::<HappeningEnded>()
             .subscribing_to::<PricesAdjusted>()
             .subscribing_to::<PricesRestored>()
+            .subscribing_to::<PriceProposed>()
+            .subscribing_to::<ProposalDeclined>()
+            .subscribing_to::<ProposalWithdrawn>()
+            .subscribing_to::<ProposalAccepted>()
     }
 
     fn install(&self, tables: &mut Declarations<'_, Self>) -> Result<(), KernelError> {
@@ -211,7 +227,8 @@ impl System for EconomySystem {
         tables.component::<ReferenceValue>()?;
         tables.component::<CurrencyRecord>()?;
         tables.component::<Wealth>()?;
-        tables.component::<ShopStock>()
+        tables.component::<ShopStock>()?;
+        tables.component::<Proposals>()
     }
 
     /// Whether this request may happen. A `buy` is judged by [`sale::validate`] (§5.7); a seller action
@@ -222,6 +239,9 @@ impl System for EconomySystem {
         if *action == Buy::ACTION_TYPE {
             let buy: Buy = codec::read(intent)?;
             return sale::validate(world, intent.actor(), intent.target(), &buy);
+        }
+        if haggle::handles(action) {
+            return haggle::validate(world, intent);
         }
         if intent.target().is_some() {
             return Err(Rejection::NoSupportedInteraction);
@@ -249,7 +269,10 @@ impl System for EconomySystem {
         if *intent.action_type() == Buy::ACTION_TYPE {
             let buy: Buy =
                 codec::read(intent).map_err(|reason| refused(Sold::EVENT_TYPE, reason))?;
-            return sale::settle(&read, intent.actor(), intent.target(), &buy);
+            return sale::settle_buy(&read, intent.actor(), intent.target(), &buy);
+        }
+        if haggle::handles(intent.action_type()) {
+            return haggle::resolve(&read, intent);
         }
         let refusal = |reason| refused(Listed::EVENT_TYPE, reason);
         let request = seller_request(intent).map_err(refusal)?;
@@ -356,6 +379,8 @@ impl System for EconomySystem {
         } else if *kind == WageDeductionDue::EVENT_TYPE {
             let due: WageDeductionDue = codec::event_payload(event.payload())?;
             return Ok(vec![deduct(&world.read(), &due)]);
+        } else if proposal::reduces(kind) {
+            proposal::reduce(world, event)?;
         } else {
             return react_to_prices(world, event);
         }
@@ -621,6 +646,7 @@ impl PerceptionProvider for EconomySystem {
     ) -> Vec<Offer> {
         let mut offers = sale::buys(world, observer, target);
         offers.extend(seller_offers(world, observer, target));
+        offers.extend(haggle::offers(world, observer, target));
         offers
     }
 
@@ -655,6 +681,14 @@ impl PerceptionProvider for EconomySystem {
             disclosed.push(ComponentRecord::new::<Wealth>(
                 subject,
                 codec::to_value(&wealth(world, subject)),
+            ));
+        }
+        if observer == subject
+            && let Some(view) = proposal::view(world, subject)
+        {
+            disclosed.push(ComponentRecord::new::<Proposals>(
+                subject,
+                codec::to_value(&view),
             ));
         }
         // Every shop's stocked kinds, to each living Person about itself (S35 N-h R5): only when the

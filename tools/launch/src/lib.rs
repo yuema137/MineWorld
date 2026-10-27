@@ -208,6 +208,7 @@ fn run(mode: Mode, options: &Options, log: &mut Log) -> Result<u8, Failure> {
     let code = Clients {
         bundle: &bundle,
         join: &join,
+        world: &choice.world,
         smoke: options.smoke.is_some(),
     }
     .run(

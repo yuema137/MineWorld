@@ -33,6 +33,8 @@ const ARC_STRIP := 0.30
 const FOOTING := 0.30
 ## The open doorway's transom bar: its depth above the leaves.
 const TRANSOM := 0.12
+## An occluder box's inset inside the solid it stands for, metres.
+const OCCLUDER_INSET := 0.02
 
 ## The last build, for the probes, the occluders and the landmark check (one depot per scene):
 ##   origins    kit place -> scene origin of its frame
@@ -42,7 +44,8 @@ const TRANSOM := 0.12
 ##   towers     Array[AABB]: each tower's massing
 ##   floor_y    the floors' height
 static var report := {}
-## Occluder boxes from the same numbers the walls and towers were built from (`SliceOccluders`).
+## Occluder boxes from the same numbers the walls and towers were built from, each inset by OCCLUDER_INSET
+## (the occluder pass's inset, `tools/presentation/social_cafe/builders/occluders.gd` since 16f-d2).
 static var occluder_boxes: Array[AABB] = []
 
 static var _glass: Material = null
@@ -53,7 +56,7 @@ static func build(root: Node3D, kit: StationKit, site: Dictionary) -> Node3D:
 	if StationKit.site_refusal(site) != "":
 		return null
 	report = {"origins": {}, "volumes": {}, "doors": {}, "footprint": [], "towers": [],
-		"floor_y": float(site.get("floor_y", SliceStreet.WALK_Y)), "kit": kit.kit_name(), "site": site}
+		"floor_y": float(site.get("floor_y", 0.0)), "kit": kit.kit_name(), "site": site}
 	occluder_boxes.clear()
 	_glass = SlicePalette.dead_glass()
 	var g := _node(root, "Station", "station.depot")
@@ -238,8 +241,8 @@ static func _doorway(g: Node3D, kit: StationKit, d: Dictionary, a: Vector3, b: V
 		var jamb := inner + dir * s * (w * 0.5 - 0.03)
 		Build.box(g, jamb + into_hall * leaf.x * 0.5 + Vector3(0, leaf.y * 0.5, 0),
 			Vector3(0, leaf.y, 0) + _along(into_hall, leaf.x, 0.05), door_paint())
-	var idx := SliceTerrace.doors.size()
-	SliceTerrace.doors.append([inner, _yaw(into_hall), "%s %s" % [kit.kit_name(), d["name"]],
+	var idx := SliceDoors.rows.size()
+	SliceDoors.rows.append([inner, _yaw(into_hall), "%s %s" % [kit.kit_name(), d["name"]],
 		kit.place(String(d["to"]))["volume"], th, 0.0])
 	report["doors"][d["name"]] = idx
 	return {"u": u, "w": w, "sill": 0.0, "spring": leaf.y + TRANSOM + 0.10, "rise": w * 0.5,
@@ -321,8 +324,8 @@ static func _screen(g: Node3D, kit: StationKit, centre: Vector3, dir: Vector3, t
 	var sb := face - out * screen_t * 0.5 + dir * clear.x * 0.5
 	_wall(g, sa, sb, top, screen_t, trim(), openings, true)
 	_window(g, face - out * th * 0.5, dir, clear, spring, top)
-	var idx := SliceTerrace.doors.size()
-	SliceTerrace.doors.append([face, _yaw(out), "%s %s" % [kit.kit_name(), d["name"]],
+	var idx := SliceDoors.rows.size()
+	SliceDoors.rows.append([face, _yaw(out), "%s %s" % [kit.kit_name(), d["name"]],
 		kit.place(String(d["to"]))["volume"], th, 0.0])
 	report["doors"][d["name"]] = idx
 
@@ -452,7 +455,7 @@ static func _wall_occluders(a: Vector3, b: Vector3, h: float, t: float, openings
 			var across := Vector3(absf(dir.z), 0.0, absf(dir.x)) * t * 0.5
 			var lo := p0.min(p1) - across
 			var hi := p0.max(p1) + across + Vector3(0, minf(h, sill) - 0.3, 0)
-			occluder_boxes.append(AABB(lo, hi - lo).grow(-SliceOccluders.INSET))
+			occluder_boxes.append(AABB(lo, hi - lo).grow(-OCCLUDER_INSET))
 		cursor = maxf(cursor, gp[1])
 
 
@@ -625,7 +628,7 @@ static func _tower(g: Node3D, kit: StationKit, site: Dictionary, side: float) ->
 		stucco(), 0.0, true)
 	Build.box(t, Vector3(cx, y0 + kit.m("shell", "plinth_mm") * 0.5 - FOOTING * 0.5, cz),
 		Vector3(plan.x + 0.10, kit.m("shell", "plinth_mm") + FOOTING, plan.y + 0.10), SlicePalette.limestone())
-	occluder_boxes.append(body.grow(-SliceOccluders.INSET))
+	occluder_boxes.append(body.grow(-OCCLUDER_INSET))
 	# the tile panel on the street face, and the shaft's cornice
 	var panel := Build.card(t, Vector3(fx + 0.02, y0 + shaft * 0.62, cz), 2.6, 2.6, null, PI * 0.5, 0.0, false)
 	StationTile.apply(panel, kit.pattern("emblem"))

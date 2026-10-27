@@ -9,6 +9,7 @@ use std::collections::BTreeMap;
 use mineworld_attributes_model::{QualifiedId, ValueSlug};
 use mineworld_contracts::Tag;
 use mineworld_rule_controller::commute::Commute;
+use mineworld_rule_controller::price::Pricing;
 use schemars::JsonSchema;
 use serde::Serialize;
 
@@ -200,6 +201,8 @@ pub struct Settings {
     /// The tiredness a door home adds before it reads `pressure` (SD-Nc3-2): one hour's rise at `needs`'
     /// default rate, so a person heads home about an hour before sleep would win.
     pub homeward: u16,
+    /// How this seat prices what it sells and chooses what it buys: `rule`'s block, shared (`ARC-117`).
+    pub pricing: Pricing,
 }
 
 /// The default of [`Settings::homeward`]: `needs`' default `tiredness_per_hour`.
@@ -267,6 +270,7 @@ impl Settings {
             homeward: HOMEWARD,
             commute: Commute::default(),
             attributes: Vec::new(),
+            pricing: Pricing::DEFAULT,
         }
     }
 }

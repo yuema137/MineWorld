@@ -1189,12 +1189,35 @@ Decision ids are recorded in the decision table above: `ARC-84` … `ARC-88`, `D
 - modern-goods goes from 0.1.0 to 0.2.0, with item names.
 - HB-3 at R 250 is restated: a blocked walker re-plans round a standing person.
 
+**Operator ruling QB-14 (2026-10-26): packaged clients are published publicly.** The operator's words:
+"要不要公开发布打包好的客户端 当然要啊，要不然别人玩不了" ("Should we publish the packaged clients publicly? Of
+course, otherwise nobody else can play"). So the bundles S23 builds (the exported 2D and 3D clients with the
+server and the launcher, ARC-78, ARC-80) are published for macOS, Windows and Linux on the channels ARC-79
+names: GitHub Releases as the canonical store, itch.io as the player page, Zenodo as the archive. The ruling
+decides *whether*, not *when*: the first public tag still follows QR-12 (after Milestone F's hands-on
+acceptance and after the visuals settle), and publishing waits for the operator's go-ahead after milestone
+acceptance. Recorded in `step-23-release.md` (header note of 2026-10-26) and in ARC-79.
+
+**Operator ruling of 2026-10-26: "all pending questions as recommended"** (relayed by the coordinator). The
+items no other PR carries, each recorded where it lives:
+
+- S32 wardrobe: MVP-0 ships the wardrobe on the protagonist only; nothing is spent on the full-cast wardrobe
+  (≈ 3,330 Meshy credits). `pr-s32p-la-levers.md`, Authority.
+- The depiction format's `extras_from` and `decor` (at most 5) fields, merged with #454, are accepted.
+  `ARC-177` note of 2026-10-26.
+- Known issues, deferred to after the milestone: Q-CC10-8, the standing idle's arms sinking into the body by
+  29–117 mm (`mvp1/pr-s36-cc10-arm-clearance.md`); Q-S36-P4b-1 and -2, the jog's stance-phase time warp and the
+  street run kept record-only (`mvp1/pr-s36-p4b-colliders-jog.md` §8); the `motivated` controller's eat weight,
+  F-Nc3-1 (`pr-s35-nc3-motivated-sleep.md` §9); and the calendar start time, which has no ledger of its own and
+  is recorded here only.
+- Confirmed after the fact: #438 (N-c3, tiredness recovering exponentially; `pr-s35-nc3-motivated-sleep.md` §9)
+  and #448 (13e's `MineWorldStatus` node, deviation D-2; `pr-13e-many-players-2d.md`).
+
 ## Still open
 
 | ID | Decision | Blocks | Recommendation |
 | --- | --- | --- | --- |
 | QB-11 | Make `test-windows` and `test-macos` required checks after five consecutive green `main` pushes | nothing now | yes, once 13w is green |
-| QB-14 | Publish packaged clients (Godot exports) for Windows and other players | player distribution | decide at the launch-readiness PR |
 | QB-15 | Run the local-model spike (`model_spike.py`, 40 scenarios, smallest model first) and pick the default model | S10 P6's freeze | operator-only; starts with `qwen3.5:4b`. **2026-10-10:** Ollama installed by the operator; the first spike attempt ran with no model pulled (40/40 HTTP 404) and must be re-run |
 
 

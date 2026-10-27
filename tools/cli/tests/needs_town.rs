@@ -21,8 +21,8 @@
 //!
 //! Elsewhere, unchanged and now run on the worlds with both packs: AC-S35-9 is `punctuality.rs`'s
 //! 30-day × 3-seed test and `needs_controllers.rs`'s AC-Nc-3; AC-S35-12 is `market_town.rs`'s ASRB-2
-//! growth bound (≤ 0.25 MiB per simulated day from day 30 to day 300, Market Town); AC-S35-2 (a) is the
-//! milestone's `scripts/baselines.txt` comparison for Social Café, Lakeside and Bodies Yard.
+//! growth bound (≤ 0.28 MiB per simulated day from day 30 to day 300, Market Town; 0.25 until the
+//! operator's 2026-10-26 ruling, `ARC-89`); AC-S35-2 (a) is the milestone's `scripts/baselines.txt` comparison for Social Café, Lakeside and Bodies Yard.
 //!
 //! Hunger is replayed from the facts with the step's rates (both worlds run them: Market Town states
 //! them in `configure/needs.yaml`, Commute Town leaves them unsaid): 120 an hour awake, 30 asleep, clamped

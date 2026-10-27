@@ -182,6 +182,10 @@ msgstr "合计 {amount}"
 msgid "ui.row.wealth.unvalued"
 msgstr "{count} 件没有标价的东西"
 
+# Chinese has no singular noun form, so the one-count entry says the same as the base entry.
+msgid "ui.row.wealth.unvalued.one"
+msgstr "{count} 件没有标价的东西"
+
 msgid "ui.row.currency"
 msgstr "{name}（{symbol}）"
 
