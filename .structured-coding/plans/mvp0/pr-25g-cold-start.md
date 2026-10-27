@@ -1,6 +1,6 @@
 # PR 25g — The onboarding cold-start check, layers A and B
 
-**Lifecycle:** `DRAFT (not frozen)`. Written 2026-10-26 by a design session for the release lane. Nothing here
+**Lifecycle:** `DESIGN FROZEN 2026-10-27 (operator approved in the primary session: every question answered as recommended) (not frozen)`. Written 2026-10-26 by a design session for the release lane. Nothing here
 authorizes implementation, a workflow run that costs money, a tag, a release or a merge. Only the operator
 freezes this design.
 **Author / worktree:** `/Users/yuema137/mineworld-worktrees/design-25g-cold-start`, branch
@@ -739,6 +739,8 @@ ENDPOINT AUTHORITY:        commit: <unresolved> · push: <unresolved> · PR: <un
 ---
 
 ## 17. Operator questions (each with a recommendation)
+
+**Ruled 2026-10-27 (operator, primary session):** every question below is answered as recommended.
 
 - **Q-25g-1 Prerequisite commands.** Add per-OS install commands to chapter 01 (run only by this check), or let a CI
   script install them? **Recommend:** add them to chapter 01 (P1). 建议：写进第 01 章，只在冷启动检查里执行。
