@@ -15,6 +15,10 @@
 ##                a door puts the place's one passage `here` on the door's
 ##                in-point and its `there` -- the place it leads to -- on the
 ##                door's out-point. That place is drawn as the STREET entry.
+##                A seat that starts in the STREET entry's place anchors the
+##                same way from the street side: through its first passage
+##                whose door sign (`to_tags`, `ARC-82`) names a drawn door's
+##                entry (`_bind_street_anchor`).
 ##   the rest     standing in a bound place, every passage it discloses binds
 ##                the place it leads to by DOORWAY COINCIDENCE: the drawn door
 ##                whose out-point lies within DOOR_MATCH of the doorway's scene
@@ -231,7 +235,10 @@ static func _passages_of(obs: MineWorldObservation, place: String) -> Array:
 			continue
 		var to := String(p["to"].get("entity", ""))
 		if to != "":
-			out.append({"to": to, "here": p["here"], "there": p["there"]})
+			# A doorway discloses the tags of the place it leads to (`ARC-82`): the door sign.
+			var to_tags: Variant = p.get("to_tags", [])
+			out.append({"to": to, "here": p["here"], "there": p["there"],
+				"to_tags": (to_tags as Array).duplicate() if typeof(to_tags) == TYPE_ARRAY else []})
 	return out
 
 
@@ -294,8 +301,11 @@ func _bind_anchor(place: String) -> void:
 			street = place
 		_bind(place, e["drawn_as"], e["volume"], e["door"], e["origin"])
 		return
-	if e["door"] < 0 or e["drawn_as"] == STREET:
-		return   # a street drawn in another's frame binds through that place's door
+	if e["drawn_as"] == STREET:
+		_bind_street_anchor(place, c)
+		return
+	if e["door"] < 0:
+		return
 	var ps: Array = passages[place]
 	if ps.size() != 1:
 		misses[place] = {"at": Vector3.ZERO, "nearest": "", "distance": INF,
@@ -312,6 +322,33 @@ func _bind_anchor(place: String) -> void:
 		return
 	street = p["to"]
 	_bind(street, STREET, _entries()[s]["volume"], e["door"], out_point(d) - _flat(p["there"]))
+
+
+## Rule 2 seen from the street: the observer stands in the place the depiction's
+## STREET entry draws, a street drawn in another place's frame. The street binds
+## through the first disclosed passage whose door sign (`to_tags`, `ARC-82`) makes
+## a drawn door's entry the candidate: the passage's `here` lands on that door's
+## out-point and its `there` on the door's in-point, exactly as when the seat
+## starts behind that door. That place anchors the scene; every other passage of
+## the street then binds by doorway coincidence (rule 4). No passage with such a
+## door sign is a miss, never a guess.
+func _bind_street_anchor(place: String, street_entry: int) -> void:
+	var entries := _entries()
+	for p in passages[place]:
+		var c := _candidate(p["to_tags"])
+		if c < 0 or c == street_entry:
+			continue
+		var e: Dictionary = entries[c]
+		if e["drawn_as"] == STREET or e["origin"] != null or e["door"] < 0:
+			continue
+		var d: Array = _doors()[e["door"]]
+		street = place
+		_bind(place, STREET, entries[street_entry]["volume"], e["door"], out_point(d) - _flat(p["here"]))
+		anchor = p["to"]
+		_bind(anchor, e["drawn_as"], e["volume"], e["door"], in_point(d) - _flat(p["there"]))
+		return
+	misses[place] = {"at": Vector3.ZERO, "nearest": "", "distance": INF,
+		"why": "no doorway of this street leads to a place a drawn door depicts"}
 
 
 ## The depiction's one STREET entry, checked against the place's tags when they
