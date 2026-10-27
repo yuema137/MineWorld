@@ -440,15 +440,50 @@ first as their own PR.
 
 ### 14.1 Rulings
 
-None yet.
+Ruled 2026-10-26 by the operator in the primary session, relayed by the coordinator: **every question is
+answered as recommended.**
+
+| Id | Ruling |
+| --- | --- |
+| Q-S31b2-1 | A general loader seam: a configuration may yield data files, collected like shipped data (§5.1) |
+| Q-S31b2-2 | Keep `defaults.by_tag` and the `notices:` section without `attributes`; refuse both with `attributes` (`subscriptions-are-attributes`, §5.4) |
+| Q-S31b2-3 | Handed sets carry `origin: default` |
+| Q-S31b2-4 | No `View.topics` in the agent adapter in this PR; it stays in Rust |
+| Q-S31b2-5 | The `topics` record is disclosed to each person about themself only |
+
+**Drift recorded at C0 (2026-10-26).** "Must merge before S31-e and S31-g" no longer holds: S31-e (#422) and S31-g
+(#418) merged first. Per Q-S31b2-4 this PR still does not touch the agent adapter, so **R-S31g-b2-1** (`View.topics`
+reads the `topics` record) and **R-S31e-b2-1** (the board panel lists topics; words for
+`subscriptions-are-attributes`) are now **outstanding follow-ups** for later PRs, not satisfied by S31-e or S31-g
+as merged. If S31-e or S31-g goldens or tests move because of the new `topics` record, updating them is a bounded
+correction under R-b2-3's logic and is recorded in §15.
 
 ## 15. Ledger (live during implementation)
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 | — | [ ] | [ ] | [ ] |
+| C0 | this commit | [x] | [x] | [x] |
 | C1 | — | [ ] | [ ] | [ ] |
 | C2 | — | [ ] | [ ] | [ ] |
 | C3 | — | [ ] | [ ] | [ ] |
 | C4 | — | [ ] | [ ] | [ ] |
 | C5 | — | [ ] | [ ] | [ ] |
+
+**C0 evidence (2026-10-26).** Base `origin/main @ 0b2faf2f`, branch `mvp0/pr-s31b2`, worktree
+`/Users/yuema137/mineworld-worktrees/impl-s31b2`.
+
+- A-1 … A-21 re-read on the base; the facts hold. A-18 holds: no `worlds/*/world.yaml` enables `notices` or
+  `attributes`. A-19: **S31-f has not merged** at the base (`worlds/market-town/configure/` has no `notices.yaml`).
+- **A-10 confirmed** (`kernel/src/dispatch.rs` `genesis` 497-529 records every genesis fact then calls `reduce`
+  once; `reduce` 606-661 reduces each fact of a generation in order, every subscriber in registration order,
+  and reactions form the next generation). So: by_tag `subscriptions-seeded` (configuration facts) reduce before
+  `attributes-composed` (context facts), which reduces before every section fact; the `attributes` reaction to
+  `attributes-composed` starts the catalogue Process before any section seed reduces; a reaction to
+  `attributes-handed` lands in a later generation. Because `notices` may be registered before `attributes`, the
+  §5.4 by_tag check reads the declaration from the `attributes-composed` payload (`catalogue.attributes`), not
+  from the running Process; the authored-seed check reads `RunningCatalogue::in_world`.
+- **Declaration fields pinned (§5.2):** `RawDeclaration` (`authoring/attributes/src/declaration.rs:435-459`) makes
+  `facets`, `prompt_rank`, `default`, `words`, `since` optional; `group`, `kind`, `visibility`, `mutability`,
+  `label` required. N-2 is shipped as written, with no `facets` and no `prompt_rank`.
+- Validation: `scripts/check_doc_headings.py`, `scripts/check_decision_ids.py` (see the commit). Review: §2 holds on
+  the base.
