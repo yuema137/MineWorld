@@ -679,7 +679,10 @@ fn write_mode_rerecords_stale_output_keeping_matching_wildcards_and_prose_then_t
     assert!(summary.no_failures(), "{}", summary.render());
     assert_eq!(summary.rewritten.len(), 2, "{}", summary.render());
     assert!(
-        summary.rewritten.iter().all(|item| item.ends_with("(mirrored)")),
+        summary
+            .rewritten
+            .iter()
+            .all(|item| item.ends_with("(mirrored)")),
         "{}",
         summary.render()
     );
@@ -898,7 +901,12 @@ fn a_block_for_an_unmerged_feature_is_listed_as_pending_and_never_as_passed() {
 #[test]
 fn the_guide_in_this_repository_runs_green() {
     let repo = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let summary = run_guide::run("repo-guide", &repo.join("docs/guide"), &repo, Mode::from_env());
+    let summary = run_guide::run(
+        "repo-guide",
+        &repo.join("docs/guide"),
+        &repo,
+        Mode::from_env(),
+    );
     // Written past the test harness's capture, so every CI log shows the counts and every block that did not
     // run, by name, even when the test passes (§11).
     let _ = std::io::Write::write_all(

@@ -227,10 +227,9 @@ fn write_back(
                 } else {
                     "no mirror"
                 };
-                summary.rewritten.push(format!(
-                    "page {name} line {} ({mirrored})",
-                    rewrite.line
-                ));
+                summary
+                    .rewritten
+                    .push(format!("page {name} line {} ({mirrored})", rewrite.line));
             }
         }
     }

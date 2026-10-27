@@ -250,7 +250,8 @@ never as a bigger kernel.
 **Built with** Rust · Godot 4.7 · Python · SQLite · the Model Context Protocol.
 
 **Contributing.** Read [`CLAUDE.md`](CLAUDE.md) and [`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md);
-`python3 scripts/ci_layer.py fast` runs the quick checks. If you want worlds like this to exist, a ⭐
+`python3 scripts/ci_layer.py fast` runs the quick checks. If your change alters what a command prints, re-record
+the guide with `MINEWORLD_WRITE_GUIDE=1` ([`docs/GUIDE_FORMAT.md`](docs/GUIDE_FORMAT.md) §11.2). If you want worlds like this to exist, a ⭐
 helps other people find the project.
 
 ## License

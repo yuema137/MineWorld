@@ -95,8 +95,9 @@ fn align<'a>(wanted: &[&'a str], printed: &[&'a str]) -> Vec<&'a str> {
                     options.push((best[i + 1][j], Step::Drop));
                 }
             }
-            if let Some(&(score, chosen)) =
-                options.iter().reduce(|kept, next| if next.0 > kept.0 { next } else { kept })
+            if let Some(&(score, chosen)) = options
+                .iter()
+                .reduce(|kept, next| if next.0 > kept.0 { next } else { kept })
             {
                 best[i][j] = score;
                 step[i][j] = chosen;

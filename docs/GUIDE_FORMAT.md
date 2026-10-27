@@ -422,3 +422,40 @@ A run fails when any block failed or any check is `FAIL`. A run whose only open 
 `INCONCLUSIVE` checks passes, and reports each of them by name, with its reason. Pending and inconclusive items are
 never counted as passed. (Recorded as a bounded correction in PR S25c C3: §8.2 requires the reference-link check to
 stay pending until PR 25a merges, which a rule of "every guard PASS" would turn into a permanent red.)
+
+### 11.2 Re-recording expected output (write mode)
+
+A change to what a command prints makes the console blocks that quote it stale. A pull request that changes such
+output re-records the guide with write mode instead of editing the blocks by hand:
+
+```text
+MINEWORLD_WRITE_GUIDE=1 cargo test -p mineworld-cli --test guide the_guide_in_this_repository_runs_green
+```
+
+1. Write mode is on only when the environment variable `MINEWORLD_WRITE_GUIDE` is exactly `1`, and only the real
+   guide's test (`the_guide_in_this_repository_runs_green`) reads it. Every other test of the runner checks, so a
+   write-mode run of the whole test file still holds the runner's own red cases red.
+2. The run is the ordinary run (§§4–10) with one difference: when a command of a console block prints output that
+   does not match (§4.4), the block is not failed. Its expected output is re-recorded, the block counts as passed,
+   and the summary lists it as `REWROTE page <name> line <line>`.
+3. A re-recorded command's expected lines are aligned with the lines it printed so that the most expected lines
+   still match:
+   - an expected line that still matches its printed line is kept as written, so a `[..]` that still matches stays;
+   - a `...` that still has a place in the alignment is kept, and stands for the printed lines it covers;
+   - an expected line that no longer matches is replaced by the printed line in its place, written literally;
+   - a printed line no expected line stands for is written literally, and an expected line with no printed line
+     left is dropped.
+   The recorded lines are checked against the output with the rules of §4.4 before they are written. If they would
+   not match, snapbox's own overwrite record is written instead (its wildcards kept only up to the first line that
+   differs). A wildcard a writer wants for text that varies between runs (a duration, a version) and that was
+   written literally must be put back by hand; the next check run shows it, because the literal text then fails.
+4. Only the lines between the fences of a re-recorded console block are written: its commands stay as they were,
+   and prose, headings, directives, file blocks, shell blocks, shown-only blocks and the info string are never
+   touched. A block whose exit code differs from its `exit=` still fails (§4.3); write mode never edits an info
+   string. Pending, operator-only and other-system blocks are not run, so they are not re-recorded.
+5. The page's mirror (§7) receives the new block at the same position only where the mirror's block was the English
+   block byte for byte before the rewrite (info string and content). Where it was not, the mirror is left as it was,
+   the summary marks the block `not mirrored`, and the mirror guard fails for a person to fix. The mirror's prose is
+   never touched. Line endings of each file are kept.
+6. Write mode is a writer's tool, not a gate: CI never sets the variable. After a write-mode run the writer reviews
+   the diff of `docs/guide/` and runs the test again without the variable, which must pass.
