@@ -466,7 +466,30 @@ correction under R-b2-3's logic and is recorded in §15.
 | C1 | see `git log` (`feat(authoring): a configuration may yield …`) | [x] | [x] `cargo test -p mineworld-worldpack --lib data`: 9 passed (3 new); clippy `-D warnings` on `mineworld-worldpack`, `mineworld-authoring` clean | [x] no existing world's load changes: `yields` defaults to none, so `collect` adds nothing; the existing order test is unchanged and passes |
 | C2 | see `git log` (`feat(notices): subscriptions are the notices.subscriptions attribute …`) | [x] | [x] `cargo test -p mineworld-notices` (all test files): 25 passed, incl. `--test attributes` 5 (AC-b2-1 pack half, AC-b2-2, AC-b2-3, AC-b2-4, AC-b2-5 pack half, on W1/W2 and W1-attr/W2-attr); clippy `-D warnings` clean | [x] no fact changes shape (I-b2-2: handed sets are the existing `subscriptions-seeded`, `origin: default`, SystemInternal, about the person); two sources cannot seed one person in an `attributes` world (by_tag refused at `attributes-composed`, authored refused at reduction); mutations M-b2-1 … M-b2-3 reasoned against the tests, not planted (speed-first charter) |
 | C3 | see `git log` (`feat(notices): a topics record …`) | [x] | [x] `cargo test -p mineworld-notices`: 28 passed, incl. `--test topics` 3 (AC-b2-6 pack half on W1 and the W2 variant; unconfigured world); clippy clean | [x] nothing about another person is disclosed: `discloses` returns early when observer ≠ subject, and the test counts exactly one `topics` record per observation; `subscribed` reads the component (flips after `subscribe`) |
-| C4 | — | [ ] | [ ] | [ ] |
+| C4 | see `git log` (`test(cli): …`) | [x] | [ ] **FAIL** — `cargo test -p mineworld-cli --test notices -- --skip no_random_subscription`: 6 passed, 1 failed (`notices_attributes_disclosed_and_resumed`, the AC-b2-7 restart); `mineworld reference --check docs/reference`: matches (46 files, nothing to regenerate) | [x] the arms read the server's observations and `mineworld validate`, not pack state |
+
+**MATERIAL STOP at C4 (2026-10-26): AC-b2-7 cannot pass inside §2.1.** In W1-attr the first server run works
+(AC-b2-5 and AC-b2-6 arms pass up to the kill), but restarting on the same save is refused:
+
+```text
+the world could not be built: the world's configuration differs from the save's: system 'notices'
+(save: subscriptions-seeded {"person":{"entity":"11",...},"topics":["prices.ingredients"],"origin":"default"}
+SystemInternal; this pack: nothing) — a save resumes only against the configuration it was created with
+```
+
+Cause: `WorldPack::check_configuration` (`worldpack/src/configure.rs` 563-618, `compare` 517-549) compares the
+save's genesis facts of every configuration-fact type (`PackConfiguration::FACTS`; `notices` declares
+`subscriptions-seeded` because `defaults.by_tag` seeds it) with the facts assembly states. The handed set's
+`subscriptions-seeded` is recorded at genesis by **reaction** (caused by `attributes-handed`, §5.3), so the save has
+it and assembly does not. Every world that enables `notices` and `attributes` with any handed value therefore
+cannot resume or replay. A-10 holds; no fact changes shape; the defect is in the drift check's reading of
+"genesis facts", which is outside §2.1.
+
+Smallest proposed revision (needs a ruling: an edit outside §2.1): in `compare`, keep only saved facts whose
+causation is `Causation::WorldGenesis` (the facts assembly re-states); reaction facts derive from them and are
+re-derived by replay. One filter in `worldpack/src/configure.rs` plus a test in `worldpack/src/configure/tests.rs`.
+Rejected in-scope alternatives: writing `Subscriptions` directly in the `attributes-handed` reaction (drops the
+`subscriptions-seeded` fact AC-b2-2 requires); a new fact type for handed sets (a fact change, I-b2-2).
 | C5 | — | [ ] | [ ] | [ ] |
 
 **C0 evidence (2026-10-26).** Base `origin/main @ 0b2faf2f`, branch `mvp0/pr-s31b2`, worktree

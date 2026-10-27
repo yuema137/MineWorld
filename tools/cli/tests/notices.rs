@@ -116,6 +116,47 @@ impl Town {
         Self { scratch }
     }
 
+    /// S31-b2 W1-attr: the copy with `attributes` enabled too, a `configure/attributes.yaml` naming a
+    /// roles-only population profile, `roles` (the profile's `roles:` entries) and `authored`
+    /// (person key, text appended to its file).
+    fn with_attributes(
+        name: &str,
+        configuration: &str,
+        sections: &[(&str, &str)],
+        roles: &str,
+        authored: &[(&str, &str)],
+    ) -> Self {
+        let mut all: Vec<(&str, &str)> = sections.to_vec();
+        all.extend_from_slice(authored);
+        let town = Self::with(name, configuration, &all);
+        let world = town.world();
+        let manifest = world.join("world.yaml");
+        let text = std::fs::read_to_string(&manifest).expect("reads");
+        let text = replaced_once(
+            &text,
+            "  - appearance\n  - notices\n",
+            "  - appearance\n  - notices\n  - attributes\n",
+        );
+        let text = replaced_once(
+            &text,
+            "\nconfigure:\n  - notices\n",
+            "\nconfigure:\n  - notices\n  - attributes\n",
+        );
+        std::fs::write(&manifest, text).expect("writes");
+        std::fs::write(
+            world.join("configure/attributes.yaml"),
+            "format: 1\nprofile: notices-town\nseed: s31b2-fixture\n",
+        )
+        .expect("writes");
+        std::fs::create_dir_all(world.join("populations")).expect("writable");
+        std::fs::write(
+            world.join("populations/notices-town.yaml"),
+            format!("format: 1\nprofile: notices-town\nversion: 1\nroles:\n{roles}"),
+        )
+        .expect("writes");
+        town
+    }
+
     fn world(&self) -> PathBuf {
         self.scratch.join("social-cafe")
     }
@@ -368,4 +409,284 @@ fn removable() {
         "1",
     ]);
     assert!(output.status.success(), "and runs: {}", stderr(&output));
+}
+
+// ---- S31-b2 (`pr-s31b2-notices-attributes.md` §7): notices as attributes, and the topics record ----
+
+/// W1-attr's roles: bob (tag `regular`) follows `prices.ingredients` by role.
+const ROLES: &str =
+    "  - { when: { tags: [regular] }, add: { notices.subscriptions: [prices.ingredients] } }\n";
+
+/// W1-attr's authored value: carol follows both topics, written in `attributes:`.
+const CAROL_AUTHORED: &str =
+    "attributes: { notices.subscriptions: [news.daily, prices.ingredients] }\n";
+
+/// W1-attr: the fixture with `attributes` enabled, no section, bob by role and carol authored.
+fn attribute_town(name: &str) -> Town {
+    Town::with_attributes(
+        name,
+        CONFIGURATION,
+        &[],
+        ROLES,
+        &[("carol", CAROL_AUTHORED)],
+    )
+}
+
+/// W2: the topics renamed (`prices.ingredients` → `market.daily`) and a third topic, published by dev.
+fn w2_configuration() -> String {
+    CONFIGURATION.replacen("prices.ingredients", "market.daily", 1)
+        + "  weather.warnings:\n    body: text\n    publishers: [dev]\n    \
+           valid_for: { min: \"1h\", max: \"1d\" }\n    per_day: 3\n"
+}
+
+/// A `subscribe` request as a client builds one.
+fn subscribe(actor: EntityId, topic: &str) -> Value {
+    json!({
+        "actor": actor,
+        "action_type": "subscribe",
+        "target": null,
+        "payload": { "action_type": "subscribe", "payload": { "topic": topic } },
+        "actor_location": null,
+    })
+}
+
+/// The record of component type `kind` an observation discloses about `subject`, as JSON.
+fn record_about(observation: &WireObservation, subject: EntityId, kind: &str) -> Option<Value> {
+    observation
+        .entity(subject)?
+        .components()
+        .iter()
+        .find(|record| record.component_type().as_str() == kind)
+        .map(|record| record.payload().clone())
+}
+
+/// How many records of component type `kind` an observation carries, about anybody.
+fn records_of(observation: &WireObservation, kind: &str) -> usize {
+    observation
+        .entities()
+        .iter()
+        .flat_map(|entity| entity.components())
+        .filter(|record| record.component_type().as_str() == kind)
+        .count()
+}
+
+/// AC-b2-3, AC-b2-4 through `mineworld validate`: W1-attr validates; W1-attr with `defaults.by_tag` or
+/// a `notices:` section is refused `subscriptions-are-attributes`; W1 (no `attributes`) with both still
+/// validates; in W2-attr a value from W1's topics is refused `UnknownTopic`, naming the vocabulary and
+/// the nearest topic — the vocabulary is the world's own topics.
+#[test]
+fn notices_attributes_by_validate() {
+    let (ok, printed) = attribute_town("notices-attr-valid").validate();
+    assert!(ok, "W1-attr validates: {printed}");
+
+    let with_defaults =
+        format!("{CONFIGURATION}defaults:\n  by_tag: {{ regular: [news.daily] }}\n");
+    let by_tag = Town::with_attributes(
+        "notices-attr-by-tag",
+        &with_defaults,
+        &[],
+        ROLES,
+        &[("carol", CAROL_AUTHORED)],
+    );
+    let (ok, printed) = by_tag.validate();
+    assert!(!ok, "defaults.by_tag beside attributes is refused");
+    assert!(
+        printed.contains("subscriptions-are-attributes"),
+        "{printed}"
+    );
+
+    let section = Town::with_attributes(
+        "notices-attr-section",
+        CONFIGURATION,
+        &[("dev", "notices: { subscribe: [news.daily] }\n")],
+        ROLES,
+        &[],
+    );
+    let (ok, printed) = section.validate();
+    assert!(!ok, "a notices: section beside attributes is refused");
+    assert!(
+        printed.contains("subscriptions-are-attributes"),
+        "{printed}"
+    );
+
+    let (ok, printed) = Town::with(
+        "notices-plain-both",
+        &with_defaults,
+        &[("bob", BOTH), ("carol", BOTH)],
+    )
+    .validate();
+    assert!(ok, "without attributes, both sources load: {printed}");
+
+    let stale = Town::with_attributes(
+        "notices-attr-w2",
+        &w2_configuration(),
+        &[],
+        "  - { when: { tags: [regular] }, add: { notices.subscriptions: [market.daily] } }\n",
+        &[(
+            "carol",
+            "attributes: { notices.subscriptions: [prices.ingredients] }\n",
+        )],
+    );
+    let (ok, printed) = stale.validate();
+    assert!(!ok, "W1's topic is not in W2's vocabulary");
+    assert!(
+        printed.contains("UnknownTopic") || printed.contains("notices.topics"),
+        "{printed}"
+    );
+    assert!(
+        printed.contains("market.daily"),
+        "the nearest topic: {printed}"
+    );
+}
+
+/// AC-b2-5, AC-b2-6 and AC-b2-7 on W1-attr through the server: bob's own `subscriptions` record carries
+/// the rendered attribute; he is told nothing about carol's; his `topics` record lists both topics and
+/// flips `subscribed` after a runtime `subscribe`, which also changes the projected attribute; killed
+/// and restarted, the same; `mineworld replay` agrees.
+#[tokio::test]
+async fn notices_attributes_disclosed_and_resumed() {
+    let town = attribute_town("notices-attr-run");
+    let save = SaveDir::new("notices-attr-run-save");
+    let world = town.world_str();
+    let command = ["server", world.as_str(), "--save", save.path()];
+
+    let mut first = Server::start(&command).await;
+    let mut window = Client::connect(first.address).await;
+    let (carol, _) = window.join("carol").await;
+    drop(window);
+    let mut window = Client::connect(first.address).await;
+    let (bob, _) = window.join("bob").await;
+    let seen = window.observation().await;
+    let own = record_about(&seen, bob, "subscriptions").expect("bob's own record");
+    assert_eq!(
+        own["topics"],
+        json!(["prices.ingredients"]),
+        "by role: {own}"
+    );
+    let rendered = own["attributes"].to_string();
+    assert!(
+        rendered.contains("follows"),
+        "the rendered phrase: {rendered}"
+    );
+    assert!(
+        record_about(&seen, carol, "subscriptions").is_none()
+            && record_about(&seen, carol, "topics").is_none(),
+        "nothing about carol"
+    );
+    assert_eq!(
+        records_of(&seen, "topics"),
+        1,
+        "one topics record: bob's own"
+    );
+    let topics = record_about(&seen, bob, "topics").expect("bob's topics record");
+    assert_eq!(topics["topics"][0]["topic"], json!("news.daily"));
+    assert_eq!(topics["topics"][0]["subscribed"], json!(false));
+    assert_eq!(topics["topics"][1]["subscribed"], json!(true));
+
+    let (_, result) = window.submit(subscribe(bob, "news.daily")).await;
+    assert!(
+        matches!(result, ActionResult::Accepted { .. }),
+        "{result:?}"
+    );
+    let after = window
+        .observation_where("bob follows news.daily", |observation| {
+            record_about(observation, bob, "topics")
+                .is_some_and(|topics| topics["topics"][0]["subscribed"] == json!(true))
+        })
+        .await;
+    let own = record_about(&after, bob, "subscriptions").expect("bob's own record");
+    assert!(
+        own["attributes"].to_string().contains("news.daily"),
+        "the projection follows the subscription: {own}"
+    );
+    let died = first.kill();
+    assert!(died.killed(), "the server died of SIGKILL: {died:?}");
+    drop(window);
+
+    let second = Server::start(&command).await;
+    let mut window = Client::connect(second.address).await;
+    window.join("bob").await;
+    let seen = window.observation().await;
+    let own = record_about(&seen, bob, "subscriptions").expect("bob's record after the kill");
+    assert_eq!(own["topics"], json!(["news.daily", "prices.ingredients"]));
+    assert!(
+        own["attributes"].to_string().contains("news.daily"),
+        "{own}"
+    );
+    drop(window);
+    drop(second);
+
+    let (status, printed) = run_command(&["replay", &world, "--save", save.path()]);
+    assert!(
+        status.success(),
+        "mineworld replay verifies the save: {printed}"
+    );
+}
+
+/// AC-b2-5's W1 half and AC-b2-6 on W1 and W2: without `attributes`, the record has no `attributes`
+/// field; every person's own `topics` record lists the world's topics in id order with its own
+/// `may_publish` and `subscribed`, a non-subscriber's too, and nobody's about another person.
+#[tokio::test]
+async fn topics_record_without_attributes() {
+    for (name, configuration, expected) in [
+        (
+            "notices-topics-w1",
+            CONFIGURATION.to_owned(),
+            vec!["news.daily", "prices.ingredients"],
+        ),
+        (
+            "notices-topics-w2",
+            w2_configuration(),
+            vec!["market.daily", "news.daily", "weather.warnings"],
+        ),
+    ] {
+        let town = Town::with(
+            name,
+            &configuration,
+            &[("bob", "notices: { subscribe: [news.daily] }\n")],
+        );
+        let save = SaveDir::new(&format!("{name}-save"));
+        let world = town.world_str();
+        let server = Server::start(&["server", &world, "--save", save.path()]).await;
+        for seat in ["hana", "bob", "dev"] {
+            let mut window = Client::connect(server.address).await;
+            let (me, _) = window.join(seat).await;
+            let seen = window.observation().await;
+            assert_eq!(records_of(&seen, "topics"), 1, "{seat}: its own only");
+            let topics = record_about(&seen, me, "topics").expect("its topics record");
+            let lines = topics["topics"].as_array().expect("lines");
+            let names: Vec<&str> = lines
+                .iter()
+                .filter_map(|line| line["topic"].as_str())
+                .collect();
+            assert_eq!(names, expected, "{seat} in {name}");
+            for line in lines {
+                let topic = line["topic"].as_str().unwrap_or_default();
+                let publisher = if topic == "weather.warnings" {
+                    "dev"
+                } else {
+                    "hana"
+                };
+                assert_eq!(
+                    line["may_publish"],
+                    json!(seat == publisher),
+                    "{seat} {topic}"
+                );
+                assert_eq!(
+                    line["subscribed"],
+                    json!(seat == "bob" && topic == "news.daily"),
+                    "{seat} {topic}"
+                );
+            }
+            if seat == "bob" {
+                let own = record_about(&seen, me, "subscriptions").expect("bob's record");
+                assert!(
+                    own.get("attributes").is_none(),
+                    "no attributes field: {own}"
+                );
+            }
+            drop(window);
+        }
+        drop(server);
+    }
 }

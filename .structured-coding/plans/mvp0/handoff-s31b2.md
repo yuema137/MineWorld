@@ -13,8 +13,11 @@ Continuation aid only. The authority is [`pr-s31b2-notices-attributes.md`](pr-s3
 
 ## State
 
-- C0: ledger opened; rulings recorded in §14.1; A-10 confirmed.
-- Next: C1 (the configured-data seam), C2 (Part A), C3 (Part B), C4 (real binary and reference), C5.
+- C0 … C3 committed and locally green. C4 committed with one failing real-binary arm (AC-b2-7 restart).
+- **MATERIAL STOP at C4** (see the design's §15): resuming a W1-attr save is refused by the configuration
+  drift check (`worldpack/src/configure.rs`), because the handed `subscriptions-seeded` is a genesis
+  reaction fact. Fix proposed (filter saved facts to `Causation::WorldGenesis`), outside §2.1: awaiting a ruling.
+- Not pushed; no PR yet. C5 waits on the ruling.
 
 ## Outstanding follow-ups for other PRs
 
