@@ -1,6 +1,8 @@
 # PR S23 R-b — The CI release workflow: tag, smoke, checksums, provenance, draft release
 
-## DRAFT (not frozen)
+## DESIGN FROZEN 2026-10-27 (operator approved in the primary session: every question answered as recommended) (not frozen)
+
+**Ruled 2026-10-27 (operator, primary session):** every question below is answered as recommended.
 
 ```text
 Design revision:        revision 1 (2026-10-26), DRAFT (not frozen)
