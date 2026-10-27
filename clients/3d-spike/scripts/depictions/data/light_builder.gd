@@ -1,8 +1,10 @@
 ## The light of a depiction file's `light` section (`DECISIONS.md` ARC-177; S33-d sec.5.7): `VoxelGI`
 ## volumes baked at load over the boxes the file names, and `ReflectionProbe`s updated once -- the café's
 ## pattern (`SliceMain._voxel_gi`, `_reflections`), placed by data instead of by the café's constants.
-## `SliceMain` calls these in place of the café's when the depiction has a `light` section, after the
-## scene is built (a bake reads the built scene). The fixed sun and sky stay the slice's.
+## `SliceMain` calls these when the depiction has a `light` section, after the scene is built (a bake
+## reads the built scene); since 16f-d2 the café's own volumes are Social Café's file's, so a depiction
+## without the section bakes none. A probe whose centre stands inside a place's footprint is that room's
+## interior probe, lit by the slice's interior ambient. The fixed sun and sky stay the slice's.
 ##
 ## The bake's tuning is the slice's, shared by every world (`PRESENTATION.md` sec.7's schema defaults).
 ## Nothing here names a world, a place or a tag.
@@ -20,6 +22,9 @@ const GI_BELOW := 0.5
 ## An outdoor probe's intensity and reach (the café's frontage probe).
 const PROBE_INTENSITY := 0.85
 const PROBE_DISTANCE := 60.0
+## A room's interior probe's intensity and reach (the café's interior probe).
+const INTERIOR_INTENSITY := 1.0
+const INTERIOR_DISTANCE := 26.0
 const SUBDIVS := {64: VoxelGI.SUBDIV_64, 128: VoxelGI.SUBDIV_128, 256: VoxelGI.SUBDIV_256}
 
 
@@ -57,10 +62,24 @@ static func probes(root: Node3D, light: Dictionary, d: SliceDataDepiction) -> vo
 		probe.position = Vector3(box.get_center().x, d.frame_origin().y + float(p["centre_up_m"]),
 			box.get_center().y)
 		probe.box_projection = true
-		probe.interior = false
-		probe.intensity = PROBE_INTENSITY
-		probe.max_distance = PROBE_DISTANCE
 		probe.update_mode = ReflectionProbe.UPDATE_ONCE
+		# a probe whose centre stands inside a place's footprint is that room's interior probe (16f-d2)
+		var inside := false
+		for place in d.places():
+			inside = inside or (place["footprint"] as Rect2).has_point(_centre_mm(p["box_mm"]))
+		probe.interior = inside
+		if inside:
+			probe.intensity = INTERIOR_INTENSITY
+			probe.max_distance = INTERIOR_DISTANCE
+			# The room's own ambient, in place of the sky's: inside an interior probe Godot takes ambient
+			# light from the probe, so the room is lit by a warm, dim fill instead of a cool sky it cannot
+			# see. This is what lets the room read darker and warmer than the street, without a black corner.
+			probe.ambient_mode = ReflectionProbe.AMBIENT_COLOR
+			probe.ambient_color = SliceMain.INTERIOR_AMBIENT
+			probe.ambient_color_energy = SliceMain.INTERIOR_AMBIENT_ENERGY
+		else:
+			probe.intensity = PROBE_INTENSITY
+			probe.max_distance = PROBE_DISTANCE
 		root.add_child(probe)
 		k += 1
 

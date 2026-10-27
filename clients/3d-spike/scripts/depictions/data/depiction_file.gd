@@ -49,7 +49,17 @@ const TYPES := {
 		"extras_from": ["key", false], "decor": [["list", ["obj", "decor"]], false],
 		"viewpoints": [["obj", "viewpoints"], true], "decks": [["list", ["obj", "deck"]], false],
 		"stations": [["list", ["obj", "station_entry"]], false],
+		"station_kit": [["obj", "station_kit"], false],
 	},
+	# `station_kit` (S29-d, ARC-192; 16f-d2): the pack's station kit sited on this street -- its arch's
+	# façade point, facing and floor -- with the west-end eaves the landmark band is read from, the street
+	# views toward it, the far-field shots that are its footprint rows, and the walk's street points
+	"station_kit": {"kit": ["key", true], "facade_mm": [POINT, true], "facing": ["key", true],
+		"floor_m": ["num", true], "eaves": [["list", ["obj", "eaves"]], false],
+		"views": [["list", ["obj", "view"]], false], "landmark_shots": [["list", "str"], false],
+		"walk_via": [["list", ["obj", "walk_point"]], false], "source": ["str", false]},
+	"eaves": {"corner_mm": [POINT, true], "eaves_m": ["num", true]},
+	"walk_point": {"at_mm": [POINT, true], "up_m": ["num", true]},
 	# `stations` (ARC-179; S33-e sec.5.2): fixtures, a platform and its track, from S29-e's station pieces
 	"station_entry": {"name": ["key", true], "style": [["enum", ["timber", "oak"]], true],
 		"fixtures": [["list", ["obj", "fixture"]], false], "platform": [["obj", "platform"], false],

@@ -3200,6 +3200,14 @@ where a board hangs, never what it reads. The building is a `buildings` shell; a
 place that opens off it is an opening with `doorway_of`. A fixture, a platform and a `doorway_of` name one place:
 the place tagged exactly so, else the only place carrying every tag.
 
+A station kit (the optional `station_kit` section, `ARC-192`; 16f-d2) sites one of the pack's station kits
+(`stations/<kit>.yaml`) on the street: its arch's façade point, its facing and its floor height. The client
+builds the depot from the kit; the kit's places bind by the kit's own tags. The section also carries what the
+station's checks read from the street the depot closes — the frontages' west-end eaves, the street's views
+toward the station, the far-field shots that are its footprint rows, and the walk's street points. A facing
+the client cannot draw and a kit the client cannot read refuse the run by the kit's own codes
+(`STATION_SITE_FACING`, `STATION_KIT_*`).
+
 The 3D client refuses by the same names for what it checks — `MALFORMED`, `SCOPE_MISMATCH`, and
 `REFERENCE` for the names only it knows — and trusts a validated pack for the geometry codes. A refused
 file refuses the run by name; there is no fallback drawing (`ARC-146`).

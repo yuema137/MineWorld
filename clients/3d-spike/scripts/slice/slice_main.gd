@@ -599,83 +599,26 @@ func _ssil() -> void:
 	_env.ssil_normal_rejection = 1.0
 
 
-## One VoxelGI over the cafe, its doorway and the pavement immediately outside.
-## Bounded on purpose: the volume that needs real bounce is the room, and a
-## VoxelGI large enough to cover the whole street would have cells too coarse to
-## resolve a counter. The extents reach 4 m out past the facade so that the
-## light spilling out of the door and the light bouncing in off the sunlit
-## paving are both inside the bake.
+## The depiction's GI volumes (a depiction file's `light` section, S33-d C9; `DepictionLight`): one
+## VoxelGI each. Bounded on purpose: the volume that needs real bounce is a room, and a VoxelGI large
+## enough to cover a whole street would have cells too coarse to resolve a counter. Social Café's reaches
+## 4 m out past the café's façade, so that the light spilling out of the door and the light bouncing in
+## off the sunlit paving are both inside the bake. A depiction with none bakes none (16f-d2: the café's
+## own volumes are its file's now).
 func _voxel_gi() -> void:
-	# a world drawn from a depiction file with a `light` section bakes its own volumes (S33-d C9)
 	var data := depiction as SliceDataDepiction
 	if data != null and not data.light().is_empty():
 		DepictionLight.voxel_gi(self, data.light(), data)
-		return
-	var v := VoxelGI.new()
-	v.name = "CafeGI"
-	var d := VoxelGIData.new()
-	v.data = d
-	# 128, was 256: the Default tier's frame budget (RL-b SD-RLb-6a). The visible
-	# change -- a warmer, brighter florist, a small tone shift in the café -- was
-	# accepted by the operator on 2026-10-09 and the frames re-baselined on it.
-	v.subdiv = VoxelGI.SUBDIV_128
-	var depth := SliceCafe.DEPTH + 9.0
-	v.size = Vector3(SliceCafe.W + 5.0, 9.0, depth)
-	v.position = Vector3(6.0, 4.0,
-		SliceStreet.NORTH_FACE - SliceCafe.DEPTH * 0.5 + 4.5)
-	add_child(v)
-	# Baked at load, from script. The scene is fully built by this point, which
-	# is why `_gi()` runs after `SliceWorld.build`.
-	v.bake(self, false)
-	# The tuning lives on the data resource, not on the node: VoxelGI is the
-	# placement and VoxelGIData is the bake, and the bake is what `energy`,
-	# `propagation` and the biases belong to.
-	d = v.data
-	d.energy = 1.15
-	d.propagation = 0.62
-	d.bias = 1.4
-	d.normal_bias = 0.6
 
 
-## Reflection probes: one inside the cafe and one over the pavement in front of
-## it. `VISUAL_SLICE.md` sec.7.1 requires that glass, a polished counter top and
-## metal reflect the room they are in rather than the sky through the ceiling,
-## and sky-only reflection is exactly how an interior gets that wrong.
+## The depiction's reflection probes (`DepictionLight.probes`). `VISUAL_SLICE.md` sec.7.1 requires
+## that glass, a polished counter top and metal reflect the room they are in rather than the sky
+## through the ceiling, and sky-only reflection is exactly how an interior gets that wrong. A probe
+## inside a room is that room's interior probe, lit by INTERIOR_AMBIENT; any other is a street probe.
 func _reflections() -> void:
 	var data := depiction as SliceDataDepiction
 	if data != null and not data.light().is_empty():
 		DepictionLight.probes(self, data.light(), data)
-		return
-	var inside := ReflectionProbe.new()
-	inside.name = "CafeProbe"
-	inside.size = Vector3(SliceCafe.W, 3.4, SliceCafe.DEPTH)
-	inside.origin_offset = Vector3.ZERO
-	inside.position = Vector3(6.0, SliceStreet.WALK_Y + 1.7,
-		SliceStreet.NORTH_FACE - SliceCafe.DEPTH * 0.5)
-	inside.box_projection = true
-	inside.interior = true
-	inside.intensity = 1.0
-	inside.max_distance = 26.0
-	inside.update_mode = ReflectionProbe.UPDATE_ONCE
-	# The room's own ambient, in place of the sky's: inside an interior probe
-	# Godot takes ambient light from the probe, so the café is lit by a warm,
-	# dim fill instead of a cool sky it cannot see. This is what lets the room
-	# read darker and warmer than the street, as in 03, without a black corner.
-	inside.ambient_mode = ReflectionProbe.AMBIENT_COLOR
-	inside.ambient_color = INTERIOR_AMBIENT
-	inside.ambient_color_energy = INTERIOR_AMBIENT_ENERGY
-	add_child(inside)
-
-	var outside := ReflectionProbe.new()
-	outside.name = "FrontageProbe"
-	outside.size = Vector3(22.0, 9.0, 9.0)
-	outside.position = Vector3(6.0, 3.2, SliceStreet.NORTH_FACE + 3.4)
-	outside.box_projection = true
-	outside.interior = false
-	outside.intensity = 0.85
-	outside.max_distance = 60.0
-	outside.update_mode = ReflectionProbe.UPDATE_ONCE
-	add_child(outside)
 
 
 # --- player and HUD ------------------------------------------------------------

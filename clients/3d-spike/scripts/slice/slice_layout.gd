@@ -39,7 +39,7 @@
 ## widened or guessed (R-16c-1). No place key is named here.
 ##
 ## The drawn doors are the depiction's (`SliceDepiction.doors()`, the scene's one
-## registry `SliceTerrace.doors`), filled by the code that builds each door:
+## registry `SliceDoors.rows`), filled by the code that builds each door:
 ## [sill centre (global), façade yaw, label, the room's place volume ("" for a
 ## closed door), the depth from the sill to the room's inner face, the room
 ## floor's height above the sill] (D-16c-4).
@@ -82,7 +82,7 @@ var origins := {}
 var drawn_as := {}
 ## place id -> the scene volume that depicts it ("" for a door)
 var volumes := {}
-## place id -> the index in `SliceTerrace.doors` of the door bound to it
+## place id -> the index in `SliceDoors.rows` of the door bound to it
 var doors := {}
 ## place id -> why a doorway to it bound nothing:
 ## { "at": scene point, "nearest": label, "distance": metres, "why": text }
@@ -247,7 +247,7 @@ func _entries() -> Array:
 
 
 func _doors() -> Array:
-	return depiction.doors() if depiction != null else SliceTerrace.doors
+	return depiction.doors() if depiction != null else SliceDoors.rows
 
 
 ## The index of the entry that depicts a place with `place_tags`, or -1: every

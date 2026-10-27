@@ -104,6 +104,16 @@ func _run() -> void:
 		_fail("cannot load the source %s" % source_path)
 		return
 	_source = script.new()
+	# the source's declared scale (VISUAL_SLICE.md sec.3), checked before anything is written
+	var out_of_range := 0
+	for r in (_source.scale_rows() if _source.has_method("scale_rows") else []):
+		var v := float(r[1])
+		var ok := v >= float(r[2]) - 1e-6 and v <= float(r[3]) + 1e-6
+		out_of_range += 0 if ok else 1
+		print("SCALE %-28s %7.3f   [%.2f .. %.2f]  %s" % [r[0], v, r[2], r[3], "ok" if ok else "OUT OF RANGE"])
+	if out_of_range > 0:
+		_fail("%d SCALE rows out of range" % out_of_range)
+		return
 	var licences: Array = _source.licences()
 	var assets := []
 	for piece in _source.pieces():
@@ -147,7 +157,7 @@ func _export_piece(piece: Dictionary, licences: Array) -> String:
 	var scene := Node3D.new()
 	scene.name = "scene"
 	top.add_child(scene)
-	SliceTerrace.doors.clear()
+	SliceDoors.rows.clear()
 	(piece["build"] as Callable).call(scene)
 	var entrances: Variant = _entrances(scene, piece)
 	if entrances is String:
@@ -185,14 +195,14 @@ func _export_piece(piece: Dictionary, licences: Array) -> String:
 	return ""
 
 
-## One empty node per drawn door the piece registered (`SliceTerrace.doors`, D-16c-4), at the door's
+## One empty node per drawn door the piece registered (`SliceDoors.rows`, D-16c-4), at the door's
 ## street-side out-point, facing out; named by the source. Returns [{name, label, space, depth_m,
 ## floor_m}], or a String when the source names a door that is not there.
 func _entrances(top: Node3D, piece: Dictionary) -> Variant:
 	var names: Dictionary = piece.get("entrances", {})
 	var out := []
 	var i := 0
-	for door in SliceTerrace.doors:
+	for door in SliceDoors.rows:
 		var label: String = door[2]
 		var name := ""
 		for n in names:

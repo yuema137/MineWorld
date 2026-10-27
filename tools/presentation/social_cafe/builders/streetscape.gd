@@ -8,8 +8,10 @@
 ## feeling about how much is enough -- both plates are crowded with small
 ## objects along the kerb line, and an empty pavement is the clearest single
 ## tell that a street was modelled rather than observed.
-class_name SliceStreetscape
 extends RefCounted
+
+const SliceStreet := preload("street.gd")
+const Profile := preload("profile.gd")
 
 const WALK := SliceStreet.WALK_Y
 ## The planted bank's west face at the street's east end (`SliceStreet.build`'s

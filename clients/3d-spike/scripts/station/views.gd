@@ -50,33 +50,26 @@ static func perf(station: Dictionary) -> Array:
 
 ## The landmark check's rows (S29-d §5.9): each of `lm1` ([name, eye, yaw, pitch]) with the compass
 ## bearing it faces and the band's top -- the elevation, from that eye, of the lower of the two frontage
-## eaves at the street's west end, read from the built terrace (`SliceTerrace.massing`) -- and each of
-## `lm2` as a footprint row.
-static func landmark(_station: Dictionary, lm1: Array, lm2: Array) -> Array:
+## eaves at the street's west end, `station.eaves` -- and each of `lm2` as a footprint row.
+static func landmark(station: Dictionary, lm1: Array, lm2: Array) -> Array:
 	var out := []
 	for v in lm1:
 		var eye: Vector3 = v[1]
-		out.append([v[0], eye, v[2], v[3], fposmod(-float(v[2]), 360.0), band_top(eye)])
+		out.append([v[0], eye, v[2], v[3], fposmod(-float(v[2]), 360.0), band_top(eye, station.get("eaves", []))])
 	for s in lm2:
 		out.append([s[0], s[1], s[2], s[3], "footprint"])
 	return out
 
 
-## The elevation (degrees) of the lowest west-end eaves seen from `eye`: of each side of the street, the
-## westernmost unit's eaves at its west corner on the façade.
-static func band_top(eye: Vector3) -> float:
-	var west := {}      # side (-1 north, +1 south) -> [x of the west corner, eaves height, façade z]
-	for m in SliceTerrace.massing:
-		var xf: Transform3D = m[0]
-		var side := signf(xf.origin.z)
-		var x0: float = xf.origin.x - float(m[1]) * 0.5
-		if not west.has(side) or x0 < west[side][0]:
-			west[side] = [x0, xf.origin.y + float(m[2]), xf.origin.z]
+## The elevation (degrees) of the lowest of `eaves` seen from `eye`. `eaves` are scene points: of each
+## side of the street, the westernmost unit's eaves at its west corner on the façade. Since 16f-d2 the
+## terrace is pack art, so its authoring source writes these points into the depiction file
+## (`station_kit.eaves`) instead of the client reading the built terrace.
+static func band_top(eye: Vector3, eaves: Array) -> float:
 	var lowest := INF
-	for side in west:
-		var w: Array = west[side]
-		var dist := Vector2(w[0] - eye.x, w[2] - eye.z).length()
-		lowest = minf(lowest, rad_to_deg(atan2(float(w[1]) - eye.y, dist)))
+	for w: Vector3 in eaves:
+		var dist := Vector2(w.x - eye.x, w.z - eye.z).length()
+		lowest = minf(lowest, rad_to_deg(atan2(w.y - eye.y, dist)))
 	return lowest
 
 

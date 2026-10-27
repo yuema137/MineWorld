@@ -10,6 +10,12 @@ terrain, water and massing at different bearings, so a check that hard-codes a b
     ./mineworld-slice --farfield --far-field-file=<out-dir>/<stem>.yaml
 
 The output keeps the input's file name (a far-field file's scope must equal its stem).
+
+    python3 scripts/far_field_variant.py <file> 0 <pack>/far_field --world=<key>
+
+writes the same far field for another world drawn on the same street, as `<key>.yaml` with its scope
+that world and its `datum_source` naming the file it was copied from (Market Town on Social Café's
+street, S14 16f-d2): data, so the client keeps no list of which world borrows whose far field.
 """
 
 from __future__ import annotations
@@ -45,17 +51,32 @@ def rotate(data: dict, degrees: float) -> dict:
     return data
 
 
+def rescope(data: dict, world: str, source_name: str) -> dict:
+    """The same far field presented for another world: its scope is that world, and its datum says
+    whose far field it was copied from (presentation data, S14 16f-d2, finding F-d1-8)."""
+    data["scope"] = {"world": world}
+    note = f"copied from {source_name}'s far field, the street {world} is drawn on (S14 16f-d2)"
+    data["datum_source"] = f"{note}; {data.get('datum_source', '')}".rstrip("; ")
+    return data
+
+
 def main(argv: list[str]) -> int:
-    if len(argv) != 4:
+    args = [a for a in argv[1:] if not a.startswith("--world=")]
+    worlds = [a.removeprefix("--world=") for a in argv[1:] if a.startswith("--world=")]
+    if len(args) != 3 or len(worlds) > 1:
         print(__doc__.strip().splitlines()[0], file=sys.stderr)
-        print("usage: far_field_variant.py <file> <degrees> <out-dir>", file=sys.stderr)
+        print("usage: far_field_variant.py <file> <degrees> <out-dir> [--world=<key>]", file=sys.stderr)
         return 2
-    source = Path(argv[1])
-    degrees = float(argv[2])
-    out_dir = Path(argv[3])
+    source = Path(args[0])
+    degrees = float(args[1])
+    out_dir = Path(args[2])
     data = rotate(json.loads(source.read_text(encoding="utf-8")), degrees)
+    name = source.name
+    if worlds:
+        data = rescope(data, worlds[0], source.stem)
+        name = f"{worlds[0]}.yaml"
     out_dir.mkdir(parents=True, exist_ok=True)
-    out = out_dir / source.name
+    out = out_dir / name
     out.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print(f"{out}: every bearing of {source} turned by {degrees:g} degrees")
     return 0

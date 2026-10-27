@@ -19,8 +19,11 @@
 ## the player cannot see through, and `build` checks that by testing each box
 ## against every glass triangle in the slice and every street door, and reports
 ## any overlap as an error rather than trusting the geometry above.
-class_name SliceOccluders
 extends RefCounted
+
+const SliceCafe := preload("cafe.gd")
+const SliceShopInterior := preload("shop_interior.gd")
+const SliceTerrace := preload("terrace.gd")
 
 ## Each box is pulled this far inside the solid it stands for.
 const INSET := 0.02
@@ -131,7 +134,7 @@ static func _overlaps(root: Node3D, boxes: Array[AABB]) -> int:
 				tri = tri.expand(xf * v[idx[i + 1]]).expand(xf * v[idx[i + 2]])
 				glass.append(tri)
 	var doors: Array[AABB] = []
-	for d in SliceTerrace.doors:
+	for d in SliceDoors.rows:
 		var p: Vector3 = d[0]
 		var yaw: float = d[1]
 		doors.append(Transform3D(Basis(Vector3.UP, yaw), p) * AABB(

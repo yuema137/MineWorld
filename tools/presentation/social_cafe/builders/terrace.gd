@@ -9,8 +9,11 @@
 ## leak light into windows that have no room behind them. What a lit window has
 ## instead is a shallow recess with a warm card and a few boxes in it, so that
 ## looking into it from the pavement shows depth rather than a black pane.
-class_name SliceTerrace
 extends RefCounted
+
+const SliceShopInterior := preload("shop_interior.gd")
+const SliceStreet := preload("street.gd")
+const Profile := preload("profile.gd")
 
 enum Roof { PARAPET, PITCHED, GABLE }
 
@@ -34,7 +37,7 @@ const HOUSE_DOOR := [Color(0.420, 0.118, 0.110), Color(0.140, 0.200, 0.330),
 ## slice can bind each doorway the world discloses to the door it lands on
 ## (`SliceLayout`, step-15 D-16c-4). A closed door's depth is the façade skin's:
 ## nothing is drawn behind it.
-static var doors: Array = []
+## (The rows live in the client's one registry, `SliceDoors.rows`.)
 ## Every unit's solid massing, as [global transform, width, height to the eaves,
 ## depth, enterable], for the occluders (RL-b SD-RLb-5, `occluders.gd`).
 static var massing: Array = []
@@ -156,7 +159,7 @@ static func _shopfront(g: Node3D, u: Unit, h: float, holes: Array, pocket: Array
 	var door_x := x_l + 0.82
 	var door_w := 1.02
 	Profile.door(g, door_x, 0.0, door_w, 2.22, u.front_c, true, u.enterable)
-	doors.append([g.to_global(Vector3(door_x, 0.0, 0.0)), g.global_rotation.y,
+	SliceDoors.rows.append([g.to_global(Vector3(door_x, 0.0, 0.0)), g.global_rotation.y,
 		u.name_text + (" -- enterable" if u.enterable else ""), u.volume if u.enterable else "",
 		SKIN, SliceShopInterior.FLOOR_Y if u.enterable else 0.0])
 
@@ -243,7 +246,7 @@ static func _ground_floor(g: Node3D, u: Unit, h: float, holes: Array) -> void:
 	holes.append(Rect2(door_x - 0.52, 0.0, 1.04, 2.56))
 	Profile.door(g, door_x, 0.0, 1.04, 2.10, HOUSE_DOOR[int(absf(u.x0)) % HOUSE_DOOR.size()],
 		false)
-	doors.append([g.to_global(Vector3(door_x, 0.0, 0.0)), g.global_rotation.y, "house door", "",
+	SliceDoors.rows.append([g.to_global(Vector3(door_x, 0.0, 0.0)), g.global_rotation.y, "house door", "",
 		SKIN, 0.0])
 	var n := maxi(1, int((w - 3.2) / 2.6))
 	for i in range(n):

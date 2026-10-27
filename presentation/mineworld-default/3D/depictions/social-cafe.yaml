@@ -1,7 +1,7 @@
 {
   "format": 1,
   "scope": {
-    "world": "market-town"
+    "world": "social-cafe"
   },
   "frame": {
     "origin_m": [
@@ -15,9 +15,9 @@
       "street"
     ],
     "footprint_mm": [
-      -37450,
+      -62450,
       -13000,
-      68000,
+      93000,
       16200
     ]
   },
@@ -52,22 +52,6 @@
       "doorway_mm": [
         8390,
         2800
-      ]
-    },
-    {
-      "tags": [
-        "station"
-      ],
-      "label": "The halt",
-      "footprint_mm": [
-        -79250,
-        -30800,
-        16800,
-        51800
-      ],
-      "doorway_mm": [
-        -62050,
-        -4900
       ]
     }
   ],
@@ -132,18 +116,82 @@
         "entrance": "front_door",
         "at_doorway": true
       }
-    },
-    {
-      "asset": "social-cafe-halt",
-      "depicts": [
-        "station"
-      ],
-      "anchor": {
-        "entrance": "front_door",
-        "at_doorway": true
-      }
     }
   ],
+  "station_kit": {
+    "kit": "depot",
+    "facade_mm": [
+      -62450,
+      -4900
+    ],
+    "facing": "east",
+    "floor_m": 0.14,
+    "eaves": [
+      {
+        "corner_mm": [
+          -37450,
+          3200
+        ],
+        "eaves_m": 11.04
+      },
+      {
+        "corner_mm": [
+          -35450,
+          -13000
+        ],
+        "eaves_m": 6.44
+      }
+    ],
+    "views": [
+      {
+        "name": "st_1_spawn_west",
+        "at_mm": [
+          -14950,
+          650
+        ],
+        "eye_m": 1.8,
+        "yaw_deg": 90.0,
+        "pitch_deg": 4.0
+      },
+      {
+        "name": "st_2_east_end_west",
+        "at_mm": [
+          26550,
+          -4900
+        ],
+        "eye_m": 1.8,
+        "yaw_deg": 90.0,
+        "pitch_deg": 2.0
+      }
+    ],
+    "landmark_shots": [
+      "ff_5_west_aerial"
+    ],
+    "walk_via": [
+      {
+        "at_mm": [
+          0,
+          300
+        ],
+        "up_m": 0.45
+      },
+      {
+        "at_mm": [
+          900,
+          300
+        ],
+        "up_m": 0.45
+      },
+      {
+        "at_mm": [
+          900,
+          -4900
+        ],
+        "up_m": 0.45
+      }
+    ],
+    "source": "S29-d sec.5.5 and sec.5.8 (ARC-192): the depot kit's façade 0.40 m behind the street's doorway to the station (-62 050, -4 900) mm, on the street's axis, the arch facing east; its floors on the pavement (the street's WALK_Y); the eaves are the terrace's as built"
+  },
   "light": {
     "gi": [
       {
@@ -438,22 +486,6 @@
       "cafe frontage",
       "interior"
     ],
-    "probe_route": [
-      [
-        "street"
-      ],
-      [
-        "cafe"
-      ],
-      [
-        "street"
-      ],
-      [
-        "store"
-      ],
-      [
-        "street"
-      ]
-    ]
+    "probe_route": []
   }
 }
