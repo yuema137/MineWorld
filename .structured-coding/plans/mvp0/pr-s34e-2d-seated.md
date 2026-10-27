@@ -11,6 +11,14 @@ Execution contract:     §10
 Lifecycle:              DRAFT — never frozen by its author
 ```
 
+**Dated note, 2026-10-27 (operator ruling Q-S34c3-3; SD-c3-5 in
+[`pr-s34c3-station-sit-points.md`](pr-s34c3-station-sit-points.md) §5.5).** Posture will offer `sit`
+only for points within 5 m (Q-S34c3-1). A far seat is then disclosed in the place's sit points but has no
+offer. The shared chain (SD-e-2) changes one row: `none -> {}` becomes
+`none, and the point is disclosed -> {walk: {place, local: at}}`, then the newest offer is used on arrival.
+`none` for a point that is not disclosed stays `{}`. The client measures no distance (I-S34-4): "not
+offered" is the server's answer. S34-f reuses this chain unchanged. Add one test arm for the new row.
+
 **Effort:** `mvp0`, release-blocking · **Step:** [`step-34-posture.md`](step-34-posture.md) §§8.1, 8.4, 9.1,
 12–14 (the S34-e row; AC-S34-8 2D half, AC-S34-10; I-S34-4, I-S34-5; X-S34-5; Q-S34-9, Q-S34-10, Q-S34-14) ·
 **Previous PRs:** [`pr-s34a-posture-pack.md`](pr-s34a-posture-pack.md) (#301),
