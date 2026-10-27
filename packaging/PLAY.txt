@@ -35,6 +35,8 @@ UNINSTALL
 CHECK THE DOWNLOAD (optional)
   shasum -a 256 -c SHA256SUMS      (macOS)     sha256sum -c SHA256SUMS   (Linux)
   Get-FileHash <file>              (Windows PowerShell)
+  Where it was built (needs the GitHub CLI):
+  gh attestation verify <file> -R yuema137/MineWorld
 
 LICENCES
   MIT (LICENSE). Exceptions, asset records and third-party notices: NOTICE and
