@@ -87,7 +87,7 @@ func refresh(obs: MineWorldObservation) -> void:
 	if subject == "" or obs == null:
 		return
 	var currency := MineWorldMoney.currency_of(obs)
-	rows = trade.answer_rows(obs, currency)
+	rows = trade.answer_rows(obs, currency, func(at: int) -> String: return MineWorldClockFormat.day_time(at))
 	if _self:
 		rows.append_array(trade.sale_rows(obs, "", currency))
 		rows.append_array(trade.stall_rows(obs, currency))

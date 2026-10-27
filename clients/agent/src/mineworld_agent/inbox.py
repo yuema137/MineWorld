@@ -8,7 +8,8 @@ fact arrives at the bound, the oldest is dropped and counted (`dropped`). Each f
 Payloads read by name, as a client knows them (pr-s27c C-8): conversation's `spoke` (`speaker`, `listener`,
 `utterance`) and movement's `walk-ended` (`person`); and, as `EventLine.reading` (pr-s31g §5.5), economy's
 `sold`, `listed`, `price-set` and `withdrawn`, and the notices pack's `notice-published`, `subscribed` and
-`unsubscribed`. A payload that does not read gives no reading; the fact is still listed. Every other fact shows
+`unsubscribed`; and economy's `price-proposed`, `proposal-accepted`, `proposal-declined` and
+`proposal-withdrawn` (pr-s31h §5.14). A payload that does not read gives no reading; the fact is still listed. Every other fact shows
 its type and its participants; `detail` adds its payload as an envelope, capped at 1 KiB.
 """
 
@@ -32,6 +33,7 @@ from mineworld_agent.models import (
     EventRef,
     NoticeReading,
     OfferAvailable,
+    ProposalReading,
     Reading,
     SaleReading,
     SpokenTo,
@@ -53,6 +55,9 @@ SPOKE = "spoke"
 WALK_ENDED = "walk-ended"
 SOLD, LISTED, PRICE_SET, WITHDRAWN = "sold", "listed", "price-set", "withdrawn"
 NOTICE_PUBLISHED, SUBSCRIBED, UNSUBSCRIBED = "notice-published", "subscribed", "unsubscribed"
+PRICE_PROPOSED = "price-proposed"
+PROPOSAL_FACTS = (PRICE_PROPOSED, "proposal-accepted", "proposal-declined", "proposal-withdrawn")
+"""economy's four haggling facts (pr-s31h §5.7), each heard only by its buyer and those who may answer it."""
 
 
 @dataclass(slots=True)
@@ -123,7 +128,38 @@ def reading(event: PerceivedEvent, refs: RefTable, lexicon: Lexicon) -> Reading 
     if kind in (SUBSCRIBED, UNSUBSCRIBED):
         topic = disclosed.topic(field("topic"))
         return None if topic is None else TopicReading(topic=topic)
+    if kind in PROPOSAL_FACTS:
+        return _proposal_reading(event, refs, lexicon)
     return None
+
+
+def _proposal_reading(
+    event: PerceivedEvent, refs: RefTable, lexicon: Lexicon
+) -> ProposalReading | None:
+    """economy's four proposal facts: `{ proposal, seller, buyer, item, price }`, and for `price-proposed` also
+    `place?` and `valid_until` (pr-s31h §5.7)."""
+    field = partial(_field, event)
+    number, price = _minor(field("proposal")), _minor(field("price"))
+    seller, buyer = disclosed.any_entity(field("seller")), disclosed.any_entity(field("buyer"))
+    item, where = disclosed.any_entity(field("item")), disclosed.any_entity(field("place"))
+    until = field("valid_until")
+    if number is None or number < 1 or price is None:
+        return None
+    if seller is None or buyer is None or item is None:
+        return None
+    proposed = event.event_type == PRICE_PROPOSED
+    if proposed and (not isinstance(until, int) or isinstance(until, bool)):
+        return None
+    return ProposalReading(
+        proposal=number,
+        seller=refs.ref(seller),
+        buyer=refs.ref(buyer),
+        item=refs.ref(item),
+        name=lexicon.name(item),
+        price=lexicon.amount(price),
+        place=None if where is None else refs.ref(where),
+        valid_until=until if proposed and isinstance(until, int) else None,
+    )
 
 
 class Inbox:

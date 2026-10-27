@@ -110,7 +110,7 @@ uses `/`. Unknown keys are ignored with a warning, so a newer pack degrades rath
 | `look:<key>` | the Person whose disclosed `look` (the `appearance` System Pack's component, `ARC-91`) is `<key>`, the observer included | the person's disclosed `look`; asked before `player` and `person:<n>` (`ARC-92`) |
 | `player` | the Person this client controls, when no `look:<key>` role binds its look | the observer's look is undisclosed or unbound |
 | `person:<n>`, n = 0, 1, … | the cast; the client uses as many as the set binds contiguously from 0 | a stable hash of the person's id **string**, modulo the cast size |
-| `facade:<tag>` | the outside of a place whose tags include `<tag>` | the place's tags, in the order the world lists them; the first bound one wins |
+| `facade:<tag>[+<tag>…]` | the outside of a place whose tags include every named tag | the most specific bound key the place matches (below); `facade:station+landmark` beats `facade:station` |
 | `facade:unknown:<n>` | a place not yet visited in this instance (`ARC-45` point 3), or a visited place none of whose tags is bound | the stable hash of the place's id string |
 | `prop:<name>` | anything `renderer/godot.yaml` places: dressing, fittings, edge planting | named by that file |
 | `texture:floor`, `texture:paper` | the interior floor tile; the paper tooth of the `grade` effect | named by that file |
@@ -120,6 +120,19 @@ uses `/`. Unknown keys are ignored with a warning, so a newer pack degrades rath
 A role the client asks for that the set does not bind is drawn plainly. The client never asks for a
 role by a world key (`alice`, `cafe`), only by tag, disclosed component value (`look:<key>`), index or
 hash.
+
+**Tag set keys (`ARC-196`).** A `facade:` role, and an `interiors`, `outdoor` or `facades` key of §4,
+names one tag or several joined by `+`. A place matches a key when it carries every named tag. Of the
+keys a place matches, the one naming the most tags wins; among equals, the one whose first tag comes
+first in the place's own tag order. `*` and `facade:unknown:<n>` are never matched this way. Example:
+with `facade:station` and `facade:station+landmark` bound, a hall tagged `[station, public, landmark]`
+is drawn as the depot and one tagged `[station, public]` as the halt, whatever order the world lists
+the tags in.
+
+**Stateful roles (`ARC-108`, `ARC-196`).** A fitting with a `state` (§4) is drawn by `<role>:<value>`,
+the value taken from the station fixture state (`open` or `shut`), falling back to `<role>`. A
+furnishing kind the pack's `furnishings.states` names does the same: `furnishing.kiosk:open`,
+`furnishing.kiosk:shut`, then `furnishing.kiosk`.
 
 A person is drawn by the first of these that the set binds (`ARC-92`, the same order as the 3D
 client's):
@@ -154,7 +167,8 @@ sprite, the default pack binds every look to the generic sprite closest to that 
     "*":     { "width_m": w, "depth_m": d, "door_from_left_m": a, "fittings": [ … ], "lights": [ … ] },
     "<tag>": { … }
   },
-  "edges": { "roles": [ "prop:…" ], "rows": 3, "spacing_m": 3.9, "row_gap_m": 2.6 }
+  "edges": { "roles": [ "prop:…" ], "rows": 3, "spacing_m": 3.9, "row_gap_m": 2.6 },
+  "furnishings": { "states": { "<kind prefix>": "kiosk" | "window" } }
 }
 ```
 
@@ -169,10 +183,12 @@ sprite, the default pack binds every look to the generic sprite closest to that 
   the frontage (positive to the right as seen from the street), `out_m` out into the place the
   doorway is disclosed from, `in_m` into the place it leads to. Which way "in" is follows from the
   doorway's position relative to the centre of the rectangle the root place's doorways span: a doorway
-  north of that centre leads north, and so on along the dominant axis. Nothing is placed at an
-  absolute coordinate or by a world key.
-- **`facades`** — dressing outside each doorway, by the destination's tag once known; `*` applies to
-  every doorway, before the tag's own list.
+  north of that centre leads north, and so on along the dominant axis. A doorway that alone holds an
+  end of the root place's long axis, between its two sides (more than 0.5 m inside each), leads
+  outward along that axis (`ARC-196`): a station closing a street's west end runs west. Nothing is
+  placed at an absolute coordinate or by a world key.
+- **`facades`** — dressing outside each doorway, by the destination's most specific tag set key once
+  known; `*` applies to every doorway, before the key's own list.
 - **`outdoor`** — a destination tag drawn as open ground instead of a building (no façade, nothing
   lifts): its footprint and dressing. The footprint is decoration and is never enforced
   (`ARC-45` point 5).
@@ -180,7 +196,23 @@ sprite, the default pack binds every look to the generic sprite closest to that 
   place (the cut-away: the façade fades out, walls stand on the far sides, stubs on the near sides):
   `width_m` along the frontage, `depth_m` inward, the doorway `door_from_left_m` from its left edge;
   `fittings` are `{ "role", "along_m", "in_m" }` measured from the doorway; `lights` are
-  `{ "along_m", "in_m" }` pools of lamplight. `*` is used for a tag with no entry.
+  `{ "along_m", "in_m" }` pools of lamplight. `*` is used for a tag with no entry. Optional, all
+  presentation (`ARC-196`):
+  - a fitting's **`state`** (`kiosk` or `window`) draws it by `<role>:<value>` from the fixture state
+    of `MineWorldStationState` (`ARC-108`), for the place the observer stands in; any other place's
+    fittings show what nothing disclosed shows (shut);
+  - a fitting's **`label`** writes a word over it: `board` reads "No service yet" (`sign.no_service`)
+    until a `departures` record is disclosed, then one line per entry; `window` reads "Closed"
+    (`sign.window_closed`) while the window is shut;
+  - a fitting's **`flip`** (`true`) mirrors its sprite, so a piece drawn along one plan axis runs along
+    the other (the platform's track runs north–south);
+  - **`wall_m`** (default 2.8) is the height of the room's far walls; the near stubs are at most
+    0.42 m; `0` draws a floor with no walls (an open platform uses 1.1).
+
+  **A shaped room (`ARC-196`).** Once the observer has stood in a place whose observation carries
+  `place-shape` (`bodies`), the room is drawn at that floor, not at `width_m` × `depth_m`, and a room
+  entered from inside runs from its door toward the floor's middle. A place with no disclosed shape,
+  and a façade seen from outside before it is entered, keep the spec's size.
 - **`edges`** — planting beyond the root place's extent, so the town does not end at the edge of the
   frame: `rows` rows, `spacing_m` apart along each side, cycling through `roles`.
 
@@ -294,6 +326,8 @@ header, a duplicate key, and an `action.*` or `reason.*` key that is not well fo
 | `ui.*` | fixed interface text: the hint line, the status line, "walk to", "not supported by this client", "needs {metres} m", result framings, prompts | as each key's English shows |
 | `panel.*` | the title of a panel showing an own component | none |
 | `word.<word>` | a word a pack discloses for a need or a lateness level (`hungry`, `sleepy`, `warning`, and a need's own name such as `hunger`); an unworded word reads as itself (S35 N-e) | none |
+| `place.<tag>` | a place's name on a doorway's label, by the first entry of the client's ordered table (`ticket-office`, `platform`, `station`, then `cafe`, `park`, `store`, `apartments`, `workplace`, `street`) whose tag the destination carries; in the shared catalogs | none |
+| `sign.no_service`, `sign.window_closed` | a station's departures board with nothing disclosed, and its shut ticket window's plate (`ARC-108`); in the shared catalogs, shared with the 3D client (#476) | none |
 | `ui.join.*` | the join screen (PR 13e): title, field labels, the Join and Take over buttons, "cannot reach {address}", "loading the people…" | as each key's English shows |
 | `ui.seat.*` | seat messages (PR 13e): `ui.seat.hosted` and `ui.seat.connection` after a welcome that took the Person over (`{who}` the observer's display name), `ui.seat.ended` when the server ended the seat (`{reason}`, worded as `reason.<code>`) | as each key's English shows |
 | `ui.event.<event_type>` | a notice for a fact the `events` table (§4.1) shows as a notice; built from data, so the client holds no event type | `{who}` the subjects' names; every top-level string or whole-number payload field by its name |

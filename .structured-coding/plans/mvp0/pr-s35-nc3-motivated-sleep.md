@@ -267,3 +267,7 @@ Size: about 350 lines of Rust and tests. Implementer: Opus (the fit needs judgem
     `base.offered` (200) × `shopping` hour × `hungry`, so it never reaches the band of `stay` (300). Recommended:
     a `base.eat` weight for food offers and the `eating` hour in place of `shopping` for them (a parameter and a
     scoring change, so a design question).
+- 2026-10-26 — **After-the-fact confirmation and a deferral** (operator, "all pending questions as recommended",
+  relayed by the coordinator). PR #438 (N-c3: two-process sleep, tiredness recovering exponentially, Q-Nc3-5) is
+  confirmed as merged. F-Nc3-1, the `motivated` controller's eat weight (a `base.eat` weight and the `eating`
+  hour for food offers), is a **known issue deferred to after the milestone**; it is designed then, not patched.

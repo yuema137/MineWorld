@@ -21,6 +21,7 @@ from mineworld_agent.models import (
     CurrencyLine,
     EventLine,
     NoticeReading,
+    ProposalReading,
     SaleReading,
     TopicReading,
     WorldText,
@@ -214,3 +215,65 @@ def test_without_a_currency_a_sale_has_no_display() -> None:
         None,
     )
     assert line.reading.place is None
+
+
+def test_the_four_proposal_facts_read_by_name() -> None:
+    # economy's `price-proposed { proposal, seller, buyer, item, price, place?, valid_until }` and the three
+    # `ProposalTerms` facts `{ proposal, seller, buyer, item, price }` (pr-s31h §5.7, §5.14).
+    terms = {
+        "proposal": 7,
+        "seller": GRACE,
+        "buyer": {"entity": ME, "entity_type": "person"},
+        "item": item(FLOWERS),
+        "price": 350,
+    }
+    lines, refs = read(
+        [
+            fact(1, "price-proposed", {**terms, "valid_until": 1000}),
+            fact(2, "proposal-declined", terms),
+            fact(3, "proposal-withdrawn", terms),
+            fact(4, "proposal-accepted", terms),
+        ]
+    )
+    readings = [line.reading for line in lines]
+    assert all(isinstance(r, ProposalReading) for r in readings)
+    grace, me = refs.ref(EntityId(GRACE)), refs.ref(EntityId(ME))
+    shown = [
+        (
+            line.event_type,
+            r.proposal,
+            r.seller,
+            r.buyer,
+            r.price.minor,
+            r.price.display,
+            r.valid_until,
+        )
+        for line, r in zip(lines, readings, strict=True)
+        if isinstance(r, ProposalReading)
+    ]
+    assert shown == [
+        ("price-proposed", 7, grace, me, 350, "3.50", 1000),
+        ("proposal-declined", 7, grace, me, 350, "3.50", None),
+        ("proposal-withdrawn", 7, grace, me, 350, "3.50", None),
+        ("proposal-accepted", 7, grace, me, 350, "3.50", None),
+    ]
+    first = readings[0]
+    assert isinstance(first, ProposalReading)
+    assert first.name is not None and first.name.text == "Flowers"
+
+
+def test_a_shops_proposal_names_its_shop_and_a_broken_one_gives_no_reading() -> None:
+    proposed = {
+        "proposal": 8,
+        "seller": "30",
+        "buyer": {"entity": ME, "entity_type": "person"},
+        "item": item(FLOWERS),
+        "price": 90,
+        "place": {"entity": CAFE, "entity_type": "place"},
+        "valid_until": 1900,
+    }
+    broken = {**proposed, "proposal": 0}
+    lines, refs = read([fact(1, "price-proposed", proposed), fact(2, "price-proposed", broken)])
+    assert isinstance(lines[0].reading, ProposalReading)
+    assert lines[0].reading.place == refs.ref(EntityId(CAFE))
+    assert lines[1].reading is None

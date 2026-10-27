@@ -78,7 +78,7 @@ func refresh(observation: MineWorldObservation) -> void:
 	if subject == "":
 		return
 	var currency := MineWorldMoney.currency_of(observation)
-	rows = trade.answer_rows(observation, currency)
+	rows = trade.answer_rows(observation, currency, func(at: int) -> String: return Words.day_time(at))
 	if _self:
 		rows.append_array(trade.sale_rows(observation, "", currency))
 		rows.append_array(trade.stall_rows(observation, currency))

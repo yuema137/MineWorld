@@ -83,6 +83,12 @@ client's closest framing, a first-person eye half a metre from a face (two
 size. At 1024² the RDO loss is 1.0: the map is a quarter of the bytes, and the
 lower loss keeps what detail is left.
 
+The operator's 2026-10-26 ruling makes 1024² the shipped edge of *every*
+character base colour, not only the cast's, so the town body's albedo maps
+(the `albedo` role: `face_bc.jpg` was 2048², `hair_strands.png` 2048×1024) take
+the same `CHARACTER_BASE_COLOUR_PX` cap. One constant serves both roles, so no
+character ships a sharper base colour than another.
+
   python3 clients/3d-spike/tools/patch_imports.py           write, report changes
   python3 clients/3d-spike/tools/patch_imports.py --check   exit 1 if a cast
                                                             base colour differs
@@ -121,13 +127,19 @@ BASIS = {
     "compress/uastc_level": "0",
     "detect_3d/compress_to": "0",
 }
+# The shipped edge of every character base colour, cast and town body alike
+# (DEP-162; operator ruling 2026-10-26 extends it to every character's base
+# colour, overriding Q-S26-5). A map already this small or smaller is untouched:
+# Godot's size_limit only scales down.
+CHARACTER_BASE_COLOUR_PX = "1024"
 ROLES = {
-    "albedo": {**BASIS, "compress/rdo_quality_loss": "1.0", "compress/normal_map": "0"},
+    "albedo": {**BASIS, "compress/rdo_quality_loss": "1.0", "compress/normal_map": "0",
+               "process/size_limit": CHARACTER_BASE_COLOUR_PX},
     # roughness, the hair opacity mask: an alpha-to-coverage mask keeps the low loss
     "linear": {**BASIS, "compress/rdo_quality_loss": "1.0", "compress/normal_map": "0"},
     "normal": {**BASIS, "compress/rdo_quality_loss": "4.0", "compress/normal_map": "1"},
     "cast_albedo": {**BASIS, "compress/rdo_quality_loss": "1.0", "compress/normal_map": "0",
-                    "process/size_limit": "1024"},
+                    "process/size_limit": CHARACTER_BASE_COLOUR_PX},
 }
 
 # Every cast base colour, by the pipeline's stored-once name (PIPELINE.md §9).

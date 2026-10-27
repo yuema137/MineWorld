@@ -15,6 +15,9 @@ const INPUTS := {
 	"act-price": {"ask": ["amount"], "row": ["ask", "shelf"], "label": "trade.change-price"},
 	"act-drop": {"ask": [], "row": ["ask", "shelf"], "label": "trade.withdraw"},
 	"act-haggle": {"ask": ["amount"], "row": ["sale"]},
+	"act-accept": {"ask": [], "row": ["incoming"], "label": "trade.accept"},
+	"act-decline": {"ask": [], "row": ["incoming"], "label": "trade.decline"},
+	"act-unoffer": {"ask": [], "row": ["outgoing"], "label": "trade.withdraw-offer"},
 }
 const NAMES := {"41": "Flowers", "42": "Scarf", "43": "Bread", "7": "Grace", "8": "Hana"}
 
@@ -72,6 +75,7 @@ func _init() -> void:
 	_shelf(trade)
 	_board(trade)
 	_answers()
+	_proposals(trade)
 	print("trade_check: %s" % ("PASS" if _fails == 0 else "FAIL"))
 	quit(0 if _fails == 0 else 1)
 
@@ -174,6 +178,42 @@ func _answers() -> void:
 	var shown: Array = MineWorldTrade.report([row])
 	_check(shown[0]["buttons"].size() == 2 and shown[0]["buttons"][1]["action_type"] == "act-decline"
 		and shown[0]["buttons"][1]["complete"] == false, "an answer row reports both buttons", str(shown))
+
+
+## S31-h §5.13: answer rows from the `proposals` record. An open incoming offer gets the accept targeted at
+## its buyer (whose verdict the row shows) and the target-less decline, each filling the proposal; an open
+## own offer gets the withdraw; a declined one is shown with no button.
+func _proposals(trade: MineWorldTrade) -> void:
+	var seen := Seen.new()
+	var line := {"proposal": 11, "seller": "1", "buyer": {"entity": "8", "entity_type": "person"}, "item": item("43"),
+		"price": 2, "ask": 3, "valid_until": 900, "status": "open", "for_shop": false}
+	var mine := line.duplicate()
+	mine.merge({"proposal": 12, "seller": "7", "buyer": {"entity": "1", "entity_type": "person"}}, true)
+	var refused := mine.duplicate()
+	refused.merge({"proposal": 13, "status": "declined"}, true)
+	seen.records = {"1": {"proposals": {"incoming": [line], "outgoing": [mine, refused]}}}
+	var accept := {"action_type": "act-accept", "target": "8", "available": false, "unavailable_reason": "busy"}
+	var decline := {"action_type": "act-decline", "target": null, "available": true}
+	var unoffer := {"action_type": "act-unoffer", "target": null, "available": true}
+	var elsewhere := {"action_type": "act-accept", "target": "9", "available": true}
+	seen.offers = [accept, decline, unoffer, elsewhere]
+	var rows := trade.answer_rows(seen, CROWN, func(at: int) -> String: return "t%d" % at)
+	_check(rows.size() == 3, "one incoming row and two outgoing rows", str(rows.size()))
+	if rows.size() != 3:
+		return
+	_check(rows[0]["kind"] == "answer" and rows[0]["subject"] == "8" and rows[0]["available"] == false
+		and String(rows[0]["text"]).contains("Hana offers 2 cr for Bread (ask 3 cr) · until t900")
+		and String(rows[0]["text"]).contains("refused"), "an incoming offer, worded, with the accept's verdict", rows[0]["text"])
+	_check(rows[0]["buttons"].size() == 2 and rows[0]["buttons"][0]["affordance"] == accept
+		and rows[0]["buttons"][1]["affordance"] == decline and rows[0]["buttons"][0]["fill"] == {"proposal": 11},
+		"accept for this buyer only, then decline, each filling the proposal", str(MineWorldTrade.report(rows)))
+	_check(rows[1]["text"] == "Your offer: Bread 2 cr · valid until t900" and rows[1]["buttons"].size() == 1
+		and rows[1]["buttons"][0]["affordance"] == unoffer and rows[1]["buttons"][0]["fill"] == {"proposal": 12},
+		"my open offer can be withdrawn", str(rows[1]))
+	_check(rows[2]["text"].begins_with("Declined") and rows[2]["buttons"].is_empty(), "a declined offer has no button",
+		str(rows[2]))
+	seen.records = {}
+	_check(trade.answer_rows(seen, CROWN).is_empty(), "no record, no answer rows")
 
 
 func _check(ok: bool, what: String, detail: String = "") -> void:

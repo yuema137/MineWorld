@@ -177,8 +177,12 @@ pub struct Declaration {
     pub owner: SystemId,
     /// Its name in prose.
     pub label: String,
-    /// Its phrase: exactly one `{value}`.
+    /// Its phrase: exactly one `{value}`. For a quantity, the phrase of every amount but one.
     pub phrase: String,
+    /// A quantity's phrase for exactly one unit, where English needs a singular noun (`{value} child`
+    /// against `{value} children`). Absent: `phrase` serves every amount.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub phrase_one: Option<String>,
     /// Words per value, where they differ from the default.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub words: BTreeMap<ValueSlug, String>,
@@ -447,6 +451,8 @@ pub struct RawDeclaration {
     #[serde(default)]
     phrase: Option<Phrase>,
     #[serde(default)]
+    phrase_one: Option<Phrase>,
+    #[serde(default)]
     words: BTreeMap<ValueSlug, String>,
     #[serde(default)]
     perceived_as: Option<RawPerceivedAs>,
@@ -694,6 +700,9 @@ impl RawDeclaration {
             (Some(loose), _) => Some(decode(&kind, loose).map_err(DeclarationFault::Default)?),
             (None, _) => None,
         };
+        if self.phrase_one.is_some() && !matches!(kind, Kind::Quantity(_)) {
+            return Err(fault("phrase_one", "only a quantity has a one-unit phrase"));
+        }
         if self.label.is_empty() || self.label.len() > 80 {
             return Err(fault("label", "a label is 1 … 80 bytes"));
         }
@@ -711,6 +720,7 @@ impl RawDeclaration {
                 .phrase
                 .as_ref()
                 .map_or_else(|| "{value}".to_owned(), |phrase| phrase.0.clone()),
+            phrase_one: self.phrase_one.as_ref().map(|phrase| phrase.0.clone()),
             words: self.words.clone(),
             perceived_as,
             default,

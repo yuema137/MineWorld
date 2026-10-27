@@ -1,0 +1,131 @@
+# Candidate set for the station in the default 2D presentation pack (pr-s29f §5.8; step-29 §8.1).
+#
+#   python -m mineworld_gen.batch tools/asset_generation/recipes/2d_station.yaml \
+#       --out presentation/mineworld-default/2D/candidates/station --dry-run
+#
+# The same style preamble and style references as `2d_default.yaml`, so the station sits in the same set.
+# The depot takes one more reference: a HABS photograph of the Santa Fe Depot's street front, used ONLY for
+# the building's form (`references/station/PROVENANCE.md`). The shut kiosk and the shut ticket window take
+# the chosen open image as a third reference, so each pair is one object in two states; their reference
+# path is set to the open candidate the operator chose before that round runs.
+#
+# Everything this produces is an ARC-9 candidate; nothing is promoted before the operator's verdict on the
+# contact sheet (AC-S29-7).
+
+defaults:
+  size: 1024x1024
+  quality: high
+  transparent: true
+  references:
+    - 01_town_square.png
+    - 02_cafe_street.png
+
+style: |
+  The attached images are STYLE REFERENCES ONLY - do not copy their content, layout, buildings
+  or characters. Match their art style exactly: clean illustrated isometric game art, crisp dark
+  outlines, cel shading with soft ambient occlusion, warm soft daylight from the upper left,
+  saturated but harmonious colour, moderate stylization, and low-to-moderate material detail
+  that stays highly readable at small size.
+
+  Render the subject ALONE and centred, in the same isometric three-quarter projection as the
+  references, at roughly 30 degrees elevation. NO ground plane, NO cast shadow, NO background
+  scenery, NO other objects, NO people unless explicitly requested, and NO text or lettering
+  except where explicitly requested. Fully transparent background.
+
+groups:
+  - name: station_buildings
+    prefix: building
+    items:
+      - name: station
+        count: 4
+        size: 1536x1024
+        references:
+          - 01_town_square.png
+          - 02_cafe_street.png
+          - station/habs_ca1965_1.jpg
+        subject: >
+          The third attached image is a photograph used ONLY for the building's form - its twin
+          domed towers, the great central arch, the long arcaded front; render it in the style of
+          the first two images, not as a photograph. A Mission Revival RAILWAY STATION seen from
+          its street front, wide and symmetrical: two tall square towers of warm white stucco, one
+          at each side of the entrance, each with arched belfry openings, small corner pinnacles
+          and a dome of glazed tile in a zigzag of blue, green, yellow and white topped by a small
+          lantern; between the towers a tall gable with one great round arch over a recessed
+          entrance with a timber-framed glazed screen and arched doors; long single-storey wings
+          to either side with clay-tile roofs and a shaded arcade of round arches; dark timber
+          doors and trim. No lettering, no signs, no vehicles, no palm trees.
+      - name: station_halt
+        count: 4
+        subject: >
+          A small single-storey village RAILWAY HALT: a timber-and-cream-stucco waiting room
+          with a clay-tile roof, a deep canopy carried on carved timber brackets along its front,
+          one timber door and two small windows, a slatted wooden bench under the canopy, and a
+          small blank sign board under the eaves with no lettering.
+
+  - name: station_props
+    prefix: prop
+    items:
+      - name: kiosk_open
+        count: 2
+        subject: >
+          A small free-standing timber NEWSPAPER KIOSK, painted dark green with cream trim and a
+          small clay-tile roof, its front shutter raised, folded newspapers and magazines on the
+          counter and on racks at its sides. No lettering.
+      - name: kiosk_shut
+        count: 2
+        references:
+          - 01_town_square.png
+          - 02_cafe_street.png
+          - ../candidates/station/prop_kiosk_open_1.png
+        subject: >
+          The third attached image shows this exact kiosk open: draw the SAME kiosk, same colours,
+          shape and proportions, now closed, its front shutter pulled down and no papers on show.
+          No lettering.
+      - name: ticket_window_open
+        count: 2
+        subject: >
+          A carved dark-oak TICKET COUNTER SCREEN for a railway ticket office, as a free-standing
+          piece seen from the public side: a waist-high counter with a panelled front, above it a
+          timber screen with two arched windows fitted with brass grilles, warm light behind them.
+          No lettering.
+      - name: ticket_window_shut
+        count: 2
+        references:
+          - 01_town_square.png
+          - 02_cafe_street.png
+          - ../candidates/station/prop_ticket_window_open_1.png
+        subject: >
+          The third attached image shows this exact ticket counter screen open: draw the SAME
+          screen, same timber, shape and proportions, now closed, both arched windows covered by
+          lowered timber shutters, no light behind them, and a small blank brass plate on the
+          counter. No lettering.
+      - name: departures_board
+        count: 2
+        subject: >
+          A dark wall-mounted RAILWAY DEPARTURES BOARD in a heavy carved timber frame, its face
+          a plain dark slate panel, completely blank. No lettering, no numbers.
+      - name: station_bench
+        count: 2
+        subject: >
+          One long OAK STATION BENCH with a slatted seat, a tall slatted back and cast-iron
+          ends, about six metres long, its long axis running up-left in the isometric projection.
+      - name: track
+        count: 2
+        subject: >
+          A four-metre straight piece of RAILWAY TRACK lying flat: two steel rails on timber
+          sleepers bedded in grey ballast, running up-left in the isometric projection.
+      - name: pier_pavilion
+        count: 3
+        references:
+          - 04_lakeside_park.png
+          - 01_town_square.png
+        subject: >
+          A small octagonal timber PIER-HEAD PAVILION on a lake pier: eight slim painted posts
+          with a low railing between them, open sides, and a domed shingle roof with a small
+          finial.
+      - name: arcade_pier
+        count: 2
+        subject: >
+          One square cream-stucco ARCADE PIER, about 0.6 metres wide and 4 metres high, carrying
+          the springing of two round arches to either side and a short strip of clay-tile shed
+          roof above. Only this one pier and the beginnings of its arches.

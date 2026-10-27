@@ -538,6 +538,8 @@ AC-13e-8 checks the town's people only. Merged origin/main (c4fdfaf9, #442's sha
   gains an optional `who` payload field; `spoke` names `speaker`.
 - **D-2** `client_text.rs` AC-WC-15 keeps `HTTPRequest` out of client scripts: `GET /status` is read by a new
   additive shared-module node, `clients/protocol/mineworld/status.gd` (`MineWorldStatus`), documented in ADOPTION.md §2.
+  **Confirmed after the fact on 2026-10-26** (operator, "all pending questions as recommended", relayed by the
+  coordinator): the new `MineWorldStatus` node, as merged in PR #448, stands.
 - **D-3** Notice wording key `ui.event.<type>` (not `event.<type>`): `event` is not a catalog family in `client_text.rs`.
 - **D-4** C5 and C6 share one commit; the C6 stills were not taken (windowed capture; machine saturated, then reserved).
 - **D-5** AC-13e-4's identity oracle is the World Pack's genesis id (social-cafe); on lakeside, whose pack reads only

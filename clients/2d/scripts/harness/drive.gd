@@ -21,10 +21,11 @@ extends Node
 ## `steps` and `panels` (`harness/interact.gd`, which adds `MENU`, `PANELS`, `TOAST`, `STEP` lines), and
 ## S20's `settings` and `display` (`harness/settings.gd`; `--marker` adds the marker-catalog walk,
 ## `--apply=<language>,<clock>,<W>x<H>` applies through the menu), and RL-e0's `farfield`
-## (`harness/far_field_2d_check.gd`: the clear colour is never on screen; windowed), and PR 13e's
+## (`harness/far_field_2d_check.gd`: the clear colour is never on screen; windowed), PR 13e's
 ## `join`, `blink`, `listen` and `town` (`harness/many.gd`, which adds `JOIN`, `JOIN_SCREEN`,
 ## `REFUSED`, `ENDED`, `SEAT`, `BUBBLE`, `NOTICE`, `SKIPPED`, `EVENTS` lines; started without `--seat`,
-## any scenario first chooses through the join screen).
+## any scenario first chooses through the join screen), and S29-f's `station`
+## (`harness/station.gd`: into the station, its ticket office and its platform, by tag).
 ## Arguments: `--strides=n`, `--hold=seconds`, `--frame` (print the first observation as a `FRAME`
 ## line), `--steps=<file>`, `--requests=<file>`, `--sync=<dir>`, `--drop-doorway=<from>,<to>` (leave
 ## that doorway out of the drawn scene: the parity test's negative case). No scenario names a world's
@@ -34,6 +35,7 @@ const Capture := preload("res://scripts/harness/capture.gd")
 const Interact := preload("res://scripts/harness/interact.gd")
 const SettingsScenario := preload("res://scripts/harness/settings.gd")
 const FarField2DCheck := preload("res://scripts/harness/far_field_2d_check.gd")
+const StationScenario := preload("res://scripts/harness/station.gd")
 const Many := preload("res://scripts/harness/many.gd")
 
 ## Fixed bounds, from the requirements, never from the quantity under test (ARC-23).
@@ -199,6 +201,13 @@ func _run() -> void:
 				check.app = app
 				add_child(check)
 				_fails += await check.run()
+		"station":
+			# S29-f: to the station by its tag, into the hall, the ticket office and the platform.
+			var station: Node = StationScenario.new()
+			station.drive = self
+			station.app = app
+			add_child(station)
+			await station.run()
 		"settings", "display", "controls":
 			var settings: Node = SettingsScenario.new()
 			settings.drive = self

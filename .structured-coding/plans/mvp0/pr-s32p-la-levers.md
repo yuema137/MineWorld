@@ -6,6 +6,9 @@
   (chroma-key clay figure) plus L-b (push garments out at assembly). Spend cap for L-a: 540 Meshy credits plus
   $1.5 OpenAI; ask before exceeding." The full-cast wardrobe (≈ 3,330 credits) is not approved; it is asked
   separately once L-a passes on Vera, Ivan and Hana. Recorded in `docs/decisions/ARC-138.md`.
+- **Operator ruling, 2026-10-26** ("all pending questions as recommended", relayed by the coordinator): MVP-0
+  ships the wardrobe on the **protagonist only**. Nothing is spent on the full-cast wardrobe (≈ 3,330 Meshy
+  credits); that budget stays unapproved and is asked again, with fresh measurements, after the milestone.
 - This is a bounded revision of the frozen S32-p design (`pr-s32p-wardrobe-pilot.md`). The scope, the invariants
   I-p-1…I-p-13, the gates and the decision rule are unchanged. The only changes are the two levers the operator
   named. The ruling is this revision's freeze; the coordinator relayed it naming L-a and L-b.

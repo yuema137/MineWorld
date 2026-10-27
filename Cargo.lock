@@ -1119,6 +1119,7 @@ dependencies = [
  "mineworld-item",
  "mineworld-kernel",
  "mineworld-movement",
+ "mineworld-persistence",
  "mineworld-presence",
  "mineworld-rule-controller",
  "mineworld-sdk",

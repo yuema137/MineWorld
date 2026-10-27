@@ -240,6 +240,21 @@ takes the other kind), `body-too-large`, `body-invalid` (a kind named twice), `v
 
 `unsubscribe`: Unsubscribe from `topic`. Refusal code: `not-subscribed`.
 
+`propose_price`: Offer to buy one of `item` at `price` (minor units) from the person `to`, or, with no `to`, from the shop
+I stand in. The proposal waits 15 world minutes for the seller's answer (`me.proposals.outgoing`). Refusal
+codes include `proposal-limit`, `not-for-sale`, `price-out-of-range`, `insufficient-funds` and
+`out-of-stock`.
+
+`accept_proposal`: Accept the proposal numbered `proposal` in `me.proposals.incoming`: it settles at once as a sale at the
+proposed price, every check of a purchase re-run. `not_offered` when no proposal of that number is mine
+to answer in the newest view.
+
+`decline_proposal`: Decline the proposal numbered `proposal` in `me.proposals.incoming`; its buyer sees the no until it
+expires. Refusal code: `no-such-proposal`.
+
+`withdraw_proposal`: Take back the proposal numbered `proposal` in `me.proposals.outgoing`, while it is still open. Refusal
+code: `no-such-proposal`.
+
 Errors: invalid_arguments, unknown_handle, seat_lost, unknown_ref.
 
 A refused call is an error result whose text is a ToolError (mineworld://reference/agent-errors).
@@ -376,6 +391,15 @@ code before you decide what to do next.
 
 ## Models
 
+### Model AcceptProposalAct
+
+Kind `accept_proposal`: accept a proposal I may answer; it settles at once.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `kind` | `accept_proposal` | yes |  | Always `accept_proposal`. |
+| `proposal` | integer | yes | ≥ 1; ≤ 18446744073709551615 | The proposal, by its number in `me.proposals.incoming`. |
+
 ### Model Accepted
 
 The world accepted the act; the facts it caused come with it, once.
@@ -401,7 +425,7 @@ One person I know: relationships' reading of them, faded by the world's decay.
 
 ### Model Act
 
-Type: [`SayAct`](#model-sayact) or [`WalkToAct`](#model-walktoact) or [`MoveAct`](#model-moveact) or [`StopAct`](#model-stopact) or [`AttemptAct`](#model-attemptact) or [`SleepAct`](#model-sleepact) or [`ListForSaleAct`](#model-listforsaleact) or [`SetPriceAct`](#model-setpriceact) or [`WithdrawAct`](#model-withdrawact) or [`PublishNoticeAct`](#model-publishnoticeact) or [`SubscribeAct`](#model-subscribeact) or [`UnsubscribeAct`](#model-unsubscribeact).
+Type: [`SayAct`](#model-sayact) or [`WalkToAct`](#model-walktoact) or [`MoveAct`](#model-moveact) or [`StopAct`](#model-stopact) or [`AttemptAct`](#model-attemptact) or [`SleepAct`](#model-sleepact) or [`ListForSaleAct`](#model-listforsaleact) or [`SetPriceAct`](#model-setpriceact) or [`WithdrawAct`](#model-withdrawact) or [`PublishNoticeAct`](#model-publishnoticeact) or [`SubscribeAct`](#model-subscribeact) or [`UnsubscribeAct`](#model-unsubscribeact) or [`ProposePriceAct`](#model-proposepriceact) or [`AcceptProposalAct`](#model-acceptproposalact) or [`DeclineProposalAct`](#model-declineproposalact) or [`WithdrawProposalAct`](#model-withdrawproposalact).
 
 ### Model AgendaLine
 
@@ -533,6 +557,15 @@ The world's currency, as economy discloses it to me: one per world, written by i
 | `symbol` | [`WorldText`](#model-worldtext) | yes |  | Its symbol (`$`, `cr`). |
 | `symbol_at` | one of `before`, `after` | yes |  | Which side of an amount the symbol is written on: `$4.50` (`before`) or `300 cr` (`after`). |
 
+### Model DeclineProposalAct
+
+Kind `decline_proposal`: decline a proposal I may answer.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `kind` | `decline_proposal` | yes |  | Always `decline_proposal`. |
+| `proposal` | integer | yes | ≥ 1; ≤ 18446744073709551615 | The proposal, by its number in `me.proposals.incoming`. |
+
 ### Model Destination
 
 Type: [`ToPlace`](#model-toplace) or [`ToPerson`](#model-toperson) or [`ToPoint`](#model-topoint).
@@ -566,7 +599,7 @@ One fact this seat perceived (step-27 §5.4).
 | `detail` | [`Envelope`](#model-envelope) or null | no | default `null` | The fact's payload, when `events(detail=True)` asked for it, capped at 1 KiB. |
 | `event_type` | string | yes | length ≤ 64; matches `^[a-z0-9](?:[a-z0-9_-]{0,62}[a-z0-9])?$` | — |
 | `place` | string or null | yes | matches `^E[1-9][0-9]{0,8}$` | — |
-| `reading` | [`Reading`](#model-reading) or null | no | default `null` | For a sale, an ask's change, a notice, or a subscription's change: the fact read by name; left out for every other fact. |
+| `reading` | [`Reading`](#model-reading) or null | no | default `null` | For a sale, an ask's change, a notice, a subscription's change, or a price proposal made or ended: the fact read by name; left out for every other fact. |
 | `ref` | string | yes | matches `^F[1-9][0-9]{0,8}$` | — |
 | `subjects` | array of string | yes |  | — |
 | `words` | [`WorldText`](#model-worldtext) or null | yes |  | What was said, for a `spoke` fact (the conversation pack's utterance). |
@@ -673,6 +706,7 @@ The seat's own person as this agent sees it: state, wallet, holdings and commitm
 | `place` | [`PlaceLine`](#model-placeline) or null | yes |  | — |
 | `plans` | [`PlansLine`](#model-plansline) or null | no | default `null` | The next part of my day and the way to it, when schedule discloses one. |
 | `position` | [`Point`](#model-point) or null | yes |  | — |
+| `proposals` | [`ProposalsLine`](#model-proposalsline) or null | no | default `null` | The price proposals I may answer and the ones I made (economy's `proposals`, mine alone); left out when there are none. |
 | `ref` | string | yes | matches `^E[1-9][0-9]{0,8}$` | — |
 | `subscriptions` | array of string | no |  | The notice topics I subscribe to (the notices pack's `subscriptions`, mine alone); left out when none. |
 | `walking` | [`WalkLine`](#model-walkline) or null | yes |  | — |
@@ -861,6 +895,59 @@ A prices notice: 1 to 32 lines, any order (they are sent in item order).
 | `kind` | `prices` | yes |  | Always `prices`. |
 | `lines` | array of [`PriceArg`](#model-pricearg) | yes | items ≥ 1; items ≤ 32 | The lines, 1 to 32; the world refuses a kind named twice. |
 
+### Model ProposalLine
+
+One live proposal to buy one unit at a price the buyer chose (economy's `proposals`, ARC-118).
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `ask` | [`Amount`](#model-amount) or null | yes |  | The seller's asking price for the kind now; `None` once the seller no longer asks one. |
+| `buyer` | string | yes | matches `^E[1-9][0-9]{0,8}$` | Who proposes. |
+| `for_shop` | boolean | yes |  | Whether it is a shop's proposal (answered by a keeper standing in that shop). |
+| `item` | string | yes | matches `^E[1-9][0-9]{0,8}$` | The item kind, by reference. |
+| `name` | [`WorldText`](#model-worldtext) or null | no | default `null` | The kind's name, from an `item-catalogue` this seat saw; `None` when none named it. |
+| `price` | [`Amount`](#model-amount) | yes |  | The proposed price of one. |
+| `proposal` | integer | yes | ≥ 1; ≤ 18446744073709551615 | The proposal's number: what `accept_proposal`, `decline_proposal` and `withdraw_proposal` name. |
+| `seller` | string | yes | matches `^E[1-9][0-9]{0,8}$` | Who would sell: a person, or the organization that runs the shop. |
+| `status` | one of `open`, `declined` | yes |  | `open` while it waits for an answer; `declined` once the seller said no (kept until `valid_until`). |
+| `valid_until` | integer | yes |  | The first world second at which the proposal is gone. |
+
+### Model ProposalReading
+
+economy's `price-proposed`, `proposal-accepted`, `proposal-declined` or `proposal-withdrawn` (the fact's `event_type` says which): a price proposal was made, or ended.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `buyer` | string | yes | matches `^E[1-9][0-9]{0,8}$` | Who proposed. |
+| `item` | string | yes | matches `^E[1-9][0-9]{0,8}$` | The item kind. |
+| `kind` | `proposal` | no | default `proposal` | Always `proposal`. |
+| `name` | [`WorldText`](#model-worldtext) or null | no | default `null` | The kind's name, from an `item-catalogue` this seat saw. |
+| `place` | string or null | no | matches `^E[1-9][0-9]{0,8}$`; default `null` | The shop, for a shop's proposal; left out otherwise (and on every fact but `price-proposed`). |
+| `price` | [`Amount`](#model-amount) | yes |  | The proposed price of one. |
+| `proposal` | integer | yes | ≥ 1; ≤ 18446744073709551615 | The proposal's number. |
+| `seller` | string | yes | matches `^E[1-9][0-9]{0,8}$` | Who would sell: a person, or the organization that runs the shop. |
+| `valid_until` | integer or null | no | default `null` | For `price-proposed`: the first world second at which the proposal is gone; left out otherwise. |
+
+### Model ProposalsLine
+
+The proposals I may answer and the ones I made, as economy discloses them to me alone.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `incoming` | array of [`ProposalLine`](#model-proposalline) | no |  | Proposals I may accept or decline (as the seller, or as a keeper standing in the shop), in number order. |
+| `outgoing` | array of [`ProposalLine`](#model-proposalline) | no |  | Proposals I made, in number order; a declined one stays until it expires. |
+
+### Model ProposePriceAct
+
+Kind `propose_price`: offer to buy one of a kind at my price, from a person or the shop I stand in.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `item` | string | yes | matches `^E[1-9][0-9]{0,8}$` | The item kind, by reference, as the seller's asks list it. |
+| `kind` | `propose_price` | yes |  | Always `propose_price`. |
+| `price` | integer | yes | ≥ 1; ≤ 18446744073709551615 | The price I offer for one, in minor units (with exponent 2, 450 is 4.50). |
+| `to` | string or null | no | matches `^E[1-9][0-9]{0,8}$`; default `null` | The person seller, by reference; `None` for the shop I stand in. |
+
 ### Model PublishNoticeAct
 
 Kind `publish_notice`: publish a notice on a topic I may publish on.
@@ -874,7 +961,7 @@ Kind `publish_notice`: publish a notice on a topic I may publish on.
 
 ### Model Reading
 
-Type: [`SaleReading`](#model-salereading) or [`AskReading`](#model-askreading) or [`NoticeReading`](#model-noticereading) or [`TopicReading`](#model-topicreading).
+Type: [`SaleReading`](#model-salereading) or [`AskReading`](#model-askreading) or [`NoticeReading`](#model-noticereading) or [`TopicReading`](#model-topicreading) or [`ProposalReading`](#model-proposalreading).
 
 ### Model ReasonLine
 
@@ -1191,6 +1278,15 @@ Kind `withdraw`: stop asking for a kind, mine or the shop's.
 | `for_shop` | boolean | no | default `false` | Withdraw the shop's ask, not my own. |
 | `item` | string | yes | matches `^E[1-9][0-9]{0,8}$` | The item kind, by reference. |
 | `kind` | `withdraw` | yes |  | Always `withdraw`. |
+
+### Model WithdrawProposalAct
+
+Kind `withdraw_proposal`: take back a proposal I made.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `kind` | `withdraw_proposal` | yes |  | Always `withdraw_proposal`. |
+| `proposal` | integer | yes | ≥ 1; ≤ 18446744073709551615 | The proposal, by its number in `me.proposals.outgoing`. |
 
 ### Model WorldLine
 

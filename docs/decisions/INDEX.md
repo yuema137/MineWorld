@@ -86,6 +86,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-76](ARC-76.md) | Client settings are a shared, presentation-only client module |
 | [ARC-77](ARC-77.md) | Milestone E's composition: Lakeside, the repository's own data packs, and named roots everywhere |
 | [ARC-78](ARC-78.md) | Players get exported clients started by a windowless supervisor, `mineworld-launch` |
+| [ARC-79](ARC-79.md) | Release channels: GitHub Releases canonical, itch.io mirror, Zenodo archive; the tag equals the workspace version |
 | [ARC-80](ARC-80.md) | The downloadable bundle: its layout, per-user data, and `--root` for exported clients |
 | [ARC-81](ARC-81.md) | Save retention: snapshots pruned by a pure rule and stored compressed; the log kept whole |
 | [ARC-82](ARC-82.md) | A doorway discloses the tags of the place it leads to: a door sign, never its contents |
@@ -122,6 +123,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-115](ARC-115.md) | `notices`: public, time-limited notices on declared topics, delivered to subscribers, expiring lazily |
 | [ARC-116](ARC-116.md) | The price book as perception-derived world state, and the reporter as a seat whose backend is its decision model |
 | [ARC-117](ARC-117.md) | Pricing policies are decision-model parameters and models, defaulting to `hold` |
+| [ARC-118](ARC-118.md) | Haggling settles at acceptance with nothing reserved: a buyer proposes a price, the seller accepts or declines (extends `ARC-112`) |
 | [ARC-120](ARC-120.md) | Person attributes are declared data with one owner each; `attributes` owns plain traits; an owner's attribute is a view, never a copy |
 | [ARC-121](ARC-121.md) | The authoring seam: data directories, decoding in the owner's context, owner resolution before seeding, and shipped data |
 | [ARC-122](ARC-122.md) | The attribute model: kinds, typed values and handles, visibility, mutability, rendering, the built-in catalogue |
@@ -155,6 +157,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-183](ARC-183.md) | The LM controller fills an incomplete offer through a typed filler from a closed registry |
 | [ARC-184](ARC-184.md) | Clients format money and read trade records through one shared module |
 | [ARC-192](ARC-192.md) | A station is drawn from a station kit, placed at a site, bound by role tag |
+| [ARC-196](ARC-196.md) | A 2D pack binds a place by its most specific tag set; end doorways face outward; a shaped room is drawn at its shape |
 | [ARC-266](ARC-266.md) | The world's date, time and sun reach a client through one shared world-time module that reads disclosure and computes no astronomy |
 | [ARC-267](ARC-267.md) | Host commands in the client: one shared host module, the token from the environment in memory only, and a World tab that shows only what the server said |
 | [ARC-268](ARC-268.md) | `POST /admin/stop` is a host command; the reference launchers host solo with a generated token and close the host gracefully |

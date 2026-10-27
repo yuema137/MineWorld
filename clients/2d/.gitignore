@@ -8,16 +8,20 @@ shots/*
 !shots/preview/
 # The Demo A stills of the VIS-2D-1 package (PR 13f), one folder per world.
 !shots/demo-a/
-# The far-field regression views (RL-e0 §7), one folder per world, are committed too.
+# The far-field regression views (RL-e0 §7), one folder per world, are committed too, and the
+# station stills of the three towns (S29-f, AC-f-10).
 !shots/market-town/
 shots/market-town/*
 !shots/market-town/farfield/
+!shots/market-town/station/
 !shots/social-cafe/
 shots/social-cafe/*
 !shots/social-cafe/farfield/
+!shots/social-cafe/station/
 !shots/lakeside/
 shots/lakeside/*
 !shots/lakeside/farfield/
+!shots/lakeside/station/
 !shots/bodies-yard/
 shots/bodies-yard/*
 !shots/bodies-yard/farfield/

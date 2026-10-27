@@ -467,6 +467,11 @@ idle on fused Meshy bodies, or the bodies' flank and hip geometry). Recommended:
 cast lane a follow-up to fix the standing arm pose (for example, abduct the idle's upper arms per body by the measured
 depth, solved by a tool against this gate, not by hand), re-recording to remove each finding as it passes.
 
+**Q-CC10-8 ruled 2026-10-26 (operator, "all pending questions as recommended", relayed by the coordinator).** As
+recommended: the 44 `arms.stand.*` findings are accepted as a **known issue** (the standing idle's arms sink into
+the body by 29–117 mm), and the fix — the cast lane's tool-solved arm abduction against this gate — is
+**deferred to after the milestone**.
+
 ## 11. Questions for the operator
 
 **Ruled 2026-10-20 (operator, primary session):** every question below is answered as recommended.

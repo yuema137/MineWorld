@@ -45,7 +45,7 @@ use gdscript::lex;
 mod client_3d;
 
 /// The GDScript string literals that name an action: (file, literal, why it may be written there).
-const ACTION_LITERALS: [(&str, &str, &str); 30] = [
+const ACTION_LITERALS: [(&str, &str, &str); 38] = [
     (
         "clients/2d/scripts/intents.gd",
         "walk-to",
@@ -117,6 +117,26 @@ const ACTION_LITERALS: [(&str, &str, &str); 30] = [
     ),
     (
         "clients/2d/scripts/intents.gd",
+        "propose-price",
+        "composed by the client's only submitter from the buy row's item and the typed price (S31-h §5.13)",
+    ),
+    (
+        "clients/2d/scripts/intents.gd",
+        "accept-proposal",
+        "composed by the client's only submitter from the answer row's proposal (S31-h §5.13)",
+    ),
+    (
+        "clients/2d/scripts/intents.gd",
+        "decline-proposal",
+        "composed by the client's only submitter from the answer row's proposal (S31-h §5.13)",
+    ),
+    (
+        "clients/2d/scripts/intents.gd",
+        "withdraw-proposal",
+        "composed by the client's only submitter from the answer row's proposal (S31-h §5.13)",
+    ),
+    (
+        "clients/2d/scripts/intents.gd",
         "throw",
         "composed by the 2D client's only submitter as the offered complete throw with `toward` set to \
          the clicked floor point (S12 PR 13d, ARC-342); the server decides the throw",
@@ -181,6 +201,26 @@ const ACTION_LITERALS: [(&str, &str, &str); 30] = [
         client_3d!("scripts/slice/intents.gd"),
         "withdraw",
         "composed by the client's only submitter from the player's item and price (S31-e §5.6)",
+    ),
+    (
+        client_3d!("scripts/slice/intents.gd"),
+        "propose-price",
+        "composed by the client's only submitter from the buy row's item and the typed price (S31-h §5.13)",
+    ),
+    (
+        client_3d!("scripts/slice/intents.gd"),
+        "accept-proposal",
+        "composed by the client's only submitter from the answer row's proposal (S31-h §5.13)",
+    ),
+    (
+        client_3d!("scripts/slice/intents.gd"),
+        "decline-proposal",
+        "composed by the client's only submitter from the answer row's proposal (S31-h §5.13)",
+    ),
+    (
+        client_3d!("scripts/slice/intents.gd"),
+        "withdraw-proposal",
+        "composed by the client's only submitter from the answer row's proposal (S31-h §5.13)",
     ),
     (
         client_3d!("scripts/human.gd"),
