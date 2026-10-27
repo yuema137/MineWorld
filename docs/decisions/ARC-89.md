@@ -56,3 +56,16 @@ D-SRB-11  a seal is verified before the rows go: the block's frames are decoded 
 **Bounds** (operator QSRB-4): 30-day Market Town save ≤ 48 MiB; 300-day ≤ 96 MiB with bodies and ≤ 80 MiB walking; growth ≤ 0.25 MiB per simulated day (CI, every PR), and the nightly `AC-SAVE-1` at 0.5 MiB per day until stable; peak memory of a history reader on a 300-day save ≤ 256 MiB; a seal ≤ 100 ms per block.
 
 **Revisit triggers added:** a block-level `AC-8` difference on any leg; FG-e moving blocks out of the file; a world whose span exceeds 64 MiB of raw rows.
+
+**Note 2026-10-26 (operator ruling, "all as recommended"): ASRB-2 is loosened from 0.25 to 0.28 MiB per simulated day.** QSRB-4 allows a PR to tighten the growth bound but never to loosen it without a ruling; this note is that ruling. The CI form is unchanged: (*S*300 − *S*30) ÷ 270 of the same seed, Market Town, asserted in `tools/cli/tests/market_town.rs` (`growth_is_bounded`). The evidence:
+
+```text
+Market Town, CI form (S300 − S30) ÷ 270     before N-f   0.241 MiB/day
+                                            after N-f    0.268 MiB/day   over 0.25, under 0.28
+cause of the 0.027 increase                 N-f's added movement: about 128 000 more `arrived` facts
+gave-way facts (also added by N-f)          0.007 MiB/day of the total
+alternative considered                      not persisting transient movement facts; refused, because
+                                            ARC-39 (operator QB-1) keeps every true arrival in the log
+```
+
+The new bound leaves about 4 % headroom over the measured 0.268. The 300-day size bound (ASRB-1, 96 MiB) and the nightly `AC-SAVE-1` bound (0.5 MiB per day) are unchanged. A later PR may still tighten ASRB-2; loosening it again needs another ruling.
