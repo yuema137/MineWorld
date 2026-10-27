@@ -18,6 +18,9 @@ go-ahead after milestone acceptance.
 `/Users/yuema137/mineworld-worktrees/plan-release`, branch `docs/release-design`, from
 `origin/main @ 5ccc402`, merged as PR #136 (`a926fbf`). Freeze: branch `docs/s23-freeze` from
 `origin/main @ a926fbf`.
+**Pointer of 2026-10-26 (R-b, R-d drafts).** PR designs for R-b and R-d exist as DRAFT, not frozen:
+[`pr-s23-rb-release-workflow.md`](pr-s23-rb-release-workflow.md) (builds on PR #498's dispatch dry run) and
+[`pr-s23-rd-publish.md`](pr-s23-rd-publish.md). Neither changes this step's scope until the operator freezes it.
 **Binding parents:** `CLAUDE.md` §§1.1, 2–4; `overall.md` §5 ("Every platform", "Realistic defaults",
 "Late evening of 2026-10-09" CI rule, Milestone F, QB-14), the D-1 licence ruling and its publication
 decisions; `docs/MVP.md` §7; `docs/REUSE_POLICY.md` §§1–15; `docs/DECISIONS.md` ARC-6, DEP-4, DEP-8,
