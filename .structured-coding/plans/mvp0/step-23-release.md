@@ -1573,8 +1573,34 @@ smoke run, or (for an argument error) when `--no-dialog` is among the raw argume
 
 ### C5 — packaging integration (after R-a merges; merge `origin/main` first)
 
-- [ ] `scripts/package.py`: launcher binaries, `.app` wrappers (ad-hoc signed), `.desktop` files in
-  `assemble`; `smoke` running §9.1 steps 1–6 through the launcher. Additions only (material stop 6).
+- [x] Implementation: `scripts/package.py`: launcher binaries, `.app` wrappers (ad-hoc signed), `.desktop`
+  files in `assemble`; `smoke` running §9.1 steps 1, 2, 4, 5, 6 through the launcher, step 3 `NOT RUN`
+  (D-RC-5). Additions only (material stop 6), plus the bounded corrections F-RC-4 (`--world-key`),
+  F-RC-5 (`PLAY.txt` Linux line), F-RC-6 (`PACK_3D_PARTS`), and `client_code` (in `both`, each client is
+  judged by its own exit status from the launcher log, not by the launcher's first non-zero code).
+- [x] Validation (macOS arm64, 2026-10-26):
+  - `python3 scripts/package.py --self-test`: 52/52 PASS (28 new). Mutations: `missing_entry_points`
+    always empty → 8 cases FAIL by name; step 3 reported `PASS` → "smoke reports step 3 as NOT RUN" FAIL.
+  - `cargo clippy -p mineworld-launch --all-targets -- -D warnings` clean; `cargo test -p mineworld-launch`:
+    unit 7/7, launcher 4/4 (the play case now asserts `--world-key=social-cafe`).
+  - `package.py assemble --target macos-universal` PASS: three `.app` wrappers, each binary `x86_64 arm64`
+    (`lipo -archs`), `codesign --verify --strict` "valid on disk"; archive 353.4 MB (hard 400), 3D pack
+    240.7 MB (hard 250), 2D 13.4 MB.
+  - `package.py smoke <zip>`: step 1 PASS (unpacked into `…/MineWorld 世界/`), step 2 PASS (BUNDLE.toml and
+    entry points; the SHA256SUMS half NOT RUN, no file beside a local archive), step 3 NOT RUN (D-RC-5),
+    **2d: step 4 PASS, step 6 PASS; 3d: step 5 PASS, step 6 PASS; both: step 6 PASS, step 4+5 FAIL** — the
+    2D client passes; the 3D client, seated `wanderer` (LAUNCHER.md §2, AC-15's second player), prints
+    `FAIL: the server did not move the player onto the street` and `1 LINK CHECKS FAILED` and still exits
+    0. Reproduced with 3D alone as `wanderer` (`launch.toml`), so it is not the 2D client's presence:
+    F-RC-7, for the operator. Before F-RC-6, 3D failed `STATION_KIT_MISSING` under `smoke` and under R-a's
+    `probe` alike; with the pack parts present it passes.
+  - Windows and Linux legs (`.exe`, `.desktop`, unsigned path): self-test only locally; CI is the gate.
+- [x] Review: the launcher's paths are unchanged — `bundle.rs` `root_of` finds the root from
+  `<name>.app/Contents/MacOS/<exe>` and from a plain executable, which is where `place_launchers` puts them,
+  so `bundle.rs` needed no change; smoke starts each entry point without `--bundle`, so that derivation is
+  what is tested. Smoke kills only pids the launcher logged, and only on timeout. `package.py` is now about
+  1,330 lines (strong-warning size, §4 of CLAUDE.md): the smoke section (≈ 250 lines) is the candidate to
+  move to its own module beside `runtime_settings.py`; not done here to keep C5 additive.
 
 **Detail (C0 of the C5 session, 2026-10-26; worktree `impl-s23-rc-c5`, branch `mvp0/pr-s23-rc-c5` from
 `origin/main @ b6be8230`).** Within §6.3, §9.1 and §17.2; no change to them. Implemented on today's
@@ -1655,6 +1681,8 @@ Files: `scripts/package.py`, `packaging/PLAY.txt` (Linux line only), `tools/laun
 
 - [ ] Default suite green on Linux, macOS and Windows in CI on the exact final head.
 - [ ] On macOS, `package.py smoke` PASS for `2d`, `3d` and `both` on an assembled bundle; evidence here.
+  2026-10-26 (C5 session): `2d` and `3d` PASS (steps 4, 5, 6), `both` FAIL on F-RC-7; step 3 NOT RUN
+  (D-RC-5). Open until F-RC-7 is ruled.
 
 ## 19.5 Deviations and findings
 
@@ -1696,6 +1724,16 @@ Files: `scripts/package.py`, `packaging/PLAY.txt` (Linux line only), `tools/laun
 - **F-RC-5 (bounded, wording).** A `.desktop` file cannot hold the bundle's absolute path at assemble time;
   it starts the executable beside it (`%k`), so `PLAY.txt` tells Linux players to double-click it in the
   bundle folder rather than copy it to `~/.local/share/applications/`.
+- **F-RC-6 (bounded, packaging content).** `PACK_3D_PARTS` predates the 3D client's run-time reads of its
+  pack (depictions, sit points, station kits, places, furniture, materials, assets, i18n); a bundle from
+  `origin/main` failed `STATION_KIT_MISSING` in R-a's `probe` as in `smoke`. The eight folders are added
+  (about 8 MB uncompressed; archive 350.5 → 353.4 MB). Which of them are strictly needed was not minimised.
+- **F-RC-7 (open, for the operator; not C5's to fix).** In `both`, the 3D client is seated `wanderer`
+  (AC-15). The 3D `--slice-link` probe fails for that seat (`the server did not move the player onto the
+  street`), alone or beside the 2D client, and the client exits 0 although it printed `1 LINK CHECKS
+  FAILED` — the verdict-line rule (F-R6) is what catches it. So `smoke --modes both` FAILs until either the
+  slice-link probe works for any seat and exits non-zero on a failed check (3D client lane), or the `both`
+  seats change (a launcher contract change, `LAUNCHER.md` §2). C6's "both" item is blocked on that ruling.
 
 ## 19.6 Validation ledger
 
