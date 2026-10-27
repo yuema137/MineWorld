@@ -27,12 +27,14 @@
 class_name DepictionStations
 extends RefCounted
 
-## The category prefix the landmark check hides for a town's station (S29 sec.9.2).
-const CATEGORY := "station"
+## The category a station's nodes take: the pieces' own root (`station.*`), which the landmark check hides
+## for a town's station (S29 sec.9.2), and the station's name.
+static func category(name: String) -> String:
+	return "%s.%s" % [StationPieces.CATEGORY.get_slice(".", 0), name]
 ## A tie's depth (`StationTrack.track`'s), metres.
 const TIE_H := 0.18
 ## The terrain under the slab and the trackbed stands this far below what covers it, metres.
-const CLEARANCE := 0.02
+const UNDER_GAP := 0.02
 ## The trackbed's margin beyond the ballast's shoulder, millimetres.
 const BED_MARGIN_MM := 300.0
 ## A canopy's roof sheet and its brackets, metres; brackets stand at most this far apart.
@@ -49,7 +51,7 @@ static func build(parent: Node3D, stations: Array, d: SliceDataDepiction) -> voi
 	for s in stations:
 		var node := Node3D.new()
 		node.name = String(s["name"])
-		node.set_meta("mw_category", "%s.%s" % [CATEGORY, s["name"]])
+		node.set_meta("mw_category", category(String(s["name"])))
 		g.add_child(node)
 		var style := StationPieces.style_of(String(s["style"]))
 		for f in s.get("fixtures", []) if s.get("fixtures") != null else []:
@@ -80,16 +82,16 @@ static func bed_top(p: Dictionary) -> float:
 ## through the run and the cutting at each running end.
 static func trackbed(p: Dictionary, r: Rect2) -> Rect2:
 	var t: Dictionary = p["track"]
-	var reach := float(t["near_mm"]) + float(t["tie_mm"][0]) * 0.5 + StationTrack.SHOULDER * 1000.0 \
+	var wide := float(t["near_mm"]) + float(t["tie_mm"][0]) * 0.5 + StationTrack.SHOULDER * 1000.0 \
 		+ BED_MARGIN_MM
 	var run := (float(t["beyond_m"]) + float(t["cutting_m"])) * 1000.0
 	var buffer: Variant = t.get("buffer")
 	var bed := Rect2()
 	match String(p["edge"]):
-		"e": bed = Rect2(r.end.x, r.position.y, reach, r.size.y)
-		"w": bed = Rect2(r.position.x - reach, r.position.y, reach, r.size.y)
-		"n": bed = Rect2(r.position.x, r.end.y, r.size.x, reach)
-		_: bed = Rect2(r.position.x, r.position.y - reach, r.size.x, reach)
+		"e": bed = Rect2(r.end.x, r.position.y, wide, r.size.y)
+		"w": bed = Rect2(r.position.x - wide, r.position.y, wide, r.size.y)
+		"n": bed = Rect2(r.position.x, r.end.y, r.size.x, wide)
+		_: bed = Rect2(r.position.x, r.position.y - wide, r.size.x, wide)
 	var along_y := String(p["edge"]) in ["e", "w"]
 	# the running ends: both, or the one away from the buffer
 	for end in (["s", "n"] if along_y else ["w", "e"]):
@@ -115,7 +117,7 @@ static func cuts(stations: Array, d: SliceDataDepiction) -> Array:
 		var r := platform_rect(p, d)
 		if r.size == Vector2.ZERO:
 			continue
-		var low := bed_top(p) - CLEARANCE
+		var low := bed_top(p) - UNDER_GAP
 		out.append({"rect": r, "to_m": low, "strict": true})
 		out.append({"rect": trackbed(p, r), "to_m": low, "strict": false})
 	return out
@@ -280,25 +282,25 @@ static func _canopy(g: Node3D, c: Dictionary, d: SliceDataDepiction, r: Rect2, o
 	for i in count:
 		var at := p0.lerp(p1, float(i) / float(count - 1))
 		at.y = 0.0
-		var reach := depth - 0.2
+		var arm := depth - 0.2
 		# a rafter under the sheet, tilted with it, from the back out
-		var under := high - SHEET_M * 0.5 - (reach * 0.5) * slope
+		var under := high - SHEET_M * 0.5 - (arm * 0.5) * slope
 		var rafter := MeshInstance3D.new()
 		var rm := BoxMesh.new()
-		rm.size = Vector3(reach / cos(atan(slope)), BRACKET_M, BRACKET_M)
+		rm.size = Vector3(arm / cos(atan(slope)), BRACKET_M, BRACKET_M)
 		rafter.mesh = rm
 		rafter.material_override = style["wood"]
-		rafter.transform = Transform3D(basis, at + out * (reach * 0.5) + Vector3(0.0, under - BRACKET_M * 0.5, 0.0))
+		rafter.transform = Transform3D(basis, at + out * (arm * 0.5) + Vector3(0.0, under - BRACKET_M * 0.5, 0.0))
 		node.add_child(rafter)
 		var strut := MeshInstance3D.new()
 		var sm := BoxMesh.new()
 		var drop := 0.9
-		var span := Vector2(reach * 0.6, drop).length()
+		var span := Vector2(arm * 0.6, drop).length()
 		sm.size = Vector3(BRACKET_M * 0.8, span, BRACKET_M * 0.8)
 		strut.mesh = sm
 		strut.material_override = style["wood"]
 		var foot := at + Vector3(0.0, under - drop, 0.0)
-		var head := at + out * (reach * 0.6) + Vector3(0.0, under - BRACKET_M, 0.0)
+		var head := at + out * (arm * 0.6) + Vector3(0.0, under - BRACKET_M, 0.0)
 		var up := (head - foot).normalized()
 		var side := up.cross(out).normalized()
 		if side.length() < 0.5:

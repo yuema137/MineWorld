@@ -47,10 +47,10 @@ const TYPES := {
 		"light": [["obj", "light"], false], "models": [["list", ["obj", "model"]], false],
 		"extras_from": ["key", false], "decor": [["list", ["obj", "decor"]], false],
 		"viewpoints": [["obj", "viewpoints"], true], "decks": [["list", ["obj", "deck"]], false],
-		"stations": [["list", ["obj", "station"]], false],
+		"stations": [["list", ["obj", "station_entry"]], false],
 	},
 	# `stations` (ARC-179; S33-e sec.5.2): fixtures, a platform and its track, from S29-e's station pieces
-	"station": {"name": ["key", true], "style": [["enum", ["timber", "oak"]], true],
+	"station_entry": {"name": ["key", true], "style": [["enum", ["timber", "oak"]], true],
 		"fixtures": [["list", ["obj", "fixture"]], false], "platform": [["obj", "platform"], false],
 		"source": ["str", false]},
 	"fixture": {"piece": [["enum", ["board", "clock", "window_bay"]], true], "in": [["list", "key"], true],
