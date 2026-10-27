@@ -91,9 +91,12 @@ const STATION_SITE := {"kit": "depot", "facade_x": -59.0, "axis_z": 0.0, "facing
 const STATION_VIEWS := [["st_1_spawn_west", Vector3(-11.5, 1.8, -5.55), 90.0, 4.0],
 	["st_2_east_end_west", Vector3(30.0, 1.8, 0.0), 90.0, 2.0]]
 const STATION_LANDMARK_SHOTS := ["ff_5_west_aerial"]
-## The walk in: from the café door out to the street's axis, then west along it to the arch (the
-## carriageway is clear of the pavement's furniture).
-const STATION_WALK_VIA := [Vector3(3.45, 0.45, 0.0)]
+## The walk in, around the world's solids on the north pavement (`worlds/social-cafe/places/street.yaml`,
+## street mm): straight out of the café door between the planter (x ≤ -510) and the terrace table
+## (x ≥ 329) to y 300, east to x 900 below the table (y ≥ 780), then down to the street's axis between the
+## bin (x ≤ 319) and the lamp (x ≥ 1 487), and west along the axis to the arch (the carriageway is clear).
+## S29-d's single point straight out of the door (x = 0) meets the bin S36-P5c made solid.
+const STATION_WALK_VIA := [Vector3(3.45, 0.45, -5.2), Vector3(4.35, 0.45, -5.2), Vector3(4.35, 0.45, 0.0)]
 ## The offline spawn (`depictions/social-cafe/depiction.gd`).
 const SPAWN := Vector3(-11.5, 0.45, -5.55)
 const SPAWN_YAW := -78.0

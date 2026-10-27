@@ -964,7 +964,27 @@ The operator ruled every pending question "as recommended" (relayed by the coord
   occluder boxes are kept but no longer consumed (F-d2-9). Main's other changes merged as unions:
   `DepictionLight` is the one light builder (it gained 16f-d2's interior-probe rule), the door registry is
   `SliceDoors` everywhere, `feet_course.gd --scene street` loads the street's builder from the authoring
-  source, and the perf views are only the depiction's. Parity was not re-measured after the merge (the
-  street now ends at the depot, which the base captures do not have).
+  source, and the perf views are only the depiction's.
+- **Ruling on F-d2-12 (coordinator, 2026-10-26).** The optional `station_kit` section is accepted as a
+  bounded extension of the depiction format, as `extras_from` and `decor` were (S33-g).
+- **F-d2-13 (bounded, the station walk).** `--world --station-walk` failed on `main @ 64557fc1` as on this
+  head (3 STATION CHECKS FAILED, the same stops): S29-d's walk went straight out of the café door (street
+  x = 0) into a bin S36-P5c made a solid (`worlds/social-cafe/places/street.yaml`, x -19..319, y
+  -1 019..-681 mm; the same in Market Town). The bin is drawn, so the solid is right and the walk was
+  wrong: `source.gd`'s `STATION_WALK_VIA` now goes out between the planter and the terrace table, east below
+  the table and down between the bin and the lamp, then along the axis (`walk_via`, re-exported; the
+  place art's bytes did not change). `--world --station-walk` and `--world=market-town --station-walk`:
+  **all station checks pass** on this head.
+- **Parity re-measured after the merge (2026-10-26).** The old base `fe3d4ab3` is no longer a fair
+  reference: main itself moved since (its own frames score 0.39-0.50 on 04c, 07, 17 and 0.78 on the aerials
+  against `fe3d4ab3`, from the re-cast characters and the far fields). Against current `main @ 64557fc1`
+  (the café drawn by the script, with the depot), same 40 shots, ffmpeg `ssim` All: **28 of 40** meet
+  0.98 (operator-accepted: 29 of 40). Below: 01 0.909, 01r 0.956, 02 0.868, 03 0.883, 03b 0.975, 03s
+  0.980, 04r 0.979, 05 0.930, 08 0.972, 13 0.979, 18 0.970, ff_1 0.861. The new misses (02, 03, 05) show no
+  structural change: the difference images are near black (PSNR 29.3, 30.6, 40.2 dB), the decorative
+  passer-by at the terrace is gone (F-d2-2), and ff_1 is the tree shade (#514). Every other frame,
+  including the depot's west views, meets the bar.
+- **Far field (2026-10-26).** `./mineworld-slice --farfield`: all farfield checks pass. `./mineworld-2d
+  --drive=farfield` on market-town and social-cafe: all farfield2d checks pass, drive complete: PASS.
 
 ### Design review
