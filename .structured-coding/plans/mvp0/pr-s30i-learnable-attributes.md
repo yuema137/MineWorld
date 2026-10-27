@@ -1,6 +1,8 @@
 # PR S30-i — Learnable attributes: `tell-about-self`, the `told-about-self` fact, and what a listener remembers
 
-## DRAFT — not frozen
+## DESIGN FROZEN 2026-10-27 (operator approved in the primary session: every question answered as recommended)
+
+**Ruled 2026-10-27 (operator, primary session):** every question below is answered as recommended.
 
 ```text
 Design revision:        draft 1 (2026-10-26)
