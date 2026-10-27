@@ -528,7 +528,10 @@ def result(layer: str, line: str) -> None:
 # Layers that may run as shards (ARC-110): `core`'s cargo commands become shard K's, and the scratch check
 # still closes the layer, so each shard leaves nothing behind. `core-repeat` shards the same partition
 # (ARC-149): shard K builds its targets, then samples its tests twice through ci_repeat.py.
-SHARDABLE = {"core", "core-repeat"}
+# `clients` shards its Godot test targets by ci_godot.py's GODOT_WEIGHTS (the nightly's Linux jobs, which
+# outran 75 minutes unsharded beside the probes); its build, coverage and scratch checks run in every shard.
+SHARDABLE = {"core", "core-repeat", "clients"}
+GODOT_TESTS_COMMAND = ["python3", "scripts/ci_godot.py", "tests"]
 
 
 def repeat_commands(cargo: list[list[str]]) -> list[list[str]]:
@@ -551,6 +554,9 @@ def commands_of(layer: str, shard: str | None) -> list[list[str]]:
     non-cargo-test commands in their order."""
     if shard is None:
         return LAYERS[layer]
+    if layer == "clients":
+        return [[*command, "--shard", shard] if command == GODOT_TESTS_COMMAND else command
+                for command in LAYERS[layer]]
     cargo, account = ci_shard.shard_commands(shard)
     print(f"[ci] shard {shard} of {layer}; {account}", flush=True)
     if layer == "core-repeat":

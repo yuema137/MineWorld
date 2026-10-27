@@ -471,6 +471,9 @@ jobs:
   # which run if the setup succeeded, even when a Godot test failed. Windows has no clients-probes until
   # a portable launcher exists (S23 R-c; ARC-83). The S33-i agent + 3D observer pair (layer agent-observer)
   # needs Godot and uv but no bash launcher, so every OS runs it, on the same condition, after the probes.
+  # Linux runs the Godot tests as two shards (ci_godot.py GODOT_WEIGHTS): unsharded, the tests (60 min) and
+  # the probes outran this job's 75 minutes (nightly 40412844680). Shard 1 carries the probes and the
+  # agent-observer pair; shard 2, `clients-linux-2`, the other half of the tests alone.
   clients-linux:
     name: clients-linux
     needs: gate
@@ -492,6 +495,7 @@ jobs:
         uses: ./.github/actions/native
         with:
           layer: clients
+          shard: 1/2
       - name: Run layer clients-probes
         if: success() || steps.clients.outcome == 'failure'
         run: python3 scripts/ci_layer.py clients-probes
@@ -509,6 +513,33 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: nightly-clients-linux
+          path: artifacts/nightly/
+          if-no-files-found: warn
+
+  clients-linux-2:
+    name: clients-linux-2
+    needs: gate
+    if: needs.gate.outputs.run == 'true' && contains(needs.gate.outputs.groups, ',clients,')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/godot
+      - uses: ./.github/actions/native
+        with:
+          layer: clients
+          shard: 2/2
+      - name: Verdict
+        if: always()
+        env:
+          STATUS: ${{ job.status }}
+        run: python3 scripts/ci_nightly.py verdict --job clients-linux-2 --outcome "$STATUS" --layer clients
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: nightly-clients-linux-2
           path: artifacts/nightly/
           if-no-files-found: warn
 
@@ -842,6 +873,7 @@ jobs:
       - stability-mac
       - stability-windows
       - clients-linux
+      - clients-linux-2
       - clients-mac
       - clients-windows
       - farfield-windows
