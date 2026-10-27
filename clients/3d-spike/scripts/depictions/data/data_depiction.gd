@@ -97,7 +97,7 @@ func _build_station_kit(g: Node3D, view: SliceFarFieldView) -> void:
 	var at := to_scene(_point(s["facade_mm"]))
 	var site := {"kit": String(s["kit"]), "facade_x": at.x, "axis_z": at.z, "facing": String(s["facing"]),
 		"floor_y": frame_origin().y + float(s["floor_m"])}
-	var opened := StationKit.open(site, SlicePack.select().dir)
+	var opened := StationKit.open(site, ProjectSettings.globalize_path("res://").path_join(SliceMain.PACK_DIR))
 	if opened.has("refusal"):
 		refusal = opened["refusal"]
 		return
