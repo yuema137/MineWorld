@@ -1196,6 +1196,7 @@ dependencies = [
  "mineworld-contracts",
  "mineworld-decision",
  "mineworld-motivated",
+ "mineworld-price-reporter",
  "mineworld-rule-controller",
 ]
 
@@ -1470,6 +1471,21 @@ dependencies = [
  "mineworld-contracts",
  "mineworld-kernel",
  "mineworld-sdk",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "mineworld-price-reporter"
+version = "0.1.0"
+dependencies = [
+ "mineworld-contracts",
+ "mineworld-decision",
+ "mineworld-notices",
+ "mineworld-packages",
+ "mineworld-price-survey",
+ "mineworld-rule-controller",
+ "schemars",
  "serde",
  "serde_json",
 ]

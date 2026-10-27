@@ -14,6 +14,7 @@
           "enum": [
             "rule",
             "motivated",
+            "price-reporter",
             "lm"
           ],
           "type": "string"
@@ -172,6 +173,40 @@
       "required": [],
       "type": "object"
     },
+    "Buy": {
+      "description": "The buyer half.",
+      "properties": {
+        "choose": {
+          "$ref": "#/$defs/BuyChoice",
+          "description": "`any` or `cheapest`."
+        },
+        "tags": {
+          "description": "Only seats carrying one of these tags, 0 … 8; empty: every seat on this model.",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 8,
+          "type": "array"
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
+    "BuyChoice": {
+      "description": "Which offer to buy a kind from, once a model has chosen to buy it.",
+      "oneOf": [
+        {
+          "const": "any",
+          "description": "The offer the model chose: today's behaviour.",
+          "type": "string"
+        },
+        {
+          "const": "cheapest",
+          "description": "The cheapest available offer of the same kind; the first in observation order on a tie.",
+          "type": "string"
+        }
+      ]
+    },
     "Commute": {
       "description": "A commute policy: how early a person sets out for a punctual part of the day (§0.4). Every field may be omitted and keeps its default; the defaults were fixed before any run (`ARC-23`).",
       "properties": {
@@ -232,6 +267,21 @@
           "type": "string"
         }
       ]
+    },
+    "ListRule": {
+      "description": "Which held kinds a seller lists at their reference value.",
+      "properties": {
+        "categories": {
+          "description": "Item categories, 0 … 16: a held kind of one of these with no ask of mine is listed. Empty: none.",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 16,
+          "type": "array"
+        }
+      },
+      "required": [],
+      "type": "object"
     },
     "Memory": {
       "additionalProperties": false,
@@ -523,6 +573,21 @@
         }
       ]
     },
+    "Pricing": {
+      "description": "The whole block: how a seat prices what it sells, and how it chooses what it buys.",
+      "properties": {
+        "buy": {
+          "$ref": "#/$defs/Buy",
+          "description": "How a seat chooses among offers to buy one kind."
+        },
+        "sell": {
+          "$ref": "#/$defs/Sell",
+          "description": "How a seat prices its own asks, and a shop's it keeps."
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
     "Roles": {
       "description": "The tags that make a place a role (§5.4): the first role whose tags intersect a place's tags names it. Each role lists at most eight tags (SD-DLb-7).",
       "properties": {
@@ -570,6 +635,98 @@
       "required": [],
       "type": "object"
     },
+    "Sell": {
+      "description": "The seller half.",
+      "properties": {
+        "ceiling_permille": {
+          "description": "Per mille of the reference value, 1 000 … 10 000: the highest ask a policy proposes.",
+          "format": "uint32",
+          "maximum": 10000,
+          "minimum": 1000,
+          "type": "integer"
+        },
+        "deadband_permille": {
+          "description": "Per mille of the ask, 0 … 500: a gap no larger than this is ignored.",
+          "format": "uint32",
+          "maximum": 500,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "every_minutes": {
+          "description": "The pricing period in minutes, 60 … 10 080: each priceable ask is considered once per period.",
+          "format": "uint32",
+          "maximum": 10080,
+          "minimum": 60,
+          "type": "integer"
+        },
+        "floor_permille": {
+          "description": "Per mille of the reference value, 1 … 1 000: the lowest ask a policy proposes.",
+          "format": "uint32",
+          "maximum": 1000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "full_above": {
+          "description": "`scarcity`: more than this in stock lowers the ask, 1 … 100 000.",
+          "format": "uint32",
+          "maximum": 100000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "list": {
+          "$ref": "#/$defs/ListRule",
+          "description": "Which held kinds are listed at their reference value."
+        },
+        "low_below": {
+          "description": "`scarcity`: fewer than this in stock raises the ask, 0 … 1 000.",
+          "format": "uint32",
+          "maximum": 1000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "policy": {
+          "$ref": "#/$defs/SellPolicy",
+          "description": "`hold`, `toward-suggestion` or `scarcity`."
+        },
+        "step_permille": {
+          "description": "Per mille, 1 … 500: how far one move goes.",
+          "format": "uint32",
+          "maximum": 500,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "tags": {
+          "description": "Only seats carrying one of these tags, 0 … 8; empty: every seat on this model.",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 8,
+          "type": "array"
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
+    "SellPolicy": {
+      "description": "What a seller does with its asks.",
+      "oneOf": [
+        {
+          "const": "hold",
+          "description": "Never move a price.",
+          "type": "string"
+        },
+        {
+          "const": "toward-suggestion",
+          "description": "Move a bounded step toward the current suggestion on the notice board.",
+          "type": "string"
+        },
+        {
+          "const": "scarcity",
+          "description": "Raise when stock is low, lower when it is full.",
+          "type": "string"
+        }
+      ]
+    },
     "SleepUntil": {
       "description": "How long a person who goes to bed inside the night sleeps for (Q-S35-OP1 (a)).",
       "oneOf": [
@@ -584,6 +741,12 @@
           "type": "string"
         }
       ]
+    },
+    "TopicId": {
+      "description": "A topic's name: dotted lowercase segments, such as `prices.ingredients` or `news.daily`.",
+      "maxLength": 64,
+      "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$",
+      "type": "string"
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -631,6 +794,7 @@
       "enum": [
         "rule",
         "motivated",
+        "price-reporter",
         "lm"
       ],
       "type": "string"
@@ -652,6 +816,7 @@
               "enum": [
                 "rule",
                 "motivated",
+                "price-reporter",
                 "lm",
                 "none"
               ],
@@ -730,6 +895,10 @@
                   "minimum": 0,
                   "type": "integer"
                 },
+                "pricing": {
+                  "$ref": "#/$defs/Pricing",
+                  "description": "How a seat prices what it sells and chooses what it buys: `rule`'s block (`ARC-117`)."
+                },
                 "reply_floor": {
                   "description": "Per mille, 0 … 1 000: the least chance an addressed person replies.",
                   "format": "uint32",
@@ -762,6 +931,87 @@
           },
           "type": "object"
         },
+        "price-reporter": {
+          "additionalProperties": false,
+          "description": "The price-reporter model, which the host runs in process.",
+          "properties": {
+            "parameters": {
+              "description": "The price-reporter model's parameters; a key it does not take, or a value outside its bound, is refused. An empty mapping when it takes none.",
+              "properties": {
+                "every_minutes": {
+                  "description": "Minutes between slots, 15 … 1 440 (240).",
+                  "format": "uint32",
+                  "maximum": 1440,
+                  "minimum": 15,
+                  "type": "integer"
+                },
+                "first_minute": {
+                  "description": "The first publish slot, minute of the day, 0 … 1 439 (480: 08:00).",
+                  "format": "uint32",
+                  "maximum": 1439,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "last_minute": {
+                  "description": "No slot after this minute of the day, `first_minute` … 1 439 (1 200: 20:00).",
+                  "format": "uint32",
+                  "maximum": 1439,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "min_basis": {
+                  "description": "Notes a line must rest on, 1 … 64 (3).",
+                  "format": "uint32",
+                  "maximum": 64,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "plenty_above": {
+                  "description": "Median shop stock above this lowers the line, 1 … 100 000 (20).",
+                  "format": "uint32",
+                  "maximum": 100000,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "plenty_permille": {
+                  "description": "Per mille subtracted when plentiful, 0 … 900 (50).",
+                  "format": "uint32",
+                  "maximum": 900,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "scarce_below": {
+                  "description": "Median shop stock below this raises the line, 0 … 1 000 (3; 0: off).",
+                  "format": "uint32",
+                  "maximum": 1000,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "scarce_permille": {
+                  "description": "Per mille added when scarce, 0 … 1 000 (100).",
+                  "format": "uint32",
+                  "maximum": 1000,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "topic": {
+                  "$ref": "#/$defs/TopicId",
+                  "description": "The topic the bulletin is posted on: a dotted slug, 1 … 64 bytes (`prices.ingredients`)."
+                },
+                "valid_minutes": {
+                  "description": "The notice's validity in minutes, 1 … 43 200 (360); the topic's own bounds are the server's check.",
+                  "format": "uint32",
+                  "maximum": 43200,
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              },
+              "required": [],
+              "type": "object"
+            }
+          },
+          "type": "object"
+        },
         "rule": {
           "additionalProperties": false,
           "description": "The rule model, which the host runs in process.",
@@ -780,6 +1030,10 @@
                 "needs": {
                   "$ref": "#/$defs/NeedsPolicy",
                   "description": "When to eat, go to bed and wake for work, in a world with `needs` and `sleep` (`ARC-286`)."
+                },
+                "pricing": {
+                  "$ref": "#/$defs/Pricing",
+                  "description": "How a seat prices what it sells and chooses what it buys; default `hold` / `any` (`ARC-117`)."
                 }
               },
               "required": [],

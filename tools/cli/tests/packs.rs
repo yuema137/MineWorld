@@ -113,10 +113,14 @@ fn every_code_pack_in_the_build_is_listed_with_its_identity() {
         .filter(|l| l.kind == "controller-pack")
         .map(|l| l.id)
         .collect();
-    // In `cognition/installed`'s order: `rule`, then `motivated` (DL-b).
+    // In `cognition/installed`'s order: `rule`, then `motivated` (DL-b), then `price-reporter` (S31-d).
     assert_eq!(
         controllers,
-        ["mineworld-rule-controller", "mineworld-motivated"]
+        [
+            "mineworld-rule-controller",
+            "mineworld-motivated",
+            "mineworld-price-reporter"
+        ]
     );
 
     for line in listed.iter().filter(|l| l.kind != "world-pack") {
