@@ -1274,6 +1274,13 @@ the 2048² texture stay the standard.
 stored file), and the release *ships* it at 1024²: the `cast_albedo` import role sets `process/size_limit=1024` with
 Basis UASTC at RDO 1.0. The `3d.pck` hard limit stays 250 MB.
 
+**Overridden (operator ruling 2026-10-26, dated note in `DEP-162`):** the operator overrides Q-S26-5. 1024² is the
+shipped standard of *every* character's base colour, cast, NPCs, extras and the town body alike. 2048² stays only the
+authored size (G-3). `clients/3d-spike/tools/patch_imports.py` applies one constant, `CHARACTER_BASE_COLOUR_PX`, to
+the `cast_albedo` role and the town body's `albedo` role, so a character added later is covered without a per-asset
+setting. Measured `3d.pck` 236.4 MB on macOS universal, Linux x86_64 and Windows x86_64 (hard 250). Archives:
+344.6 / 312.1 / 322.2 MB (hard 400). The numbers are in `DEP-162`.
+
 **Repository growth.** An accepted character commits ≈ 10 MB once (texture stored once, A-7 fixed); 21
 characters ≈ 210 MB of history, against `.git`'s 654 MB today (A-27). Rejected runs never enter the
 repository. **Ruled (Q-S26-10):** accepted characters only, the texture stored once, no Git LFS.
