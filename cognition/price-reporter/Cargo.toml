@@ -1,0 +1,26 @@
+[package]
+name = "mineworld-price-reporter"
+description = "The price clerk's deterministic decision model: surveys the asks on display, and at configured times of day publishes suggested prices from its own price book as a notice; otherwise lives as the rule controller does."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+# The observation a consult reads and the request it returns.
+mineworld-contracts = { workspace = true }
+# The decision-model trait this crate implements as `price-reporter`, and the parameter seam (MODULE_SPEC.md §5.1).
+mineworld-decision = { workspace = true }
+# Daily life is `rule`'s, unchanged; `read`, `act` and the slot arithmetic of `price::slots` are shared.
+mineworld-rule-controller = { workspace = true }
+# The clerk's own `survey-book` record (`PriceBook`) and the `survey` action (ARC-116). `price-survey` is not a
+# market pack; this crate names no market crate (ARC-35 check 2, ARC-182).
+mineworld-price-survey = { path = "../../systems/price-survey" }
+# `publish-notice` and its body types, built with the owner's own types (ARC-115, R-S31d-b-1).
+mineworld-notices = { path = "../../systems/notices" }
+mineworld-packages = { workspace = true }
+# The parameter block's JSON Schema, for the generated reference (ARC-90).
+schemars = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }

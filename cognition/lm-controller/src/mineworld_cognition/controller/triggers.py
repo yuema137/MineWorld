@@ -15,7 +15,7 @@ every `reask_minutes` until I set out, arrive, or the part begins. Neither decid
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import NamedTuple
 
@@ -41,14 +41,22 @@ def detect(
     now_at: int,
     greeted: dict[EntityId, int],
     greet_cooldown_s: int,
+    due_events: Mapping[str, str] | None = None,
 ) -> list[Trigger]:
     """The triggers of one absorbed batch, in fact order. `greeted` maps a person to the world second of their
-    last T3 trigger; the caller records the triggers it gets back."""
+    last T3 trigger; the caller records the triggers it gets back. `due_events` are the fact types the fillers
+    listed for the seat name, each with its line (S31-d §5.8.4): such a fact is a `due` trigger. Empty or absent,
+    as for a seat no filler lists, no `due` trigger is raised."""
     known = _stable_people(store)
     triggers: list[Trigger] = []
+    due = due_events or {}
     for fact in facts:
         body = body_of(fact)
-        if fact.event_type == SPOKE:
+        if fact.event_type in due:
+            triggers.append(
+                Trigger(event=fact.id, kind="due", speaker=None, words=due[fact.event_type])
+            )
+        elif fact.event_type == SPOKE:
             listener = person_of(body, "listener")
             speaker = person_of(body, "speaker")
             if listener == me and speaker is not None and speaker != me:

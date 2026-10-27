@@ -18,7 +18,15 @@ from mineworld_sdk.wire.contract import ActionRecord, ActionRequest, Location, O
 from mineworld_sdk.wire.ids import ActionTypeId
 
 from mineworld_cognition.backend.model import CognitionModel
-from mineworld_cognition.controller.validate import Attempt, Go, Nothing, Proposal, Say, Sleep
+from mineworld_cognition.controller.validate import (
+    Attempt,
+    Fill,
+    Go,
+    Nothing,
+    Proposal,
+    Say,
+    Sleep,
+)
 
 TALK = ActionTypeId("talk")
 WALK_TO = ActionTypeId("walk-to")
@@ -49,7 +57,20 @@ def build(proposal: Proposal, observation: Observation) -> ActionRequest | Seman
         return _go(proposal, observation)
     if isinstance(proposal, Sleep):
         return _sleep(proposal, observation)
+    if isinstance(proposal, Fill):
+        return _fill(proposal, observation)
     return _attempt(proposal, observation)
+
+
+def _fill(proposal: Fill, observation: Observation) -> ActionRequest | SemanticFailure:
+    """An incomplete offer filled (S31-d §5.8.3): the filler's checked payload, on the action type and target the
+    world offered as available, through `offers.request` like every request here (`ARC-72`, `ARC-183`)."""
+    try:
+        return offers.request(
+            observation, proposal.action_type, target=proposal.target, payload=proposal.payload
+        )
+    except NotOffered:
+        return SemanticFailure(reason="not_offered", detail="that offer is no longer available")
 
 
 def _sleep(proposal: Sleep, observation: Observation) -> ActionRequest | SemanticFailure:

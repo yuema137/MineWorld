@@ -24,7 +24,7 @@ use mineworld_contracts::{ActionRequest, Observation, PersonId, SimDuration};
 use mineworld_conversation::Talk;
 use mineworld_decision::{Consult, DecisionModel, Draw, mix};
 use mineworld_group_activity::{AcceptInvitation, DeclineInvitation, Invitations};
-use mineworld_rule_controller::{act, commute, read};
+use mineworld_rule_controller::{act, commute, price, read};
 use serde_json::Value;
 
 use crate::considerations;
@@ -84,6 +84,11 @@ pub fn decide(
     }
     if let Some(answer) = reply(&context, settings, &draw, pace) {
         return answer;
+    }
+    // A seller prices one ask per slot of its pricing period, with no draw (`ARC-117`). The default block
+    // holds every price, so nothing here changes.
+    if let Some(priced) = price::seller_band(observation, pace, &settings.pricing) {
+        return Some(priced);
     }
     let scored = score::score_all(&context, settings);
     let window = context.now.div_euclid(settings.commit_minutes.max(1) * 60);

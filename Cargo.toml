@@ -8,6 +8,7 @@ members = [
     "cognition/decision",
     "cognition/installed",
     "cognition/motivated",
+    "cognition/price-reporter",
     "cognition/rule-controller",
     "contracts",
     "kernel",
@@ -59,6 +60,7 @@ mineworld-relationships = { path = "systems/relationships" }
 mineworld-schedule = { path = "systems/schedule" }
 mineworld-weather = { path = "systems/weather" }
 mineworld-motivated = { path = "cognition/motivated" }
+mineworld-price-reporter = { path = "cognition/price-reporter" }
 mineworld-rule-controller = { path = "cognition/rule-controller" }
 mineworld-sdk = { path = "sdk/rust" }
 mineworld-conversation = { path = "systems/conversation" }

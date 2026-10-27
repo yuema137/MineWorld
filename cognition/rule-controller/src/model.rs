@@ -21,6 +21,7 @@ use crate::PacedRuleController;
 use crate::boss::Boss;
 use crate::commute::Commute;
 use crate::needs::NeedsPolicy;
+use crate::price::Pricing;
 
 /// The paced rule controller, `rule` in `decisions.yaml`.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -36,10 +37,12 @@ pub struct RuleParameters {
     pub boss: Boss,
     /// When to eat, go to bed and wake for work, in a world with `needs` and `sleep` (`ARC-286`).
     pub needs: NeedsPolicy,
+    /// How a seat prices what it sells and chooses what it buys; default `hold` / `any` (`ARC-117`).
+    pub pricing: Pricing,
 }
 
 /// The keys of the block.
-const KEYS: &[&str] = &["commute", "boss", "needs"];
+const KEYS: &[&str] = &["commute", "boss", "needs", "pricing"];
 
 impl ModelParameters for RuleParameters {
     fn decode<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
@@ -71,6 +74,7 @@ impl<'de> Visitor<'de> for Fields {
                 "commute" => parameters.commute = map.next_value()?,
                 "boss" => parameters.boss = map.next_value()?,
                 "needs" => parameters.needs = map.next_value()?,
+                "pricing" => parameters.pricing = map.next_value()?,
                 _ => return Err(A::Error::unknown_field(&key, KEYS)),
             }
             seen.push(key);
@@ -85,6 +89,7 @@ impl Rule {
             .commuting(parameters.commute, consult.stride)
             .bossing(parameters.boss)
             .needing(parameters.needs.clone())
+            .pricing(parameters.pricing.clone())
     }
 }
 
