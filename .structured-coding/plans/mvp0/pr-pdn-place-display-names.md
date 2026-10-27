@@ -1,6 +1,8 @@
 # PR PDN — Places have display names, authored in the World Pack and localisable
 
-## DRAFT 2026-10-26 (not frozen; implementation needs an operator freeze)
+## DESIGN FROZEN 2026-10-27 (operator approved in the primary session: every question answered as recommended) 2026-10-26 (not frozen; implementation needs an operator freeze)
+
+**Ruled 2026-10-27 (operator, primary session):** every question below is answered as recommended.
 
 ```text
 Lifecycle:              DRAFT 2026-10-26. Not frozen. No implementation before an operator ruling on §9 and a
