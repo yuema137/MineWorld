@@ -203,9 +203,9 @@ from the image README or a run.
 None is a required check, so none is an `ARC-48` interface today. If Q-25g-6 is ruled yes, the summary job
 `cold-start` (no matrix) becomes the one name R-b reads, and it is recorded as an interface then.
 
-**Decision record.** One new record, placeholder **`ARC-25g-a`** ("The onboarding cold-start check: a clean
+**Decision record.** One new record, **`ARC-362`** ("The onboarding cold-start check: a clean
 runner, the guide in cold-start mode, the bundle check"), with options C1–C4 of §4.1 and P1–P2 of §4.2. The number
-is the coordinator's to assign. Plus a dated note on `ARC-48` naming the new workflow and stating that it blocks
+was assigned by the coordinator on 2026-10-26 (the next unused ARC id after ARC-361). Plus a dated note on `ARC-48` naming the new workflow and stating that it blocks
 nothing.
 
 ---
@@ -594,7 +594,7 @@ this is a draft.
 ### C0 — Specifications and decision (Markdown only)
 
 **Goal.** The rules exist before the code. **Scope.** `docs/GUIDE_FORMAT.md` §4.7, §6 (`cold-start`), §11;
-`docs/decisions/ARC-<n>.md` (ARC-25g-a) and its INDEX line; a dated note in `ARC-48.md`; this design's ledger.
+`docs/decisions/ARC-362.md` and its INDEX line; a dated note in `ARC-48.md`; this design's ledger.
 **Non-goals.** No change to §4.6's default rules.
 
 - [ ] Implementation: the three spec edits and the record (options C1–C4, P1–P2, the not-achievable list of §4.3).
