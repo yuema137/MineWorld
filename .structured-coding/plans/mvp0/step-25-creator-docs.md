@@ -1098,6 +1098,11 @@ ledger, §20. C0–C4 landed as one commit (the protocol, the tools and their te
   removed from the agent's environment; no credential read or written.
 - **C5** Rounds 1 and 2 (§20.3). AC-25f-5 is not reachable on this stack: S5 and S6 are product gaps (F-S25-5).
 
+#### PR 25g — The onboarding cold-start check, layers A and B (DRAFT, not frozen)
+
+Design: [`pr-25g-cold-start.md`](pr-25g-cold-start.md) — the guide followed from a clean hosted runner on three OS
+(A, from source with a real clone and the reader's binary) and from the release bundle with no Rust or Godot (B).
+
 ### 10.4 MVP-0 placement
 
 S25 is part of MVP-0 and lands **before step-23's publishing PR R-d**, so the first public release carries a guide
