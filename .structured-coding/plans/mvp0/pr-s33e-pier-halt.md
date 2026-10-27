@@ -613,7 +613,74 @@ D-e-6: the probe's route walks onto the pier through its door and ramp; walking 
 (§5.4). D-e-7: the geometry probe treats a deck's approach as a ramp (the existing rule for tilted boxes).
 D-e-8: a drawn person stands on the depiction's ground colliders (generic, ARC-178) — on Lakeside this also
 seats the village's people on its 0.6 m rise.
-| e2 C0…C3 | — | [ ] | [ ] | [ ] |
+| e2 C0 base, prerequisites | (in the close-out) | [x] | [x] see S33-e2 C0 below | N/A — SPEED FIRST |
+| e2 C1a the format: `stations`, `doorway_of` (ARC-179) | `93f3cf72` | [x] | [x] `depiction` 7 PASS (4 new corpus files) | N/A — SPEED FIRST |
+| e2 C1b the halt as data; C2 the route to the platform | `f5d215c6` | [x] | [x] see S33-e2 evidence | N/A — SPEED FIRST |
+| e2 the halt's 13 sit points (S33-f's deferred rows) | `2228970c` | [x] | [x] `lakeside_sit_points` 3 PASS; `--seat` 667 rows PASS | N/A — SPEED FIRST |
+| e2 C3 close-out | (this commit) | [x] | CI `fast` on the PR | N/A — SPEED FIRST |
+
+**S33-e2 C0 (2026-10-26).** Worktree `/Users/yuema137/mineworld-worktrees/impl-s33e2`, branch `mvp0/pr-s33e2`,
+base `origin/main @ 882c3f59` (S33-e1 #469 and #474, S33-f #462 merged). S29-e merged (#409:
+`clients/shared/station/station_state.gd`, `station_clock.gd`, `StationPieces`, `StationTrack`,
+`StationFixtures`), so Q-S33e-1's fallback is not used. S29-a as merged adopts R-S29a-e-1: the bay is north of
+the waiting room (`station-tickets` here (2 600, 400) / `station` there (6 000, 4 600)), so F-S33e-1 is closed and
+the halt is drawable (no material stop). Halt in the lane frame: waiting room (30 000, 500)–(38 000, 5 500); bay
+(33 400, 5 500)–(38 000, 10 100); platform (38 000, −1 000)–(42 000, 39 000), track edge x 42 000, buffer end
+y −1 000 (the quay).
+
+**S33-e2 evidence (2026-10-26, local, macOS, each heavy job through `with-slot.sh`).**
+
+| Check | Verdict | Evidence |
+| --- | --- | --- |
+| Godot `--import`, `--check-only` on every changed script (3D; 2D `seating.gd`) | PASS | 0 errors |
+| `cargo test -p mineworld-packages --test depiction` | PASS | 7 tests; new corpus `valid-station`, `malformed-station`, `reference-station`, `on-floor-station-track` |
+| `mineworld packs validate presentation/mineworld-default/3D` | PASS | "is a valid presentation-pack" |
+| `cargo test -p mineworld-cli --test packs` | PASS | 7 |
+| `cargo test -p mineworld-acceptance --test client_rules` | PASS | 9 (no place key, no rule name, the honesty scan) |
+| `cargo test -p mineworld-cli --test lakeside_sit_points` | PASS | 3; 29 points |
+| AC-e-3 `--world=lakeside --link` (route to the platform, §5.4) | PASS | places 4→8→10→8→9→8→4 observed; 204 moves accepted, 0 refused; fixtures: board "No service yet" and clock "no hands" in the waiting room, window "shut" in the bay, board "No service yet" on the platform, each equal to the disclosure |
+| `--world=lakeside --geometry` | PASS | 202 rows "all geometry checks pass", incl. the halt's three places and their solids; ground 193/0; people 9/0/0 |
+| `--world=lakeside --seat` | PASS | 667 rows (29 points × 23 bodies) "all seat checks pass" |
+| Landmark check, Lakeside / `lakeside-v7` | PASS / PASS | 62.4 / 71.2 / 99.4 %; variant 62.4 / 72.9 / 99.4 % |
+| `lakeside-v7` `--link` and `--geometry` (the halt from data, oak style, other canopy and line) | PASS / PASS | fixtures as on Lakeside; ground 193/0, people 9/0/0 |
+| Social Café `--world --link` | PASS | "all link checks pass" |
+| Review frames (VR-8 from the lane, VR-9 the platform south to the buffer stop, inside, aerial) | looked at, not kept | scratch shots via `--slice-farfield-shots` on a scratch depiction, deleted |
+| AC-e-4 route half, M-e-2, AC-e-7 perf, AC-e-8 bytes | not run (milestone; SPEED FIRST) | no binary asset added |
+
+**Bounded deviations (S33-e2), recorded.**
+
+- **D-e2-1 (the halt is data, not `halt.gd`).** As D-e-1 for the pier, under the same operator rule: the halt is
+  two `buildings` shells and one `stations` entry in `lakeside.yaml`, a new optional section of format 1
+  (`ARC-179`), validated in Rust (`depiction_station.rs`) and drawn by `DepictionStations`
+  (`scripts/depictions/data/station_builder.gd`) with S29-e's pieces **unchanged** (no change to S29-e's shared
+  station interface, nor to `SliceDepiction`). The depot's station kit was not reused: it describes an arched
+  depot by role (towers, arcade, annex); the halt's building is an ordinary shell.
+- **D-e2-2 (`doorway_of`).** An opening may stand on the doorway of another place (the waiting room's doors into
+  its bay and onto its platform), with the collider gap `at_doorway` had.
+- **D-e2-3 (one place per tag list; sit points' `unless`).** The waiting room is tagged only `[station]`, which
+  the bay and the platform also carry. A fixture, a platform and a `doorway_of` name the place tagged exactly so,
+  else the only one carrying the tags. A sit point's depiction gains `unless` (tags its place must not carry),
+  read by the shared `MineWorldSitRule.binds` in both clients and by `--seat`; without it the waiting room's
+  fallback points would bind in the bay too, and `lakeside_sit_points` could not name one place.
+- **D-e2-4 (sit points fixed on the merged benches).** S33-f §5.2 proposed the waiting room's bench on its north
+  wall; S33-b's merged bench row is on the south wall, (1 500, 0)–(6 500, 450), facing north. The seven points
+  are (2 200 … 5 800 step 600, 710), facing 0; the platform's are x −3 240, y ±4 400 / ±5 000 / ±5 600, facing
+  90 000 (13 in all, keys `wall-bench.1…7`, `platform-bench-s.1…3`, `platform-bench-n.1…3`).
+- **D-e2-5 (benches drawn by S29-e's bench row).** `bench.platform` (Lakeside's only use) is bound to the
+  `bench_row` piece in the `timber` style, a data line in `furnishings.yaml`.
+- **D-e2-6 (the probe's rooms off a room).** `SliceProbeWorld._cross` now leaves rooms until it stands in the one
+  the target opens off (found by the drawn volume holding the target door's out-point), then enters; it also
+  checks every station fixture of each place it enters against `MineWorldStationState` / `MineWorldStationClock`
+  of the same observation (the board's text, the window, the clock), generically.
+- **D-e2-7 (edges).** The lane's east wall is split round the waiting room (its west wall closes the rest); the
+  quay ends at the platform, whose south end is a fence; a short quay closes the track's end; timber guards stand
+  on the platform's back edge where no building does.
+- **D-e2-8 (the variant's pier roof).** Regenerating `lakeside-v7` with the halt shifted the seed's draws and gave
+  the pier's shelter roof 31°, at which LM-1 measured 59.4 %. A variant now never redraws that roof lower than the
+  file's own pitch (37°): a lower roof is a smaller landmark, a property of the design, not of the builder.
+- **D-e2-9 (open).** The route enters the pier but does not walk to its head (an entry step names a place, not a
+  point in it); the probe does not yet have a waypoint step. No category `station.halt` is set on the shells
+  (the `stations` nodes are `station.halt` and the pieces keep `station.*`).
 
 **S33-e1 C0 (2026-10-21).** Base `mvp0/pr-s33d @ cee33a64` (S33-d, PR #452, open, stacked on #387, #395, #400;
 `origin/main @ 93cffc5e`). S33-d is **not merged**: S33-e1 is stacked on it by the lane lead's dispatch, so the
