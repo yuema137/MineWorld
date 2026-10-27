@@ -3,7 +3,7 @@
 ## Lifecycle
 
 ```text
-Design revision:        revision 1 (2026-10-26), DRAFT
+Design revision:        revision 1 (2026-10-26), DESIGN FROZEN 2026-10-27 (operator approved in the primary session: every question answered as recommended)
 Approved by / evidence: none yet — awaiting the operator's freeze (questions in §13)
 Implementation base:    origin/main @ 0b2faf2f (after #301 S34-a, #363 S34-b, #368 S34-c1, #462 S33-f)
 Start condition:        this design frozen by the operator
@@ -405,6 +405,8 @@ Escalate:               any server, world or contract change; a change to 3D beh
 (empty until implementation)
 
 ## 13. Operator questions (each with a recommended answer)
+
+**Ruled 2026-10-27 (operator, primary session):** every question below is answered as recommended.
 
 | Id | Question | Recommendation |
 | --- | --- | --- |
