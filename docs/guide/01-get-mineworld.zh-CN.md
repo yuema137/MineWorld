@@ -9,8 +9,42 @@
 
 ### Step 1.1 — 拿到 `mineworld` 命令
 
-**照着做。** 第一个正式版本会带 macOS、Linux 和 Windows 的现成下载，现在还没发布。
-在那之前，先从源代码自己 build。你需要先装好 [Git](https://git-scm.com) 和
+**照着做。** 有两种方式拿到命令，最后都是让 `mineworld` 出现在你的 `PATH` 里。
+方式一是下载现成的程序，要等第一个正式版本发布以后才能用。方式二是从源代码自己 build，现在就能用。
+
+**方式一：下载（第一个正式版本发布以后）。** 打开[最新发布页](https://github.com/yuema137/MineWorld/releases/latest)，
+下载适合你电脑的压缩包：macOS 用 `macos-universal.zip`，Windows 用 `windows-x86_64.zip`，
+64 位的 Intel 或 AMD Linux 用 `linux-x86_64.tar.gz`，arm64 的 Linux 用 `linux-arm64.tar.gz`。
+把它解压到你的主文件夹。解压出来的文件夹和压缩包同名，比如 `MineWorld-0.1.0-macos-universal`。
+然后运行你系统对应的那一段，跑一次。它会把文件夹里的 `runtime` 加进 `PATH`：
+
+<!-- guide: operator-only -->
+
+```sh
+xattr -dr com.apple.quarantine "$HOME/MineWorld-0.1.0-macos-universal"
+export PATH="$HOME/MineWorld-0.1.0-macos-universal/runtime:$PATH"
+```
+
+Linux 上是同样的做法，文件夹名换成你的压缩包解压出来的名字：
+
+<!-- guide: operator-only -->
+
+```sh
+export PATH="$HOME/MineWorld-0.1.0-linux-x86_64/runtime:$PATH"
+```
+
+Windows 上，在 PowerShell 里这样写：
+
+<!-- guide: operator-only -->
+
+```powershell
+$env:PATH = "$HOME\MineWorld-0.1.0-windows-x86_64\runtime;$env:PATH"
+```
+
+压缩包里还有一个 `PLAY.txt`。它说明了怎么用 `SHA256SUMS` 核对下载的文件，也说明了第一次打开程序时怎么做，
+因为这个程序现在还没有签名。
+
+**方式二：从源代码 build（现在就能用）。** 你需要先装好 [Git](https://git-scm.com) 和
 [Rust](https://rustup.rs)，然后把下面几条命令跑一次。第一条先回到你的主文件夹，这样源代码会放在那里的 `MineWorld` 里。
 macOS 和 Linux 上这样写：
 
@@ -33,8 +67,9 @@ cargo build --release -p mineworld-cli
 第一次 build 要几分钟。跑完会多出一个文件：macOS 和 Linux 上是 `target/release/mineworld`，
 Windows 上是 `target\release\mineworld.exe`。
 
-在 `MineWorld` 文件夹外面新建一个空文件夹，以后你的世界都放在这里。在这个文件夹里打开终端。
-然后把程序所在的文件夹加进 `PATH`，终端才找得到 `mineworld`。macOS 和 Linux 上这样写：
+在 `MineWorld` 文件夹和下载的文件夹外面新建一个空文件夹，以后你的世界都放在这里。在这个文件夹里打开终端。
+如果你选的是方式一，`PATH` 已经设好了，跳过下面两段 `PATH` 命令。
+如果你选的是方式二，就把程序所在的文件夹加进 `PATH`，终端才找得到 `mineworld`。macOS 和 Linux 上这样写：
 
 ```sh
 export PATH="$HOME/MineWorld/target/release:$PATH"
