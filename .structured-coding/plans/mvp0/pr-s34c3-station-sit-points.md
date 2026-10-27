@@ -9,7 +9,7 @@ Implementation base:    origin/main @ 315a50a9 (#513) for the audit; C0 records 
 Start condition:        this design frozen, with Q-S34c3-1 and Q-S34c3-2 ruled (they amend frozen
                         step-34 §5.1 and §6.3 and ARC-147). S34-b and S34-c1 are merged (#363, #368)
 Execution contract:     §12
-Lifecycle:              DRAFT — not frozen. Only the operator freezes this design.
+Lifecycle:              DESIGN FROZEN 2026-10-27 (operator approved in the primary session: every question answered as recommended)
 ```
 
 **Effort:** `mvp0`, release-blocking · **Step:** [`step-34-posture.md`](step-34-posture.md) §§5.1, 6.3,
@@ -499,6 +499,8 @@ Escalate:               any change to dispatch, disclosure or SystemVersion; a d
 (empty until implementation)
 
 ## 14. Operator questions (each with a recommendation)
+
+**Ruled 2026-10-27 (operator, primary session):** every question below is answered as recommended.
 
 | Id | Question | Recommendation |
 | --- | --- | --- |
