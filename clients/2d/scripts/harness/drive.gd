@@ -509,6 +509,12 @@ func _report_shown() -> void:
 	for place in app.places.drawn:
 		places.append({"place": place, "drawn_as": app.places.drawn[place]["kind"],
 			"tags": app.town.tags.get(place, PackedStringArray())})
+	# The hub is drawn too, as the paving every doorway opens onto (`places.gd`), though not as an
+	# entry of `drawn`: a seat standing in the street shows the street.
+	var hub: String = app.town.hub()
+	if hub != "" and not app.places.drawn.has(hub) and app.places.ground.paved.has_area():
+		places.append({"place": hub, "drawn_as": "paving",
+			"tags": app.town.tags.get(hub, PackedStringArray())})
 	var people := []
 	for id in app.people.drawn_ids():
 		var drawn: Variant = app.people.drawn_plan(id)
