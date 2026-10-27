@@ -112,6 +112,17 @@ jobs:
         uses: ./.github/actions/layer
         with:
           layer: fast
+      # Every GDScript file of the 2D and 3D clients and their shared modules parses and compiles
+      # (ARC-154's note of 2026-10-26): `godot --check-only` exits 0 on a broken script, so scripts/ci_gdparse.py reads the
+      # log. The pinned binary only (cached), a scripts-only import, one headless loader run per project.
+      # It runs even when the layer failed, so a red `fast` names both kinds of break at once.
+      - if: "!cancelled() && needs.changes.outputs.code == 'true'"
+        uses: ./.github/actions/godot
+        with:
+          full: "false"
+      - if: "!cancelled() && needs.changes.outputs.code == 'true'"
+        name: Parse the Godot clients' scripts
+        run: python3 scripts/ci_gdparse.py
       # Documentation only: the doc checks on the runner's Python, no toolchain and no container.
       - if: needs.changes.outputs.code == 'false'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
