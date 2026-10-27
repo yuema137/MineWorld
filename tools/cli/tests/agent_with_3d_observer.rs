@@ -18,7 +18,7 @@
 //! place is the one its probe reports, and the people are the two seats the test plays.
 //!
 //! It needs Godot 4.7 and the Python workspace (`uv sync --locked`), so the pair is `#[ignore]`d and runs
-//! in the nightly `clients` layer (`scripts/ci_layer.py`):
+//! in the nightly `agent-observer` layer (`scripts/ci_layer.py`) of every OS's `clients-<os>` job:
 //!
 //! ```text
 //! cargo test -p mineworld-cli --test agent_with_3d_observer -- --ignored --test-threads=1
@@ -414,7 +414,10 @@ async fn a_3d_client_sees_the_agents_walk_as_the_server_records_it() {
             .args(["--server", &ws, "--http", &http])
             .current_dir(repository().join("clients/agent/tests"))
             .env("MINEWORLD_GRANT", &grant)
-            .env("PYTHONUNBUFFERED", "1");
+            .env("PYTHONUNBUFFERED", "1")
+            // UTF-8 on the pipe on every OS: Windows' default code page cannot print every failure
+            // message, and a byte that is not UTF-8 would end the reader's lines.
+            .env("PYTHONUTF8", "1");
         Watched::spawn(command, "agent")
     };
     let (status, said) = agent.finish().await;
