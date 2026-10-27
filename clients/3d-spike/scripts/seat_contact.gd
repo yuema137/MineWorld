@@ -19,7 +19,7 @@ const AROUND_M := 0.45
 
 
 ## The lowest seat vertex of `h`'s current pose, in world space, or INF when the body has no skinned
-## seat vertex (a stand-in figure).
+## seat vertex (a stand-in figure) or its skin did not read back whole (`SkinArrays`).
 static func lowest(h: Human) -> float:
 	var sk := h.skeleton
 	if sk == null:
@@ -45,13 +45,15 @@ static func lowest(h: Human) -> float:
 			mats.append(sk.global_transform * sk.get_bone_global_pose(bone) * skin.get_bind_pose(b))
 			seat.append(sk.get_bone_name(bone) in SEAT_BONES)
 		for s in mi.mesh.get_surface_count():
-			var arr := mi.mesh.surface_get_arrays(s)
-			var v: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
-			var bi: PackedInt32Array = arr[Mesh.ARRAY_BONES]
-			var bw: PackedFloat32Array = arr[Mesh.ARRAY_WEIGHTS]
-			if bi.is_empty() or v.is_empty():
+			var read := SkinArrays.read(mi.mesh, s, skin.get_bind_count(), "SeatContact: %s" % mi.name)
+			if read.has("unreadable"):
+				return INF   # a body whose skin did not read back whole is not measured at all
+			if not read.has("v"):
 				continue
-			var per := bi.size() / v.size()
+			var v: PackedVector3Array = read["v"]
+			var bi: PackedInt32Array = read["bi"]
+			var bw: PackedFloat32Array = read["bw"]
+			var per: int = read["per"]
 			for i in v.size():
 				var best_w := -1.0
 				var best_b := 0
