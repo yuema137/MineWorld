@@ -12,6 +12,26 @@ Execution contract:     §12
 Lifecycle:              DRAFT — not frozen
 ```
 
+**Dated note, 2026-10-27 (operator ruling Q-S34c3-3; SD-c3-5 in
+[`pr-s34c3-station-sit-points.md`](pr-s34c3-station-sit-points.md) §5.5).** Posture will offer `sit`
+only for points within 5 m (Q-S34c3-1), so a far seat is disclosed but not offered. Consumers follow one
+rule:
+
+```text
+a sit point disclosed in my place's sit-points
+    offered, available                  -> attempt it
+    offered, refused too_far_away       -> walk to its at, then use the newest offer   (unchanged)
+    not offered                         -> out of offer range: walk to its at, then use the newest offer
+    offered, refused otherwise          -> do not choose it                            (unchanged)
+```
+
+- S34-d1 (SD-d-3 step 2, the rest band; SD-d-7 step 2, motivated `SeekSeat`): candidate seats are the
+  disclosed points, nearest first. A seat that is offered and refused for any reason other than
+  `too_far_away` is skipped. The rest band's walk step is otherwise unchanged.
+- S34-d2 (the agent scenario, step 2): pick the first seat whose `sit` offer is refused only
+  `too_far_away`, or is available, **or that is listed in `here.seats` with no offer**.
+- No consumer measures a distance (I-S34-4). Each PR adds one test arm for the "not offered" row.
+
 **Effort:** `mvp0`, release-blocking · **Step:** [`step-34-posture.md`](step-34-posture.md) §§8.5, 9, 12–14
 (the S34-d row of §14.2; AC-S34-6's "NPCs are seen seated", AC-S34-7; I-S34-1, -2, -4, -5, -6, -7;
 Q-S34-11; R-S34-2) · **Previous PRs:** [`pr-s34a-posture-pack.md`](pr-s34a-posture-pack.md) (#301),
