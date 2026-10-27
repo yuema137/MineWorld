@@ -56,6 +56,10 @@ pub const NUDGE_LIMIT: i32 = R + GAP;
 pub const GIVE_WAY_LIMIT: i32 = 1_200;
 /// How far a shove moves its target, at most: bodies' `SHOVE_DISTANCE`.
 pub const SHOVE: i32 = 500;
+/// The most people one request displaces: a nudge pass moves at most bodies' `NUDGED_MAX` (4), and a
+/// give-way at most `2 × NUDGED_MAX` (8, `ARC-330` R2: a cluster round a doorway is what that rule
+/// exists for). The scan cannot tell the two apart from the save, so it holds a request to the larger.
+pub const DISPLACED_MAX: u32 = 8;
 
 /// Where each person stands, as the scan has replayed it: their place and, if they have one, their
 /// ground position.
@@ -478,8 +482,8 @@ struct Replay {
 /// ```text
 /// people   no pair in one place closer than CLEARANCE; no centre outside the floor shrunk by KEEP or
 ///          within KEEP of a solid (the rooms); every displaced arrival — an `arrived` after the first
-///          in one request — stays in its place, moves at most GIVE_WAY_LIMIT, at most four per
-///          request, stated by movement (a move) or by bodies (a shove), and is stated by bodies'
+///          in one request — stays in its place, moves at most GIVE_WAY_LIMIT, at most DISPLACED_MAX
+///          per request, stated by movement (a move) or by bodies (a shove), and is stated by bodies'
 ///          `gave-way` in the same request; a shoved person's own arrival moves at most SHOVE
 /// objects  each within its floor, at rest on the floor or a solid's top (± 5 mm), out of every
 ///          other solid, ≥ KEEP from every person's centre measured to its footprint, overlapping no
@@ -588,10 +592,10 @@ pub fn scan_in(tables: &Tables, keys: &BTreeMap<EntityId, String>, rooms: Rooms)
                         fact,
                     );
                     replay.unstated.insert(person, fact.id());
-                    if arrivals_in_request > 5 {
-                        report
-                            .violations
-                            .push(format!("more than four displaced by request {request:?}"));
+                    if arrivals_in_request > DISPLACED_MAX + 1 {
+                        report.violations.push(format!(
+                            "more than {DISPLACED_MAX} displaced by request {request:?}"
+                        ));
                     }
                 }
             }
