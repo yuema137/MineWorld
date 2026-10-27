@@ -983,6 +983,15 @@ msgstr "工作地点"
 msgid "place.street"
 msgstr "街道"
 
+msgid "place.station"
+msgstr "火车站"
+
+msgid "place.ticket-office"
+msgstr "售票处"
+
+msgid "place.platform"
+msgstr "站台"
+
 msgid "sign.no_service"
 msgstr "暂无列车服务"
 

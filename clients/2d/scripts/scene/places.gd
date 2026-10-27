@@ -12,6 +12,7 @@ extends Node
 const Ground := preload("res://scripts/scene/ground.gd")
 const Sprites := preload("res://scripts/scene/sprites.gd")
 const Words := preload("res://scripts/hud/words.gd")
+const Fittings := preload("res://scripts/scene/fittings.gd")
 
 ## How fast a façade lifts away and a room fades in, per second (the spike's 3.4: 1 → 0 in 0.3 s).
 const FADE_RATE := 3.4
@@ -45,6 +46,8 @@ var _door_labels: Array[Label] = []
 ## world discloses no extent, so the guess is made once and never follows the player (F-9).
 var _inside_dir: Dictionary = {}
 var _observation: MineWorldObservation = null
+## The fittings that follow disclosed state, and their words (pr-s29f §5.6).
+var fittings
 ## Doorways left out of the drawing, "<from>><to>" -> true. Only the scripted checks set it
 ## (`--drop-doorway`, PR 13f Q-PAR-3), through `hide_doorway`; the play path never does.
 var _hidden_doorways: Dictionary = {}
@@ -56,6 +59,7 @@ func setup(the_projection, the_presentation, the_town, the_world: Node2D, parent
 	town = the_town
 	world = the_world
 	sprites = Sprites.new(presentation)
+	fittings = Fittings.new(presentation, sprites, projection)
 	ground = Ground.new()
 	ground.projection = projection
 	ground.presentation = presentation
@@ -75,31 +79,34 @@ func reconcile(observation: MineWorldObservation) -> void:
 		_rebuild()
 		_apply_boards()
 	_observation = observation
+	fittings.follow(observation, _fitting_node)
 	for label in _door_labels:
 		label.text = _door_text(label.get_meta("to"))
 
 
-## The wording key of each tag that names a place (R-PK-1, ARC-82). The keys are written out, not built,
-## so the catalogue check (client_text, AC-SET-4) sees each one as used.
-const PLACE_NAME_KEYS := {
-	"cafe": "place.cafe", "park": "place.park", "store": "place.store",
-	"apartments": "place.apartments", "workplace": "place.workplace", "street": "place.street",
-}
+## The wording key of each tag that names a place (R-PK-1, ARC-82), specific before general: a platform
+## is also a station, and its door reads "Platform". The keys are written out, not built, so the
+## catalogue check (client_text, AC-SET-4) sees each one as used.
+const PLACE_NAME_KEYS := [
+	["ticket-office", "place.ticket-office"], ["platform", "place.platform"], ["station", "place.station"],
+	["cafe", "place.cafe"], ["park", "place.park"], ["store", "place.store"],
+	["apartments", "place.apartments"], ["workplace", "place.workplace"], ["street", "place.street"],
+]
 
 
-## "door to <where it leads>". The name comes from the first tag the destination carries, in the order
-## the world lists them, that the wording names; else the place's display name if the world gives one;
-## else "outside". A tag the wording does not name (`public`) says nothing about where a door leads.
+## "door to <where it leads>". The name comes from the first pair of the table whose tag the
+## destination carries and whose key the wording names; else the place's display name if the world
+## gives one; else "outside". A tag the wording does not name (`public`) says nothing about where a door
+## leads.
 func _door_text(to: String) -> String:
 	return Words.text("ui.door-to", {"place": _place_name(to)})
 
 
 func _place_name(to: String) -> String:
 	var to_tags: PackedStringArray = town.tags.get(to, PackedStringArray())
-	for tag in to_tags:
-		var key: String = PLACE_NAME_KEYS.get(tag, "")
-		if key != "" and Words.has(key):
-			return Words.text(key)
+	for pair in PLACE_NAME_KEYS:
+		if to_tags.has(pair[0]) and Words.has(pair[1]):
+			return Words.text(pair[1])
 	var name := _observation.display_name(to) if _observation != null else ""
 	return name if name != "" else Words.text("ui.outside")
 
@@ -279,14 +286,18 @@ func _rebuild() -> void:
 	drawn.clear()
 	_dressing.clear()
 	_door_labels.clear()
+	fittings.clear()
 	town.footprints.clear()
 	var hub: String = town.hub()
 	var extent: Rect2 = town.hub_extent()
 	var margin := float(presentation.setting(["ground", "root_margin_m"], DEFAULT_MARGIN_M))
 	var paved := extent.grow(margin) if hub != "" else Rect2()
 	if hub != "":
+		var doors := PackedVector2Array()
 		for p in town.passages[hub]:
-			_draw_doorway(hub, p, extent)
+			doors.append(town.to_plan(hub, {"x": p["here"].x, "y": p["here"].y}))
+		for p in town.passages[hub]:
+			_draw_doorway(hub, p, extent, doors)
 	# A place the observer stands in that the hub's doorways did not reach (the first place before
 	# the street is known): drawn as a room around its own doorway.
 	for place in town.passages:
@@ -308,19 +319,21 @@ func _rebuild() -> void:
 
 
 ## One doorway out of the hub: its place drawn as a façade (far side), a room (near side) or a lawn.
-func _draw_doorway(hub: String, p: Dictionary, extent: Rect2) -> void:
+func _draw_doorway(hub: String, p: Dictionary, extent: Rect2, doors: PackedVector2Array) -> void:
 	var place: String = p["to"]
 	var door: Vector2 = town.to_plan(hub, {"x": p["here"].x, "y": p["here"].y})
-	var in_dir := _inward(door, extent)
+	var in_dir := _inward(door, extent, doors)
 	var right := Vector2(-in_dir.y, in_dir.x)
 	var place_tags: PackedStringArray = town.tags.get(place, PackedStringArray())
 	var outdoor := _by_tag("outdoor", place_tags)
 	var far: bool = projection.plan_dir_to_screen(in_dir).y < 0.0
 	var spec: Dictionary = outdoor if not outdoor.is_empty() else _by_tag("interiors", place_tags)
-	var rect := _footprint(door, in_dir, right, spec)
+	# A room the world shaped is drawn at that shape (ARC-196 item 3); else at the spec's size.
+	var rect: Rect2 = town.shapes.get(place, _footprint(door, in_dir, right, spec))
 	town.footprints[place] = rect
 	var entry := {"door": door, "in_dir": in_dir, "rect": rect, "node": null, "fittings": [], "fade": 0.0,
-		"lights": [], "opening": null if _hidden(hub, place) else p}
+		"lights": [], "wall_m": float(spec.get("wall_m", 2.8)), "shaped": town.shapes.has(place),
+		"opening": null if _hidden(hub, place) else p}
 	if not outdoor.is_empty():
 		entry["kind"] = "lawn"
 		for item in outdoor.get("dressing", []):
@@ -332,7 +345,7 @@ func _draw_doorway(hub: String, p: Dictionary, extent: Rect2) -> void:
 		entry["kind"] = "room"
 	if entry["kind"] != "lawn":
 		for item in spec.get("fittings", []):
-			var node := _prop(item, door, in_dir, right)
+			var node := _prop(item, door, in_dir, right, place)
 			if node != null:
 				entry["fittings"].append(node)
 				if entry["kind"] == "facade":
@@ -350,17 +363,21 @@ func _draw_room_from_inside(place: String, p: Dictionary) -> void:
 	# Which way the room runs from its door is not disclosed; the observer stands inside it, so the
 	# room is drawn toward where they first stood. Presentation only, chosen once (F-9), and replaced
 	# once the hub is known.
-	if not _inside_dir.has(place):
+	# A shaped room is known: it runs from its door toward its own middle.
+	var shaped: bool = town.shapes.has(place)
+	if shaped:
+		_inside_dir[place] = _axis((town.shapes[place] as Rect2).get_center() - door)
+	elif not _inside_dir.has(place):
 		_inside_dir[place] = _axis(self_plan - door) if self_plan.distance_to(door) > 0.01 else Vector2(0, -1)
 	var in_dir: Vector2 = _inside_dir[place]
 	var right := Vector2(-in_dir.y, in_dir.x)
 	var spec := _by_tag("interiors", town.tags.get(place, PackedStringArray()))
-	var rect := _footprint(door, in_dir, right, spec)
+	var rect: Rect2 = town.shapes[place] if shaped else _footprint(door, in_dir, right, spec)
 	town.footprints[place] = rect
 	var entry := {"door": door, "in_dir": in_dir, "rect": rect, "node": null, "fittings": [], "fade": 1.0,
-		"kind": "room", "lights": []}
+		"kind": "room", "lights": [], "wall_m": float(spec.get("wall_m", 2.8)), "shaped": shaped}
 	for item in spec.get("fittings", []):
-		var node := _prop(item, door, in_dir, right)
+		var node := _prop(item, door, in_dir, right, place)
 		if node != null:
 			entry["fittings"].append(node)
 	for light in spec.get("lights", []):
@@ -390,17 +407,18 @@ func _facade(place: String, place_tags: PackedStringArray, door: Vector2, in_dir
 	var offset: Vector2 = projection.to_screen(door) - sort_at
 	holder.position = sort_at
 	holder.set_meta("door_offset", offset)
-	var sprite := {}
-	for tag in place_tags:
-		sprite = presentation.sprite("facade:%s" % tag)
-		if not sprite.is_empty():
-			break
+	# The most specific set of role tags the pack binds wins (ARC-196 item 1): a station that is also its
+	# town's landmark takes facade:station+landmark, any other station facade:station.
+	var role: String = presentation.best_key(presentation.bound_roles(), "facade:", place_tags)
+	var sprite: Dictionary = presentation.sprite(role) if role != "" else {}
 	if sprite.is_empty():
 		var generic := 0
 		while presentation.is_bound("facade:unknown:%d" % generic):
 			generic += 1
 		if generic > 0:
 			sprite = presentation.sprite("facade:unknown:%d" % posmod(place.hash(), generic))
+	# Which sprite the façade resolved to, for the harness's report (pr-s29f §7).
+	holder.set_meta("sprite_id", String(sprite.get("id", "")))
 	var node: Node2D = sprites.make(sprite, true)
 	if node == null:
 		node = Sprites.plain("block", Vector2(projection.ppm * 4.0, projection.ppm * 3.0), Color("c9b9a3"))
@@ -413,29 +431,45 @@ func _facade(place: String, place_tags: PackedStringArray, door: Vector2, in_dir
 func _facade_dressing(place_tags: PackedStringArray) -> Array:
 	var out: Array = []
 	out.append_array(presentation.setting(["facades", "*", "dressing"], []))
-	for tag in place_tags:
-		var own: Array = presentation.setting(["facades", tag, "dressing"], [])
-		if not own.is_empty():
-			out.append_array(own)
-			break
+	var table: Dictionary = presentation.setting(["facades"], {})
+	var key: String = presentation.best_key(PackedStringArray(table.keys()), "", place_tags)
+	if key != "":
+		out.append_array(presentation.setting(["facades", key, "dressing"], []))
 	return out
 
 
-func _prop(item: Dictionary, door: Vector2, in_dir: Vector2, right: Vector2) -> Node2D:
+## One fitting or dressing item, placed from a doorway. A fitting of `place` that names a `state` or a
+## `label` is handed to `fittings`, which follows the disclosed state (pr-s29f §5.6).
+func _prop(item: Dictionary, door: Vector2, in_dir: Vector2, right: Vector2, place := "") -> Node2D:
 	var at := door + right * float(item.get("along_m", 0.0)) \
 		+ in_dir * (float(item.get("in_m", 0.0)) - float(item.get("out_m", 0.0)))
-	var sprite: Dictionary = presentation.sprite(String(item.get("role", "")))
-	var node: Node2D = sprites.make(sprite)
+	var stateful := place != "" and Fittings.is_stateful(item)
+	var role: String = fittings.role_of(item, fittings.state_of(place)) if stateful \
+		else String(item.get("role", ""))
+	var node := _fitting_node(role, item)
+	if node == null and not stateful:
+		return null
+	var holder := Node2D.new()
+	holder.position = projection.to_screen(at)
+	if node != null:
+		holder.add_child(node)
+	world.add_child(holder)
+	if stateful:
+		fittings.track(place, item, holder, role)
+	return holder
+
+
+## The drawn node of one fitting under `role`, lifted by its `lift_m`; null when the pack binds nothing
+## and does not draw plainly.
+func _fitting_node(role: String, item: Dictionary) -> Node2D:
+	# `flip` mirrors a sprite drawn along one plan axis so it runs along the other (a track north–south).
+	var node: Node2D = sprites.make(presentation.sprite(role), false, bool(item.get("flip", false)))
 	if node == null:
 		if not presentation.is_plain():
 			return null
 		node = Sprites.plain("prop", Vector2(4, 4))
-	var holder := Node2D.new()
-	holder.position = projection.to_screen(at)
 	node.position.y -= projection.height_px(float(item.get("lift_m", 0.0)))
-	holder.add_child(node)
-	world.add_child(holder)
-	return holder
+	return node
 
 
 ## Planting beyond the hub's paving, so the town does not end at the frame's edge.
@@ -485,11 +519,12 @@ func _update_areas() -> void:
 				areas.append({"kind": "lawn", "rect": entry["rect"], "place": place})
 			"room":
 				areas.append({"kind": "room", "rect": entry["rect"], "lights": entry["lights"], "alpha": 1.0,
-					"place": place, "doors": _doors(place, entry)})
+					"place": place, "doors": _doors(place, entry), "wall_m": entry.get("wall_m", 2.8)})
 			"facade":
 				if entry["fade"] > 0.002:
 					areas.append({"kind": "room", "rect": entry["rect"], "lights": entry["lights"],
-						"alpha": entry["fade"], "place": place, "doors": _doors(place, entry)})
+						"alpha": entry["fade"], "place": place, "doors": _doors(place, entry),
+						"wall_m": entry.get("wall_m", 2.8)})
 	ground.areas = areas
 	ground.queue_redraw()
 	_place_door_labels(areas)
@@ -537,22 +572,41 @@ func _place_door_labels(areas: Array) -> void:
 			_door_labels.append(label)
 
 
-## A tag-keyed block of the renderer parameters (`interiors`, `outdoor`): the first of the place's
-## tags it has; for `interiors`, else its `*`.
+## A tag-keyed block of the renderer parameters (`interiors`, `outdoor`): the key naming the most
+## specific set of the place's tags (`ARC-196` item 1); for `interiors`, else its `*`.
 func _by_tag(section: String, place_tags: PackedStringArray) -> Dictionary:
 	var table: Dictionary = presentation.setting([section], {})
-	for tag in place_tags:
-		if table.has(tag):
-			return table[tag]
+	var key: String = presentation.best_key(PackedStringArray(table.keys()), "", place_tags)
+	if key != "":
+		return table[key]
 	return table.get("*", {}) if section == "interiors" else {}
 
 
 ## Which way a place runs from its doorway on the hub: away from the hub, across the hub's long axis.
 ## Doorways line the long sides of a street, so a doorway at a corner of the extent still faces
-## across it (the convenience store at the street's north-east corner opens north, not east).
-static func _inward(door: Vector2, extent: Rect2) -> Vector2:
+## across it (the convenience store at the street's north-east corner opens north, not east). A doorway
+## that alone holds an end of the long axis, between its two sides, leads outward along that axis
+## (`ARC-196` item 2): the station closing the street's west end runs west.
+static func _inward(door: Vector2, extent: Rect2, doors: PackedVector2Array = PackedVector2Array()) -> Vector2:
+	var long_x := extent.size.x >= extent.size.y
+	var along := door.x if long_x else door.y
+	var lo := extent.position.x if long_x else extent.position.y
+	var hi := extent.end.x if long_x else extent.end.y
+	var across := door.y if long_x else door.x
+	var side_lo := extent.position.y if long_x else extent.position.x
+	var side_hi := extent.end.y if long_x else extent.end.x
+	var at_end := absf(along - lo) < 0.01 or absf(along - hi) < 0.01
+	if at_end and across - side_lo > 0.5 and side_hi - across > 0.5:
+		var alone := true
+		for other in doors:
+			if other.distance_to(door) > 0.001 and absf((other.x if long_x else other.y) - along) < 0.01:
+				alone = false
+				break
+		if alone:
+			var out := -1.0 if absf(along - lo) < 0.01 else 1.0
+			return Vector2(out, 0.0) if long_x else Vector2(0.0, out)
 	var d := door - extent.get_center()
-	if extent.size.x >= extent.size.y:
+	if long_x:
 		return Vector2(0.0, signf(d.y) if d.y != 0.0 else -1.0)
 	return Vector2(signf(d.x) if d.x != 0.0 else 1.0, 0.0)
 

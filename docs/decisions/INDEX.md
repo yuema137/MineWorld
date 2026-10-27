@@ -154,6 +154,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-179](ARC-179.md) | A station is depiction data: the `stations` section, doors into rooms off a room, and sit points told apart |
 | [ARC-184](ARC-184.md) | Clients format money and read trade records through one shared module |
 | [ARC-192](ARC-192.md) | A station is drawn from a station kit, placed at a site, bound by role tag |
+| [ARC-196](ARC-196.md) | A 2D pack binds a place by its most specific tag set; end doorways face outward; a shaped room is drawn at its shape |
 | [ARC-266](ARC-266.md) | The world's date, time and sun reach a client through one shared world-time module that reads disclosure and computes no astronomy |
 | [ARC-267](ARC-267.md) | Host commands in the client: one shared host module, the token from the environment in memory only, and a World tab that shows only what the server said |
 | [ARC-268](ARC-268.md) | `POST /admin/stop` is a host command; the reference launchers host solo with a generated token and close the host gracefully |
