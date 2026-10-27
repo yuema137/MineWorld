@@ -78,6 +78,22 @@ runs:
       run: |
         if [ -s target/ci-failed-tests.md ]; then cat target/ci-failed-tests.md >> "$GITHUB_STEP_SUMMARY"; fi
 
+    # nextest's JUnit (docs/decisions/DEP-163.md): every test's own time and verdict, for the shard weights
+    # (`ci_shard.py --weigh`) and for reading a red run without its log. Absent for layers nextest does not run.
+    - name: Name the JUnit artifact
+      id: junit
+      if: always()
+      shell: bash
+      env:
+        RAW: junit-${{ runner.os }}-${{ inputs.layer }}-${{ inputs.shard }}
+      run: echo "name=$(printf '%s' "$RAW" | tr ' /,:' '----')" >> "$GITHUB_OUTPUT"
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      if: always()
+      with:
+        name: ${{ steps.junit.outputs.name }}
+        path: target/nextest/ci/junit.xml
+        if-no-files-found: ignore
+
     - name: Prune target/ before the cache is saved
       shell: bash
       run: |

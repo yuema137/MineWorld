@@ -1,0 +1,40 @@
+# cargo-nextest's configuration (docs/decisions/DEP-163.md). CI runs the `core` suite with the `ci` profile
+# through scripts/ci_layer.py and scripts/ci_shard.py; a developer may run `cargo nextest run` or keep
+# `cargo test`, which runs the same tests.
+#
+# Nextest runs every test in its own process and runs tests of different binaries at the same time. Two
+# consequences are configured here:
+#   - a test that measures wall time against a budget runs alone (`timing` group), so another binary's
+#     load cannot fail it;
+#   - nothing may rely on in-process state shared between tests (a `static` set by one test and read by
+#     another): there is none today (audit 2026-10-27, docs/decisions/DEP-163.md).
+
+[store]
+dir = "target/nextest"
+
+[test-groups]
+# Tests whose assertion is a wall-time budget: the hosted town's tick budget, the host clock, the hosted
+# punctuality run. One at a time, and each alone (threads-required below).
+timing = { max-threads = 1 }
+
+[[profile.default.overrides]]
+filter = "package(mineworld-cli) & (binary(=hosted_town) | binary(=host_clock) | binary(=hosted_punctuality))"
+test-group = "timing"
+threads-required = "num-test-threads"
+
+[profile.ci]
+# Every test runs and reports: one failure never hides another (pr-ci-test-economy.md F-1).
+fail-fast = false
+# Output of a failing test, once at once and again in the final summary, so a long log still ends with it.
+failure-output = "immediate-final"
+success-output = "never"
+status-level = "pass"
+final-status-level = "fail"
+# Reported, never killed: a slow test is information for the weights (ARC-110), not a failure.
+slow-timeout = { period = "300s" }
+
+[profile.ci.junit]
+# target/nextest/ci/junit.xml: every test's own time, the source of ci_shard.py's weights (`--weigh`).
+path = "junit.xml"
+store-success-output = false
+store-failure-output = true

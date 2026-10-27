@@ -88,9 +88,10 @@ LAYERS: dict[str, list[list[str]]] = {
     # Building first and running second runs the same tests; it only makes the log say how long the
     # build took and how long the tests did, which is what CI's budget is judged by. After a passing
     # suite, nothing may be left behind (ENGINEERING_STANDARDS.md §22, "Test scratch"; QTH-4).
+    # Its test commands are scripts/ci_shard.py's (DEP-163): every target named, built with `cargo test
+    # --no-run`, run with `cargo nextest run --profile ci` (custom-harness targets and doctests with `cargo
+    # test`). Unsharded, `core` is shard 1/1 of the same partition, so both paths run one command list.
     "core": [
-        ["cargo", "test", "--workspace", "--no-run"],
-        ["cargo", "test", "--workspace", "--no-fail-fast"],
         ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
     ],
     # A documentation-only change (step-14 §16, ARC-48's note of 2026-10-09 for 13x): the only CI
@@ -418,6 +419,7 @@ ENVIRONMENT: list[list[str]] = [
     ["cargo", "fmt", "--version"],
     ["cargo", "clippy", "--version"],
     ["cargo", "deny", "--version"],
+    ["cargo", "nextest", "--version"],
     ["git", "--version"],
     ["uv", "--version"],
     ["git", "rev-parse", "HEAD"],
@@ -560,26 +562,32 @@ def repeat_commands(cargo: list[list[str]]) -> list[list[str]]:
 def commands_of(layer: str, shard: str | None) -> list[list[str]]:
     """A layer's commands, or shard K/N's of it: ci_shard.py's cargo commands, then the layer's
     non-cargo-test commands in their order."""
+    if shard is None and layer == "core":
+        shard = "1/1"
     if shard is None:
         return LAYERS[layer]
     if layer == "clients":
         return [[*command, "--shard", shard] if command == GODOT_TESTS_COMMAND else command
                 for command in LAYERS[layer]]
-    cargo, account = ci_shard.shard_commands(shard)
+    runner = "cargo" if layer == "core-repeat" else "nextest"
+    cargo, account = ci_shard.shard_commands(shard, runner)
     print(f"[ci] shard {shard} of {layer}; {account}", flush=True)
     if layer == "core-repeat":
         return repeat_commands(cargo)
-    return [*cargo, *(command for command in LAYERS[layer] if command[:2] != ["cargo", "test"])]
+    return [*cargo, *(command for command in LAYERS[layer] if not ci_shard.is_test_run(command))]
 
 
 FAILED_TESTS = ROOT / "target" / "ci-failed-tests.md"
 TEST_FAILED = re.compile(r"^test (.+) \.\.\. FAILED$")
 CARGO_RUNNING = re.compile(r"^\s*(?:Running|Doc-tests)\s+(.*)$")
+# nextest's status line for a failed test: `FAIL [   0.010s] (1/9) mineworld-cli::far_field name` (the
+# counter appears in newer versions); TIMEOUT and SIGSEGV-style aborts are failures too (DEP-163).
+NEXTEST_FAILED = re.compile(r"^\s*(?:FAIL|TIMEOUT|SIGSEGV|SIGABRT|ABORT)\s+\[[^\]]*\]\s+(?:\([^)]*\)\s+)?(\S+)\s+(.+?)\s*$")
 
 
 def is_test(command: list[str]) -> bool:
-    """A cargo test run (not a build of its targets): its failure is reported, and the layer goes on."""
-    return "cargo" in command and "test" in command and "--no-run" not in command
+    """A test run (not a build of its targets): its failure is reported, and the layer goes on."""
+    return ci_shard.is_test_run(command)
 
 
 def stream(command: list[str]) -> tuple[int, list[str]]:
@@ -607,6 +615,12 @@ def failures_in(lines: list[str]) -> list[str]:
         failed = TEST_FAILED.match(line)
         if failed:
             found.append(f"`{binary}`: `{failed.group(1)}`")
+        failed = NEXTEST_FAILED.match(line)
+        if failed:
+            entry = f"`{failed.group(1)}`: `{failed.group(2)}`"
+            # profile `ci` prints a failure at once and again in the final summary: list it once.
+            if entry not in found:
+                found.append(entry)
     return found
 
 
@@ -681,6 +695,8 @@ def prune_cache() -> int:
         return metadata.returncode
     packages = sorted(package["name"] for package in json.loads(metadata.stdout)["packages"])
     shutil.rmtree(ROOT / "target" / "tmp", ignore_errors=True)
+    # nextest's store (JUnit, run records; DEP-163): uploaded already, never cached.
+    shutil.rmtree(ROOT / "target" / "nextest", ignore_errors=True)
     command = ["cargo", "clean"] + [argument for name in packages for argument in ("-p", name)]
     print(f"[ci] $ cargo clean -p <{len(packages)} workspace packages>", flush=True)
     status = subprocess.run(command, cwd=ROOT).returncode
