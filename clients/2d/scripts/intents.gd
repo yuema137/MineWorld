@@ -15,7 +15,7 @@ extends Node
 
 ## The action types this client composes. `scripts/check_client_rules.py` reads this list: no other
 ## script may hold one of these as a string literal.
-const COMPOSED := ["move", "walk-to", "walk-step", "talk", "invite", "accept-invitation", "decline-invitation", "join-group-activity", "leave-group-activity", "sleep", "throw", "list-for-sale", "set-price", "withdraw"]
+const COMPOSED := ["move", "walk-to", "walk-step", "talk", "invite", "accept-invitation", "decline-invitation", "join-group-activity", "leave-group-activity", "sleep", "throw", "list-for-sale", "set-price", "withdraw", "propose-price", "accept-proposal", "decline-proposal", "withdraw-proposal"]
 
 ## The seller actions this client composes from the trade panel (S31-e §5.4, `clients/shared/TRADE.md` §5.2):
 ## what the player supplies, which rows of the panel each serves, and the wording of its button. The shared
@@ -24,6 +24,11 @@ const TRADE_INPUTS := {
 	"list-for-sale": {"ask": ["amount"], "row": ["held", "note"], "label": "trade.list"},
 	"set-price": {"ask": ["amount"], "row": ["ask", "shelf"], "label": "trade.change-price"},
 	"withdraw": {"ask": [], "row": ["ask", "shelf"], "label": "trade.withdraw"},
+	# S31-h §5.13: offer a price beside a buy row; answer an offer made to me; take back my own.
+	"propose-price": {"ask": ["amount"], "row": ["sale"], "label": "trade.offer-price"},
+	"accept-proposal": {"ask": [], "row": ["incoming"], "label": "trade.accept"},
+	"decline-proposal": {"ask": [], "row": ["incoming"], "label": "trade.decline"},
+	"withdraw-proposal": {"ask": [], "row": ["outgoing"], "label": "trade.withdraw-offer"},
 }
 
 ## The one event type the client reads to draw (`scene/objects.gd`): the owner's statement that an
@@ -126,6 +131,14 @@ func compose(affordance: Dictionary, input: Variant) -> String:
 				payload["price"] = int(given.get("price", 0))
 			if given.get("shop", false):
 				payload["for"] = "shop"
+		"propose-price":
+			# The item reference of the buy row and the typed price (S31-h §5.4); the target is the offer's.
+			var given: Dictionary = input if typeof(input) == TYPE_DICTIONARY else {}
+			payload = {"item": given.get("item"), "price": int(given.get("price", 0))}
+		"accept-proposal", "decline-proposal", "withdraw-proposal":
+			# The proposal the answer row names, from the `proposals` record (S31-h §5.4).
+			var given: Dictionary = input if typeof(input) == TYPE_DICTIONARY else {}
+			payload = {"proposal": int(given.get("proposal", 0))}
 		"talk":
 			payload = {"utterance": String(input)}
 		"invite":

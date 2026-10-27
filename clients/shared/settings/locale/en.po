@@ -491,6 +491,32 @@ msgstr "List for sale…"
 msgid "trade.list-for-shop"
 msgstr "List another kind for the shop…"
 
+# Haggling in the sale panel (S31-h §5.13): an offer beside a buy row, offers made to me, mine to others.
+# {until} is a world time; {ask} is the seller's asking price now.
+msgid "trade.offer-price"
+msgstr "Offer a price…"
+
+msgid "trade.incoming"
+msgstr "{buyer} offers {price} for {item} · until {until}"
+
+msgid "trade.incoming.ask"
+msgstr "{buyer} offers {price} for {item} (ask {ask}) · until {until}"
+
+msgid "trade.accept"
+msgstr "Accept"
+
+msgid "trade.decline"
+msgstr "Decline"
+
+msgid "trade.your-offer"
+msgstr "Your offer: {item} {price} · valid until {until}"
+
+msgid "trade.declined"
+msgstr "Declined: {item} {price} · until {until}"
+
+msgid "trade.withdraw-offer"
+msgstr "Withdraw"
+
 msgid "trade.shop-prices"
 msgstr "This shop's prices…"
 
@@ -845,6 +871,12 @@ msgstr "that is already for sale"
 
 msgid "reason.price-out-of-range"
 msgstr "that price is not allowed"
+
+msgid "reason.no-such-proposal"
+msgstr "that offer is no longer open"
+
+msgid "reason.proposal-limit"
+msgstr "no more offers to this seller for now"
 
 msgid "reason.not-held"
 msgstr "you do not have one"

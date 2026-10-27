@@ -60,9 +60,11 @@ impl ProposePrice {
     }
 }
 
-/// Declares one of the three actions that name a proposal: accept, decline, withdraw.
+/// Declares one of the three actions that name a proposal: accept, decline, withdraw. Each call spells
+/// its type in full with `from_static`, where the client-rules scan reads the build's action types
+/// (`tests/acceptance/tests/client_rules.rs`, `action_types`).
 macro_rules! proposal_action {
-    ($(#[$doc:meta])* $name:ident, $action_type:literal) => {
+    ($(#[$doc:meta])* $name:ident, $action_type:expr) => {
         $(#[$doc])*
         #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
         #[serde(deny_unknown_fields)]
@@ -71,7 +73,7 @@ macro_rules! proposal_action {
         }
 
         impl Action for $name {
-            const ACTION_TYPE: ActionTypeId = ActionTypeId::from_static($action_type);
+            const ACTION_TYPE: ActionTypeId = $action_type;
             const OWNER: SystemId = EconomySystem::ID;
         }
 
@@ -94,20 +96,20 @@ proposal_action!(
     /// standing in the proposal's shop. Settles at once as a sale at the proposed price. Offered
     /// **incomplete** (Q-S31a-3).
     AcceptProposal,
-    "accept-proposal"
+    ActionTypeId::from_static("accept-proposal")
 );
 
 proposal_action!(
     /// Decline an open proposal (`ARC-118`), by the same people who may accept it. Offered
     /// **incomplete** (Q-S31a-3).
     DeclineProposal,
-    "decline-proposal"
+    ActionTypeId::from_static("decline-proposal")
 );
 
 proposal_action!(
     /// Take back one's own open proposal (`ARC-118`). Offered **incomplete** (Q-S31h-1).
     WithdrawProposal,
-    "withdraw-proposal"
+    ActionTypeId::from_static("withdraw-proposal")
 );
 
 /// Whether `action` is one of the four haggling actions.

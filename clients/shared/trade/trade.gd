@@ -22,6 +22,8 @@ const SHOP := "shop"
 const CATALOGUE := "item-catalogue"
 const BOARD := "notice-board"
 const SUBSCRIPTIONS := "subscriptions"
+## S31-h: economy's offers to buy at a price, about the observer (`incoming`, `outgoing`).
+const PROPOSALS := "proposals"
 ## How many rows a shop's board shows before "+n" (S31-e §5.8).
 const BOARD_ROWS := 4
 
@@ -241,10 +243,46 @@ func shelf_rows(observation: Object, currency: Dictionary) -> Array:
 	return rows
 
 
-## Answers to offers made to me, and mine to others: none in S31-e. S31-h fills this from its record
-## (`TRADE.md` §5.4); both clients already draw `answer` rows, with any number of buttons, above the rest.
-func answer_rows(_observation: Object, _currency: Dictionary) -> Array:
-	return []
+## Answers to price offers (S31-h §5.13, `TRADE.md` §5.6), from economy's `proposals` record about the
+## observer: one `answer` row per incoming open offer, with the buttons of the offers the client's table tags
+## `incoming` (an accept targeted at that buyer, a target-less decline), then one per own offer, with the
+## buttons tagged `outgoing` while it is open and none once declined. Every button fills `{proposal}`. The
+## accept offer's verdict is the row's, shown only; `clock` words a world time (the client's clock format).
+func answer_rows(observation: Object, currency: Dictionary, clock: Callable = Callable()) -> Array:
+	var rows: Array = []
+	var record: Dictionary = observation.own_component(PROPOSALS)
+	for line in _array(record.get("incoming")):
+		if typeof(line) != TYPE_DICTIONARY or String(line.get("status", "")) != "open":
+			continue
+		var buyer := ref_id(line.get("buyer"))
+		var item := ref_id(line.get("item"))
+		var args := {"buyer": _name(buyer), "item": _name(item), "price": MineWorldMoney.format(int(line.get("price", 0)), currency),
+			"until": _until(line, clock)}
+		var key := "trade.incoming"
+		if line.get("ask") != null:
+			key = "trade.incoming.ask"
+			args["ask"] = MineWorldMoney.format(int(line["ask"]), currency)
+		var targeted := _incomplete(observation, buyer, "incoming")
+		var row := _row("answer", buyer, item, MineWorldText.text(key, args), int(line.get("price", 0)),
+			targeted[0] if not targeted.is_empty() else {})
+		for offered in targeted + _incomplete(observation, "", "incoming"):
+			row["buttons"].append(_button(_label(offered, item), offered, {"proposal": line.get("proposal")}, _asks(offered, "incoming")))
+		rows.append(row)
+	for line in _array(record.get("outgoing")):
+		if typeof(line) != TYPE_DICTIONARY:
+			continue
+		var item := ref_id(line.get("item"))
+		var args := {"seller": _name(ref_id(line.get("seller"))), "item": _name(item),
+			"price": MineWorldMoney.format(int(line.get("price", 0)), currency), "until": _until(line, clock)}
+		var open := String(line.get("status", "")) == "open"
+		var row := _row("answer", observation.observer(), item,
+			MineWorldText.text("trade.your-offer" if open else "trade.declined", args), int(line.get("price", 0)), {})
+		if open:
+			for offered in _incomplete(observation, "", "outgoing"):
+				row["buttons"].append(_button(_label(offered, item), offered, {"proposal": line.get("proposal")},
+					_asks(offered, "outgoing")))
+		rows.append(row)
+	return rows
 
 
 ## A person's price tag: "Flowers 450 cr", "+n" for more asks, sold out when the seller holds none. "" for
@@ -340,6 +378,12 @@ func _label(offered: Dictionary, item: String) -> String:
 	if entry.has("label"):
 		return MineWorldText.text(String(entry["label"]), args)
 	return MineWorldText.code("action", type, args)
+
+
+## A proposal line's `valid_until`, worded by the client's clock, or as the bare world time without one.
+static func _until(line: Dictionary, clock: Callable) -> String:
+	var at := int(line.get("valid_until", 0))
+	return String(clock.call(at)) if clock.is_valid() else str(at)
 
 
 func _name(id: String) -> String:
