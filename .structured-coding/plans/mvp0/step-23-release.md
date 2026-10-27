@@ -1576,6 +1576,81 @@ smoke run, or (for an argument error) when `--no-dialog` is among the raw argume
 - [ ] `scripts/package.py`: launcher binaries, `.app` wrappers (ad-hoc signed), `.desktop` files in
   `assemble`; `smoke` running §9.1 steps 1–6 through the launcher. Additions only (material stop 6).
 
+**Detail (C0 of the C5 session, 2026-10-26; worktree `impl-s23-rc-c5`, branch `mvp0/pr-s23-rc-c5` from
+`origin/main @ b6be8230`).** Within §6.3, §9.1 and §17.2; no change to them. Implemented on today's
+`package.py` (R-a and S23-RT merged), not on the layout §19.2 first assumed.
+
+*Entry points (one table, `ENTRY_POINTS` in `package.py`).* Each mode's launcher binary
+(`mineworld-<2d|3d|both>-launch`, §19.2) is placed at the bundle root under its product name:
+
+| Mode | macOS | Windows | Linux |
+| --- | --- | --- | --- |
+| `2d` | `MineWorld 2D.app` | `MineWorld 2D.exe` | `MineWorld-2D` + `MineWorld-2D.desktop` |
+| `3d` | `MineWorld 3D.app` | `MineWorld 3D.exe` | `MineWorld-3D` + `MineWorld-3D.desktop` |
+| `both` | `MineWorld 2D + 3D.app` | `MineWorld 2D + 3D.exe` | `MineWorld-2D+3D` + `MineWorld-2D+3D.desktop` |
+
+The launcher finds the bundle root from its own path (`bundle.rs` `root_of`: the folder of the executable,
+or the folder holding the `.app`), so these names and `bundle.rs` agree with no change to `bundle.rs`.
+
+*Functions added to `scripts/package.py`:*
+
+- `cargo_out()` — the cargo target folder (`CARGO_TARGET_DIR` when set, else `target/`); `build()` uses it
+  too, because a set `CARGO_TARGET_DIR` made `build()` look for the server where cargo had not written it (a
+  one-line correction, not a structural change).
+- `build_launchers(target)` — `cargo build --release --locked -p mineworld-launch` per triple, path-remapped
+  like `build()`; on macOS the two slices of each binary joined with `lipo -create` (as the server). Returns
+  `{mode: binary}` in `target/package/<T>/launch/`.
+- `info_plist(name, executable, version)` — a minimal `Info.plist` (`CFBundleExecutable`,
+  `CFBundleIdentifier` `org.mineworld.launch.<mode>`, `CFBundleName`, `CFBundlePackageType` `APPL`,
+  versions, `LSUIElement` true: the launcher has no window, so it takes no Dock place) written by `plistlib`.
+- `desktop_entry(name, file)` — a `.desktop` file, `Type=Application`, `Terminal=false`, `Categories=Game;`,
+  and `Exec=sh -c "exec \"$(dirname \"$0\")/<file>\"" %k` (escaped per the Desktop Entry spec), so the entry
+  starts the executable beside it wherever the bundle was unpacked. A copy moved elsewhere cannot know the
+  bundle's folder; `PLAY.txt`'s Linux line is corrected to say "double-click the `.desktop` file in this
+  folder" instead of "copy it to `~/.local/share/applications/`" (finding F-RC-5).
+- `place_launchers(bundle, target, binaries, version)` — the table above: on macOS `<name>.app/Contents/`
+  `{Info.plist, MacOS/<binary>}` then `codesign --force -s - <app>` (ad-hoc; on a non-macOS host the `.app`
+  is left unsigned and the script says so, since `codesign` exists only on macOS); on Windows the `.exe`; on
+  Linux the executable (mode 755) and its `.desktop` file.
+- `missing_entry_points(bundle, target)` — the entry points of the table absent from a bundle (and, on macOS,
+  an `.app` whose `Contents/MacOS/` does not hold its binary). `assemble` fails on any; `smoke` step 2 too.
+- `assemble(...)` gains `--launchers DIR` (binaries already built for the target, as `--server`), else calls
+  `build_launchers`; the launchers are placed before `licences` and `write_bundle_toml`, so the file digest
+  covers them. The `build` command also builds the launchers.
+- `smoke(archive, modes, sums, timeout)` and its helpers `unpack`, `run_entry`, `clean_exit`, `summary` —
+  §9.1 on this machine:
+  1. unpack the `.zip`/`.tar.gz` (modes kept) into `<tmp>/MineWorld 世界/` (a bundle folder is copied
+     instead, for a `--no-archive` assemble);
+  2. `SHA256SUMS` (`--sums FILE`, else the file beside the archive): the archive's line must match; absent,
+     that half is **NOT RUN** and said so; `BUNDLE.toml`'s `files_sha256` must equal the unpacked files'
+     digest; `missing_entry_points` must be empty;
+  3. **NOT RUN** (D-RC-5): the AC-8 reference record does not exist yet (open question Q-Rb-3);
+  4–5. for each mode asked (`2d`, `3d`, `both`; default all three): the mode's entry point itself (on macOS
+     the binary inside its `.app`) with `--smoke=<mode> --no-dialog --user-dir=<tmp>/user`, no `--bundle`,
+     so the root is found from the executable's path; each client's log (`<run>-client-<k>.log`) is judged by
+     `judge_client` with the launcher's exit code (2D: `drive complete: PASS` and the Presentation Pack line
+     from the unpacked bundle; 3D: `all link checks pass`, F-R6);
+  6. `clean_exit`: the run's server log holds `[mineworld] stopping` and the statistics, the launcher log
+     holds `server stopped` and no `killed`, no process whose pid the launcher logged is still alive, and
+     `<user>/scratch/` does not exist. A launcher over `--timeout` is killed with the clients it logged.
+  `summary` prints one line per step (`PASS`, `FAIL`, `NOT RUN`) and exits 1 on any FAIL; a NOT RUN step
+  never counts as a pass and is named in the last line.
+- `self_test()` gains cases that bite: a bundle without its launchers fails `missing_entry_points` for each
+  target and passes once they are planted; the `.desktop` `Exec` line, unescaped per the spec, is the
+  intended `sh -c` argv; the `Info.plist` names the binary placed; an archive unpacked into a path with a
+  space and `世界` keeps the executable bit; `clean_exit` fails on a server log without the shutdown lines,
+  on a left `scratch/`; `summary` reports step 3 as `NOT RUN`, exits 0 without a FAIL and 1 with one.
+
+*Launcher correction (F-RC-4).* Since RL-e0 the exported clients refuse to enter a world without
+`--world-key=<world>` (2D `app.gd` `_load_far_field`, exit 3 in a harness run; 3D `depictions/registry.gd`);
+the root launchers and `probe` pass it, the bundle launcher did not. `children.rs` `Clients` gains the world
+and passes `--world-key=<world>` after `--seat`; `LAUNCHER.md` §7 step 5 and the play test's argument
+assertions say so. This aligns the launcher with the clients' documented interface (`clients/2d/
+PRESENTATION.md` §8); no contract, scope or dependency changes.
+
+Files: `scripts/package.py`, `packaging/PLAY.txt` (Linux line only), `tools/launch/src/{children,lib}.rs`,
+`tools/launch/tests/launcher.rs`, `tools/launch/LAUNCHER.md`, this section.
+
 ### C6 — gate
 
 - [ ] Default suite green on Linux, macOS and Windows in CI on the exact final head.
@@ -1610,6 +1685,17 @@ smoke run, or (for an argument error) when `--no-dialog` is among the raw argume
   empty engine-option list, smoke still asserts `--headless`. Launcher 4/4 and unit 7/7 green on macOS after
   merging `origin/main` (`737e032`); `stop_on_stdin_eof` moved to port 0 read from the listening line, as
   #151 did for the shared harness (its `free_port` is gone).
+
+- **D-RC-5 (bounded; decided by the lane lead, 2026-10-26).** §9.1 step 3 compares the release server's
+  digest with the AC-8 record of the same commit; no such reference record exists yet, and where it comes
+  from is the open operator question Q-Rb-3 (R-b). `package.py smoke` therefore runs steps 1, 2, 4, 5 and 6
+  and reports step 3 as `NOT RUN` with that reason — never as a pass. Step 7 (windowed frame) is not C5's.
+  Owner of closing it: R-b, once Q-Rb-3 is ruled.
+- **F-RC-4 (bounded, launcher defect).** The bundle launcher did not pass `--world-key`, which the exported
+  clients require since RL-e0; fixed in C5 (§19.4 C5 detail).
+- **F-RC-5 (bounded, wording).** A `.desktop` file cannot hold the bundle's absolute path at assemble time;
+  it starts the executable beside it (`%k`), so `PLAY.txt` tells Linux players to double-click it in the
+  bundle folder rather than copy it to `~/.local/share/applications/`.
 
 ## 19.6 Validation ledger
 
