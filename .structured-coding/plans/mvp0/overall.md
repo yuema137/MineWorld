@@ -1198,6 +1198,21 @@ decides *whether*, not *when*: the first public tag still follows QR-12 (after M
 acceptance and after the visuals settle), and publishing waits for the operator's go-ahead after milestone
 acceptance. Recorded in `step-23-release.md` (header note of 2026-10-26) and in ARC-79.
 
+**Operator ruling of 2026-10-26: "all pending questions as recommended"** (relayed by the coordinator). The
+items no other PR carries, each recorded where it lives:
+
+- S32 wardrobe: MVP-0 ships the wardrobe on the protagonist only; nothing is spent on the full-cast wardrobe
+  (≈ 3,330 Meshy credits). `pr-s32p-la-levers.md`, Authority.
+- The depiction format's `extras_from` and `decor` (at most 5) fields, merged with #454, are accepted.
+  `ARC-177` note of 2026-10-26.
+- Known issues, deferred to after the milestone: Q-CC10-8, the standing idle's arms sinking into the body by
+  29–117 mm (`mvp1/pr-s36-cc10-arm-clearance.md`); Q-S36-P4b-1 and -2, the jog's stance-phase time warp and the
+  street run kept record-only (`mvp1/pr-s36-p4b-colliders-jog.md` §8); the `motivated` controller's eat weight,
+  F-Nc3-1 (`pr-s35-nc3-motivated-sleep.md` §9); and the calendar start time, which has no ledger of its own and
+  is recorded here only.
+- Confirmed after the fact: #438 (N-c3, tiredness recovering exponentially; `pr-s35-nc3-motivated-sleep.md` §9)
+  and #448 (13e's `MineWorldStatus` node, deviation D-2; `pr-13e-many-players-2d.md`).
+
 ## Still open
 
 | ID | Decision | Blocks | Recommendation |
