@@ -1,6 +1,8 @@
 # PR S30-j — Runtime sampling of new people: a newcomer drawn against the people already there
 
-## DRAFT — not frozen
+## DESIGN FROZEN 2026-10-27 (operator approved in the primary session: every question answered as recommended)
+
+**Ruled 2026-10-27 (operator, primary session):** every question below is answered as recommended.
 
 ```text
 Design revision:        revision 1 (2026-10-26), DRAFT
