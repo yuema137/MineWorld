@@ -3,7 +3,7 @@
 ## Lifecycle
 
 ```text
-Design revision:        revision 1 (2026-10-26), DRAFT
+Design revision:        revision 1 (2026-10-26), DESIGN FROZEN 2026-10-27 (operator approved in the primary session: every question answered as recommended)
 Approved by / evidence: none yet — awaiting the operator's freeze (questions in §14)
 Implementation base:    origin/main @ 0b2faf2f (#382)
 Start condition:        this design frozen. S34-c1 is merged (#368). S34-c2 (Lakeside) is not required to
@@ -416,6 +416,8 @@ POST-MERGE SYNC OWNER:  the implementation session owns this file's ledger; the 
 (empty until implementation)
 
 ## 14. Operator questions (each with a recommended answer)
+
+**Ruled 2026-10-27 (operator, primary session):** every question below is answered as recommended.
 
 | Id | Question | Recommendation |
 | --- | --- | --- |
