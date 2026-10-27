@@ -313,34 +313,51 @@ Each is free of charge. In order:
 
 - Scope: §3; `ci_release.py publish-gate`, `verify-assets`, `itch-channels`, `check-secrets` with
   self-tests; `ci_layer.py fast` line.
-- Implementation: [ ] workflow; [ ] script; [ ] fast line.
-- Validation: [ ] `python3 scripts/ci_release.py --self-test` (cases: `v0.1.0` publish; `v0.1.0-rc.1` with
+- Implementation: [x] workflow (`publish.yml`: gate, verify, push; switch in §14); [x] script (`publish-gate`,
+  `verify-assets`, `itch-channels`, `check-secrets`, `check-switch`, `citation`); [x] fast line (four lines in
+  `ci_layer.py fast`). Evidence: commit 47be44a0; `ruby` parses `publish.yml` (valid YAML, 3 jobs).
+- Validation: [x] PASS `python3.12 scripts/ci_release.py --self-test` ("ci_release self-test: passed"; the cases: `v0.1.0` publish; `v0.1.0-rc.1` with
   `prerelease=true`; `v0.1.0-rc.1` with `prerelease=false` refused; `promo-v2.3` → publish=false;
   channel table; a secret in `ci.yml` refused; `pull_request_target` refused);
-  [ ] `check_ci_pins.py`; [ ] **A-R9 (dispatch, no publish):** R-b's dry run with `draft: true` makes draft
+  [x] `check_ci_pins.py` PASS (every new action pinned to the SHA the repository already uses);
+  INCONCLUSIVE, owner R-b: **A-R9 (dispatch, no publish):** `origin/mvp0/pr-s23-rb` and its draft do not exist
+  on 2026-10-27, so no dispatch run exists. R-b's dry run with `draft: true` makes draft
   `test-<run>`; dispatch `publish.yml` with that name → `verify` PASS; then replace one archive in the
   draft with a modified copy (`gh release upload --clobber`) and dispatch again → `verify` red naming the
   file at `sha256sum -c`; draft deleted; run URLs in the ledger. (On a draft, `--source-ref` is skipped,
   since a draft has no tag.)
-  [ ] **A-R10:** the static guard's planted cases; `gh api repos/yuema137/MineWorld/environments/itch` output
-  showing the reviewer and the `v*` tag policy (after the operator creates it; until then INCONCLUSIVE with
-  the owner named).
-- LLM review: [ ] the key reaches only two steps; [ ] `push` cannot run on dispatch; [ ] nothing published.
+  [x] **A-R10 static guard:** the planted cases PASS (`ci_release.py --self-test`: a planted ungated push, a
+  butler step moved into verify, a key outside push, a secret outside publish.yml, an Environment outside
+  publish.yml, `pull_request_target`, a `push` trigger); the real tree PASSES `check-secrets` and `check-switch`.
+  INCONCLUSIVE, owner the operator: the Environment's evidence (`gh api repos/yuema137/MineWorld/environments/itch`
+  showing the reviewer and the `v*` tag policy) does not exist until the operator creates `itch` (§5.2).
+  Also INCONCLUSIVE, owner the operator: `MINEWORLD_PUBLISH_LIVE` is unset on the repository, so the live
+  path is not exercised; the switch's OFF branch is what this PR proves.
+- LLM review: [x] the key reaches only the two steps of job `push` (checked by `check-switch`); [x] `push` requires
+  `event == release`, the gate's publish output and the switch; [x] nothing published by this PR.
+  INCONCLUSIVE on two `gh`/`butler` details that only a live run shows: the `--source-ref` and `--signer-workflow`
+  flags of `gh attestation verify`, and `butler status` on a missing channel (used to decide `--hidden`).
+  Owner R-b for the first two (its dispatch run); owner the operator for the third (the live rehearsal, §7).
 - Failure cases: an asset missing from `SHA256SUMS` → FAIL; an attestation missing → FAIL (never skip);
   butler download mismatch → FAIL before the key is read.
 
 ### C2 — `CITATION.cff`, `CHANGELOG.md`, `ci_release.py citation`, `DEP-39`, `ARC-79` note
 
-- Validation: [ ] self-test for `citation` (equal / unequal version); [ ] `cffconvert --validate` or the
-  CFF JSON schema check (**verify** a stdlib-only route; else a pinned `cffconvert` run once locally,
-  output recorded, not added to CI); [ ] `check_decision_ids.py --write-index`; [ ] `check_doc_headings.py`.
-- LLM review: [ ] every CHANGELOG entry cites a PR that exists and is merged.
+- Validation: [x] self-test for `citation` (equal, quoted, stale, nested-only, no workspace version) PASS;
+  [ ] INCONCLUSIVE: CFF schema validation was not run. No stdlib route exists here, and `cffconvert` would be
+  a new dependency (a stop condition, §12); the citation's fields follow CFF 1.2.0 by hand. Owner: the
+  operator, to decide on a pinned validator; [x] `check_decision_ids.py --write-index` (258 ids, index current);
+  [x] `check_doc_headings.py` PASS (254 sections, 338 documents). Butler's digest was re-downloaded in C0.
+- LLM review: [x] the 12 CHANGELOG entries (#261, #291, #292, #320, #385, #401, #407, #465, #494, #496, #510,
+  #512) each cite a PR that `gh pr view` reports MERGED.
 
 ### C3 — README section and guide Step 1.1 (both languages)
 
-- Validation: [ ] the guide test on the PR (`fast` and the guide test in `test`; CI only, R-LOAD-1):
-  the new blocks reported as `operator-only` pending, every other block unchanged; mirror parity PASS.
-- LLM review: [ ] the README stays short; the guide's every step reads "Do this → You should see this".
+- Validation: [x] mirror parity PASS for chapter 01 (11 blocks in each file, equal byte for byte; the same
+  step numbers). [ ] INCONCLUSIVE, owner CI: the guide test itself (`tools/cli/tests/guide.rs`) runs only in CI
+  (no cargo here, R-LOAD-1); the three new blocks should appear as `operator-only` pending.
+- LLM review: [x] the README section is three lines and a link; [x] Step 1.1 keeps "Do this" and the version
+  "You should see" check; the download branch is marked operator-only (Q-Rd-6).
 
 ### C4 — gate
 
@@ -462,6 +479,11 @@ reference in any workflow but `publish.yml`.
 | --- | --- | --- |
 | 2026-10-26 | — | revision 1 drafted from origin/main 0b2faf2f; QB-14 (PR #497) reflected |
 | 2026-10-27 | — | operator ruling: frozen, every Q-Rd-1..8 as recommended; §14 switch added as a bounded addition; §12 filled; C0 begins from origin/main 315a50a9 |
+| 2026-10-27 | ffe8e4a1 | C0: freeze header, §12 contract, §14 switch; butler digest re-downloaded (PASS) |
+| 2026-10-27 | ece8914b | C2: CITATION.cff, CHANGELOG (12 merged PRs), DEP-39, ARC-79 note, `ci_release.py citation`; index regenerated |
+| 2026-10-27 | 54724426 | C3: README download section; guide Step 1.1 both languages, download branch operator-only; parity PASS |
+| 2026-10-27 | 47be44a0 | C1: publish.yml (gate, verify, push behind MINEWORLD_PUBLISH_LIVE, default off); ci_release.py commands and self-tests; fast lines |
+| 2026-10-27 | — | Deviations: `origin/mvp0/pr-s23-rb` absent, so `ci_release.py` created here with R-b's commands left to R-b; the brief's Opus trailer replaced by the Haiku trailer the session is attributed to; C0 contract cites the frozen scope |
 
 ---
 
