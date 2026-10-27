@@ -1,6 +1,8 @@
 # PR S30-k — Localisation of attributes: label packs, zh_Hans, and the reader's choice of language
 
-## DRAFT — not frozen
+## DESIGN FROZEN 2026-10-27 (operator approved in the primary session: every question answered as recommended)
+
+**Ruled 2026-10-27 (operator, primary session):** every question below is answered as recommended.
 
 ```text
 Design revision:        revision 1 (2026-10-26), DRAFT. Not frozen. No implementation before an operator ruling on
