@@ -102,8 +102,13 @@ jobs:
       # character, then run the bundle's server with each exported client, headless (`package.py probe`).
       - name: Unpack the archive and probe the bundle
         run: |
-          archive=$(ls target/package/"$TARGET"/MineWorld-*-"$TARGET".zip target/package/"$TARGET"/MineWorld-*-"$TARGET".tar.gz 2>/dev/null | head -n 1)
-          [ -n "$archive" ] || { echo "no archive under target/package/$TARGET"; exit 1; }
+          # One archive per target: .tar.gz on Linux, .zip elsewhere (package.py TARGETS).
+          if [ "$RUNNER_OS" = "Linux" ]; then kind=tar.gz; else kind=zip; fi
+          archive=""
+          for found in target/package/"$TARGET"/MineWorld-*-"$TARGET"."$kind"; do
+            [ -f "$found" ] && archive=$found
+          done
+          [ -n "$archive" ] || { echo "no .$kind archive under target/package/$TARGET"; exit 1; }
           echo "ARCHIVE=$archive" >> "$GITHUB_ENV"
           # Windows: a POSIX form of RUNNER_TEMP (its backslashes would be glob escapes below), and the
           # system's bsdtar, which reads .zip (Git Bash's GNU tar does not).
