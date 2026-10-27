@@ -5,13 +5,13 @@
 use mineworld_contracts::{
     Action, ActionRequest, ActionTypeId, Affordance, ComponentRecord, EntityId, EntityType,
     Location, Observation, PerceivedEntity, PlaceId, ProcessId, Rejection, RejectionCode,
-    SpatialRequirement, Tag, Tags, WorldTime,
+    SimDuration, SpatialRequirement, Tag, Tags, WorldTime,
 };
 use mineworld_movement::{Passage, Passages, WalkTo, move_offer_requirement};
 use mineworld_schedule::{Agenda, AgendaLabel, DisclosedAgenda, NextPart};
 use serde_json::{Value, json};
 
-use crate::commute::{Commute, next_part, pending};
+use crate::commute::{Commute, errand_fits, next_part, pending};
 use crate::fetch::FreeHand;
 use crate::needs::NeedsPolicy;
 
@@ -490,4 +490,30 @@ fn a_disclosed_shift_is_an_appointment_beside_the_punctual_flag() {
     let jobless = day(MORNING, Some((STORE, seven, false)), None);
     assert!(!next_part(&jobless).expect("a part").punctual);
     assert!(pending(&jobless).is_none());
+}
+
+/// F-Nh-7: an errand is judged as a round trip before a punctual next part. With no way disclosed the
+/// lead and the errand window are both the cap (120 min), so at a pace of 15 min an errand fits only
+/// while `now + 15 + 120 ≤ from − 120` minutes; a jobless day, with no punctual part, always fits.
+#[test]
+fn an_errand_fits_only_while_the_commute_stays_ahead_of_it() {
+    let seven = 86_400 + 7 * 3_600;
+    let (pace, stride) = (
+        SimDuration::from_seconds(900),
+        SimDuration::from_seconds(30),
+    );
+    let fits = |at: i64, job: Option<(u64, &str)>| {
+        let observation = day(at, Some((STORE, seven, false)), job);
+        errand_fits(&observation, &Commute::default(), pace, stride, place(CAFE))
+    };
+    let edge = seven - 7_200 - 900 - 7_200;
+    assert!(
+        fits(edge, Some((STORE, "07:00"))),
+        "at the edge it still fits"
+    );
+    assert!(
+        !fits(edge + 1, Some((STORE, "07:00"))),
+        "a second later the walk back would make me late"
+    );
+    assert!(fits(seven - 600, None), "no appointment: any errand fits");
 }
