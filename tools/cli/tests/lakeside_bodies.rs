@@ -361,12 +361,18 @@ fn the_village_floors_do_not_overlap() {
 /// which the loader refuses once nothing owns it — gives exactly the world after only moving the
 /// doorway points. The expectation is the 30-day, seed-7 summary (every line but `wall`, as
 /// `ci_parity.py` keeps it) of `worlds/lakeside` at S33-b's C1 commit (`30b7c521`: the doorway move,
-/// before any body), recorded then: evidence from before the code under test.
+/// before any body), recorded then: evidence from before the code under test. A merged change outside
+/// bodies and the doorways that moves the summary re-records it, with a dated `# reason` line naming
+/// the commit (the fixture's `#` lines are notes, not output).
 #[test]
 fn without_bodies_only_the_doorways_moved() {
-    let expected = lakeside::read_lf(&lakeside::repository(
+    let expected: String = lakeside::read_lf(&lakeside::repository(
         "tools/cli/tests/fixtures/lakeside/doorways-only-30d-seed7.txt",
-    ));
+    ))
+    .lines()
+    .filter(|line| !line.starts_with('#'))
+    .map(|line| format!("{line}\n"))
+    .collect();
     let without = without_bodies("lakeside-bodies-only");
     let printed: String = run(&without, SEED, DAYS, None)
         .lines()
