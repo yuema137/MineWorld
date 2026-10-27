@@ -75,6 +75,7 @@ LAYERS: dict[str, list[list[str]]] = {
         # otherwise be found only by a red night that never comes.
         ["python3", "scripts/ci_nightly.py", "--self-test"],
         ["python3", "scripts/ci_godot.py", "--self-test"],
+        ["python3", "scripts/ci_gdparse.py", "--self-test"],
         ["python3", "scripts/ci_repeat.py", "--self-test"],
         ["python3", "scripts/ci_stability.py", "--self-test"],
         # The partition of `core` into the test jobs' shards (ARC-110): complete and deterministic.
