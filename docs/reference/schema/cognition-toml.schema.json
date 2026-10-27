@@ -376,6 +376,26 @@
       "title": "ControllerOverrides",
       "type": "object"
     },
+    "FillConfig": {
+      "additionalProperties": false,
+      "description": "The `[fill]` table: the operator's settings of the LM controller's fillers, one table per filler\n(`ARC-183`). A filler with no table never lists itself.",
+      "properties": {
+        "publish-notice": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PublishNoticeFill"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The `[fill.publish-notice]` table: the price clerk's filler. Unset, an LM seat never posts a notice."
+        }
+      },
+      "title": "FillConfig",
+      "type": "object"
+    },
     "JsonValue": {
       "anyOf": [
         {
@@ -462,6 +482,33 @@
         }
       },
       "title": "MemoryConfig",
+      "type": "object"
+    },
+    "PublishNoticeFill": {
+      "additionalProperties": false,
+      "description": "The `[fill.publish-notice]` table: where an LM seat posts suggested prices, and for how long (S31-d).",
+      "properties": {
+        "topic": {
+          "description": "The notices topic the seat posts its suggested prices on, such as `prices.ingredients`. The filler lists itself only with a topic; the notices pack judges whether the seat may post there.",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*$",
+          "title": "Topic",
+          "type": "string"
+        },
+        "valid_minutes": {
+          "default": 360,
+          "description": "World minutes a posted notice stays current (its `valid_for`), from 1 to 43200; the topic's own bounds are the notices pack's check.",
+          "maximum": 43200,
+          "minimum": 1,
+          "title": "Valid Minutes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "topic"
+      ],
+      "title": "PublishNoticeFill",
       "type": "object"
     },
     "RecordingConfig": {
@@ -635,6 +682,10 @@
       "default": null,
       "description": "The JSON that `mineworld decisions \u2026 --json` printed for the world the server runs. A relative path is resolved against this configuration file.",
       "title": "Decisions Json"
+    },
+    "fill": {
+      "$ref": "#/$defs/FillConfig",
+      "description": "The `[fill]` table: the fillers an LM seat completes an incomplete offer with (`[fill.<action>]`)."
     },
     "invite_env": {
       "default": "MINEWORLD_INVITE",

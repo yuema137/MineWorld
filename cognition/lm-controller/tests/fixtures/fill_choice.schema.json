@@ -1,0 +1,41 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["act", "to", "words", "offer", "recalls", "fill"],
+  "properties": {
+    "act": {"type": "string", "enum": ["say", "attempt", "fill", "nothing"]},
+    "to": {"type": ["string", "null"]},
+    "words": {"type": "string", "maxLength": 480},
+    "offer": {"type": ["integer", "null"]},
+    "recalls": {"type": "array", "items": {"type": "string"}, "maxItems": 8},
+    "fill": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["offer", "notice"],
+      "properties": {
+        "offer": {"type": "string", "enum": ["F1"]},
+        "notice": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "required": ["lines"],
+          "properties": {
+            "lines": {
+              "type": "array",
+              "maxItems": 32,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["item", "price", "basis"],
+                "properties": {
+                  "item": {"type": "string"},
+                  "price": {"type": "integer", "minimum": 1},
+                  "basis": {"type": "integer", "minimum": 1}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

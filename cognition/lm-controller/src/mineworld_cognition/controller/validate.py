@@ -11,10 +11,11 @@ from __future__ import annotations
 import re
 from typing import Literal
 
-from mineworld_sdk.wire.ids import EntityId, EventId
+from mineworld_sdk.wire.ids import ActionTypeId, EntityId, EventId, JsonValue
 
 from mineworld_cognition.backend.model import CognitionModel
 from mineworld_cognition.controller.choice import WORDS_MAX_CHARS, ContentFailure, SocialChoice
+from mineworld_cognition.controller.fill.base import Fillable
 from mineworld_cognition.controller.situation import Offer, Situation
 from mineworld_cognition.memory.records import EventRange, event_key
 from mineworld_cognition.memory.retrieve import MemorySection
@@ -60,15 +61,34 @@ class Nothing(CognitionModel):
     recalls: tuple[str, ...]
 
 
-Proposal = Say | Attempt | Go | Sleep | Nothing
+class Fill(CognitionModel):
+    """An incomplete offer filled (S31-d §5.8; `ARC-183`): the payload a listed filler built from checked, typed
+    fields. Never text the model wrote as a payload."""
+
+    kind: Literal["fill"]
+    action_type: ActionTypeId
+    target: EntityId | None
+    payload: JsonValue
+    recalls: tuple[str, ...]
+
+
+Proposal = Say | Attempt | Go | Sleep | Fill | Nothing
 """What the model proposed, validated. The only shapes a request may be built from (`ARC-72`, `INV-10`)."""
 
 
 def validate(
-    choice: SocialChoice, situation: Situation, memory: MemorySection
+    choice: SocialChoice,
+    situation: Situation,
+    memory: MemorySection,
+    fillables: tuple[Fillable, ...] = (),
 ) -> Proposal | ContentFailure:
-    """Applies §5.2.6's rules to one parsed answer, in table order for the chosen act."""
-    if choice.act == "say":
+    """Applies §5.2.6's rules to one parsed answer, in table order for the chosen act. `fill` is checked by the
+    listed filler it names (`fillables`); with none listed the parser has already refused it."""
+    if choice.act == "fill":
+        proposal = _fill(choice, fillables)
+        if isinstance(proposal, ContentFailure):
+            return proposal
+    elif choice.act == "say":
         proposal = _say(choice, situation)
         if isinstance(proposal, ContentFailure):
             return proposal
@@ -138,6 +158,25 @@ def _sleep(choice: SocialChoice, situation: Situation) -> Sleep | ContentFailure
             reason="bad_amount", detail="sleep needs a number of minutes, 1 or more"
         )
     return Sleep(kind="sleep", minutes=choice.minutes, recalls=())
+
+
+def _fill(choice: SocialChoice, fillables: tuple[Fillable, ...]) -> Fill | ContentFailure:
+    """The listed filler the answer names checks its own fields; an F-number not listed is `unknown_fill`."""
+    answer = choice.fill
+    number = None if answer is None else answer.get("offer")
+    listed = next((item for item in fillables if item.number == number), None)
+    if answer is None or listed is None:
+        return ContentFailure(reason="unknown_fill", detail="that F-number is not listed")
+    checked = listed.filler.check(answer.get(listed.filler.key), listed.shown)
+    if isinstance(checked, ContentFailure):
+        return checked
+    return Fill(
+        kind="fill",
+        action_type=checked.action_type,
+        target=checked.target,
+        payload=checked.payload,
+        recalls=(),
+    )
 
 
 def _forged_recall(recalls: list[str], memory: MemorySection) -> ContentFailure | None:

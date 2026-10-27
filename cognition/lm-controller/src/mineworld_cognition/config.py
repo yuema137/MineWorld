@@ -41,8 +41,10 @@ __all__ = [
     "CognitionConfig",
     "ConfigError",
     "ControllerConfig",
+    "FillConfig",
     "LayerConfig",
     "Mode",
+    "PublishNoticeFill",
     "RecordingConfig",
     "RetryConfig",
     "SeatOverrides",
@@ -339,6 +341,41 @@ class ControllerConfig(ConfigModel):
     )
 
 
+TOPIC_ID = r"^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*$"
+"""A notices topic id: dotted lowercase slugs, 1 to 64 bytes (the notices pack's `TopicId` rule; it re-judges)."""
+
+
+class PublishNoticeFill(ConfigModel):
+    """The `[fill.publish-notice]` table: where an LM seat posts suggested prices, and for how long (S31-d)."""
+
+    topic: Annotated[str, Field(min_length=1, max_length=64, pattern=TOPIC_ID)] = Field(
+        description=(
+            "The notices topic the seat posts its suggested prices on, such as `prices.ingredients`. The filler"
+            " lists itself only with a topic; the notices pack judges whether the seat may post there."
+        ),
+    )
+    valid_minutes: Annotated[int, Field(ge=1, le=43200)] = Field(
+        default=360,
+        description=(
+            "World minutes a posted notice stays current (its `valid_for`), from 1 to 43200; the topic's own"
+            " bounds are the notices pack's check."
+        ),
+    )
+
+
+class FillConfig(ConfigModel):
+    """The `[fill]` table: the operator's settings of the LM controller's fillers, one table per filler
+    (`ARC-183`). A filler with no table never lists itself."""
+
+    publish_notice: PublishNoticeFill | None = Field(
+        default=None,
+        alias="publish-notice",
+        description=(
+            "The `[fill.publish-notice]` table: the price clerk's filler. Unset, an LM seat never posts a notice."
+        ),
+    )
+
+
 class ControllerOverrides(ConfigModel):
     """The same keys as `[controller]`, each optional: a `[seat_overrides.<key>.controller]` table."""
 
@@ -536,6 +573,12 @@ class CognitionConfig(ConfigModel):
     breaker: LayerConfig | None = Field(
         default=None,
         description="The `[breaker]` table: the per-seat circuit breaker. Unset uses the bundled default.",
+    )
+    fill: FillConfig = Field(
+        default_factory=FillConfig,
+        description=(
+            "The `[fill]` table: the fillers an LM seat completes an incomplete offer with (`[fill.<action>]`)."
+        ),
     )
     seat_overrides: dict[Annotated[str, Field(pattern=SEAT_KEY)], SeatOverrides] = Field(
         default_factory=dict[str, SeatOverrides],
