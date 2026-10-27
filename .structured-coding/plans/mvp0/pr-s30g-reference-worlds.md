@@ -1,6 +1,8 @@
 # PR S30-g — Reference worlds adopt attributes, and S26 casting switches to `mineworld attributes resolve`
 
-## DRAFT — not frozen
+## DESIGN FROZEN 2026-10-27 (operator approved in the primary session: every question answered as recommended)
+
+**Ruled 2026-10-27 (operator, primary session):** every question below is answered as recommended.
 
 ```text
 Design revision:        revision 1 (2026-10-26), draft for the operator's freeze
