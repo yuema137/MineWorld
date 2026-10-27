@@ -17,7 +17,8 @@ class_name SliceProbeWorld
 extends SliceProbe
 
 ## The connected modes.
-const WORLD_MODES := ["link", "conversation", "target", "settings", "controls", "cast", "station-walk"]
+const WORLD_MODES := ["link", "conversation", "target", "settings", "controls", "cast", "station-walk",
+	"observe"]
 ## Where on a perceived figure the probe aims, as a player aims at a face.
 const HEAD_Y := 1.55
 ## The targeting rule before PR 16a (`slice_link.gd` at 47c81d1): the figure
@@ -65,6 +66,7 @@ func _run(mode: String) -> void:
 		"controls": await _controls_check()
 		"cast": await _cast_frames()
 		"station-walk": await _station_walk()
+		"observe": await _observe_from_street()
 		_: await super(mode)
 
 
@@ -1309,6 +1311,46 @@ func _station_walk() -> void:
 	print("misses   %s" % JSON.stringify(lay.misses))
 	_print_shown(link)
 	print("\n%s" % ("all station checks pass" if fails == 0 else "%d STATION CHECKS FAILED" % fails))
+	link.client.disconnect_from_world("probe done")
+	await _hold(0.2)
+
+
+# --- an observer on the street (S33-i, ARC-175) ----------------------------------------------------
+
+## `--slice-observe`: the seat walks out onto the depiction's street through its own door, on the real
+## controller, as a player would; prints `OBSERVE READY {"place": …}` and stands there, drawing whoever the
+## world shows, until the file `--observe-until=<path>` exists or `--watch=<s>` (default 300) has passed;
+## then `OBSERVE DONE`. What it drew is in `--observe-log=` (`SliceLink._log_drawn`). It names no place.
+func _observe_from_street() -> void:
+	print("== S33-i -- an observer on the street ==\n")
+	var link := slice.link
+	if link == null:
+		print("FAIL: no --server= given\n\nOBSERVE FAILED")
+		return
+	var waited := 0.0
+	while waited < 20.0 and (not link.client.is_seated() or link.here == "" or link._reconcile):
+		await get_tree().process_frame
+		waited += get_process_delta_time()
+	await _hold(0.8)
+	var street := link.layout.street
+	if street == "" or (link.here != street and not await _cross(link, street)):
+		_exit_code = 1
+		print("FAIL: could not step out onto the street (%s); in %s\n\nOBSERVE FAILED" % [street, link.here])
+		return
+	print("OBSERVE READY %s" % JSON.stringify({"place": link.here}))
+	var until := ""
+	var limit := 300.0
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--observe-until="):
+			until = a.substr(16)
+		elif a.begins_with("--watch="):
+			limit = float(a.substr(8))
+	var t := 0.0
+	while t < limit and not (until != "" and FileAccess.file_exists(until)):
+		await _hold(0.25)
+		t += 0.25
+	print("places   the server's place, as observed: %s" % [link.place_changes])
+	print("OBSERVE DONE")
 	link.client.disconnect_from_world("probe done")
 	await _hold(0.2)
 

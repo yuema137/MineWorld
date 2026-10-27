@@ -32,9 +32,10 @@ const LAYER_ART := 16
 ## disclosed solid is drawn by `SliceFurnishings` (an undrawn solid is never left, I-FD-5), so its
 ## collider carries this layer beside LAYER_DISCLOSED. The player's body and the targeting ray do not
 ## mask it: it is the eye's, like SpringArm3D's own collision mask.
+## Its own bit, distinct from LAYER_ART (the 16f-b / S33-d merge: both had taken 16).
 const LAYER_CAMERA := 32
-## What the camera boom is swept against: the built world, the art (the camera never passes through a
-## drawn wall, 16f-b, ARC-52), loose objects, and LAYER_CAMERA.
+## What the camera boom is swept against: the built world, the art (it never passes through a drawn
+## wall, 16f-b `ARC-52`), loose objects, and LAYER_CAMERA.
 const CAMERA_MASK := LAYER_WORLD | LAYER_ART | LAYER_OBJECTS | LAYER_CAMERA
 ## Hidden walk aids (PR S36-P4b, Q-S36-P4-4): the slope in front of a drawn step that lets the player's capsule walk
 ## up it instead of catching on its square edge. Only the player's body masks this layer (and its press cast, which

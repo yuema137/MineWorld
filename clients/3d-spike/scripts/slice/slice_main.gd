@@ -89,6 +89,9 @@ func _ready() -> void:
 		return
 	_decor()
 	_gi()
+	if not SliceTrial.apply(self):
+		get_tree().quit(2)
+		return
 	_reflections()
 	if low:
 		_cost_effects_off()
@@ -112,6 +115,8 @@ func _ready() -> void:
 			probe = SliceProbeGeometry.new()
 		elif SliceProbeTown.requested():
 			probe = SliceProbeTown.new()
+		elif SliceProbeSeat.requested():
+			probe = SliceProbeSeat.new()
 		elif SliceProbeWorld.requested():
 			probe = SliceProbeWorld.new()
 		else:
@@ -137,6 +142,14 @@ func _open_depiction() -> bool:
 	if world_key == "":
 		return true
 	depiction = SliceWorlds.open(world_key)
+	if depiction is SliceDataDepiction:
+		# drawn from a depiction file (ARC-177): a refused file refuses the run by name
+		var data := depiction as SliceDataDepiction
+		if not data.loaded():
+			_refuse(data.refusal_line())
+			return false
+		print("[slice] world %s, drawn by SliceDataDepiction from %s" % [world_key, data.resolved_path()])
+		return true
 	if depiction != null:
 		print("[slice] world %s, drawn by %s" % [world_key, SliceWorlds.source])
 		return true
@@ -202,7 +215,7 @@ func _load_far_field() -> bool:
 ## Whether a scripted probe mode, standalone or connected, runs this session.
 static func _scripted() -> bool:
 	return SliceProbe.scripted() or SliceProbeWorld.requested() or SliceProbeTown.requested() \
-		or SliceProbeMarket.requested() \
+		or SliceProbeMarket.requested() or SliceProbeSeat.requested() \
 		or SliceProbeGeometry.requested() or SliceProbeBodies.requested() or SliceProbeProps.requested()
 
 
@@ -211,7 +224,7 @@ static func harness_flags() -> PackedStringArray:
 	var out := PackedStringArray()
 	for mode in SliceProbe.MODES + SliceProbeWorld.WORLD_MODES + SliceProbeTown.TOWN_MODES \
 			+ SliceProbeMarket.MARKET_MODES + SliceProbeGeometry.GEOMETRY_MODES + SliceProbeBodies.BODIES_MODES \
-			+ SliceProbeProps.PROPS_MODES:
+			+ SliceProbeProps.PROPS_MODES + SliceProbeSeat.SEAT_MODES:
 		out.append("slice-" + mode)
 	return out
 
@@ -593,6 +606,11 @@ func _ssil() -> void:
 ## light spilling out of the door and the light bouncing in off the sunlit
 ## paving are both inside the bake.
 func _voxel_gi() -> void:
+	# a world drawn from a depiction file with a `light` section bakes its own volumes (S33-d C9)
+	var data := depiction as SliceDataDepiction
+	if data != null and not data.light().is_empty():
+		DepictionLight.voxel_gi(self, data.light(), data)
+		return
 	var v := VoxelGI.new()
 	v.name = "CafeGI"
 	var d := VoxelGIData.new()
@@ -624,6 +642,10 @@ func _voxel_gi() -> void:
 ## metal reflect the room they are in rather than the sky through the ceiling,
 ## and sky-only reflection is exactly how an interior gets that wrong.
 func _reflections() -> void:
+	var data := depiction as SliceDataDepiction
+	if data != null and not data.light().is_empty():
+		DepictionLight.probes(self, data.light(), data)
+		return
 	var inside := ReflectionProbe.new()
 	inside.name = "CafeProbe"
 	inside.size = Vector3(SliceCafe.W, 3.4, SliceCafe.DEPTH)

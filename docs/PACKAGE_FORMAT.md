@@ -116,6 +116,11 @@ license:
   spdx: CC0-1.0
 ```
 
+A 3D Presentation Pack's place assets (`assets/places/<asset-id>/`, 16f-d1) keep this contract and add
+`format.rules`, `doors`, `license.sources` and `source`; the full field list, the recipe names that carry what
+glTF cannot, and the `ASSET_*` refusals are in
+[`clients/3d-spike/PRESENTATION.md`](../clients/3d-spike/PRESENTATION.md) §8.
+
 `semantic_bindings` is the layer an ordinary asset store does not have: it is how a *model* is
 attached to a *world* without the world knowing what a mesh is. An interaction anchor is where a
 system's `Sit` or `Buy` is rendered as happening; it is **not** permission for the client to

@@ -1,0 +1,31 @@
+{
+  "format": 1,
+  "scope": {"world": "valid-deck"},
+  "frame": {"origin_m": [0, 0, 0]},
+  "street": {"tags": ["street"], "footprint_mm": [0, 0, 20000, 6000]},
+  "places": [
+    {"tags": ["house"], "label": "House", "footprint_mm": [2000, 6000, 6000, 8000], "doorway_mm": [5000, 5600]},
+    {"tags": ["jetty", "landmark"], "label": "Jetty", "footprint_mm": [10000, -12000, 3000, 12000], "doorway_mm": [11500, 400]}
+  ],
+  "spawn": {"at_mm": [10000, 3000], "up_m": 0.1, "yaw_deg": 0},
+  "decks": [
+    {"name": "jetty", "depicts": ["jetty"], "footprint_mm": [10000, -12000, 3000, 12000],
+     "surface_m": -0.2, "thickness_m": 0.2,
+     "boards": {"material": "weathered_brown_planks", "across": "x", "width_mm": 140, "gap_mm": 6},
+     "approach": {"side": "n", "length_m": 2.5, "from_m": 0.0},
+     "piles": {"bents": 5, "diameter_m": 0.25, "inset_m": 0.3, "to_m": -3.0, "bracing": false,
+               "material": "weathered_brown_planks"},
+     "rails": {"sides": ["e", "w"], "height_m": 0.865, "rail_m": 0.042, "post_m": 0.09, "posts_m": 1.5,
+               "material": "weathered_brown_planks"},
+     "curb": {"height_m": 0.051, "width_m": 0.09},
+     "shelter": {"posts_mm": [[10300, -11700], [12700, -11700], [10300, -9300], [12700, -9300]],
+                 "post_m": 0.2, "eaves_m": 2.5,
+                 "roof": {"form": "hip", "pitch_deg": 30, "overhang_m": 0.3, "material": "roof_slates_03"},
+                 "lantern": {"post": 0, "up_m": 2.0}},
+     "moored": [{"kind": "rowing_boat", "at_mm": [14500, -8000], "yaw_deg": 10, "length_m": 4.3, "beam_m": 1.35}],
+     "source": "a fixture: a short jetty with every deck field; approximate"}
+  ],
+  "viewpoints": {
+    "farfield": [{"id": "VP-1", "at_mm": [10000, 3000], "eye_m": 1.66, "roles": ["protected"]}]
+  }
+}

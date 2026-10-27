@@ -101,6 +101,9 @@ var _reconcile := true             ## put the body where the next observation sa
 var bodies := SliceClientBodies.new()
 ## The furniture of every place stood in, drawn from the world's data (ARC-307).
 var furnishings: SliceFurnishings = null
+## Who is drawn seated where: the shared sit decision, drawn with the world's sit-point depictions
+## (S33-f, ARC-145).
+var seating: SliceSeating = null
 ## Every place no depiction draws, drawn plainly from its disclosure, styled by the pack (16f-b, ARC-52).
 var shells: SliceShells = null
 ## The world instance the layout was learned in; a new one drops it (`ARC-45` point 2).
@@ -160,6 +163,7 @@ func start(address: String, seat: String, invite: String, nickname: String) -> v
 		cast.use_extras_from(SliceWorlds.current.extras_from(), SliceWorlds.current.key)
 	furnishings = SliceFurnishings.load_pack(SlicePack.select().dir)
 	shells = SliceShells.load_pack(SlicePack.select().dir)
+	seating = SliceSeating.new(SlicePack.select().dir, SliceWorlds.key())
 	_figures = SliceFigures.new()
 	_figures.name = "Figures"
 	_figures.world_root = world_root
@@ -379,7 +383,7 @@ func _on_observed(obs: MineWorldObservation) -> void:
 		if String(loc["place"].get("entity", "")) != place:
 			continue
 		# a name disclosed later replaces the role on the label
-		seen[id] = {"at": to_scene(place, loc.get("local")),
+		seen[id] = {"at": on_drawn_ground(to_scene(place, loc.get("local"))),
 			"yaw": MineWorldSpace.yaw_to_3d_radians(loc.get("facing")) + PI, "label": shown_text(id)}
 		seen[id]["look"] = obs.look(id)
 		seen[id]["name"] = obs.display_name(id)
@@ -388,6 +392,7 @@ func _on_observed(obs: MineWorldObservation) -> void:
 		if not seen.has(id):
 			gone[id] = (figures[id] as Node3D).global_position
 	var change := _figures.observe(seen)
+	seating.observe(obs, _figures, layout)
 	for id in seen:
 		if figures.has(id):
 			_show_sleep(figures[id] as Node3D, id, obs)
@@ -397,6 +402,41 @@ func _on_observed(obs: MineWorldObservation) -> void:
 	for id in change["left"]:
 		_say("%s is no longer in view" % display_label(id), "link.left_view",
 			{"who": shown_label(id)}, false, "lose %s at %s" % [id, gone[id]])
+	_log_drawn(obs, place)
+
+
+## `--observe-log=<file>` (S33-i, ARC-175): one JSON line per observation drawn -- the world's clock, the
+## place the body is in, and each figure drawn now with its entity id, the place it is bound to and where
+## it is drawn, in that place's frame (mm). A log only: nothing reads it back, and nothing drawn or sent
+## changes with it.
+var _observe_log: FileAccess = null
+var _observe_log_opened := false
+
+
+static func observe_log_from_args() -> String:
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--observe-log="):
+			return a.substr(14)
+	return ""
+
+
+func _log_drawn(obs: MineWorldObservation, place: String) -> void:
+	if not _observe_log_opened:
+		_observe_log_opened = true
+		var path := observe_log_from_args()
+		if path != "":
+			_observe_log = FileAccess.open(path, FileAccess.WRITE)
+			if _observe_log == null:
+				push_error("the observe log %s cannot be written: %s" % [path, FileAccess.get_open_error()])
+	if _observe_log == null:
+		return
+	var drawn := []
+	for id in figures:
+		var at := to_world(place, (figures[id] as Node3D).global_position)
+		drawn.append({"id": id, "place": place, "x": int(round(float(at.get("x", 0)))),
+			"y": int(round(float(at.get("y", 0))))})
+	_observe_log.store_line(JSON.stringify({"at": obs.at(), "place": place, "figures": drawn}))
+	_observe_log.flush()
 
 
 ## A figure carries a Zz while the world discloses it asleep (S35 N-e, AC-S35-10). The sleeping state is decided here,
@@ -466,6 +506,31 @@ func _wear(obs: MineWorldObservation) -> void:
 			character if character != "" else "(town figure)", me, obs.display_name(me), look])
 
 
+## How far above and below its place's floor a person is looked for on the drawn ground, metres.
+## (A presentation tolerance, not a rule: the server's floor is planar and decides nothing here.)
+const GROUND_SEARCH_M := 1.0
+
+
+## A person stands on what is drawn (`DECISIONS.md` ARC-178): the depiction's ground colliders (the group
+## `SliceProbeGeometry.GROUND_GROUP`: its terrain and its decks) under `at`, within GROUND_SEARCH_M. Where
+## the depiction draws no such ground (Social Café's floors), `at` is unchanged.
+func on_drawn_ground(at: Vector3) -> Vector3:
+	if world_root == null or not world_root.is_inside_tree():
+		return at
+	var space := world_root.get_world_3d().direct_space_state
+	var q := PhysicsRayQueryParameters3D.create(at + Vector3.UP * GROUND_SEARCH_M,
+		at - Vector3.UP * GROUND_SEARCH_M, Build.LAYER_WORLD)
+	var skip: Array[RID] = []
+	for i in 8:
+		q.exclude = skip
+		var hit := space.intersect_ray(q)
+		if hit.is_empty():
+			return at
+		var c := hit["collider"] as Node
+		if c != null and c.is_in_group(SliceProbeGeometry.GROUND_GROUP) and (hit["normal"] as Vector3).y > 0.7:
+			return Vector3(at.x, (hit["position"] as Vector3).y, at.z)
+		skip.append(hit["rid"])
+	return at
 ## The current place's disclosed walls and solids (`SliceClientBodies`), and with them what stops the
 ## body: where the place discloses its walls only they do, and the scene's art only decorates; where it
 ## discloses none, art still blocks (16f-b, `ARC-52`).

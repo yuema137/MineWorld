@@ -133,6 +133,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-141](ARC-141.md) | The S26 gates restated per assembled outfit, the wardrobe gates W-1…W-12 and the no-stock scan V-1 |
 | [ARC-143](ARC-143.md) | Lakeside is set on Lake Cuyamaca's north shore, in presentation only, and its far fields are derived from USGS data |
 | [ARC-144](ARC-144.md) | The 3D client draws a world through one depiction per world key, bound by tag |
+| [ARC-145](ARC-145.md) | A sit point is the world's; how a seated person is drawn is presentation, decided once for both clients |
 | [ARC-146](ARC-146.md) | A world's 3D presentation file is `3d-<world-key>.pck`; a world without one is refused by name |
 | [ARC-147](ARC-147.md) | The `posture` System Pack: sit points as place data, `posture-state` for the seated, `sit` and `stand` as complete offers, auto-stand on movement |
 | [ARC-149](ARC-149.md) | The nightly's Windows scratch on the local disk, the client projects imported through a cache, SET-b's connected 3D tests under QC-5, and the 3D client warmed before its tests |
@@ -141,8 +142,14 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-152](ARC-152.md) | The memory home's creation marker: a `home_meta` row written once, never dumped; schema stays 4 |
 | [ARC-153](ARC-153.md) | The MCP adapter's five act tools become one `act` tool, tagged by `kind` |
 | [ARC-154](ARC-154.md) | Speed first: pull requests and main run `fast` only; the full matrix runs at milestones (amends `ARC-48` and `ARC-110`) |
-| [ARC-184](ARC-184.md) | Clients format money and read trade records through one shared module |
+| [ARC-170](ARC-170.md) | Lakeside's lane stands 1.0 m above full pool, the pier deck 0.70 m |
+| [ARC-171](ARC-171.md) | No prop moves unless the world moves it |
+| [ARC-172](ARC-172.md) | Lakeside's sit points are fixed in S33-f and written into world data by S34-c |
 | [ARC-173](ARC-173.md) | A client draws an activity only when the world discloses it; an undisclosed Process is not drawn |
+| [ARC-175](ARC-175.md) | Every world that ships a 3D depiction ships one recorded MCP scenario with a 3D observer, run in CI |
+| [ARC-177](ARC-177.md) | A world's 3D look is a data file of its Presentation Pack, drawn by generic builders |
+| [ARC-178](ARC-178.md) | A deck on piles is depiction data: the `decks` section of format 1 |
+| [ARC-184](ARC-184.md) | Clients format money and read trade records through one shared module |
 | [ARC-192](ARC-192.md) | A station is drawn from a station kit, placed at a site, bound by role tag |
 | [ARC-266](ARC-266.md) | The world's date, time and sun reach a client through one shared world-time module that reads disclosure and computes no astronomy |
 | [ARC-267](ARC-267.md) | Host commands in the client: one shared host module, the token from the environment in memory only, and a World tab that shows only what the server said |
@@ -161,7 +168,9 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-291](ARC-291.md) | CI launches of the 3D slice render cheaply: `--aniso=off`, `--render-cost=low`, streamed output and a cached shader cache |
 | [ARC-306](ARC-306.md) | Every piece of furniture a body could meet is a solid, in the place's data and in the slice |
 | [ARC-307](ARC-307.md) | The furniture both clients draw comes from the world's data: furnishings, named by their solids |
+| [ARC-330](ARC-330.md) | Doorways stay passable |
 | [ARC-332](ARC-332.md) | Solids of different things may not overlap; solids of one thing share a `group` |
+| [ARC-333](ARC-333.md) | Walkers yield by priority |
 | [ARC-340](ARC-340.md) | A place's capacity holds the people who can reach it, not the whole population |
 | [ARC-341](ARC-341.md) | A headless run's stride cadence is a flag, and the seat cap follows from it |
 | [ARC-342](ARC-342.md) | The 2D client draws loose objects, plays their paths with Godot's Tween, and aims a throw on the offer |
@@ -170,6 +179,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-345](ARC-345.md) | The 2D launcher hosts a living town by default and assumes no seat or agent |
 | [ARC-346](ARC-346.md) | Demo A's acceptance run is one story on two worlds, played by the real 2D client from disclosure |
 | [ARC-347](ARC-347.md) | Demo B is proved with the real clients, and the 3D client is removable by the same deletion check as the LM controller |
+| [ARC-350](ARC-350.md) | Offers are ordered by the category each pack declares for its actions |
 | [ARC-360](ARC-360.md) | Putting things down, seeing shelves, keeping shifts |
 | [ARC-361](ARC-361.md) | Nobody trapped in a pocket or a doorway, and chance purchases within a budget |
 
@@ -240,6 +250,9 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [DEP-72](DEP-72.md) | MPFB2 / MakeHuman as a hidden fitting tool: the `hm08` template, the `mixamo` rig, `.mhclo` and MakeClothes; never the look, never shipped |
 | [DEP-73](DEP-73.md) | Garments at Vera's tier: Meshy image-to-3D of the garment on the wearer's clay figure, OpenAI references through `mineworld_gen`, Blender subtraction and MakeClothes binding |
 | [DEP-74](DEP-74.md) | Rejected as the wardrobe base or garment generator, with reasons: CharMorph, VRoid/VRM, Quaternius, Kenney, Synty, Character Creator, Ready Player Me, Hunyuan3D-Part, Garment3DGen, Meshy Auto Split |
+| [DEP-77](DEP-77.md) | Lakeside's terrain: Godot's built-in `ArrayMesh` and `HeightMapShape3D`, not a terrain addon |
+| [DEP-78](DEP-78.md) | Lakeside's near water: the slice's own `water.gdshader`, extended |
+| [DEP-79](DEP-79.md) | Lakeside's woods: the spike's procedural card trees; at most four CC0 material sets |
 | [DEP-140](DEP-140.md) | Needs and sleep: methods and data reused, no needs library adopted |
 | [DEP-141](DEP-141.md) | Git LFS stores the cast's generated characters; a checkout without LFS degrades to the town figure |
 | [DEP-142](DEP-142.md) | Mesh inside/outside and depth: libigl (MPL-2.0 core only), behind `mwcast/contact.py` |

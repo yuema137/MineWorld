@@ -143,8 +143,15 @@ fn every_kind_every_world_names_is_bound_in_each_default_pack() {
             Some(bound) if kinds[&bound]["piece"].is_string() => {}
             Some(bound) => {
                 let b = &kinds[&bound];
-                let model = b["model"].as_str().expect("a model");
-                if mount(model).as_deref() != Some("floor") {
+                // a generic form (S33-f) is built over the piece's own solids: no model to mount
+                let form = b["form"].as_str();
+                if let Some(form) = form
+                    && !["table", "bench", "hull"].contains(&form)
+                {
+                    missing.push(format!("3D: {kind} -> form {form} is no client form"));
+                }
+                let model = b["model"].as_str().unwrap_or_default();
+                if form.is_none() && mount(model).as_deref() != Some("floor") {
                     missing.push(format!(
                         "3D: {kind} -> {model} is mounted {:?}, not floor",
                         mount(model)

@@ -48,7 +48,7 @@
 //! [`PerceptionProvider::discloses`] and [`observe`](crate::observe).
 
 use mineworld_contracts::{
-    Action, ActionTypeId, ComponentRecord, EntityId, Rejection, SpatialRequirement,
+    Action, ActionCategory, ActionTypeId, ComponentRecord, EntityId, Rejection, SpatialRequirement,
 };
 use mineworld_kernel::WorldRead;
 use serde_json::Value;
@@ -145,6 +145,7 @@ pub trait PerceptionProvider {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Offer {
     action_type: ActionTypeId,
+    category: ActionCategory,
     requirement: SpatialRequirement,
     target_available: bool,
     payload: Option<Value>,
@@ -161,6 +162,7 @@ impl Offer {
     pub fn new<A: Action>(requirement: SpatialRequirement) -> Self {
         Self {
             action_type: A::ACTION_TYPE,
+            category: A::CATEGORY,
             requirement,
             target_available: true,
             payload: None,
@@ -223,6 +225,12 @@ impl Offer {
     /// Which action is offered.
     pub const fn action_type(&self) -> &ActionTypeId {
         &self.action_type
+    }
+
+    /// The category the action's pack declares for it ([`Action::CATEGORY`]), read off the type
+    /// like the action type: what orders this offer among the others an observer sees.
+    pub const fn category(&self) -> ActionCategory {
+        self.category
     }
 
     /// What it requires of space, unevaluated — the value a client is shown as well as the one

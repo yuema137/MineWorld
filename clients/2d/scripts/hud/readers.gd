@@ -233,7 +233,8 @@ func _rows(kind: String, payload: Variant, observation: MineWorldObservation) ->
 			if not payload.has("amount"):
 				return null
 			var rows := PackedStringArray([Words.text("ui.row.wealth", {"amount": Words.money(payload["amount"])})])
-			if int(payload.get("unvalued", 0)) > 0:
+			# A count of items with no value, never money: tested for presence, not compared (S31-e check e).
+			if int(payload.get("unvalued", 0)) != 0:
 				rows.append(Words.text("ui.row.wealth.unvalued", {"count": int(payload["unvalued"])}))
 			return rows
 		"currency":

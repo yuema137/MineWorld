@@ -961,6 +961,27 @@ refused with the code `no-route`. The route inside a place is planned by whichev
 geometry, through `movement`'s `Wayfinder` catalog (`ARC-62`): with `bodies` enabled, round its solids
 and loose objects (`DEP-34`); without it, straight. A pack never authors a route.
 
+Doorways stay passable (`DECISIONS.md` `ARC-330`). A walk to a place without a position does not end on
+the doorway point it entered by: the same catalog's `arrival_spot` names a point of that place at least
+1 200 mm (`THRESHOLD_CLEAR`) from every doorway point and clear of everyone standing there, and the walk
+ends there; without `bodies`, or with no such point, it ends on entering. That last leg never ends a walk
+`stalled` or `no-route`. A stride blocked by people who have no walk in progress makes them step aside —
+each to the nearest free point out of the walker's way, at most 1 200 mm (`GIVE_WAY_MAX`) and clear of
+the doorways — and each such move, like every nudge, is stated as `bodies`' `gave-way { person, for }`
+beside presence's `arrived`, whose participants then name both. A re-plan round the person who stopped a
+stride that finds no way plans once more without them before the walk ends `no-route`. A sleeper moved
+aside by another person's arrival keeps sleeping; their own arrival wakes them as before.
+
+Walkers yield by priority (`DECISIONS.md` `ARC-333`). A walk ranks by when it started — `Walking::started()`,
+the instant of its `walk-started` — and then by the walker's entity id, lower first; a person with no walk
+in progress ranks below every walker. The give-way above moves every person in a blocked stride's way who
+ranks lower than the walker, walkers included, and never one who ranks higher; a walker's nudge, likewise,
+moves only people who rank lower (a direct `move` still nudges anyone). A stride stopped short, or a walker
+moved aside, by a walker who ranks higher is waiting, not a stall: it counts toward neither `STALLS_MAX`
+nor `REPLANS_MAX`, and 20 consecutive waiting steps (`WAITS_MAX`) end the walk `stalled`. Being moved
+aside by anybody never counts as one of the walk's own re-plans. A stride along a planned route is
+always clear by the resolver's own test, so it is never stopped short by a solid the planner went round.
+
 **Sections: content a System Pack owns** (`DECISIONS.md` `ARC-31`). Besides the fields above, a person,
 place, item or organization file may carry **sections** (`ARC-36` extends `ARC-31` to the last two). A section is a top-level key of a content file that a System
 Pack declares as its own, and nothing else is a section. The pack that declares it:
@@ -2814,13 +2835,15 @@ presentation/<style-id>/
   references/              the images that actually define the style
   ART_DIRECTION.md         human-readable direction
   assets/asset_bindings.yaml
-  materials/material_rules.yaml
+  assets/places/<asset-id>/    optional, 3D: a place asset, `.glb` + `asset.yaml` (PACKAGE_FORMAT §3)
+  materials/material_rules.yaml   3D: what glTF cannot carry, re-bound by name (16f-d1)
   characters/character_style.yaml
   lighting/lighting_profile.yaml
   renderer/godot.yaml, renderer/unreal.yaml
   far_field/<world-key>.yaml   REQUIRED: one per presented world (§6.1.1)
-  stations/<kit>.yaml      station kits for the 3D reference client (`PRESENTATION.md` §7, `ARC-192`)
+  stations/<kit>.yaml      station kits for the 3D reference client (`PRESENTATION.md` §9, `ARC-192`)
   places/shells.yaml           optional, 3D: how places drawn plainly from disclosure look (ARC-52)
+  depictions/<world-key>.yaml  OPTIONAL, 3D: a world's look as data (§6.1.2)
   generation/optional_prompt_guidelines.md
 ```
 
@@ -2844,7 +2867,9 @@ Each dimension pack also carries a **`pack.yaml`**, its package identity (`DECIS
 own `id`, which names the style, not the pack. `mineworld packs validate` checks both files: the
 package fields, and that the style manifest has an `id` and a `dimension` list. It also checks every
 file under `far_field/` (§6.1.1), and a 3D pack's `places/shells.yaml` when it has one (`SHELLS_*` codes,
-[`clients/3d-spike/PRESENTATION.md`](../clients/3d-spike/PRESENTATION.md) §6, `ARC-52`).
+[`clients/3d-spike/PRESENTATION.md`](../clients/3d-spike/PRESENTATION.md) §6, `ARC-52`), and each place asset
+under `assets/places/` with the recipes its model names in `materials/material_rules.yaml` (`ASSET_MALFORMED`,
+`ASSET_UNLICENSED`, `ASSET_REFERENCE`; PRESENTATION.md §8).
 
 The reference images are the source of truth; the manifest
 summarises them, and a generation prompt is an implementation aid rather than the contract
@@ -3050,6 +3075,65 @@ boundary is a defect even if it validates.
 The reference clients prove the far field by rendering (`DECISIONS.md` ARC-103): the 3D client compares
 frames with the far field shown and hidden from fixed viewpoints, and the 2D client counts clear-colour
 pixels at the reachable extremes.
+
+## 6.1.2 Depictions (optional, 3D)
+
+A world's 3D look may be written as data in a 3D Presentation Pack (`DECISIONS.md` ARC-177):
+
+```text
+presentation/<family>/<3D pack>/
+  depictions/               OPTIONAL
+    <world-key>.yaml        one per world drawn from data; the file name is `scope.world`
+```
+
+The file says where the ground rises, where the water lies, what each house looks like and which trees
+grow where. The 3D client's generic builders read it and build the scene; they know how to raise a gable
+roof or plant a stand of pines, never that a world has a bakery. Its optional `models` section places the
+pack's own place assets (`assets/places/<asset-id>/`, glTF with `asset.yaml`; 16f-d1): each names an asset,
+the tags of the place it depicts or `null`, and an anchor — an entrance of the asset put on that place's
+doorway, or the asset's origin at a plan point. A world drawn by a bespoke client script
+has no file. Every field, its unit and its range are specified in
+[`clients/3d-spike/PRESENTATION.md`](../clients/3d-spike/PRESENTATION.md) §7; the rules every reader keeps:
+
+1. **Format 1**, YAML's JSON subset (`DEP-16`). Unknown keys are refused. Units are in the key's name:
+   `_mm` integer millimetres, `_m` metres, `_deg` degrees. Plan coordinates are the street frame's (x east,
+   y north, `CORE_CONCEPTS.md` §6.1); `frame.origin_m` is where plan (0, 0) stands in the scene; heights are
+   metres above the street's surface.
+2. **Places by tag, never by key.** `street` and `places` bind the world's disclosed places by their tags
+   and doorways, as the depiction seam does (`ARC-144`).
+3. **Presentation only.** No System, kernel or server reads the file. It holds no rule, capacity, door
+   passability or height the server sees (heights are presentation, step-33 F-S33-4).
+4. **No furniture** (`ARC-307`). There is no field for a free-standing piece; furniture is the world's
+   `body: furnishings`. Nothing the file draws may overlap a place's floor by more than 50 mm, except the
+   shell that depicts that place, whose footprint must lie within 50 mm of the place's, and that shell's
+   `interior` (S33-f): the room's finishes, its lamps, and its **fittings** — the parts of the room's shell
+   the world states as solids naming no furnishing (an oven wall, a fitted counter, a stair), each inside the
+   shell's footprint.
+5. **Cited.** Every block carrying a physical value has a non-empty `source`: a citation, or
+   `"approximate: <who replaces it>"`.
+
+`mineworld packs validate` checks every depiction file of a 3D pack when `depictions/` exists, after the
+far field (`mineworld_packages::depiction`). The first fault is the refusal, in this order, named with the
+field's path:
+
+| Code | Fault |
+| --- | --- |
+| `DEPICTION_MALFORMED` | not the JSON subset; a missing required key; an unknown key; a wrong type or enum value; a conditional shape broken (a height both flat and a ramp; an area both ring and polygon; a quay without `drop_m`) |
+| `DEPICTION_SCOPE_MISMATCH` | `scope.world` is not the file's stem |
+| `DEPICTION_UNCITED` | a physical block without a non-empty `source` |
+| `DEPICTION_OUT_OF_RANGE` | a value outside its range, or a cap exceeded |
+| `DEPICTION_POLYGON` | a polygon with fewer than 3 or more than 64 vertices, or not simple; a ramp's lines not parallel within 1° |
+| `DEPICTION_REFERENCE` | a name that names nothing: a terrain layer, a species, a tag no place carries, a perf view, a water the world's far field lacks, a model's asset the pack's `assets/places/` lacks or an entrance its asset lacks; in the client also a texture slug, tree form or card its library lacks |
+| `DEPICTION_DOOR` | an `open` door not at the doorway of a depicted place; `at_doorway` on a building or a model that depicts nothing; a `glazed` opening in a building without an `interior` |
+| `DEPICTION_ON_FLOOR` | a stand, scatter area, undepicting building or moored craft overlapping a place's floor by more than 50 mm; a depicting shell or deck more than 50 mm off its place's footprint; a deck's shelter post off the deck |
+
+A deck (the optional `decks` section, `ARC-178`) is a walked floor on piles — a pier, a jetty, a boardwalk, a
+platform — that depicts a place: its footprint is that place's floor and its surface is that place's floor height
+in the scene. Its approach ramp is no steeper than 1:12 (`DEPICTION_OUT_OF_RANGE`).
+
+The 3D client refuses by the same names for what it checks — `MALFORMED`, `SCOPE_MISMATCH`, and
+`REFERENCE` for the names only it knows — and trusts a validated pack for the geometry codes. A refused
+file refuses the run by name; there is no fallback drawing (`ARC-146`).
 
 ## 6.2 Authoring a style
 

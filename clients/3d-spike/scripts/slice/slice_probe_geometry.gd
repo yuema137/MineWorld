@@ -99,6 +99,12 @@ func _walk_places(visit: Callable) -> bool:
 		return false
 	await _hold(0.8)
 	var lay := link.layout
+	# a depiction that names a probe route is walked by it instead (S33-d C11)
+	var route: Array = SliceWorlds.current.viewpoints().get("probe_route", []) \
+		if SliceWorlds.current != null else []
+	if not route.is_empty():
+		await _route_geometry(link, route, visit)
+		return true
 	await visit.call(link, link.here, "GE-1 café")
 	# out through the café's door onto the pavement, on foot
 	await _walk_to_x(6.0 + SliceCafe.DOOR_X)
@@ -126,6 +132,97 @@ func _walk_places(visit: Callable) -> bool:
 		else:
 			_geo_fail("GE-3", "the server did not put the player in the store (%s)" % _where(link))
 	return true
+
+
+## How far the body may stand off the drawn ground, and how many samples AC-d-4 asks for (S33-d).
+const GROUND_AGREE_M := 0.05
+const GROUND_SAMPLES := 20
+
+
+## The town's people drawn where the probe walks (S33-e sec.5.1.1; the operator's no-interpenetration rule,
+## 2026-10-19): every figure standing still in the observer's place, twice a second, is checked for ground
+## contact (its origin within GROUND_AGREE_M of the drawn ground: a deck's surface or the terrain) and for
+## interpenetration (`SliceProbeTown._in_wall`, S-4's capsule against every drawn collider but the ground).
+## Rows are kept once per person and place.
+var _people_seen := 0
+var _people_off: Array = []
+var _people_in: Array = []
+var _people_checked := {}
+
+
+func _people_rows(link: SliceLink, data: SliceDataDepiction) -> void:
+	for id in link.figures:
+		var fig := link.figures[id] as Node3D
+		if fig == null or not is_instance_valid(fig) or not fig.visible or not _standing(link, id):
+			continue
+		var key := "%s@%s" % [id, link.here]
+		if _people_checked.has(key):
+			continue
+		_people_checked[key] = true
+		_people_seen += 1
+		var p := fig.global_position
+		var off := p.y - data.ground_height(p.x, p.z)
+		if absf(off) > GROUND_AGREE_M:
+			_people_off.append("%s in %s at %s by %.3f m" % [id, link.here, p, off])
+		var inside := _in_wall(fig)
+		if inside != "":
+			_people_in.append("%s in %s at %s: %s" % [id, link.here, p, inside])
+
+
+## `--slice-geometry` for a depiction that names a probe route (S33-d C11, AC-d-3, AC-d-4): every place
+## the route reaches, walked on foot as `_route_check` walks it, is checked both ways as the café is;
+## and, when the depiction draws a terrain, the body's feet are sampled against the drawn ground's height
+## twice a second while it walks on a floor (AC-d-4: within GROUND_AGREE_M at GROUND_SAMPLES points).
+func _route_geometry(link: SliceLink, route: Array, visit: Callable) -> void:
+	var lay := link.layout
+	var data := SliceWorlds.current as SliceDataDepiction
+	var ground := []
+	var timer := Timer.new()
+	timer.wait_time = 0.5
+	add_child(timer)
+	if data != null and data.terrain != null:
+		timer.timeout.connect(func() -> void:
+			if player.is_on_floor():
+				var p := player.global_position
+				ground.append([p, p.y - data.ground_height(p.x, p.z)])
+			_people_rows(link, data))
+		timer.start()
+	var checked := {}
+	await visit.call(link, link.here, "GE %s" % _where(link))
+	checked[link.here] = true
+	for step in route:
+		var target := _place_of_entry(lay, step)
+		if target == "":
+			_geo_fail("GE", "no bound place is drawn as the entry tagged %s" % ",".join(step))
+			break
+		if target != link.here and not await _cross(link, target):
+			_geo_fail("GE", "the server did not move the player into %s" % target)
+			break
+		await _hold(0.8)
+		if not checked.has(link.here):
+			await visit.call(link, link.here, "GE %s" % _where(link))
+			checked[link.here] = true
+	timer.stop()
+	if data != null and data.terrain != null:
+		var off := ground.filter(func(g: Array) -> bool: return absf(g[1]) > GROUND_AGREE_M)
+		print("ground   %d samples of the body's feet against the drawn terrain, %d off by more than %.2f m"
+			% [ground.size(), off.size(), GROUND_AGREE_M])
+		for g in off:
+			print("         OFF at %s by %.3f m" % [g[0], g[1]])
+		if ground.size() < GROUND_SAMPLES:
+			_geo_fail("GROUND", "only %d samples on a floor (%d asked)" % [ground.size(), GROUND_SAMPLES])
+		elif not off.is_empty():
+			_geo_fail("GROUND", "%d samples off the drawn terrain by more than %.2f m" % [off.size(), GROUND_AGREE_M])
+		print("people   %d samples of the town's people standing in the walked places: %d off the drawn ground by more than %.2f m, %d inside a collider"
+			% [_people_seen, _people_off.size(), GROUND_AGREE_M, _people_in.size()])
+		for row in _people_off:
+			print("         OFF %s" % row)
+		for row in _people_in:
+			print("         IN  %s" % row)
+		if not _people_off.is_empty():
+			_geo_fail("PEOPLE", "%d people off the drawn ground by more than %.2f m" % [_people_off.size(), GROUND_AGREE_M])
+		if not _people_in.is_empty():
+			_geo_fail("PEOPLE", "%d people inside a drawn collider (S-4's capsule)" % _people_in.size())
 
 
 func _seated(link: SliceLink) -> bool:
@@ -174,6 +271,11 @@ func _place_rows(link: SliceLink, place: String, label: String) -> void:
 	for cs in _scene_shapes(slice.world):
 		if (cs.shape is BoxShape3D and _ramp(cs)) or _step(cs):
 			_ramps.append((cs.get_parent() as CollisionObject3D).get_rid())
+	# a depiction's ramps are ground too (a deck's approach, ARC-178): walked on, never a wall
+	for body in get_tree().get_nodes_in_group(GROUND_GROUP):
+		for cs in body.get_children():
+			if cs is CollisionShape3D and cs.shape is BoxShape3D and _ramp(cs):
+				_ramps.append((body as CollisionObject3D).get_rid())
 	var faces: Array = []
 	var disclosed: Array = shape.get("solids", [])
 	for i in range(solids.size()):
@@ -357,11 +459,18 @@ func _row(label: String, direction: String, what: String, mm: float, exempt: Str
 
 
 ## Every collision shape of a static body on the scene's layer under `root`.
+## The group of a depiction's ground and boundary colliders -- its terrain and its air walls (S33-d,
+## R-d-4): they decide where a body stands and keep the camera in, never where a wall is, so the probe
+## leaves them out in both directions.
+const GROUND_GROUP := "mw_depiction_ground"
+
+
 func _scene_shapes(root: Node) -> Array:
 	var out: Array = []
 	for c in root.get_children():
 		if c is CollisionShape3D and not (c as CollisionShape3D).disabled and c.get_parent() is StaticBody3D \
-				and ((c.get_parent() as StaticBody3D).collision_layer & SCENE_MASK) != 0:
+				and ((c.get_parent() as StaticBody3D).collision_layer & SCENE_MASK) != 0 \
+				and not c.get_parent().is_in_group(GROUND_GROUP):
 			out.append(c)
 		out.append_array(_scene_shapes(c))
 	return out

@@ -792,7 +792,8 @@ starting with the two admitted on 2026-10-13. No runtime admission check is adde
   the network guard, except the bridge tests that already run the default loop.
 - Stopping: Ctrl-C (`KeyboardInterrupt`) on every platform, and the server closing the socket; no
   `SIGTERM` handler and no `add_signal_handler` (Windows has neither). On Ctrl-C every seat sends `leave`
-  within 5 s, deletes its resume file and prints its counters.
+  within 5 s, deletes its resume file and prints its counters. *Amended by D-P6-43 (§15): SIGINT and SIGTERM
+  handlers are installed while serving, and a stop that hangs is cut short.*
 - Paths through `pathlib`; the resume file's `0o600` applies on POSIX only; `os.replace` on all three.
 - `examples/local.toml` uses relative paths valid everywhere; README lists per-platform locations as P5a's
   does.
@@ -2411,4 +2412,29 @@ pins that move with the new genesis facts (F-P6a-4, F-P6a-5, F-P6a-7).
   test now waits, polling as `_wait_for` does within the file's `PATIENCE_S` (30 s), for an `acted` record
   (`_settle_on`, which returns at the bound instead of failing), and only then reads the outcomes; with no `acted`
   record by the bound, (a)'s assertion fails with the same message. The property is unchanged.
+- **D-P6-43 (milestone F+D checklist K9 and the "somewhere" prompt; bounded fix, branch
+  `fix/lm-controller-shutdown-places`).** Two defects, fixed without a contract change.
+  (1) *Stopping.* A model process whose server had stopped did not stop on Ctrl-C. Reproduced: a process started with
+  SIGINT ignored (a background job of a non-interactive shell) never gets `asyncio.run`'s Ctrl-C handling, so it
+  retries its join forever; SIGTERM ends it with no `leave`, no counters and no closed cassette. §5.16's "no SIGTERM
+  handler and no `add_signal_handler`" is amended: `mineworld_cognition.shutdown.Stopper` installs SIGINT and SIGTERM
+  handlers (and SIGBREAK on Windows) while serving, `loop.add_signal_handler` on POSIX and `signal.signal` on Windows,
+  where the proactor loop's own wakeup descriptor wakes it. The first signal cancels the serving task, which reaches
+  every runner's reconnect loop and in-flight model call; every seat still leaves within `STOP_LEAVE_S` and the
+  counters are printed. A second signal, or a stop still running after 15 s, exits at once with status 130.
+  Evidence: `tests/test_shutdown.py` (SIGINT with SIGINT inherited as ignored, SIGTERM, and the forced bound) passes;
+  with `__main__.py` reverted, the SIGINT case hangs until an external 40 s alarm kills it.
+  (2) *Place labels.* No shipped pack gives a place a `display-name`, so `NameBook.place` answered `somewhere` for
+  every place and the prompt listed "Places I can walk to: somewhere, somewhere (2), …". The world already discloses
+  what a place is by its tags: its own tags to whoever stands in it, and each doorway's `to_tags` to whoever stands
+  beside it (ARC-82, PR 13c: "names are presentation wording keyed by tag"). `Situation.of` now teaches the name book a
+  tag label (`memory.names.tag_label`: the tags in disclosed order, joined by `/`, e.g. `cafe/public`) for each such
+  place that has no name; a display name always wins and a tag label never replaces a name. No tag is singled out, so
+  no world's vocabulary is built in. Evidence: `tests/test_place_labels.py` reads the recorded market-town street
+  observation (`clients/agent/tests/fixtures/market-town-street.json`: the street and its five doorways are all
+  labelled) and built observations with social-cafe and lakeside tags.
+  *Limit, for the operator:* a place known only from `ways` (an id and a length) stays `somewhere` until the seat has
+  stood in it or beside a doorway to it; the label is then kept in the seat's name book. Naming every reachable
+  place before it is seen needs movement's `ways` disclosure to carry each destination's tags, as `passages` does
+  since ARC-82: a disclosure-shape change, not made here.
 - (planning findings are §3.2 and §0.1)

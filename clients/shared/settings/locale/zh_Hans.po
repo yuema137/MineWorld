@@ -929,22 +929,13 @@ msgstr "工作地点"
 msgid "place.street"
 msgstr "街道"
 
-msgid "place.station"
-msgstr "火车站"
-
-msgid "place.ticket-office"
-msgstr "售票处"
-
-msgid "place.platform"
-msgstr "站台"
-
-msgid "station.no_service"
+msgid "sign.no_service"
 msgstr "暂无列车服务"
 
-msgid "station.window_closed"
+msgid "sign.window_closed"
 msgstr "已关闭"
 
-msgid "station.departures"
+msgid "sign.departures"
 msgstr "发车信息"
 
 # The typed line both clients open (clients/shared/hud/line_input.gd, PR 16g1): its talk prompt and hint.

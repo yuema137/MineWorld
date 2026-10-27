@@ -16,6 +16,17 @@
 ##   LM-2  (each `footprint` row) of the pixels whose ray meets the ground inside the landmark's plan
 ##         (`StationDepot.report.footprint`), >= 60 % differ between S and H.
 ##
+## A WORLD DRAWN FROM DATA (S33-e sec.5.3; `DECISIONS.md` ARC-178; Q-S33e-2 and Q-S33e-4 (A)) names its
+## landmark's views by two roles of its far-field viewpoints, and its landmark's parts carry their own
+## `mw_category` (`landmark.<name>` from a deck), so nothing here knows the world:
+##   LM-1  (each `landmark_near` viewpoint) the window is the landmark's own drawn extent -- the bearings of
+##         its parts that rise above the horizon (the far-field check's dip), from the horizon to their top
+##         -- because a landmark narrower than the depot's 20 degrees cannot fill a fixed window; open
+##         pixels are where H matches O (every near geometry instance hidden, the far field shown).
+##   LM-2  (each `landmark_far` viewpoint, facing the landmark's centre) the footprint is the landmark's own
+##         rendered silhouette: the pixels where X (the landmark alone) differs from E (the sky alone).
+## Both pass at the same 60 %.
+##
 ## Verdicts: `PASS landmark <view> LM-<n> <fraction>` or `FAIL ...`, then `all landmark checks pass` or
 ## `<n> LANDMARK CHECKS FAILED`.
 class_name SliceLandmarkCheck
@@ -42,9 +53,12 @@ func run() -> void:
 	_cam.fov = CameraRig.FOV
 	_hidden.clear()
 	_collect_prefix(probe.slice.world)
-	print("[landmark] prefix %s: %d nodes; %d viewpoints" % [_prefix, _hidden.size(), rows.size()])
+	var nears := SliceWorlds.current.far_field_viewpoints("landmark_near")
+	var fars := SliceWorlds.current.far_field_viewpoints("landmark_far")
+	print("[landmark] prefix %s: %d nodes; %d viewpoints; %d landmark_near, %d landmark_far"
+		% [_prefix, _hidden.size(), rows.size(), nears.size(), fars.size()])
 	var fails := 0
-	if rows.is_empty() or _hidden.is_empty():
+	if (rows.is_empty() and nears.is_empty() and fars.is_empty()) or _hidden.is_empty():
 		fails += 1
 		print("FAIL landmark none: this depiction states no landmark viewpoint or draws nothing under %s" % _prefix)
 	for row in rows:
@@ -57,6 +71,18 @@ func run() -> void:
 			print("[landmark] %s: bearing %.0f deg +/- %.0f, band 0 .. %.2f deg" % [row[0], row[4], StationViews.WINDOW_DEG,
 				row[5]])
 			fails += _judge_lm(row[0], "LM-1", _window(shown, hidden, far, float(row[4]), float(row[5])))
+	if not (nears.is_empty() and fars.is_empty()) and not _hidden.is_empty():
+		_near.clear()
+		_gather_near(probe.slice.world)
+		var aabbs := _aabbs()
+		_cam.keep_aspect = Camera3D.KEEP_WIDTH
+		_sv.size = EXTENT_SIZE
+		for vp in nears:
+			fails += await _extent_lm1(vp[0], vp[1], aabbs)
+		_sv.size = SILHOUETTE_SIZE
+		for vp in fars:
+			fails += await _silhouette_lm2(vp[0], vp[1], aabbs)
+		_show("S")
 	for n in _hidden:
 		n.visible = true
 	restore.call()
@@ -163,3 +189,168 @@ static func _judge_lm(view: String, criterion: String, c: Array) -> int:
 	print("%s landmark %s %s %.3f   (%d of %d pixels differ; need %.2f)" % ["PASS" if ok else "FAIL", view,
 		criterion, share, c[1], n, NEED])
 	return 0 if ok else 1
+
+
+# --- a world drawn from data: the roles `landmark_near` and `landmark_far` (S33-e sec.5.3) -------------
+
+## LM-1's frame: wide and tall enough for a landmark rising a few degrees above the horizon; LM-2's frame.
+const EXTENT_SIZE := Vector2i(1440, 480)
+const EXTENT_HFOV := 50.0
+const SILHOUETTE_SIZE := Vector2i(960, 720)
+const SILHOUETTE_HFOV := 60.0
+
+var _near: Array[GeometryInstance3D] = []
+
+
+## LM-1 in the landmark's own drawn extent, from `eye`.
+func _extent_lm1(id: String, eye: Vector3, aabbs: Array) -> int:
+	var datum := probe.slice.far_field.datum_m()
+	var e_h := -rad_to_deg(sqrt(2.0 * maxf(datum + eye.y, 0.0) / EARTH_R))
+	var bearings: Array[float] = []
+	var top := -INF
+	for box in aabbs:
+		for k in 8:
+			var c := (box as AABB).get_endpoint(k)
+			var el := _elevation(eye, c)
+			if el > e_h:
+				bearings.append(_bearing(eye, c))
+				top = maxf(top, el)
+	if bearings.is_empty():
+		print("FAIL landmark %s LM-1: nothing under %s rises above the horizon from here" % [id, _prefix])
+		return 1
+	var centre := _mid_bearing(bearings)
+	var lo := INF
+	var hi := -INF
+	for b in bearings:
+		var off := wrapf(b - centre, -180.0, 180.0)
+		lo = minf(lo, off)
+		hi = maxf(hi, off)
+	_cam.fov = EXTENT_HFOV
+	var sd := (await _frame(eye, centre, 0.0, "S")).get_data()
+	var hd := (await _frame(eye, centre, 0.0, "H")).get_data()
+	var od := (await _frame(eye, centre, 0.0, "O")).get_data()
+	var w := EXTENT_SIZE.x
+	var hh := EXTENT_SIZE.y
+	var tan_h := tan(deg_to_rad(EXTENT_HFOV * 0.5))
+	var tan_v := tan_h * float(hh) / float(w)
+	var open := 0
+	var differ := 0
+	for row in hh:
+		var el := rad_to_deg(atan((hh * 0.5 - 0.5 - row) / (hh * 0.5) * tan_v))
+		if el < e_h or el > top:
+			continue
+		for x in w:
+			var az := rad_to_deg(atan((x + 0.5 - w * 0.5) / (w * 0.5) * tan_h))
+			if az < lo or az > hi:
+				continue
+			var i := (row * w + x) * 3
+			if _differs(hd, od, i):
+				continue
+			open += 1
+			if _differs(sd, hd, i):
+				differ += 1
+	print("[landmark] %s: the landmark's extent, bearings %.1f .. %.1f deg, band %.2f .. %.2f deg"
+		% [id, fposmod(centre + lo, 360.0), fposmod(centre + hi, 360.0), e_h, top])
+	return _judge_lm(id, "LM-1", [open, differ])
+
+
+## LM-2 over the landmark's rendered silhouette, from `eye`, facing its centre.
+func _silhouette_lm2(id: String, eye: Vector3, aabbs: Array) -> int:
+	if aabbs.is_empty():
+		print("FAIL landmark %s LM-2: nothing under %s is drawn" % [id, _prefix])
+		return 1
+	var all := aabbs[0] as AABB
+	for box in aabbs:
+		all = all.merge(box)
+	var c := all.get_center()
+	var bearing := _bearing(eye, c)
+	var pitch := _elevation(eye, c)
+	_cam.fov = SILHOUETTE_HFOV
+	var s := (await _frame(eye, bearing, pitch, "S")).get_data()
+	var h := (await _frame(eye, bearing, pitch, "H")).get_data()
+	var x := (await _frame(eye, bearing, pitch, "X")).get_data()
+	var e := (await _frame(eye, bearing, pitch, "E")).get_data()
+	var footprint := 0
+	var differ := 0
+	for i in range(0, s.size(), 3):
+		if not _differs(x, e, i):
+			continue
+		footprint += 1
+		if _differs(s, h, i):
+			differ += 1
+	print("[landmark] %s: the landmark's silhouette, facing %.1f deg, pitch %.1f deg" % [id, bearing, pitch])
+	return _judge_lm(id, "LM-2", [footprint, differ])
+
+
+## Every geometry instance that is neither the landmark's nor the far field's.
+func _gather_near(n: Node) -> void:
+	if n == _view or n == probe.player or (n is Node3D and _hidden.has(n as Node3D)) \
+			or (n is Node3D and str(n.get_meta("mw_category", "")).begins_with("farfield.")):
+		return
+	if n is GeometryInstance3D:
+		_near.append(n)
+	for c in n.get_children():
+		_gather_near(c)
+
+
+## The world AABB of every visual part of the landmark.
+func _aabbs() -> Array:
+	var out := []
+	for root in _hidden:
+		for v in root.find_children("*", "VisualInstance3D", true, false):
+			var vi := v as VisualInstance3D
+			if vi.get_aabb().size != Vector3.ZERO:
+				out.append(vi.global_transform * vi.get_aabb())
+	return out
+
+
+## The frame's visibility: S everything, H the landmark hidden, O the far field and sky only, X the
+## landmark alone, E the sky alone.
+func _show(mode: String) -> void:
+	probe.slice.world.visible = true
+	for n in _slice_nodes:
+		n.visible = true
+	for n in _hidden:
+		n.visible = mode in ["S", "X"]
+	for g in _near:
+		g.visible = mode in ["S", "H"]
+	_set_far(mode in ["S", "H", "O"])
+
+
+## A frame from `eye`, facing true bearing `bearing` (clockwise from north), pitched `pitch` degrees.
+func _frame(eye: Vector3, bearing: float, pitch: float, mode: String) -> Image:
+	_show(mode)
+	_cam.global_position = eye
+	_cam.rotation = Vector3(deg_to_rad(pitch), deg_to_rad(-bearing), 0.0)
+	_view.follow()
+	for i in 3:
+		await probe.get_tree().process_frame
+	await RenderingServer.frame_post_draw
+	var img := _sv.get_texture().get_image()
+	img.convert(Image.FORMAT_RGB8)
+	return img
+
+
+## True bearing of `p` from `eye`, degrees clockwise from north (-z).
+static func _bearing(eye: Vector3, p: Vector3) -> float:
+	return fposmod(rad_to_deg(atan2(p.x - eye.x, -(p.z - eye.z))), 360.0)
+
+
+static func _elevation(eye: Vector3, p: Vector3) -> float:
+	var flat := Vector2(p.x - eye.x, p.z - eye.z).length()
+	return rad_to_deg(atan2(p.y - eye.y, flat))
+
+
+## The bearing in the middle of a set of bearings.
+static func _mid_bearing(bearings: Array[float]) -> float:
+	var v := Vector2.ZERO
+	for b in bearings:
+		v += Vector2(sin(deg_to_rad(b)), cos(deg_to_rad(b)))
+	var mean := fposmod(rad_to_deg(atan2(v.x, v.y)), 360.0)
+	var lo := INF
+	var hi := -INF
+	for b in bearings:
+		var off := wrapf(b - mean, -180.0, 180.0)
+		lo = minf(lo, off)
+		hi = maxf(hi, off)
+	return fposmod(mean + (lo + hi) * 0.5, 360.0)

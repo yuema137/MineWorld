@@ -11,8 +11,8 @@
       "source": "Lake Cuyamaca (Cuyamaca Reservoir), surface 1 406 m (full pool; step-33 section 3.2); outline from USGS NHD Waterbody features 27727059 and 27727063 (GNIS 00270731), read 2026-10-18; the sector is the rays from the site (32.991981 N, 116.569022 W) that meet NHD water at reach_m 80 m, 86-249 deg rounded outward; colours sampled from 06_lake_trail.png, boxes (900, 480)-(1000, 500) and (1050, 690)-(1110, 720) (tools/far-field/lakeside/SOURCE.md); shore_m 81, the first whole metre beyond reach_m (format 1 refuses a shore at reach_m)"
     }
   ],
-  "datum_m": 1408,
-  "datum_source": "lake surface 1 406 m (Lake Cuyamaca, full pool) + 2 m, the lane above the water (approximate; S33-b's floors and S33-d's grading fix it); the site's ground is 1 408.88 m in USGS 3DEP (tools/far-field/lakeside/SOURCE.md)",
+  "datum_m": 1407,
+  "datum_source": "lake surface 1 406 m (Lake Cuyamaca, full pool) + 1.0 m, the lane above the water (S33-d's grading, ARC-170, Q-S33d-1 (A) ruled 2026-10-19: the pier deck 0.70 m above full pool with a 1:12 foot ramp; approximate); the site's ground is 1 408.88 m in USGS 3DEP (tools/far-field/lakeside/SOURCE.md)",
   "sky": {
     "kind": "panorama", "panorama": "qwantani_puresky_2k", "visibility_m": 80000,
     "visibility_source": "approximate; replace with IMPROVE AGTI1 (Agua Tibia Wilderness) annual mean standard visual range, which S33-a could not read; RL-e0's 80 km (pr-s33a section 4)"
@@ -42,22 +42,24 @@
         {"bearing_deg": 170, "height_m": 1520.9, "distance_m": 3200},
         {"bearing_deg": 175, "height_m": 1501.7, "distance_m": 3200},
         {"bearing_deg": 180, "height_m": 1637.9, "distance_m": 3200},
+        {"bearing_deg": 184.5, "height_m": 1741.7, "distance_m": 3455},
         {"bearing_deg": 185, "height_m": 1673.0, "distance_m": 3200},
         {"bearing_deg": 190, "height_m": 1561.4, "distance_m": 3200},
         {"bearing_deg": 195, "height_m": 1485.3, "distance_m": 3200},
         {"bearing_deg": 200, "height_m": 1454.8, "distance_m": 3200},
         {"bearing_deg": 205, "height_m": 1458.2, "distance_m": 3200},
         {"bearing_deg": 210, "height_m": 1447.8, "distance_m": 3200},
-        {"bearing_deg": 215, "height_m": 1445.0, "distance_m": 3200},
+        {"bearing_deg": 215, "height_m": 1985, "distance_m": 6138},
         {"bearing_deg": 220, "height_m": 1488.7, "distance_m": 3200},
         {"bearing_deg": 225, "height_m": 1564.0, "distance_m": 3200},
         {"bearing_deg": 230, "height_m": 1624.1, "distance_m": 3200},
         {"bearing_deg": 235, "height_m": 1683.8, "distance_m": 3200},
         {"bearing_deg": 240, "height_m": 1748.0, "distance_m": 3200},
         {"bearing_deg": 245, "height_m": 1788.9, "distance_m": 3200},
+        {"bearing_deg": 246, "height_m": 1797.4, "distance_m": 3201},
         {"bearing_deg": 250, "height_m": 1743.4, "distance_m": 3200}
       ],
-      "source": "USGS 3DEP (EPQS), read 2026-10-18/19: per 5-deg bearing the highest-angle land sample at 100-3 200 m from the site (32.991981 N, 116.569022 W), the near-rim rows 85-250 deg of tools/far-field/lakeside/SOURCE.md (derive.py profile); the crest across the lake; albedo RL-e0's (the look is S33-d's)"
+      "source": "Three summits drawn on this band since S33-d C13 (separate mid bands crossed the band's crest at their shared rim samples and seamed or hid behind the water's taper: the rendered check's FF-SEAM, FF-ORDER, FF-CREST at the lake-side viewpoints): Cush-pii (formerly Stonewall Peak) at 184.5 deg, 3 455 m, 1 741.7 m, the highest USGS 3DEP sample within 150 m of USGS GNIS gaz_id 273917; Cuyamaca Peak at 215 deg, 6 138 m, 1 985 m, NGS 'Cuyamaca reset' (RL-b's summit table, pr-rl-b-3d-budget.md:619-630), standing on that bearing above the 3 200 m rim sample it replaces (1 445.0 m: 0.7 deg against the peak's 5.4 deg); Middle Peak at 246 deg, 3 201 m, 1 797.4 m, the highest USGS 3DEP sample within 150 m of USGS GNIS gaz_id 272446 (all three derive.py profile's summit rows, tools/far-field/lakeside/SOURCE.md); USGS 3DEP (EPQS), read 2026-10-18/19: per 5-deg bearing the highest-angle land sample at 100-3 200 m from the site (32.991981 N, 116.569022 W), the near-rim rows 85-250 deg of tools/far-field/lakeside/SOURCE.md (derive.py profile); the crest across the lake; albedo RL-e0's (the look is S33-d's)"
     },
     {
       "name": "rises", "layer": "near", "sector": {"from_deg": 250, "to_deg": 85}, "albedo": "#5d6a4a",
@@ -104,33 +106,6 @@
         {"bearing_deg": 85, "height_m": 1461.3, "distance_m": 3200}
       ],
       "source": "USGS 3DEP (EPQS), read 2026-10-18/19: per 5-deg bearing the highest-angle land sample at 100-3 200 m from the site (32.991981 N, 116.569022 W), the near-rim rows 250-355 and 0-85 deg of tools/far-field/lakeside/SOURCE.md (derive.py profile); the land round the village, meeting far-shore at its ends (the same crest, so no overlap); albedo RL-e0's (the look is S33-d's)"
-    },
-    {
-      "name": "cush-pii", "layer": "mid", "sector": {"from_deg": 180, "to_deg": 190}, "albedo": "#5d6a4a",
-      "profile": [
-        {"bearing_deg": 180, "height_m": 1637.9, "distance_m": 3200},
-        {"bearing_deg": 184.5, "height_m": 1741.7, "distance_m": 3455},
-        {"bearing_deg": 190, "height_m": 1561.4, "distance_m": 3200}
-      ],
-      "source": "Cush-pii (formerly Stonewall Peak) from the site (32.991981 N, 116.569022 W): 184.5 deg, 3 455 m, 1 741.7 m, the highest USGS 3DEP sample within 150 m of USGS GNIS gaz_id 273917 (derive.py profile's summit row, tools/far-field/lakeside/SOURCE.md); its ends the USGS 3DEP near-rim rows 180 and 190 deg of the same table, where it meets far-shore"
-    },
-    {
-      "name": "cuyamaca-peak", "layer": "mid", "sector": {"from_deg": 210, "to_deg": 220}, "albedo": "#5d6a4a",
-      "profile": [
-        {"bearing_deg": 210, "height_m": 1447.8, "distance_m": 3200},
-        {"bearing_deg": 215, "height_m": 1985, "distance_m": 6138},
-        {"bearing_deg": 220, "height_m": 1488.7, "distance_m": 3200}
-      ],
-      "source": "Cuyamaca Peak from the site (32.991981 N, 116.569022 W): 215 deg, 6 138 m, 1 985 m, NGS 'Cuyamaca reset' (RL-b's summit table, pr-rl-b-3d-budget.md:619-630; derive.py profile's summit row, tools/far-field/lakeside/SOURCE.md); its ends the USGS 3DEP near-rim rows 210 and 220 deg of the same table, where it meets far-shore (the samples reach 3.2 km, so its flanks beyond are not drawn)"
-    },
-    {
-      "name": "middle-peak", "layer": "mid", "sector": {"from_deg": 245, "to_deg": 250}, "albedo": "#5d6a4a",
-      "profile": [
-        {"bearing_deg": 245, "height_m": 1788.9, "distance_m": 3200},
-        {"bearing_deg": 246, "height_m": 1797.4, "distance_m": 3201},
-        {"bearing_deg": 250, "height_m": 1743.4, "distance_m": 3200}
-      ],
-      "source": "Middle Peak from the site (32.991981 N, 116.569022 W): 246 deg, 3 201 m, 1 797.4 m, the highest USGS 3DEP sample within 150 m of USGS GNIS gaz_id 272446 (derive.py profile's summit row, tools/far-field/lakeside/SOURCE.md); its ends the USGS 3DEP near-rim rows 245 and 250 deg of the same table"
     },
     {
       "name": "north-peak", "layer": "mid", "sector": {"from_deg": 310, "to_deg": 320}, "albedo": "#5d6a4a",

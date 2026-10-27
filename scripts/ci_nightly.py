@@ -47,7 +47,7 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "artifacts" / "nightly"
 MAIN = "refs/heads/main"
 WORKFLOW = "nightly.yml"
-GROUPS = ("parity-long", "stability", "clients", "repeat")
+GROUPS = ("parity-long", "stability", "clients", "repeat", "memory-scale")
 # Every job between the gate and the report, with its group: a job missing from `needs` is a red row,
 # never an absent one.
 JOBS = (
@@ -58,6 +58,9 @@ JOBS = (
     ("farfield-windows", "clients"), ("speech-linux", "clients"),
     ("repeat-linux", "repeat"), ("repeat-mac", "repeat"),
     ("repeat-windows-1", "repeat"), ("repeat-windows-2", "repeat"),
+    # pr-s28g: the memory scale gates, 12 and 100 people for 300 days.
+    ("memory-scale-linux", "memory-scale"), ("memory-scale-mac", "memory-scale"),
+    ("memory-scale-windows", "memory-scale"),
 )
 # The flake samples of one OS: the nightly's repeat job (or its shards, which together run the whole suite,
 # ARC-149), and `main`'s push run's job of the same suite.

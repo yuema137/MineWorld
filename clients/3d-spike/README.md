@@ -7,6 +7,11 @@
 > and `--perf --breakdown`; the far field: `./mineworld-slice --farfield` (the rendered
 > check) and `--farfield-shots` (the regression views).
 > The protocol is `.structured-coding/plans/mvp1/pr-rl-b-3d-budget.md` §3.
+> Trying a frame-cost lever: `--trial=shadow60` (any mode; `+` joins levers) applies it at load;
+> `--perf --trials=none,shadow60,lod2` measures each in turn, and `tools/perf_compare.py` prints
+> the comparison and the one pass/fail verdict. `./mineworld-slice --texel-density` checks that the
+> props imported at 512 px still meet their texel-density floor
+> (`.structured-coding/plans/mvp1/pr-rl-b2-two-views-and-textures.md`).
 
 The spike was a runnable walking demo, built to answer one question: **does this feel like the
 walking, travel and life-simulation experience we want?** Three camera modes,

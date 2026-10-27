@@ -34,6 +34,7 @@ const Presentation := preload("res://scripts/presentation.gd")
 const Places := preload("res://scripts/scene/places.gd")
 const People := preload("res://scripts/scene/people.gd")
 const Furnishings := preload("res://scripts/scene/furnishings.gd")
+const Seating := preload("res://scripts/scene/seating.gd")
 const Objects := preload("res://scripts/scene/objects.gd")
 const Grade := preload("res://scripts/scene/grade.gd")
 const Status := preload("res://scripts/hud/status.gd")
@@ -69,6 +70,8 @@ var places: Node
 var people: Node
 ## The world's furnishings of every place stood in (ARC-307).
 var furnishings: Node
+## Who is drawn seated where: the shared sit decision (S33-f, ARC-145).
+var seating
 ## The loose objects of the observer's place, and their motion (ARC-342).
 var objects: Node
 var status: CanvasLayer
@@ -151,6 +154,7 @@ func _ready() -> void:
 	people = People.new()
 	add_child(people)
 	people.setup(projection, presentation, town, world)
+	seating = Seating.new(repo_path("."), String(options.get("world-key", "")))
 	link = Link.new()
 	add_child(link)
 	link.client.clock_changed.connect(_on_clock)
@@ -528,6 +532,7 @@ func _on_observed(observation: MineWorldObservation) -> void:
 		drop_aim()
 	walker.observe(observation)
 	people.reconcile(observation)
+	seating.reconcile(observation)
 	menu.refresh(observation)
 	trade_panel.refresh(observation)
 	_show_prices(observation)

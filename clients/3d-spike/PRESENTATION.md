@@ -58,6 +58,11 @@ imports, under `clients/3d-spike/assets/characters/cast/<id>/`, because the impo
 humanoid bone map at import time and the client cannot load a skinned, retargeted model from a runtime
 pack today. Each kind of file has one location; nothing is copied between them.
 
+Also read as data: the far field (`far_field/<world-key>.yaml`, `docs/MODULE_SPEC.md` §6.1.1), the
+furnishing bindings (§5) and, for a world drawn from data, its depiction file
+(`depictions/<world-key>.yaml`, §7; `ARC-177`) and the place assets it places (`assets/places/`, §8; loaded
+from 16f-d2), and a world's sit-point depictions (`sit_points/<world-key>.yaml`, §10; `ARC-145`).
+
 ## 2. `characters/cast.yaml`
 
 YAML's JSON-compatible subset: one JSON object, no comments (`DEP-16`). Godot's built-in `JSON` parser
@@ -225,7 +230,9 @@ read by `scripts/slice/furnishings.gd`, the one script that draws furnishings.
 | `front_md` | the model's Godot yaw, in millidegrees, that turns it to face north. The drawn yaw is `front_md − facing`, in radians about +Y. Poly Haven models face +Z, so `180000` |
 | `tint`, `parts` | as `SliceProps.put` takes them: a colour multiplier, and the members of a variant set to keep |
 | `dressing` | hand-scale props that follow the piece (cups on a table): a list of sets, each a list of props. One set is chosen by FNV-1a 32 of `<place id>/<furnishing key>`, so a piece keeps its cups and a moved table carries them. Each prop: `at` = `[x, z]` metres in the model's own frame, `up` = metres above the floor, `yaw_md` relative to the model; its mount is `surface`. Dressing is never a solid (`ARC-306` 1) |
-| `piece` | instead of `model`: a station piece (`StationPieces.furnishing`, §6.1) built to the furnishing's disclosed solids -- their footprint, in the piece's own frame, and their height. `bench_row` draws a 6 m bench row on its 6 × 0.6 m solid and a 1.9 m bench on its own; `kiosk` draws a news kiosk that shows open or shut by `MineWorldStationState`. The piece's front is −Z, so `front_md` is `0` |
+| `repeat` | `true`: the model is copied along the longer side of the piece's own solids, evenly, as many times as its drawn length fits (rounded): a 3.1 m bench of a 1.5 m model is two benches end to end (S33-f) |
+| `form` | instead of `model`, for a piece the library has no model of (S33-f): a generic form built over the piece's own solids in `material` (a texture slug) and `tint` — `table`: a top `top_m` thick at the solid's height on four legs `leg_m` square; `bench`: the same, a backless seat a sitter may face either way; `hull`: a boat's hull tapered to a bow on the side it faces, on a cradle `cradle_m` tall. Dressing follows a form as it follows a model |
+| `piece` | instead of `model`: a station piece (`StationPieces.furnishing`, §9.1) built to the furnishing's disclosed solids -- their footprint, in the piece's own frame, and their height. `bench_row` draws a 6 m bench row on its 6 × 0.6 m solid and a 1.9 m bench on its own; `kiosk` draws a news kiosk that shows open or shut by `MineWorldStationState`. The piece's front is −Z, so `front_md` is `0` |
 | `style` | with `piece`: the materials, `oak` (the depot's) or `timber` (a halt's) |
 
 The model is centred on `at`: its yawed bounding box's centre stands on the furnishing's point, on the
@@ -288,7 +295,216 @@ that stop the body are `scripts/slice/client_bodies.gd`'s, from the same disclos
 draws collides on `Build.LAYER_ART`, which the body ignores wherever the current place discloses its
 walls (`ARC-52`).
 
-## 7. `stations/<kit>.yaml`
+## 7. `depictions/<world-key>.yaml`
+
+A world's 3D look as data (`ARC-177`; the rules every reader keeps and the eight refusal codes are
+`docs/MODULE_SPEC.md` §6.1.2). Read by `scripts/depictions/data/depiction_file.gd` (`SliceDepictionFile`)
+and drawn by `SliceDataDepiction` and the generic builders beside it; validated in full by
+`mineworld packs validate` (`mineworld_packages::depiction`). The registry (`SliceWorlds.open`, 16f-c)
+draws a world from `<pack>/depictions/<key>.yaml` whenever the selected pack has that file, before any
+depiction script; the file named by `--slice-depiction-file=<path>` (launcher `--depiction-file=<path>`)
+comes first of all. Its `scope.world` must equal its stem. A world needs no script to be drawn from data,
+and the pack, not the client, decides which worlds it draws so. Without the file (and without a script)
+the world is drawn plainly from disclosure (§6). The start line names the file:
+`[slice] world <key>, drawn by SliceDataDepiction from <path>`.
+
+**Frame and units.** Plan coordinates are the street frame's integer millimetres `[x, y]` (x east, y north).
+A plan point `(x, y)` at height `h` stands in the scene at `frame.origin_m + (x / 1000, h, −y / 1000)`.
+Heights are metres above the street's surface. Polygons are 3 to 64 `[x, y]` vertices, simple, closed
+implicitly. Lines have at least two points. Rectangles are `[x, y, width, height]`, (x, y) the south-west
+corner. Every block marked *cited* needs a non-empty `source`.
+
+| Section | Required | Fields |
+| --- | --- | --- |
+| `format` | yes | `1` |
+| `scope` | yes | `{"world": key}`, equal to the file's stem |
+| `frame` | yes | `{"origin_m": [x, y, z]}` |
+| `street` | yes | `{"tags": [tag, ...], "footprint_mm": rect}` |
+| `places` | yes | `[{"tags", "label", "footprint_mm": rect, "doorway_mm": [x, y]}]`: the street-side point of each place's door |
+| `spawn` | yes | `{"at_mm", "up_m", "yaw_deg"}`, the offline spawn, `up_m` above the drawn ground |
+| `terrain` | no (flat ground) | `{"extent_mm": rect, "cell_m" (0.5…4), "blend_m", "seed", "layers": [{"name", "material", "repeat_m", "tint"?}] (≤ 4), "default_layer", "regions": [region], "profiles"?: [profile], "bed"?: {"depth_m", "run_m", "source"}}` |
+| `water` | no (none) | `{"level_m", "far_field_water", "extent_m", "polygon_mm", "shader"?: {"depth_fade_m"?, "shore_foam"?}, "lilies"?: [{"polygon_mm", "cover", "seed"}], "source"}`; `far_field_water` names a water of the same world's far field, whose colours it takes |
+| `edges` | no | `[{"name", "kind": "kerb" \| "quay" \| "revetment" \| "rail" \| "wall" \| "gate", "line_mm", "height_m", "width_m", "material", "tint"?, "open_at"?: [tag], "drop_m" (quay, revetment only), "posts_m" (rail only), "source"}]`; a gap is left at the doorway of each place tagged in `open_at` |
+| `paths` | no | `[{"name", "line_mm", "width_m", "layer"}]`, painted with a terrain layer |
+| `buildings` | no | `[building]` (≤ 64) |
+| `trees` | no | `{"species": [species] (≤ 16), "stands"?: [stand], "singles"?: [{"species", "at_mm", "height_m"}], "keep_clear": {"places", "paths_m"}, "lod_m", "air_walls"?: [{"ring": {"centre_mm", "radius_m"}} \| {"line_mm"}], "source"}` |
+| `scatter` | no | `[{"name", "kind": "boulder" \| "reeds" \| "grass" \| "wildflower", "area": {"polygon_mm"} \| {"along_mm", "width_m"}, "count" (reeds ≤ 40), "size_m": {"min", "max"}, "seed", "range_m"?, "source"}]` |
+| `decks` | no | `[deck]`: walked floors on piles — a pier, a jetty, a boardwalk, a platform (`ARC-178`) |
+| `light` | no | `{"gi"?: [{"box_mm": rect, "height_m", "subdiv": 64 \| 128 \| 256}] (≤ 4), "probes"?: [{"box_mm", "height_m", "centre_up_m", "update": "once"}]}` |
+| `models` | no (none) | `[model]` (≤ 64): place assets of the same pack (§8), placed in the scene (16f-d1; `ARC-177` amended) |
+| `extras_from` | no (the pack's own) | a world key: whose extras draw a person the pack does not bind and every decor figure (step-26 E-2, S33-g §5.2; `SliceCast.use_extras_from`) |
+| `decor` | no (none) | `[{"pose": "walking", "from_mm", "to_mm"} \| {"pose": "standing", "at_mm", "yaw_deg"?}]` (≤ 5): decorative figures with no world entity, on the street, on the drawn ground; a walker goes out and back (S33-g §5.3) |
+| `viewpoints` | yes | `{"farfield": [{"id", "at_mm", "eye_m", "roles"?: ["protected" \| "judged" \| "high"]}], "farfield_shots"?: [view], "perf"?: [view], "perf_breakdown"?: [perf view name], "probe_route"?: [[tag, ...], ...]}`; a view is `{"name", "at_mm", "eye_m", "yaw_deg", "pitch_deg"}` |
+
+- **region** (*cited*): `{"name", "polygon_mm", "height", "layer"}`. A `height` is exactly one of
+  `{"flat_m", "crown_m"?, "crown_along"?: "x" | "y"}` (crown and axis together) or
+  `{"ramp": {"from_mm": [p, p], "from_m", "to_mm": [p, p], "to_m"}}`, linear in the distance between two lines
+  parallel within 1°. Heights −20…60 m.
+- **profile** (*cited*): `{"name", "bearing_deg", "samples": [{"distance_m", "height_m"}]}`. Outside every
+  region the ground follows the two profiles whose bearings bracket a point — bearing and distance taken from
+  the scene's origin, where the far field is centred (true north is −z) — each sampled linearly (the end
+  samples' heights beyond them) and blended by angle. Inside `water.polygon_mm` the ground is the bed:
+  `level_m − bed.depth_m · min(1, d / bed.run_m)`, `d` the distance to the polygon's edge. A region blends
+  into its surroundings over `blend_m` (smoothstep); later regions win. The rasterised grid's SHA-256 is
+  printed when it is built (`[depiction] terrain …`).
+- **building** (*cited*): `{"name", "depicts": [tag, ...] | null, "footprint_mm", "storeys" (1…4), "storey_m"
+  (2.4…4.0), "plinth_m", "walls": {"material", "tint"?}, "roof": {"form": "gable" | "hip" | "mono" | "flat",
+  "ridge"?: "x" | "y", "falls" (mono only): "n" | "s" | "e" | "w", "pitch_deg" (0…60), "overhang_m"?, "material",
+  "tint"?}, "openings"?: [{"side", "kind": "door" | "double_door" | "window" | "shop_window", "storey",
+  "offset_m" | "at_doorway": true, "width_m", "height_m", "sill_m"?, "state": "closed" | "open" | "dark" |
+  "glazed"}], "chimney"?: {"at_mm", "size_m": [w, d], "above_ridge_m"}, "interior"?: interior}`.
+  `depicts: null` is a shell nobody enters; it may not stand on any place's floor. A door may be `open` only
+  `at_doorway` of a building that depicts a place; an opening may be `glazed` only in a building with an
+  `interior` (`DEPICTION_DOOR`).
+- **interior** (*cited*; S33-f): the room inside a shell that depicts a place, drawn by
+  `scripts/depictions/data/interior_builder.gd` (`DepictionInteriors`): `{"floor": surface, "ceiling": surface,
+  "fittings"?: [{"name", "box_mm": rect, "height_m" (0…10], "material", "tint"?, "source"}] (≤ 32),
+  "lights"?: [{"at_mm", "up_m" (0…`storey_m`], "energy" (0…16], "range_m" (0…30], "colour"?}] (≤ 8)}`. Only a
+  building that `depicts` a place has one (`DEPICTION_MALFORMED`). The room is the footprint less half the
+  wall's thickness: the floor's finish lies 6 mm over the lowest ground under the footprint, the ceiling one
+  `storey_m` above it. A **fitting** is a part of the room's shell that the world states as a solid naming no
+  furnishing — an oven wall, a fitted counter, a stair — drawn as a block from the ground under its centre to
+  `height_m`, in its material, and colliding as drawn on the world layer, so the geometry probe meets it
+  where the server's solid is; its box lies inside the footprint (`DEPICTION_OUT_OF_RANGE`). Furniture is
+  never a fitting: every free-standing piece is the world's `body: furnishings` (§5, `ARC-307`). A **light**
+  is an omni lamp `up_m` above the ground at `at_mm`, falloff 1.15; a lamp just inside the door is the
+  threshold light (VISUAL_SLICE §6.2).
+- **species** (*cited*): `{"name", "latin", "form", "card", "height_m": {"min", "max"}}` (0.3…100 m). `form` is
+  a builder form and `card` a card of this client's library; the client refuses an unknown one
+  (`DEPICTION_REFERENCE`). Forms today: `conifer`, `broadleaf`; cards: `needle`, `leaf`.
+- **stand**: `{"name", "area": {"ring": {"centre_mm", "inner_m", "outer_m"}} | {"polygon_mm"}, "spacing_m"
+  (≥ 1.0), "density": {"from", "to", "rise_m": [a, b]}, "mix": [{"species", "weight", "prefer"?: "low" |
+  "rise"}], "seed"}`, at most about 4 000 trees.
+- **model**: `{"asset": <asset id>, "depicts": [tag, ...] | null, "anchor": anchor}`. `asset` names a
+  folder of the pack's `assets/places/` (§8). `depicts` binds the model to the place of `places` that carries
+  every tag, as a building's `depicts` does; `null` is a piece nobody enters (a frontage, a street). The
+  `anchor` is exactly one of:
+  - `{"entrance": <entrance>, "at_doorway": true}`: the asset is moved, by translation only (`ARC-45`), so its
+    named entrance node stands on the depicted place's `doorway_mm`. No coordinate is written twice: a moved
+    doorway moves the asset. `at_doorway` on a model whose `depicts` is `null` is refused `DEPICTION_DOOR`.
+  - `{"at_mm": [x, y], "yaw_deg"?: d}`: the asset's origin stands at the plan point, turned `d` degrees about
+    the vertical (−360…360, default 0).
+
+  The validator refuses an anchor that is neither (`DEPICTION_MALFORMED`), a tag no place carries, an asset the
+  pack lacks or an entrance its asset lacks (`DEPICTION_REFERENCE`); the client checks the anchor's shape and
+  trusts a validated pack for the names. A model draws no collider that stops the player (`ARC-52`: art is on
+  `LAYER_ART`).
+- `material` is a texture slug of the client's library (`assets/textures/<slug>/`); `tint` is `"#rrggbb"`.
+  On an edge (and a shell) the texture repeats every 2 m (schema default).
+- **edges** are drawn on the ground along their line: a kerb, wall or gate is a block `height_m` tall and
+  `width_m` thick; a quay or revetment a wall from `drop_m` below the ground to `height_m` above it; a rail
+  `width_m`-square posts every `posts_m` with a top and a middle rail. A gap of the stub's door width (1.4 m)
+  is left at each doorway, of a place tagged in `open_at`, within 1 m of the line. Every edge collides as
+  drawn, on `Build.LAYER_ART` (`ARC-52`), so an edge on a place's boundary is where the geometry probe finds the server's wall; the server's
+  walls still decide who passes.
+- **buildings** stand on the lowest ground under their footprint. Walls are 0.20 m thick (the disclosed walls'
+  thickness), up to the eaves (`storeys` × `storey_m`): centred on the footprint's edge for a shell that depicts
+  a place (its footprint is the place's floor; two places sharing an edge share a wall), inside the footprint
+  for any other shell (its footprint is its outer extent); a plinth course stands
+  5 cm proud; every opening is a hole through the wall (its reveal) with a head, and a window also a sill;
+  `dark` fills it with a dark card at the wall's inner face, `closed` with a timber leaf, `glazed` with clear
+  glass in the wall's middle, `open` with nothing.
+  `offset_m` counts from the facade's left end seen from outside. The roof covers the footprint's bounding
+  rectangle with `overhang_m` eaves. Every shell collides on `Build.LAYER_ART` (`ARC-52`), with a gap at least the stub's
+  door width (1.4 m) at each `at_doorway` opening; a leaf never collides (the server decides who passes). While a file has `buildings`, nothing of the stub is drawn.
+- **deck** (*cited*, `ARC-178`): `{"name", "depicts": [tag, ...], "footprint_mm": rect, "surface_m",
+  "thickness_m" (0.05…1), "boards": {"material", "tint"?, "across": "x" | "y", "width_mm" (50…400), "gap_mm"
+  (0…20)}, "approach"?: {"side": "n" | "s" | "e" | "w", "length_m", "from_m"}, "piles": {"bents" (2…64),
+  "diameter_m" (0.1…1), "inset_m", "to_m", "bracing": bool, "material"}, "rails"?: {"sides": [side], "height_m"
+  (0.3…1.5), "rail_m", "post_m", "posts_m", "material"}, "curb"?: {"height_m" (0…0.3), "width_m"}, "shelter"?:
+  {"posts_mm": [p, ...] (≤ 16), "post_m", "eaves_m" (1.8…6), "roof": roof, "lantern"?: {"post": index, "up_m"}},
+  "moored"?: [{"kind": "rowing_boat", "at_mm", "yaw_deg", "length_m" (2…12), "beam_m" (0.8…4)}] (≤ 16)}`. A deck
+  is the floor of the place it depicts: its footprint lies within 50 mm of that place's, and that place's floor
+  height in the scene is `surface_m` (its door's in-point, its frame origin, the server's solids and its
+  furnishings stand there). The boards cover the footprint at `surface_m`, `thickness_m` deep; an `approach` is a
+  ramp inside the footprint from its `side` edge at `from_m` to the surface over `length_m`, no steeper than 1:12
+  (2010 ADA Standards §405.2; `DEPICTION_OUT_OF_RANGE`). Piles stand in `bents` pairs `inset_m` in from the
+  sides, evenly from `inset_m` of each end, from `to_m` up to the underside, with a cap beam and, with `bracing`,
+  an X-brace each. Rails are round, `height_m` above the surface (on an approach, above the ramp), on each listed
+  side except across the approach's edge; posts every `posts_m`; a curb runs under each railed side. A shelter's
+  posts must stand on the deck (`DEPICTION_ON_FLOOR`); its roof covers the posts' bounding box like a building's
+  roof, eaves `eaves_m` above the surface. `moored` craft are static (`ARC-171`), each tied by a line to its
+  nearest pile, and may not stand on any place's floor (`DEPICTION_ON_FLOOR`). The deck's surface and approach
+  collide as ground (the group `mw_depiction_ground`); rails, curb and shelter posts collide as drawn. The terrain
+  under a deck, and within one cell of its sides other than the approach's, stays `thickness_m` below the
+  surface there and below `surface_m`. Nodes are tagged `mw_category` `landmark.<name>` (craft `landmark.<name>.boat`) when the depicted
+  place is tagged `landmark`, else `deck.<name>`. A drawn person stands on the depiction's ground colliders
+  under its observed position. There is no field for a bench or any other furniture (`ARC-307`).
+- **scatter** is placed by its seed, uniformly in its polygon or in its strip, on the ground: boulders are the
+  client's procedural granite boulder at the drawn size; reeds, grass and wildflowers are cards in one
+  `MultiMesh` per entry (reeds half as wide as tall), hidden beyond `range_m`.
+
+**Defaults the client draws with no section.** No `terrain`: the stub's flat ground. While a file has no
+`buildings`, the client draws each place as the stub's labelled grey box (S33-c §5.5) and shows the stub's HUD
+note; on terrain, only the boxes' walls (the ground is the floor). Every builder number that is not a field is a unit conversion, a cap the validator also enforces, or a
+cited physical default shared by every world.
+
+**Status of `models` (16f-d1).** The validator and the reader accept the section; the client does not yet load
+the assets it names. Loading them (`GLTFDocument`, the re-binding of §8, LODs) is 16f-d2, which also moves
+Social Café's and Market Town's files from `tools/presentation/social_cafe/depictions/` into the default pack.
+
+## 8. `assets/places/<asset-id>/` and `materials/material_rules.yaml`
+
+A **place asset** is drawn art for a place or a piece of a street: a glTF 2.0 binary and its contract
+(`docs/PACKAGE_FORMAT.md` §3; 16f-d1). A depiction file's `models` place it (§7). The server never reads it.
+
+    assets/places/<asset-id>/
+      <asset-id>.glb      the model: meshes, lights (KHR_lights_punctual), named empty nodes
+      asset.yaml          what it means (YAML's JSON subset as the export tool writes it)
+    materials/
+      material_rules.yaml what glTF cannot carry, by name, for every asset of the pack
+      textures/<md5>.png  textures made at build time (leaf, flower and grass cards), named by content
+
+**`asset.yaml`.** `PACKAGE_FORMAT.md` §3's fields, and the ones the 3D client needs:
+
+| Field | Required | Meaning |
+| --- | --- | --- |
+| `id` | yes | the folder's name, a key (1–48 of `a-z 0-9 -`) |
+| `type` | yes | `place_visual` |
+| `format` | yes | `{"model": "<asset-id>.glb", "rules"?: "materials/material_rules.yaml"}`; `rules` is required when the model names a recipe |
+| `semantic_bindings` | yes | `{"entrances"?: [name], "interaction_anchors"?: [name], "spaces"?: [name]}`: each a node of the model. An **entrance** stands at a drawn door's street-side point (16c's out-point, 0.4 m in front of the sill), its +z axis facing out of the building (the façade's outward normal); a **space** stands at a room's centre, its scale the room's size in metres |
+| `doors` | no | `[{"name": <entrance>, "label", "space": <space> \| null, "depth_m", "floor_m"}]`: per entrance, the door registry's row (D-16c-4): its label, the room behind it (`null`: a closed door), the depth from the sill to the room's inner face, the room floor's height above the sill |
+| `presentation` | no | `{"style_family": [style id]}` |
+| `scale` | yes | `{"unit": "meter"}` |
+| `license` | yes | `{"spdx": <SPDX expression>, "sources"?: [{"what", "spdx", "url", "files": [path]}]}`: the licence of what the asset's author made, and every library file it references by path, under that file's licence |
+| `source` | no | `{"tool", "authoring"}`: the tool that wrote it and the source it built it from |
+
+**What glTF cannot carry travels by name.** The model's materials are named `m_<hash>` and its nodes
+`<kind>_<hash>_<n>`, where `<hash>` is 12 hex digits of the MD5 of the object's **recipe**: its Godot class and
+every stored property that differs from a fresh instance of that class (sub-resources inline; a file of the
+3D client's library by its path, `{"library": "assets/…"}`; a texture made at build time by its file,
+`{"file": "materials/textures/<md5>.png"}`; any other value in Godot's own text form, `{"variant": …}`).
+`material_rules.yaml` holds each recipe once:
+
+    {"format": 1, "source": "<tool>",
+     "materials": {"m_<hash>": {"class": "ORMMaterial3D", "set": {…}}, …},
+     "nodes": {"<hash>": {"class": "Label3D", "set": {…}}, …}}
+
+The kinds: `mesh` (a mesh instance; glTF carries its geometry and a metallic-roughness material, the recipe
+its shadow casting and frame-cost category), `light` (a glTF light; the recipe adds what
+`KHR_lights_punctual` lacks), `node` (an empty node standing for anything glTF has no form for: a Label3D
+sign, a body and its collision shapes, a reflection probe). A `node` recipe with a `library` key stands for a
+whole library scene of the client, such as a Poly Haven prop, which the client instances with its imported
+LODs; its `surfaces` list `[node path, surface, material name]` for each re-tinted surface. A plain group is
+`g_<n>`. The client re-binds every named object from its recipe, so nothing is lost and nothing is guessed;
+an unnamed or unknown object is drawn as glTF gives it. Recipes are named by content, so assets of several
+sources share one file, and a re-export writes the same bytes.
+
+**Validated** by `mineworld packs validate` (`mineworld_packages::place_asset`), before the depiction files,
+first fault refused, in this order:
+
+| Code | Fault |
+| --- | --- |
+| `ASSET_MALFORMED` | not parseable; an unknown key; a wrong type; `type` not `place_visual`; `id` not the folder's name; `scale.unit` not `meter`; `format.model` not a `.glb` beside `asset.yaml`; the model not glTF 2.0 binary; the rules file not format 1 |
+| `ASSET_UNLICENSED` | `license.spdx` empty or not an SPDX expression; a source's `spdx` likewise |
+| `ASSET_REFERENCE` | the model missing; a binding the model has no node for; a door's entrance or space the bindings do not list; a material or node recipe name of the model that the rules file lacks |
+
+**Made by a tool, not by hand.** `tools/presentation/export_place_art.gd` builds the pieces an authoring source
+lists (`tools/presentation/social_cafe/source.gd` is Social Café's street) with the client's own builders and
+writes them with Godot's `GLTFDocument`. It refuses to write an asset that references a library file under no
+licence its source states. Two runs write byte-identical files.
+
+## 9. `stations/<kit>.yaml`
 
 How the client draws a station building (`ARC-192`, S29-d). A world's depiction places a kit at a **site**;
 the kit says what the building is. YAML's JSON-compatible subset (`DEP-16`), read by
@@ -337,7 +553,7 @@ depot against it (rays against its colliders). `--slice-landmark` is the rendere
 walks from the seat into the station. `--slice-station-kit` also builds the station pieces at the kit's sizes
 and at village scale and measures them (`PIECE` rows, S29-e AC-e-2), then prints what each drawn fixture shows.
 
-### 6.1 Station pieces
+### 9.1 Station pieces
 
 The inside and the line are drawn by pieces (`scripts/station/pieces.gd`, `scripts/station/track.gd`;
 `ARC-192`'s note of 2026-10-20). Each is a function of its sizes in metres and a style, and reads no kit, no
@@ -347,8 +563,8 @@ place and no world, so another building -- a village halt -- draws the same piec
 | --- | --- | --- |
 | `bench_row` | length, depth, seat height | -- |
 | `kiosk` | footprint, height | `kiosk`: shutter down (shut) or up with papers (open) |
-| `window_bay` | width, counter height and depth, screen height, grilles | `window`: shutters down and the `station.window_closed` plate (shut), or up (open; no clerk -- a clerk is a disclosed person) |
-| `board` | width, height | `board`: `station.departures` over `station.no_service`, or one row per disclosed line |
+| `window_bay` | width, counter height and depth, screen height, grilles | `window`: shutters down and the `sign.window_closed` plate (shut), or up (open; no clerk -- a clerk is a disclosed person) |
+| `board` | width, height | `board`: `sign.departures` over `sign.no_service`, or one row per disclosed line |
 | `clock` | diameter | `clock`: hands at the disclosed time of day, or none |
 | `StationTrack.platform` | floor rectangle, edge side, top, depth, strip, coping | -- |
 | `StationTrack.track` | ends, gauge, tie, tie pitch, rail; end `through` or `buffer` | -- |
@@ -357,3 +573,34 @@ place and no world, so another building -- a village halt -- draws the same piec
 A piece decides nothing a world owns. What a fixture shows is `MineWorldStationState` and
 `MineWorldStationClock` (`clients/shared/station/`, `ARC-108`) of the place it stands in, remembered per place
 by `StationFixtures`: the last observation made there, or the defaults for a place never observed.
+
+## 10. `sit_points/<world-key>.yaml`
+
+How a person seated at each of a world's sit points is drawn (`ARC-145`, step-34 §8.2; S33-f). A sit point
+is the world's (`posture`'s `sit-points:`, `CORE_CONCEPTS.md` §6.4); this file is its depiction, bound by the
+place's tags and the point's key. YAML's JSON subset, read by the shared sit decision
+(`clients/shared/sitting/sit_rule.gd`, `MineWorldSitRule`) in both clients and drawn by
+`scripts/slice/seating.gd` (`SliceSeating`).
+
+```json
+{"format": 1, "scope": {"world": "lakeside"},
+ "points": [{"tags": ["bakery"], "point": "long-table.3", "group": "long-table.chair-3",
+             "prop": "long-table.chair-3", "seat_height_m": 0.45, "seat_offset_m": -0.57,
+             "fallback": {"at": {"x": 1660, "y": 3000}, "facing": 270000}}]}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `tags`, `point` | the place's disclosed tags (all must be the place's) and the point's key |
+| `seat_height_m` | the drawn seat's surface above the floor; a seated body's own seat rests on it (`Human.sit_on`), and `--seat` measures it against the drawn seat within 20 mm |
+| `seat_offset_m` | signed: the pelvis is drawn at the point's `at` moved this far **against** its facing — positive back onto a bench behind a point in front of it, negative forward onto a chair in front of a point behind it (Q-S34c-2) |
+| `prop` | the key of the furnishing whose seat it is (`body: furnishings`) |
+| `group` | the point's group, as the world will state it |
+| `fallback` | `{"at": {"x", "y"}, "facing"}`, the point's position (mm, the place's frame) and facing (millidegrees), for the shared rule's fallback branch while the world discloses no sit points (Q-S33f-1 (A)); S34-c copies them into the world's place files and removes them here |
+
+**The shared decision.** Where the place discloses `sit-points`, a person is drawn seated iff their disclosed
+`posture-state` names a point. Otherwise a person is drawn seated at the nearest fallback point within 0.40 m
+of their disclosed position once they have not moved for 2 s of world time, unless a person with a lower
+entity id is drawn there already (step-33 SD-S33-7). Neither client holds a copy of the rule
+(`client_rules.rs`, I-f-6); `tools/cli/tests/client_sit_rule.rs` checks that both clients draw the same person
+on a contested seat.

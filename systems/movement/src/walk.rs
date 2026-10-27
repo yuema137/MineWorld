@@ -28,7 +28,7 @@ use mineworld_presence::Presence;
 
 use crate::action::{
     DOORWAY_REACH, Destination, PERSON_APPROACH, PERSON_REACH, REPLANS_MAX, STALL_PROGRESS,
-    STALLS_MAX, TARGET_MOVED, WALK_STRIDE,
+    STALLS_MAX, TARGET_MOVED, WAITS_MAX, WALK_STRIDE,
 };
 use crate::component::{Asked, DISCLOSED_WAYS, Passages, Walking, Way};
 use crate::event::Ended;
@@ -148,7 +148,45 @@ struct Target {
     crossing: Option<(PlaceId, Option<LocalPosition>)>,
 }
 
-fn target(world: &WorldRead<'_>, walking: &Walking, here: &Location) -> Result<Target, Ended> {
+/// Where a walk to a place as a whole ends once its walker has entered that place (`ARC-330` R1): the
+/// leg's goal once it is planned; else, at the first step after the crossing, the registered
+/// wayfinder's arrival spot, measured from where the crossing asked to land. [`None`] — the walk ends
+/// where the walker stands — for any other walk, a walk that began in its own destination, and a place
+/// no wayfinder answers for.
+fn arrival_spot(
+    world: &WorldRead<'_>,
+    person: PersonId,
+    walking: &Walking,
+    here: &Location,
+) -> Option<LocalPosition> {
+    if !settling(walking, here) {
+        return None;
+    }
+    if walking.goal.is_some() {
+        return walking.goal;
+    }
+    let last = walking.progress?;
+    if last.from.place() == here.place() {
+        return None;
+    }
+    let entered_at = last.to.local().or_else(|| here.local())?;
+    wayfinder::arrival_spot(world, person, here.place(), entered_at)
+}
+
+/// Whether `walking` is in its last leg toward a place as a whole: no more places to enter, the
+/// walker in the destination's place, and the destination without a position.
+fn settling(walking: &Walking, here: &Location) -> bool {
+    walking.legs.is_empty()
+        && matches!(walking.destination, Destination::Place(location)
+            if location.local().is_none() && location.place() == here.place())
+}
+
+fn target(
+    world: &WorldRead<'_>,
+    person: PersonId,
+    walking: &Walking,
+    here: &Location,
+) -> Result<Target, Ended> {
     if let Some(next) = walking.legs.first().copied() {
         let passage = world
             .component::<Passages>(here.place().entity_id())
@@ -165,7 +203,9 @@ fn target(world: &WorldRead<'_>, walking: &Walking, here: &Location) -> Result<T
                 return Err(Ended::NoRoute);
             }
             Ok(Target {
-                at: location.local(),
+                at: location
+                    .local()
+                    .or_else(|| arrival_spot(world, person, walking, here)),
                 crossing: None,
             })
         }
@@ -347,16 +387,20 @@ pub(crate) fn begin(
         .ok_or_else(|| no_route("no chain of passages leads to the destination's place"))?;
     let mut walking = Walking {
         destination,
+        started: world.at(),
         legs,
         waypoints: Vec::new(),
         goal: None,
         progress: None,
         stalls: 0,
         replans: 0,
+        waits: 0,
         stopped_by: None,
+        moved_by: None,
         aimed_at: None,
     };
-    let target = target(world, &walking, here).map_err(|_| no_route("the destination left"))?;
+    let target =
+        target(world, person, &walking, here).map_err(|_| no_route("the destination left"))?;
     if let (Some(from), Some(to)) = (here.local(), target.at) {
         let (waypoints, aimed_at) = leg(world, person, &walking, here.place(), from, to, None)
             .map_err(|()| no_route("no way leads there inside the place"))?;
@@ -368,15 +412,29 @@ pub(crate) fn begin(
 }
 
 /// What one `walk-step` does for `person`, standing at `here`, on `walking` (step-11 SD-N2, SD-N9).
+///
+/// The last leg of a walk to a place as a whole — from the doorway to the arrival spot (`ARC-330`
+/// R1) — is a courtesy, not the walk's purpose: the walker is already in the place. So that leg never
+/// ends a walk `stalled` or `no-route`; it ends `arrived` where the walker got to.
 pub(crate) fn step(
     world: &WorldRead<'_>,
     person: PersonId,
     here: &Location,
     walking: &Walking,
 ) -> Step {
+    match stepped(world, person, here, walking) {
+        Step::End(Ended::Stalled | Ended::NoRoute) if settling(walking, here) => {
+            Step::End(Ended::Arrived)
+        }
+        step => step,
+    }
+}
+
+fn stepped(world: &WorldRead<'_>, person: PersonId, here: &Location, walking: &Walking) -> Step {
     let mut walking = walking.clone();
     // 1. The last stride: did it end where it was asked, and did it get anywhere?
     let mut replan = false;
+    let mut waiting = false;
     if let Some(last) = walking.progress {
         replan = *here != last.to;
         let progressed = match (last.from.local(), here.local()) {
@@ -385,16 +443,30 @@ pub(crate) fn step(
             }
             _ => true,
         };
-        walking.stalls = if progressed { 0 } else { walking.stalls + 1 };
+        // ARC-333 R2: a stride stopped short by a walker whose walk ranks higher is waiting, not a
+        // stall; it is bounded by WAITS_MAX instead.
+        waiting = !progressed && replan && outranked_by_stopper(world, person, &walking);
+        if progressed {
+            walking.stalls = 0;
+            walking.waits = 0;
+        } else if waiting {
+            walking.waits += 1;
+            if walking.waits >= WAITS_MAX {
+                return Step::End(Ended::Stalled);
+            }
+        } else {
+            walking.stalls += 1;
+            walking.waits = 0;
+        }
         if walking.stalls >= STALLS_MAX {
             return Step::End(Ended::Stalled);
         }
     }
     // 2. Already there?
-    if arrived(world, &walking, here) {
+    if arrived(world, person, &walking, here) {
         return Step::End(Ended::Arrived);
     }
-    let target = match target(world, &walking, here) {
+    let target = match target(world, person, &walking, here) {
         Ok(target) => target,
         Err(ended) => return Step::End(ended),
     };
@@ -429,14 +501,26 @@ pub(crate) fn step(
     };
     // 4. The leg's route: planned once per leg, again when a stride went wrong or the target moved.
     if walking.goal.is_none() || replan {
-        if walking.goal.is_some() {
+        // ARC-333: a re-plan after waiting, or after being moved aside by somebody else, is not one
+        // of the walk's own.
+        if walking.goal.is_some() && !waiting && walking.moved_by.is_none() {
             walking.replans += 1;
             if walking.replans > REPLANS_MAX {
                 return Step::End(Ended::Stalled);
             }
         }
         let avoid = if replan { walking.stopped_by } else { None };
-        match leg(world, person, &walking, here.place(), from, to, avoid) {
+        // ARC-330 R3: when the plan round the person who stopped the walker finds no way — their
+        // grown box can cover a narrow doorway — plan once more without them; the next stride meets
+        // them, and a person who is not walking gives way.
+        let planned = leg(world, person, &walking, here.place(), from, to, avoid).or_else(|()| {
+            if avoid.is_some() {
+                leg(world, person, &walking, here.place(), from, to, None)
+            } else {
+                Err(())
+            }
+        });
+        match planned {
             Ok((waypoints, aimed_at)) => {
                 walking.goal = waypoints.last().copied();
                 walking.waypoints = waypoints;
@@ -446,6 +530,7 @@ pub(crate) fn step(
         }
     }
     walking.stopped_by = None;
+    walking.moved_by = None;
     while walking.waypoints.first() == Some(&from) {
         walking.waypoints.remove(0);
     }
@@ -469,6 +554,20 @@ pub(crate) fn step(
         (None, Some((next, there))) => cross(walking, here, next, there),
         (None, None) => Step::End(Ended::Arrived),
     }
+}
+
+/// Whether the person who stopped `person`'s last stride short, or moved them aside since, is on a
+/// walk that ranks higher than
+/// `walking` (`ARC-333` R1): it started earlier, or at the same instant and their id is lower.
+fn outranked_by_stopper(world: &WorldRead<'_>, person: PersonId, walking: &Walking) -> bool {
+    [walking.stopped_by, walking.moved_by]
+        .into_iter()
+        .flatten()
+        .any(|other| {
+            world.component::<Walking>(other).is_some_and(|theirs| {
+                (theirs.started, other) < (walking.started, person.entity_id())
+            })
+        })
 }
 
 /// A stride to `to` in the walker's place, the walk stored with the stride as asked.
@@ -518,8 +617,14 @@ fn cross(
 /// Whether a walker at `here` has arrived: in the destination's place with no more places to enter,
 /// and at the leg's planned end (a place destination), or within [`PERSON_APPROACH`] of the person, or
 /// at the stand point planned near them while they are within [`PERSON_REACH`].
-/// A place destination without a position is reached on entering its place.
-pub(crate) fn arrived(world: &WorldRead<'_>, walking: &Walking, here: &Location) -> bool {
+/// A place destination without a position is reached at its arrival spot, or on entering its place
+/// when it has none (`ARC-330` R1).
+pub(crate) fn arrived(
+    world: &WorldRead<'_>,
+    walker: PersonId,
+    walking: &Walking,
+    here: &Location,
+) -> bool {
     if !walking.legs.is_empty() {
         return false;
     }
@@ -527,7 +632,8 @@ pub(crate) fn arrived(world: &WorldRead<'_>, walking: &Walking, here: &Location)
         Destination::Place(location) => {
             location.place() == here.place()
                 && match location.local() {
-                    None => true,
+                    None => arrival_spot(world, walker, walking, here)
+                        .is_none_or(|spot| here.local() == Some(spot)),
                     Some(_) => walking.goal.is_some() && here.local() == walking.goal,
                 }
         }
