@@ -1189,12 +1189,20 @@ Decision ids are recorded in the decision table above: `ARC-84` … `ARC-88`, `D
 - modern-goods goes from 0.1.0 to 0.2.0, with item names.
 - HB-3 at R 250 is restated: a blocked walker re-plans round a standing person.
 
+**Operator ruling QB-14 (2026-10-26): packaged clients are published publicly.** The operator's words:
+"要不要公开发布打包好的客户端 当然要啊，要不然别人玩不了" ("Should we publish the packaged clients publicly? Of
+course, otherwise nobody else can play"). So the bundles S23 builds (the exported 2D and 3D clients with the
+server and the launcher, ARC-78, ARC-80) are published for macOS, Windows and Linux on the channels ARC-79
+names: GitHub Releases as the canonical store, itch.io as the player page, Zenodo as the archive. The ruling
+decides *whether*, not *when*: the first public tag still follows QR-12 (after Milestone F's hands-on
+acceptance and after the visuals settle), and publishing waits for the operator's go-ahead after milestone
+acceptance. Recorded in `step-23-release.md` (header note of 2026-10-26) and in ARC-79.
+
 ## Still open
 
 | ID | Decision | Blocks | Recommendation |
 | --- | --- | --- | --- |
 | QB-11 | Make `test-windows` and `test-macos` required checks after five consecutive green `main` pushes | nothing now | yes, once 13w is green |
-| QB-14 | Publish packaged clients (Godot exports) for Windows and other players | player distribution | decide at the launch-readiness PR |
 | QB-15 | Run the local-model spike (`model_spike.py`, 40 scenarios, smallest model first) and pick the default model | S10 P6's freeze | operator-only; starts with `qwen3.5:4b`. **2026-10-10:** Ollama installed by the operator; the first spike attempt ran with no model pulled (40/40 HTTP 404) and must be re-run |
 
 
