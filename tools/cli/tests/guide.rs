@@ -2,6 +2,20 @@
 //! run against the real `mineworld` binary, so a page that stops working is a red test.
 //!
 //! This file holds the tests; the reading, writing and checking live in `guide/`.
+//!
+//! **Re-recording the guide (write mode, `docs/GUIDE_FORMAT.md` §11.2).** When a change alters what a command
+//! prints, the guide's console blocks go stale. Instead of editing them by hand, run
+//!
+//! ```text
+//! MINEWORLD_WRITE_GUIDE=1 cargo test -p mineworld-cli --test guide the_guide_in_this_repository_runs_green
+//! ```
+//!
+//! For every console block whose output no longer matches, this writes what each command now prints into the
+//! page: a `...` or `[..]` that still matches is kept, every other line is written literally, and prose,
+//! directives, commands and the other blocks are never touched. The new block is copied into the page's
+//! `*.zh-CN.md` mirror where the mirror's block was the English block byte for byte; anywhere else the mirror
+//! guard stays red for a person. A block whose exit code differs still fails. Review the diff, then run the test
+//! again without the variable: it must pass. Only the real guide's test reads the variable.
 
 #[path = "guide/command.rs"]
 mod command;
@@ -17,6 +31,8 @@ mod page;
 mod page_run;
 #[path = "guide/report.rs"]
 mod report;
+#[path = "guide/rewrite.rs"]
+mod rewrite;
 #[path = "guide/run_guide.rs"]
 mod run_guide;
 
@@ -27,6 +43,7 @@ use mineworld_test_support::Scratch;
 use page::{Body, Directive, parse};
 use page_run::{Environment, Outcome, Report, run_page};
 use report::{Summary, Verdict};
+use rewrite::Mode;
 
 /// A page with a step, a directive, a file block, a console block and a shown-only block.
 const PAGE: &str = "# A page\n\
@@ -270,6 +287,7 @@ fn run_here(name: &str, source: &str, scratch: &Path, features: &Features) -> Ve
         features,
         repo: scratch,
         home: scratch,
+        mode: Mode::Check,
     };
     run_page(
         name,
@@ -298,6 +316,7 @@ fn the_fixture_page_runs_green_against_the_real_binary() {
         features: &Features::new(),
         repo: &scratch,
         home: &scratch,
+        mode: Mode::Check,
     };
     let (reports, _) = run_page("fixture", &fixture(), &scratch, &environment, None);
     assert_eq!(reports.len(), 3, "{reports:#?}");
@@ -369,6 +388,7 @@ fn a_block_waiting_for_an_unmerged_feature_is_pending_and_so_is_the_rest_of_its_
         features: &features,
         repo: &scratch,
         home: &scratch,
+        mode: Mode::Check,
     };
     let (reports, carried) = run_page(
         "waiting",
@@ -483,6 +503,7 @@ fn equals_holds_when_the_scratch_folder_matches_the_committed_one_and_fails_on_o
         features: &Features::new(),
         repo: &repo,
         home: &repo,
+        mode: Mode::Check,
     };
     let (ok, _) = run_page(
         "ok",
@@ -527,7 +548,7 @@ fn mock_repo(label: &str, files: &[(&str, &str)]) -> Scratch {
 
 /// Runs the whole guide of `repo` (`docs/guide`) against the real binary.
 fn run_repo(label: &str, repo: &Scratch) -> Summary {
-    run_guide::run(label, &repo.join("docs/guide"), repo)
+    run_guide::run(label, &repo.join("docs/guide"), repo, Mode::Check)
 }
 
 /// Every failed check, as one string: its name, then its reason.
@@ -624,6 +645,101 @@ fn an_equals_mismatch_turns_the_run_red_and_names_the_folder() {
     let found = failures(&run_repo("guide-equals-red-run", &repo));
     assert!(found.contains("equals w docs/guide/examples/w"), "{found}");
     assert!(found.contains("differs"), "{found}");
+}
+
+// --- Write mode (`docs/GUIDE_FORMAT.md` §11.2) ----------------------------------------------------------------
+
+/// A page whose console blocks are stale: a `[..]` line that still matches beside a line the command no longer
+/// prints, and a `...` above a last line that changed. Its prose and shown-only block must survive a rewrite.
+const STALE: &str = "### Step 1 — Check the version\n\nThis prose stays.\n\n```console\n$ mineworld --version\nmineworld [..]\na line it no longer prints\n```\n\n```text\nshown only, never written\n```\n\n### Step 2 — Check a world\n\n```console\n$ mineworld create seaside\n...\n$ mineworld validate seaside\nseaside (seaside)\n...\nseaside is not valid.\n```\n";
+
+/// The same page's mirror: other prose, the same code blocks.
+fn stale_mirror() -> String {
+    STALE.replace("This prose stays.", "这段说明保留。")
+}
+
+/// Runs the guide of `repo` in write mode.
+fn write_repo(label: &str, repo: &Scratch) -> Summary {
+    run_guide::run(label, &repo.join("docs/guide"), repo, Mode::Write)
+}
+
+#[test]
+fn write_mode_rerecords_stale_output_keeping_matching_wildcards_and_prose_then_the_check_passes() {
+    let repo = repo_with(
+        "guide-write",
+        vec![
+            ("docs/guide/a.md".to_owned(), STALE.to_owned()),
+            ("docs/guide/a.zh-CN.md".to_owned(), stale_mirror()),
+        ],
+    );
+    let found = failures(&run_repo("guide-write-before", &repo));
+    assert!(found.contains("printed other output"), "{found}");
+
+    let summary = write_repo("guide-write-run", &repo);
+    assert!(summary.no_failures(), "{}", summary.render());
+    assert_eq!(summary.rewritten.len(), 2, "{}", summary.render());
+    assert!(
+        summary
+            .rewritten
+            .iter()
+            .all(|item| item.ends_with("(mirrored)")),
+        "{}",
+        summary.render()
+    );
+
+    let page = std::fs::read_to_string(repo.join("docs/guide/a.md")).expect("the page is read");
+    let mirror =
+        std::fs::read_to_string(repo.join("docs/guide/a.zh-CN.md")).expect("the mirror is read");
+    // The `[..]` that still matches is kept; the line the command no longer prints is gone.
+    assert!(
+        page.contains("$ mineworld --version\nmineworld [..]\n```"),
+        "{page}"
+    );
+    // The `...` that still matches is kept, and the changed line is written literally.
+    assert!(
+        page.contains("$ mineworld create seaside\n...\n$ mineworld validate seaside\nseaside (seaside)\n...\nseaside is a valid World Pack.\n```"),
+        "{page}"
+    );
+    // Prose and the shown-only block are untouched; the mirror keeps its own prose and gets the same blocks.
+    assert!(page.contains("This prose stays.\n"), "{page}");
+    assert!(page.contains("shown only, never written\n"), "{page}");
+    assert_eq!(
+        mirror,
+        page.replace("This prose stays.", "这段说明保留。"),
+        "the mirror's identical blocks are rewritten the same way"
+    );
+
+    let after = run_repo("guide-write-after", &repo);
+    assert!(after.no_failures(), "{}", after.render());
+    assert!(after.rewritten.is_empty(), "{}", after.render());
+}
+
+#[test]
+fn write_mode_leaves_a_mirror_block_that_differed_and_the_mirror_guard_names_it() {
+    let mirror = stale_mirror().replace("seaside is not valid.", "seaside is NOT valid.");
+    let repo = repo_with(
+        "guide-write-mirror",
+        vec![
+            ("docs/guide/a.md".to_owned(), STALE.to_owned()),
+            ("docs/guide/a.zh-CN.md".to_owned(), mirror.clone()),
+        ],
+    );
+    let summary = write_repo("guide-write-mirror-run", &repo);
+    assert!(
+        summary
+            .rewritten
+            .iter()
+            .any(|item| item.contains("not mirrored")),
+        "{}",
+        summary.render()
+    );
+    let found = failures(&summary);
+    assert!(found.contains("mirror of a"), "{found}");
+    assert!(found.contains("code block 3 differs"), "{found}");
+    let written =
+        std::fs::read_to_string(repo.join("docs/guide/a.zh-CN.md")).expect("the mirror is read");
+    assert!(written.contains("seaside is NOT valid."), "{written}");
+    assert!(!written.contains("a line it no longer prints"), "{written}");
 }
 
 #[test]
@@ -785,7 +901,12 @@ fn a_block_for_an_unmerged_feature_is_listed_as_pending_and_never_as_passed() {
 #[test]
 fn the_guide_in_this_repository_runs_green() {
     let repo = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let summary = run_guide::run("repo-guide", &repo.join("docs/guide"), &repo);
+    let summary = run_guide::run(
+        "repo-guide",
+        &repo.join("docs/guide"),
+        &repo,
+        Mode::from_env(),
+    );
     // Written past the test harness's capture, so every CI log shows the counts and every block that did not
     // run, by name, even when the test passes (§11).
     let _ = std::io::Write::write_all(

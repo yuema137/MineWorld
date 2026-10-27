@@ -224,7 +224,7 @@ cargo run -p mineworld-cli -- create my-world
 
 **用到的技术**：Rust · Godot 4.7 · Python · SQLite · Model Context Protocol。
 
-**参与贡献**：先读 [`CLAUDE.md`](CLAUDE.md) 和 [`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md)；`python3 scripts/ci_layer.py fast` 会跑快速检查。如果你也希望这样的世界存在，点个 ⭐ 能帮更多人找到这个项目。
+**参与贡献**：先读 [`CLAUDE.md`](CLAUDE.md) 和 [`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md)；`python3 scripts/ci_layer.py fast` 会跑快速检查。如果你的改动改变了某条命令的输出，用 `MINEWORLD_WRITE_GUIDE=1` 重新录制指南（[`docs/GUIDE_FORMAT.md`](docs/GUIDE_FORMAT.md) §11.2）。如果你也希望这样的世界存在，点个 ⭐ 能帮更多人找到这个项目。
 
 ## 许可证
 
