@@ -121,6 +121,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-114](ARC-114.md) | Wealth is a holder-only view, never stored |
 | [ARC-115](ARC-115.md) | `notices`: public, time-limited notices on declared topics, delivered to subscribers, expiring lazily |
 | [ARC-116](ARC-116.md) | The price book as perception-derived world state, and the reporter as a seat whose backend is its decision model |
+| [ARC-117](ARC-117.md) | Pricing policies are decision-model parameters and models, defaulting to `hold` |
 | [ARC-120](ARC-120.md) | Person attributes are declared data with one owner each; `attributes` owns plain traits; an owner's attribute is a view, never a copy |
 | [ARC-121](ARC-121.md) | The authoring seam: data directories, decoding in the owner's context, owner resolution before seeding, and shipped data |
 | [ARC-122](ARC-122.md) | The attribute model: kinds, typed values and handles, visibility, mutability, rendering, the built-in catalogue |
@@ -150,6 +151,8 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-177](ARC-177.md) | A world's 3D look is a data file of its Presentation Pack, drawn by generic builders |
 | [ARC-178](ARC-178.md) | A deck on piles is depiction data: the `decks` section of format 1 |
 | [ARC-179](ARC-179.md) | A station is depiction data: the `stations` section, doors into rooms off a room, and sit points told apart |
+| [ARC-182](ARC-182.md) | Controllers read the market packs by slug through wire mirrors that an owner-side test holds equal |
+| [ARC-183](ARC-183.md) | The LM controller fills an incomplete offer through a typed filler from a closed registry |
 | [ARC-184](ARC-184.md) | Clients format money and read trade records through one shared module |
 | [ARC-192](ARC-192.md) | A station is drawn from a station kit, placed at a site, bound by role tag |
 | [ARC-266](ARC-266.md) | The world's date, time and sun reach a client through one shared world-time module that reads disclosure and computes no astronomy |

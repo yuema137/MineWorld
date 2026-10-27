@@ -313,3 +313,13 @@ in Social Café and after the generic packs in Market Town. Sitting down is a pe
 2026-10-19 note is relaxed: an allow-listed generic pack may stand anywhere in Social Café's list, because
 only the order of Social Café's own packs is the base Market Town begins with; Market Town must still enable
 each of them after the six market packs. Checks 1 and 2 are untouched.
+
+## ARC-35 note — controllers read the market by slug (2026-10-26, S31-d)
+
+Check 2 is unchanged: no framework crate links a market pack, and no file under `cognition/` names a market
+crate. Item 6's slug precedent, written for world-level tests, extends to controller code: `rule-controller`'s
+pricing policies read economy's, inventory's and item's records and build economy's requests through wire
+mirrors held equal to the owners' types by `systems/economy/tests/controller_wire.rs` (`ARC-182`). A Controller
+Pack that is not a framework crate (`mineworld-price-reporter`) may depend on a non-market System Pack
+(`mineworld-price-survey`, `mineworld-notices`) whose own dependencies reach the market, because check 2 checks
+paths from the framework crates only.

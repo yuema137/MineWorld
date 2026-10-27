@@ -36,3 +36,11 @@ validation row, not a change to the kernel or the server. Nothing in the world r
 
 **Revisit** when a second model-driven controller needs the same parts, which then move into a shared
 module, or when the offer protocol (`ARC-34`) gains a movement affordance that the controller must decide.
+
+## ARC-72 note — a filler builds the payload of an incomplete offer (2026-10-26, S31-d)
+
+A model's answer may now also become the payload a **filler** builds from checked, typed fields, for an incomplete
+offer the observation makes available (`ARC-183`). The model never writes a payload; the request still goes only
+through `mineworld_sdk.offers`; the controller still never builds a movement request. A filler may raise a `due`
+consult on named perceived facts (the `publish-notice` filler: calendar's `day-began`). When no filler is listed,
+every request is exactly what it was before.

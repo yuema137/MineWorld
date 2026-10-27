@@ -2245,6 +2245,11 @@ property, and it never changes who a Person is (INV-1).
   needs in the pack's words and its own sleep; a `feeling` trigger asks the model to think when a need word changes
   and once on waking (never while asleep); and where sleep offers `sleep`, the model may choose it with `minutes`,
   which becomes `sleep { for: minutes }` through `mineworld_sdk.offers`. The world validates the bound and the place.
+  From S31-d (`ARC-183`), the controller may also fill an **incomplete** offer through a typed filler from a
+  closed registry: the model answers `fill` with checked, typed fields, and the filler builds the payload, which
+  goes through `mineworld_sdk.offers` like every request; a filler may raise a `due` consult on named perceived
+  facts (the `publish-notice` filler: calendar's `day-began`, once per world day). When no filler is listed, the
+  prompt, schema and request are byte-identical to before.
 
 **Registration.** `cognition/installed` (`mineworld-installed-models`) lists every model this build
 provides, one line each, through the `models!` macro of `mineworld-decision`:
@@ -2252,6 +2257,8 @@ provides, one line each, through the `models!` macro of `mineworld-decision`:
 ```text
 mineworld_decision::models! {
     Rule => mineworld_rule_controller::Rule,      // in-process: a DecisionModel type
+    Motivated => mineworld_motivated::Motivated,
+    PriceReporter => mineworld_price_reporter::PriceReporter,   // S31-d
     external "lm",                                // out-of-process: an id only (step-17 P6 adds it)
 }
 ```
@@ -2354,6 +2361,53 @@ no stride (`step` asks nothing).
 - **Status.** It is installed but is never a default. A world selects it through a decision list, such as
   the opt-in `cognition/motivated/examples/social-cafe-all-motivated.yaml` for Social Café. Its rhythm acceptance AC-DLb-4 is recorded as FAIL
   (F-DLb-5, `pr-dl-b-motivated.md` §15).
+
+**The `pricing:` block of `rule` and `motivated`** (`ARC-117`, S31-d). Both models take the same optional block;
+its default, `hold`, changes nothing, so a world without it decides exactly as before. Parameters are per model,
+so each half carries a `tags:` filter on the seat's own disclosed tags (empty: every seat on the model).
+
+```yaml
+pricing:
+  sell:
+    policy: toward-suggestion   # hold | toward-suggestion | scarcity                     default hold
+    every_minutes: 240          # 60 … 10 080: the pricing period                         default 240
+    step_permille: 100          # 1 … 500: how far one move goes                          default 100
+    deadband_permille: 30       # 0 … 500: a smaller gap is ignored                       default 30
+    floor_permille: 500         # 1 … 1 000: lowest ask, × the kind's reference value     default 500
+    ceiling_permille: 2000      # 1 000 … 10 000: highest ask, × the reference value      default 2 000
+    low_below: 2                # 0 … 1 000 (scarcity): fewer in stock → raise            default 2
+    full_above: 10              # 1 … 100 000 (scarcity): more in stock → lower           default 10
+    list: { categories: [] }    # 0 … 16 item categories: list held kinds of these at their reference value
+    tags: []                    # 0 … 8 tags
+  buy:
+    choose: any                 # any | cheapest                                          default any
+    tags: []                    # 0 … 8 tags
+```
+
+A seller prices its own `asks` and, when it keeps the shop it stands in, the shop's listing (inferred from
+`set-price` being offered while it has no asks of its own). One request per consult: within each period,
+index `floor((t mod period) ÷ pace)` 0 lists a held kind of a listed category at its reference value, and
+index `j ≥ 1` prices the `j − 1`th priceable ask. Suggestions are read **only** from the observer's own
+`notice-board` record (current notices), the newest `issued_at` per item. Every price is bounded by the
+reference value and never sent when unchanged; a kind with no reference value is never moved. `cheapest`
+replaces a chosen `buy` with the cheapest available complete `buy` of the same item. No policy takes a draw.
+The policies read economy's, inventory's and item's records and build economy's requests by slug, through
+the wire mirrors of `mineworld_rule_controller::price::wire` (`ARC-182`).
+
+**The bundled price clerk, `price-reporter`** (`cognition/price-reporter`, S31-d, `ARC-116` note). A seat that
+compiles market statistics and publishes suggested prices. It decides `rule`'s daily life (default pricing,
+no new draw) with two bands first: at each publish slot — minutes `first_minute`, `first_minute +
+every_minutes`, … ≤ `last_minute` of each day, the slot lying in the consult window `(t − pace, t]` — when
+`publish-notice` is offered available and its own `survey-book` record yields lines, it submits
+`publish-notice { topic, body: { prices }, valid_for: valid_minutes × 60 }`; otherwise, when `survey` is
+offered complete and available, it takes it. A line per kind: the median of its sale notes if at least
+`min_basis`, else the median of its newest ask note per (seller, place) if at least `min_basis`; adjusted up
+by `scarce_permille` when the median shop stock is below `scarce_below`, down by `plenty_permille` above
+`plenty_above`; at most 32 lines, the largest basis kept. Parameters (defaults): `topic`
+(`prices.ingredients`), `first_minute` (480), `last_minute` (1 200), `every_minutes` (240), `valid_minutes`
+(360), `min_basis` (3), `scarce_below` (3), `scarce_permille` (100), `plenty_above` (20), `plenty_permille`
+(50). Swapping the clerk for an LM is one `decisions.yaml` line (`model: lm`, `fallback: price-reporter`)
+and the operator's `cognition.toml` `[fill.publish-notice]` table.
 
 ## 5.2 Memory policies and host bounds
 
