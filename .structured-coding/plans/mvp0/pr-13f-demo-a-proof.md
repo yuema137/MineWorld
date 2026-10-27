@@ -16,7 +16,7 @@ Sibling design:    pr-16e-demo-b-proof.md (S14 16e). The two share the "one worl
                    parity test; Q-PAR-1 decides which PR hosts it
 Execution contract: §11 (empty until the freeze)
 Implementer:       Haiku-class for C1–C3 (well specified); the primary session queues the package
-Decision ids:      ARC-TBD (coordinator assigns), one record: §4.4, the Demo A acceptance run
+Decision ids:      ARC-346, one record: §4.4, the Demo A acceptance run
 Lifecycle:         DRAFT
 ```
 
@@ -175,7 +175,7 @@ IDENTITY_WORLD {"instance": "<id>", "revision": <n>, "people": {"<id>": "<disclo
 `events_seen` from `observation.events` (R-S11-4), in arrival order. The Demo A test checks each field
 against `GET /status` and the save. 16e reads the same line next to the 3D client's.
 
-### 4.4 Decision record (ARC-TBD, coordinator assigns)
+### 4.4 Decision record (ARC-346, coordinator assigns)
 
 "The Demo A acceptance run is `tools/cli/tests/demo_a.rs`: the `MVP.md` §7.1 list played as one story on
 market-town and social-cafe, from disclosure only, by the real 2D client; it is the S12 checkpoint."
@@ -268,7 +268,7 @@ milestone (charter, R-LOAD-1).
 | `scripts/ci_godot.py` | C2 | one list entry |
 | `clients/2d/shots/demo-a/**` | C3 | new stills |
 | `docs/HUMAN_REVIEW_QUEUE.md`, `docs/MVP_STATUS.md`, `clients/2d/README.md` | C3 | edits |
-| `docs/decisions/ARC-TBD.md` + index | C2 | new record |
+| `docs/decisions/ARC-346.md` + index | C2 | new record |
 
 Nothing under `kernel/`, `contracts/`, `systems/`, `server/`, `worldpack/`, `persistence/`, `worlds/`
 (I-4).
@@ -311,12 +311,14 @@ paths into one story and adds the second world.
 ```text
 PROJECT / PR:            MineWorld mvp0, S12 PR 13f — Demo A proof and VIS-2D-1 package
 PRIMARY DESIGN DOC:      .structured-coding/plans/mvp0/pr-13f-demo-a-proof.md
-BRANCH / WORKTREE:
-IMPLEMENTATION BASE:
-FROZEN BY / DATE:
-AUTHORIZED COMMITS:
-VALIDATION BUDGET:
-MATERIAL STOPS:
+BRANCH / WORKTREE:       mvp0/pr-13f, /Users/yuema137/mineworld-worktrees/impl-13f
+IMPLEMENTATION BASE:     mvp0/pr-13d @ 7d5b6530 (PR #423, not merged: merge freeze on main);
+                         13e merged in when its PR is open and green (lane lead's dispatch)
+FROZEN BY / DATE:        operator, 2026-10-20 (every question as recommended)
+AUTHORIZED COMMITS:      C1, C2, C3 of §6; ledger and evidence updates
+VALIDATION BUDGET:       charter SPEED FIRST: the build and the tests this PR writes, through
+                         cast-slots/with-slot.sh; full suites at the milestone
+MATERIAL STOPS:          a frozen invariant, a public contract or scope; 13e absent for its steps
 MERGE:                   by the coordinator, after the operator's review
 ```
 
@@ -340,3 +342,21 @@ MERGE:                   by the coordinator, after the operator's review
 
 | Commit | SHA | Validation evidence | Review verdict |
 | --- | --- | --- | --- |
+| C1 — the 2D report | `74c551bf` | `godot --import` then `--check-only res://scripts/app.gd`: 0 `SCRIPT ERROR`; `check_client_rules.py` PASS (0); exercised by `demo_a` below on both worlds | LLM review N/A (charter SPEED FIRST: no per-PR reviewer); self-read against I-1, I-4, I-7 |
+| ARC-346 + contract | `eb232acc` | `check_decision_ids.py --write-index`: 217 ids, all distinct | — |
+| C2 (part) — `demo_a.rs` report tests | `d2b45d6c` | `cargo test -p mineworld-cli --test demo_a -- --ignored --test-threads=1`: 2 passed, 12.2 s wall (2026-10-20, local macOS, Godot 4.7.2). market-town: place 2, doorways [2→8], objects [25 ball, 26 box], 37 offers; `--drop-doorway=2,8` → doorways []; social-cafe: place 2, doorways [2→8], objects [22 ball, 23 box], 20 offers; `--drop-doorway=2,8` → []; `--drop-doorway=0,0` → `[FAIL] drop-doorway 0 -> 0 is no doorway this client learned` on both. Counterfactual (doorways from the model) not run | as above |
+| C3 (part) — AC-f-7 | (this commit) | `check_client_rules.py` PASS (0); planted `intents.link.client.submit({})` in `menu.gd` → `R1 submits` FAIL (1), reverted → PASS; `--scope origin/main` PASS (0) after admitting `demo_a.rs` and `ci_godot.py` (13f's own §7 files; bounded correction); planted `tools/cli/tests/planted_outside.rs` → FAIL (1) | — |
+
+| merge 13e | `84aa0057` | `origin/mvp0/pr-13e` @ `6dd43eca` (PR #448, `fast` green) merged; two conflicts resolved by hand (`drive.gd`: both fields kept; step-13 table: 13d's row from this branch, 13e's row from 13e) | — |
+| C2 — the story | `1ddd0aec` | `demo_a.rs` `*_demo_a_story`, §4.1 steps 1–14 on market-town (`buy`) and social-cafe (`kick`); harness step forms `{"open": {"offered", "except", "among"}}` and `{"open": "last"}` (`interact.gd`, prints `CHOSE`). **Not compiled, not run** (no local runs while the machine was reserved, 2026-10-21; PR CI's `fast` neither compiles nor runs ignored Godot tests): INCONCLUSIVE until the milestone run. `rustfmt` clean; `check_client_rules.py` 0 | — |
+| C3 — package, status pages | `3ba9e4ba` | `HUMAN_REVIEW_QUEUE.md`: the `VIS-2D-1` package (§6 items) and an "S12 Demo A" row; `MVP_STATUS.md` 2D rows; `clients/2d/README.md` one line. Stills and the §8.2 re-run (`client_2d_interact_stub.rs`) need Godot: remaining | — |
+
+| C2 fixes from CI | `88f2fe5a`, `3dd89210`, `dc4f25e1` | Nightly `clients` runs on scratch/13f-clients-nightly were used for evidence. Run 39553569446 (`959a8396`): steps 1–9 passed (linux market-town, mac social-cafe); step 7 failed because the town-driven partner walked off; step 10 failed because nobody walked 1 m. Run 39585933280: `/status` seats are not in the world file's order, so step 5 waited 90 s. Local run on `3dd89210`: step 12 failed because Godot prints the revision as `284.0`. Fixes: the partner is the first seat Person in A's first observation's place, hosted `--agent` (reactive); step 10 reads `walk-started` from the save; client revisions are compared as numbers. **`dc4f25e1`**: local run 2/2 stories passed (214.7 s); `cargo clippy --test demo_a -D warnings` clean; nightly run 39594613270: `demo_a` **4 passed** on clients-linux (223 s) and clients-windows (231 s) | — |
+| AC-f-8, AC-f-9 | `19de053d` | `client_2d_interact_stub`: 4/5 passed locally. `the_panels_show_what_is_disclosed` fails because main's `bbe5f5aa` ("the I panel reads every section by name, never raw JSON") left the test expecting raw JSON. `a_removed_pack_offers_no_give` fails because the world now offers `put-down` without the pack. Neither is 13f's. Stills of both worlds in `clients/2d/shots/demo-a/` (JPEG q85, 2.4 MB); the capture log has 0 lines matching `ERROR|SCRIPT ERROR|Failed loading` | — |
+| Not 13f's (milestone batch) | — | Present on this stack, in no 13f file: `walk` drive `[FAIL] facing is steady` (walks_from…, the_requests_do_not_depend…, two_d_harness_ignores…); client_settings 2D/3D tests; `reconnects_to_a_restarted_world…`; guide Step 10.6; `inspect.rs:55`; agent `test_the_guide_resource_is_chapter_14` (milestone run 39553557068) | — |
+
+**Superseded remaining note.** **Remaining (2026-10-20).** 13e is not pushed (`git ls-remote origin mvp0/pr-13e`: absent; no PR), so
+the Demo A story (§4.1 steps 1–14, AC-f-1/-2/-3) is not yet in `demo_a.rs`: steps 2, 8–9 and 11 need
+13e's join path, bubbles and takeover message. C3's stills, VIS-2D-1 package, status pages and §8.2
+re-run wait for the final head after 13e. **Bounded discovery:** the report runs need `--hold 0`
+(S11-B holds a dropped seat 30 s), recorded in `demo_a.rs`.

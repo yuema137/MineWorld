@@ -961,6 +961,27 @@ refused with the code `no-route`. The route inside a place is planned by whichev
 geometry, through `movement`'s `Wayfinder` catalog (`ARC-62`): with `bodies` enabled, round its solids
 and loose objects (`DEP-34`); without it, straight. A pack never authors a route.
 
+Doorways stay passable (`DECISIONS.md` `ARC-330`). A walk to a place without a position does not end on
+the doorway point it entered by: the same catalog's `arrival_spot` names a point of that place at least
+1 200 mm (`THRESHOLD_CLEAR`) from every doorway point and clear of everyone standing there, and the walk
+ends there; without `bodies`, or with no such point, it ends on entering. That last leg never ends a walk
+`stalled` or `no-route`. A stride blocked by people who have no walk in progress makes them step aside —
+each to the nearest free point out of the walker's way, at most 1 200 mm (`GIVE_WAY_MAX`) and clear of
+the doorways — and each such move, like every nudge, is stated as `bodies`' `gave-way { person, for }`
+beside presence's `arrived`, whose participants then name both. A re-plan round the person who stopped a
+stride that finds no way plans once more without them before the walk ends `no-route`. A sleeper moved
+aside by another person's arrival keeps sleeping; their own arrival wakes them as before.
+
+Walkers yield by priority (`DECISIONS.md` `ARC-333`). A walk ranks by when it started — `Walking::started()`,
+the instant of its `walk-started` — and then by the walker's entity id, lower first; a person with no walk
+in progress ranks below every walker. The give-way above moves every person in a blocked stride's way who
+ranks lower than the walker, walkers included, and never one who ranks higher; a walker's nudge, likewise,
+moves only people who rank lower (a direct `move` still nudges anyone). A stride stopped short, or a walker
+moved aside, by a walker who ranks higher is waiting, not a stall: it counts toward neither `STALLS_MAX`
+nor `REPLANS_MAX`, and 20 consecutive waiting steps (`WAITS_MAX`) end the walk `stalled`. Being moved
+aside by anybody never counts as one of the walk's own re-plans. A stride along a planned route is
+always clear by the resolver's own test, so it is never stopped short by a solid the planner went round.
+
 **Sections: content a System Pack owns** (`DECISIONS.md` `ARC-31`). Besides the fields above, a person,
 place, item or organization file may carry **sections** (`ARC-36` extends `ARC-31` to the last two). A section is a top-level key of a content file that a System
 Pack declares as its own, and nothing else is a section. The pack that declares it:
@@ -1034,6 +1055,15 @@ economy   economy    people,  One section, three carriers (`ARC-38`, `ARC-112`, 
                               holder; a shop's listing (operator, prices, how many the operator holds) to
                               whoever perceives its place; a person's asks (price, available or not, never
                               a count) to whoever perceives the person
+price-survey price-survey people
+                              { kinds: { categories: [ <category> ] }, depth?, window?, resurvey_after?
+                              }: kinds 1–16 distinct item categories; depth 1–64 notes kept per kind
+                              (default 32); window "1h"–"30d", the oldest note kept (default "7d");
+                              resurvey_after "1m"–"1d", per place (default "1h"); a span is a whole
+                              number followed by m, h or d. Makes the person a surveyor whose price
+                              book holds the asks it surveyed and the sales it perceived. A category
+                              no declared kind has is refused at genesis (`survey-category-unknown`).
+                              Disclosed to the holder only (`ARC-116`)
 job       employment people   { employer: <organization key>, workplace: <place key>, from: "HH:MM",
                               until: "HH:MM", wage: <minor units per hour>, produces: { <item key>:
                               <count per full shift ≥ 1> } }; from < until (a shift lies within one
@@ -1061,7 +1091,12 @@ body      bodies     places,  Two forms, one per kind of file; mixing them, or n
                               facing 0–359 999 millidegrees clockwise from north. A solid may carry
                               `furnishing: <key>`; every furnishing is named by at least one solid,
                               every named key is listed, and each `at` lies on the floor and inside
-                              the rectangle bounding its own solids. At genesis the pack
+                              the rectangle bounding its own solids. A solid may carry
+                              `group: <slug>` (same grammar; authoring data only, never stored or
+                              disclosed, `ARC-332`): two solids whose footprints share any area
+                              must share a `group` or name one `furnishing`, or the place is refused
+                              when decoded (`bodies-solids-overlap`, naming both by index from 0 and
+                              the overlap in mm); touching edges share no area. At genesis the pack
                               refuses two people closer than 2r − 5 = 495 mm, a centre outside the
                               floor shrunk by r or within r of a solid, a floor that cannot hold the
                               people who can reach the place — those standing in a place its chain
@@ -2806,6 +2841,7 @@ presentation/<style-id>/
   lighting/lighting_profile.yaml
   renderer/godot.yaml, renderer/unreal.yaml
   far_field/<world-key>.yaml   REQUIRED: one per presented world (§6.1.1)
+  stations/<kit>.yaml      station kits for the 3D reference client (`PRESENTATION.md` §9, `ARC-192`)
   places/shells.yaml           optional, 3D: how places drawn plainly from disclosure look (ARC-52)
   depictions/<world-key>.yaml  OPTIONAL, 3D: a world's look as data (§6.1.2)
   generation/optional_prompt_guidelines.md
@@ -3069,7 +3105,10 @@ has no file. Every field, its unit and its range are specified in
    passability or height the server sees (heights are presentation, step-33 F-S33-4).
 4. **No furniture** (`ARC-307`). There is no field for a free-standing piece; furniture is the world's
    `body: furnishings`. Nothing the file draws may overlap a place's floor by more than 50 mm, except the
-   shell that depicts that place, whose footprint must lie within 50 mm of the place's.
+   shell that depicts that place, whose footprint must lie within 50 mm of the place's, and that shell's
+   `interior` (S33-f): the room's finishes, its lamps, and its **fittings** — the parts of the room's shell
+   the world states as solids naming no furnishing (an oven wall, a fitted counter, a stair), each inside the
+   shell's footprint.
 5. **Cited.** Every block carrying a physical value has a non-empty `source`: a citation, or
    `"approximate: <who replaces it>"`.
 
@@ -3084,9 +3123,29 @@ field's path:
 | `DEPICTION_UNCITED` | a physical block without a non-empty `source` |
 | `DEPICTION_OUT_OF_RANGE` | a value outside its range, or a cap exceeded |
 | `DEPICTION_POLYGON` | a polygon with fewer than 3 or more than 64 vertices, or not simple; a ramp's lines not parallel within 1° |
-| `DEPICTION_REFERENCE` | a name that names nothing: a terrain layer, a species, a tag no place carries, a perf view, a water the world's far field lacks, a model's asset the pack's `assets/places/` lacks or an entrance its asset lacks; in the client also a texture slug, tree form or card its library lacks |
-| `DEPICTION_DOOR` | an `open` door not at the doorway of a depicted place; `at_doorway` on a building or a model that depicts nothing |
-| `DEPICTION_ON_FLOOR` | a stand, scatter area or undepicting building overlapping a place's floor by more than 50 mm; a depicting shell more than 50 mm off its place's footprint |
+| `DEPICTION_REFERENCE` | a name that names nothing: a terrain layer, a species, a tag no place carries, a perf view, a water the world's far field lacks, a model's asset the pack's `assets/places/` lacks or an entrance its asset lacks; a `doorway_of`, a station fixture's `in` or a station platform's `depicts` that names no one place (none tagged exactly so, and not exactly one carrying them all); in the client also a texture slug, tree form or card its library lacks |
+| `DEPICTION_DOOR` | an `open` door not at a doorway (`at_doorway` or `doorway_of`) of a depicted place; a door at a doorway on a building or a model that depicts nothing; a `glazed` opening in a building without an `interior` |
+| `DEPICTION_ON_FLOOR` | a stand, scatter area, undepicting building, moored craft or station trackbed overlapping a place's floor by more than 50 mm; a depicting shell or deck more than 50 mm off its place's footprint; a deck's shelter post off the deck; a station fixture off its place's footprint; a platform canopy beyond its platform's length |
+
+A deck (the optional `decks` section, `ARC-178`) is a walked floor on piles — a pier, a jetty, a boardwalk, a
+platform — that depicts a place: its footprint is that place's floor and its surface is that place's floor height
+in the scene. Its approach ramp is no steeper than 1:12 (`DEPICTION_OUT_OF_RANGE`).
+
+A station (the optional `stations` section, `ARC-179`) places the shared station pieces — a departures board, a
+clock, a ticket window bay — in the places its building depicts, and draws its platform over the floor of the
+place it depicts with one track beside the platform's edge, stopped at a buffer stop or running on into a
+cutting. A fixture shows only what the world disclosed about the place it stands in (`ARC-108`); the file says
+where a board hangs, never what it reads. The building is a `buildings` shell; a door from its place into a
+place that opens off it is an opening with `doorway_of`. A fixture, a platform and a `doorway_of` name one place:
+the place tagged exactly so, else the only place carrying every tag.
+
+A station kit (the optional `station_kit` section, `ARC-192`; 16f-d2) sites one of the pack's station kits
+(`stations/<kit>.yaml`) on the street: its arch's façade point, its facing and its floor height. The client
+builds the depot from the kit; the kit's places bind by the kit's own tags. The section also carries what the
+station's checks read from the street the depot closes — the frontages' west-end eaves, the street's views
+toward the station, the far-field shots that are its footprint rows, and the walk's street points. A facing
+the client cannot draw and a kit the client cannot read refuse the run by the kit's own codes
+(`STATION_SITE_FACING`, `STATION_KIT_*`).
 
 The 3D client refuses by the same names for what it checks — `MALFORMED`, `SCOPE_MISMATCH`, and
 `REFERENCE` for the names only it knows — and trusts a validated pack for the geometry codes. A refused
@@ -3232,7 +3291,7 @@ lists the world's item kinds composed with every required Entity Pack's (`ARC-71
 | `server` | Hosts a World Pack for clients (`NETWORKING.md`). In-server controllers run on the world thread (`DECISIONS.md` `ARC-42`): `--agent SEAT` drives that seat with the reactive rule controller, which answers only what it hears while bound (`F-13`); `--town` drives every other seat with its resolved decision model (§4.1; with no decision list, the paced rule controller), seeded by `--seed N` (default 0) and consulted every `--cadence SECONDS` **wall** seconds (default 5; `--pace` is removed, with no alias, `ARC-69` item 11), seat `k` at `genesis + (k + m·pace)·time_scale` in world time; the reactive controller is consulted once a wall second. The pack's `decisions:` file, `--decisions FILE` and `--seat-model SEAT=MODEL` choose the `--town` seats' models; `--decisions` or `--seat-model` without `--town` is refused ("decisions choose how in-server seats decide; add --town"), a seat named by both `--agent` and `--seat-model` is refused, `--agent` otherwise wins over the list for its seat, and a seat whose fallback chain ends at `none` is not driven in-server. With a decision list in effect, the statistics line's `town:` statement ends with the decisions clause of §4.1 rule 7. A paced seat whose person is walking is also asked for the next stride of its walk (`walk-step`) once a wall second, every `time_scale` world seconds, so a hosted walker covers 1.34 m per wall second at any time scale (`ARC-42` note of 2026-10-09; `ARC-75`). Cadence is wall time so that the time scale never makes a hosted Person walk or talk faster (QTW-13, amending `ARC-40`). A client joining a seat an in-server controller drives takes it over; when it leaves, or its hold ends, the seat returns to a controller built afresh (`server/PROTOCOL.md` §4.2, `ARC-40`). `--hold SECONDS` is how long a dropped connection's seat is held for its `resume`, in wall seconds (default 30; `0` holds none). `--time-scale N` is how many world seconds pass per wall second (an integer ≥ 1). Its default is the save's last day-length scale in its host journal, else `hosting.time_scale` in `world.yaml` (§4.1), else 1; the startup line names which (`from the save`, `from world.yaml`, `from --time-scale`). A scale above 24 (a fast-forward) needs `--solo`, here and on the live route (`ARC-69` item 5). `--solo` declares a single-player world: it requires a loopback listen address (`127.0.0.0/8` or `::1`), and with any other address the server stops before listening, naming the flag and the address. It selects no code path. The scale is reported as `time_scale` in `/status` and every welcome, and may be changed live by `POST /admin/clock` (`server/PROTOCOL.md` §11.2). `--keyframe-every N` (an integer ≥ 1, default 50) makes every Nth frame to a client a whole observation and the others `delta` frames (`server/PROTOCOL.md` §5.3, `DECISIONS.md` `DEP-15`); `1` sends every frame whole. On Ctrl-C the server prints `[world] ticks N, p50 A ms, p99 B ms, longest tick M ms, cpu p50 C ms, cpu p99 D ms` — the world thread's tick in wall time, then in that thread's own CPU time (`ARC-42` note of 2026-10-15, `DEP-59`) — and one `[world] hosted <seat>: …` line per in-server controller with its consults and outcomes. `--save DIR` keeps the world in `DIR/world.sqlite`, created the first time and resumed afterwards. `--invite TOKEN` (or the environment variable `MINEWORLD_INVITE`; the flag wins) is the invite every client must present in its `join`; with neither, the server generates one and prints it once as `[mineworld] invite <token> — join with: <address> seat=<seat> invite=<token>`. There is no mode without an invite, loopback included (`server/PROTOCOL.md` §4.1, `DECISIONS.md` `DEP-14`). `--admin-token TOKEN` (or the environment variable `MINEWORLD_ADMIN_TOKEN`; the flag wins; `--help` names the variable and never a value) mounts the admin surface under `/admin` — sessions, seats, kick, release, and pausing and resuming the host clock (`server/PROTOCOL.md` §11, `DECISIONS.md` `ARC-44`) — and the server prints `[mineworld] admin surface: http://<address>/admin (bearer token as given)`; without it no `/admin` route exists and the server prints `[mineworld] no admin surface (no --admin-token)`. The admin token follows the invite's rules, is never printed, and must differ from the invite: an illegal token, or one equal to the invite, stops the server before it listens with a message that repeats neither. Launchers pass it through the environment, not the command line. On Ctrl-C — and on Windows also Ctrl-Break, closing the console window, or logging off — the server stops the same graceful way: it stops accepting connections, checkpoints the save and prints its statistics. `--stop-on-stdin-eof` adds one more way to ask for that same stop: end of standard input, or an error reading it. It exists for a parent with no console to signal through — a windowless launcher (`DECISIONS.md` `ARC-78`, [`tools/launch/LAUNCHER.md`](../tools/launch/LAUNCHER.md)) holds the server's standard input as a pipe and closes it, and a parent that dies closes it by dying. Whatever is read before the end is discarded; nothing on standard input is a command. Without the flag standard input is never read, and a closed or empty standard input changes nothing. |
 | `validate` | Reads and loads a World Pack and reports the world it describes: systems, places, people, seats, the identity each key received, the number of genesis facts. When `world.yaml` names a decision list, it is decoded (§4.1) and one line follows the `requires` lines: `  decisions  <n> assignment(s), default <id>`; without the key nothing new is printed. |
 | `replay` | Re-executes a save's whole journal from genesis and checks every fact and snapshot byte for byte (`ARC-25`). |
-| `run` | Runs a World Pack headless: no renderer, no network, no model. Every seat the pack offers is driven by its resolved decision model (§4.1, §5.1) — with no decision list, the seeded paced rule controller (`ARC-27`). `--pace SECONDS` (default 900 world seconds between a seat's consults) is a measurement knob, used by the FX-24 test (`ARC-69` item 11; `.structured-coding/plans/mvp0/pr-tw-c-host-clock.md` §5.8). Described below. |
+| `run` | Runs a World Pack headless: no renderer, no network, no model. Every seat the pack offers is driven by its resolved decision model (§4.1, §5.1) — with no decision list, the seeded paced rule controller (`ARC-27`). `--pace SECONDS` (default 900 world seconds between a seat's consults) is a measurement knob, used by the FX-24 test (`ARC-69` item 11; `.structured-coding/plans/mvp0/pr-tw-c-host-clock.md` §5.8). `--stride SECONDS` (default 30, `RUN_STEP`) is how often a walking seat is asked for its next stride; it divides the pace, and a run takes at most `stride − 1` seats, so a larger World Pack passes a larger divisor of the pace (`ARC-341`). Described below. |
 | `decisions` | Reads a World Pack and its decision list exactly as `run` does (the same decoder, `--decisions` and `--seat-model`, the same refusals), starts no world and writes nothing. Described below. |
 | `inspect` | Reports what a save holds, without resuming or writing it. Described below. |
 | `biography` | Prints a Person's objective biography, derived from a save's fact log without resuming or writing it ([`DECISIONS.md`](DECISIONS.md) `ARC-29`). Described below. |

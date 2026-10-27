@@ -9,6 +9,9 @@
 ##   --slice-threshold  the sec.7.1 indoor/outdoor measurement, at four points
 ##   --slice-perf       frame cost at eight viewpoints by a fixed protocol
 ##                      (`slice_perf.gd`; `--perf-breakdown` for categories)
+##   --slice-station-kit  the station kit as read and the depot as built (S29-d)
+##   --slice-landmark   the rendered landmark check, LM-1 and LM-2 (S29-d §5.9)
+##   --slice-station-shots  the station shots st_1 ... st_4 (S29-d §5.8)
 ##   --slice-character  the occupant animates (idle and walk, measured on its
 ##                      bones) and every camera mode, standing and walking,
 ##                      outdoors and in, as frames to inspect
@@ -73,6 +76,9 @@ var views := [
 	["20_florist_door", Vector3(9.60, 0.45, -4.20), -22.0, 3.0, FP],
 	["21_florist_interior", Vector3(11.40, 0.45, -9.10), -38.0, -6.0, FP],
 	["22_florist_looking_out", Vector3(17.40, 0.45, -13.30), 140.0, -3.0, FP],
+	# RL-b2 SD-B2-7: the worst case for 512 px goods -- a shopper at the pastry case
+	# (world x 6.65, front glass z -14.76), the eye about 0.6 m from the croissants
+	["26_counter_goods_close", Vector3(6.65, 0.60, -14.70), 0.0, -50.0, FP],
 ]
 
 ## Compositions the player's camera rig cannot frame: a camera that stays put
@@ -98,9 +104,13 @@ const CROPS := {
 	"03_cafe_exterior": ["03b_fascia_detail", Rect2i(520, 120, 520, 300), 2],
 	"05_interior_wide": ["05b_backwall_detail", Rect2i(560, 260, 480, 340), 2],
 	"09_character_in_place": ["09b_character_detail", Rect2i(660, 250, 300, 380), 2],
+	# RL-b2 SD-B2-7: the goods 512 px textures touch, enlarged for the before/after
+	"10_interior_counter": ["10b_counter_goods_detail", Rect2i(220, 400, 960, 220), 2],
+	"21_florist_interior": ["21b_florist_shelf_detail", Rect2i(0, 420, 1040, 380), 2],
 }
 
 var _mode := ""
+var _exit_code := 0
 var _warm := 0
 ## Simulated time, counted on physics ticks -- immune to how long a frame
 ## capture took in wall-clock time.
@@ -113,7 +123,7 @@ func _physics_process(delta: float) -> void:
 
 ## The standalone modes; `SliceProbeWorld.WORLD_MODES` lists the connected ones.
 const MODES := ["shots", "drive", "measure", "threshold", "perf", "hud", "jumpshots", "doors",
-	"character", "farfield", "farfield-shots"]
+	"character", "texel-density", "farfield", "farfield-shots", "station-kit", "landmark", "station-shots"]
 
 
 ## The mode of `modes` the command line asks for, or "".
@@ -161,7 +171,7 @@ func _process(_d: float) -> void:
 		return
 	set_process(false)
 	await _run(_mode)
-	get_tree().quit(0)
+	get_tree().quit(_exit_code)
 
 
 ## Run one mode; a sibling harness runs its own and hands the rest here.
@@ -176,8 +186,13 @@ func _run(mode: String) -> void:
 		"jumpshots": await _jump_frames()
 		"doors": await _door_frames()
 		"character": await _character_check()
+		"texel-density": _exit_code = 1 if SliceTexelDensity.run(slice.world) > 0 else 0
 		"farfield": await SliceFarFieldCheck.new(self).run()
 		"farfield-shots": await SliceFarFieldCheck.new(self).shots()
+		# S29-d: the station kit measured as built; the landmark check; the station shots
+		"station-kit": StationKitProbe.run(self)
+		"landmark": await SliceLandmarkCheck.new(self).run()
+		"station-shots": await SliceLandmarkCheck.new(self).station_shots()
 
 
 # --- the drawn rooms, as the depiction states them (16f-d2) ------------------------------------
@@ -789,6 +804,7 @@ func _measure() -> void:
 			% [r[0], v, r[2], r[3], "ok" if ok else "OUT OF RANGE"])
 
 	fails += _measure_geometry()
+	fails += StationKitProbe.measure(self)
 
 	print("\n-- borrowed props, as measured from their own geometry --")
 	for line in SliceProps.audit():

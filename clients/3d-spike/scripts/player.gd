@@ -31,12 +31,14 @@ const EYE_HEIGHT := CameraRig.EYE_HEIGHT
 ## the client reads them instead.
 const CAPSULE_RADIUS := 0.25
 const CAPSULE_HEIGHT := 1.72
-## What the body collides with: the ground, the current place's disclosed walls
-## and solids, perceived people and loose objects (step-11 §22 SD-E3) -- and
-## the scene's art while nothing is disclosed (`ART_LAYER`, `set_art_blocks`).
-## Every contact is prediction only; the server decides every stride.
-const COLLIDES_WITH := Build.LAYER_WORLD | Build.LAYER_DISCLOSED | Build.LAYER_BODIES \
-	| Build.LAYER_OBJECTS
+## What the body collides with: the ground, the scene's walk aids (the slopes that
+## make a drawn step a walk, `Build.LAYER_WALK_AID`, PR S36-P4b), the current
+## place's disclosed walls and solids, perceived people and loose objects
+## (step-11 §22 SD-E3) -- and the scene's art while nothing is disclosed
+## (`ART_LAYER`, `set_art_blocks`). Every contact is prediction only; the server
+## decides every stride.
+const COLLIDES_WITH := Build.LAYER_WORLD | Build.LAYER_WALK_AID | Build.LAYER_DISCLOSED \
+	| Build.LAYER_BODIES | Build.LAYER_OBJECTS
 ## Art (walls, façades, furniture drawn by a depiction) stops the body only where
 ## the current place discloses no `place-shape` (16f-b, `ARC-52`: art only
 ## decorates; a place without disclosure keeps its art blocking, because nothing
@@ -49,9 +51,10 @@ const PRESS_DOT := -0.5
 ## still against what it presses into (a size of a probe, not a rule).
 const PRESS_PROBE := 0.02
 ## What a press-through stride may pass: people and objects are the server's to
-## resolve, so the cast that bounds the wished stride meets walls only (and art
-## while art blocks, `set_art_blocks`).
-const PRESS_CAST_MASK := Build.LAYER_WORLD | Build.LAYER_DISCLOSED
+## resolve, so the cast that bounds the wished stride meets the scene (with its
+## walk aids, which the body rides) and walls only (and art while art blocks,
+## `set_art_blocks`).
+const PRESS_CAST_MASK := Build.LAYER_WORLD | Build.LAYER_WALK_AID | Build.LAYER_DISCLOSED
 const MOUSE_SENS := 0.0016
 const PITCH_LIMIT := deg_to_rad(84.0)
 

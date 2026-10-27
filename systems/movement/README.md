@@ -22,6 +22,9 @@ reports `move` before it has gone 2 m since its last accepted position.
 
 This pack decides; presence records. Disabling it removes `move` and changes nothing else.
 
+A walk (`walk-to`, then `walk-step`) that is stopped short by a walker whose walk started earlier waits
+rather than stalls, for up to 20 steps (`WAITS_MAX`; `DECISIONS.md` `ARC-333`).
+
 ```sh
 cargo test -p mineworld-movement
 cargo doc -p mineworld-movement --open      # the crate docs are the reference

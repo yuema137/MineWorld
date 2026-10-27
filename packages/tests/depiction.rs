@@ -86,7 +86,55 @@ fn every_corpus_file_gives_the_code_its_name_says() {
 /// tells an author which field to fix, so it is asserted, not only the code.
 #[test]
 fn each_refusal_names_the_field_at_fault() {
-    let rows: [(&str, DepictionCode, &[&str]); 14] = [
+    let rows: [(&str, DepictionCode, &[&str]); 25] = [
+        // S33-e §15 follow-up: a route step's point lies on the footprint of the entry it names
+        (
+            "out-of-range-route-point",
+            DepictionCode::OutOfRange,
+            &["probe_route[1].at_mm", "(3000, 8500)", "house"],
+        ),
+        // and names one entry by exactly its tags, as the probe binds a step
+        (
+            "reference-route-point",
+            DepictionCode::Reference,
+            &["probe_route[1].tags", "exactly house"],
+        ),
+        // S33-e §5.2 (ARC-179): a window bay states its counter, screen and grilles.
+        (
+            "malformed-station",
+            DepictionCode::Malformed,
+            &["stations[0]", "fixtures[0]", "grilles"],
+        ),
+        // a fixture names one place: exactly by its tags, or the only one carrying them
+        (
+            "reference-station",
+            DepictionCode::Reference,
+            &["stations[0]", "fixtures[0].in", "station"],
+        ),
+        // the track and its trackbed lie on no place's floor
+        (
+            "on-floor-station-track",
+            DepictionCode::OnFloor,
+            &["stations[0]", "platform.track", "goods-yard"],
+        ),
+        // S33-e §5.1.1 (ARC-178): a deck's approach steeper than ADA §405.2's 1:12.
+        (
+            "out-of-range-deck-approach",
+            DepictionCode::OutOfRange,
+            &["decks[0]", "jetty", "approach"],
+        ),
+        // a deck depicts a place by its tags
+        (
+            "reference-deck",
+            DepictionCode::Reference,
+            &["decks[0]", "depicts", "wharf"],
+        ),
+        // a moored craft stands on no place's floor (ARC-307)
+        (
+            "on-floor-deck-moored",
+            DepictionCode::OnFloor,
+            &["decks[0]", "moored[0]", "jetty"],
+        ),
         // AC-d-12: the file has no field for furniture (ARC-307).
         ("malformed", DepictionCode::Malformed, &["furnishings"]),
         (
@@ -134,6 +182,23 @@ fn each_refusal_names_the_field_at_fault() {
             "on-floor-shell",
             DepictionCode::OnFloor,
             &["buildings[0]", "bakery", "500 mm"],
+        ),
+        // S33-f: a room only inside a shell that depicts a place; its fittings inside the shell;
+        // glass only onto a drawn room.
+        (
+            "malformed-interior",
+            DepictionCode::Malformed,
+            &["buildings[1]", "cottage", "interior"],
+        ),
+        (
+            "out-of-range-interior",
+            DepictionCode::OutOfRange,
+            &["bakery", "interior.fittings[0]", "oven-wall", "footprint"],
+        ),
+        (
+            "door-glazed",
+            DepictionCode::Door,
+            &["buildings[1]", "openings[0]", "glazed"],
         ),
         // 16f-d1: the `models` section (ARC-177 amended).
         (
@@ -188,6 +253,15 @@ fn the_near_water_names_a_far_field_water() {
     };
     assert_eq!(code, DepictionCode::Reference, "{detail}");
     assert!(detail.contains("far_field_water"), "{detail}");
+}
+
+/// S33-d AC-d-10, AC-d-11: the generated variant `lakeside-v7` (`scripts/depiction_variant.py --seed 7`)
+/// validates as a file of the default pack would, against Lakeside's far field.
+#[test]
+fn the_generated_variant_validates() {
+    let path = corpus().join("variants/lakeside-v7/lakeside.yaml");
+    let waters = ["cuyamaca".to_owned()];
+    depiction::read(&path, Some(&waters[..])).unwrap_or_else(|error| panic!("{error}"));
 }
 
 /// 16f-d1's adversarial criterion: a `models` entry naming an asset the pack does not have, or an

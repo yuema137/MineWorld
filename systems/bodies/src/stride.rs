@@ -12,6 +12,7 @@
 
 use mineworld_contracts::EntityId;
 
+use crate::doorway::give_way;
 use crate::footprint::{Footprint, Placed};
 use crate::geometry::{
     CHAIN_MAX, CLEARANCE, GAP, HALVINGS, NUDGE_MAX, NUDGED_MAX, PERSON_RADIUS, Point, Room, SNAP,
@@ -136,13 +137,27 @@ pub(crate) fn stride(
     } else {
         Vec::new()
     };
+    // ARC-333 R1: who yields to this stride. A walker moves (nudges or asks to give way) only people
+    // who rank lower — no walk in progress, or a walk that started later (ties to the higher id);
+    // a direct `move` ranks above nobody and below nobody, and nudges anyone (step-11 SD-B7). An
+    // anchored person (`anchoring.rs`, SD-b-2) yields to nobody.
+    let yields: Vec<bool> = (0..standing.len())
+        .filter(|index| *index != me)
+        .map(|index| {
+            !here.anchored.get(index).copied().unwrap_or(false)
+                && match (here.walking[me], here.walking[index]) {
+                    (Some(rank), Some(other)) => other > rank,
+                    _ => true,
+                }
+        })
+        .collect();
     let attempt = |walls: Against| {
         let reach = reach(&scene, me, &behind, start, aim, walls);
         match nudge(
             &scene,
             &others,
             &in_scene,
-            &here.anchored,
+            &yields,
             reach.candidate,
             fallback,
             walls,
@@ -197,6 +212,51 @@ pub(crate) fn stride(
             let (result, degraded) = degrade(room, &others, start, tried.reach.blocked, &laid);
             (result, degraded, Objects::Untouched)
         };
+    // ARC-330 R2, ARC-333 R1: a walker's stride that fell short of its target because people of lower
+    // rank stand in its corridor — people with no walk in progress, and walkers whose walk started
+    // later (or at the same instant, with a higher id) — asks them to give way before it settles for
+    // less. Only a walker (a walk in progress) outranks anybody; a direct `move` does not.
+    if here.walking[me].is_some() && result.walker != target {
+        let moved = give_way(
+            room,
+            &other_points,
+            &yields,
+            &here.doors,
+            &laid,
+            start,
+            target,
+        );
+        if let Some(moved) = moved
+            && laid
+                .iter()
+                .all(|footprint| footprint.clear_of_segment(start, target, margin))
+        {
+            let candidate = Candidate {
+                walker: target,
+                displaced: moved,
+            };
+            if verifies(room, &others, &candidate, &laid) {
+                return Answer {
+                    reached: target,
+                    displaced: candidate
+                        .displaced
+                        .iter()
+                        .map(|(index, at)| (others[*index].0, *at))
+                        .collect(),
+                    stopped_by: None,
+                    outcome: Outcome {
+                        route: Route::GaveWay,
+                        generations: 1,
+                        nudged: candidate.displaced.len(),
+                        nudge_failed: tried.nudge_failed,
+                        degraded: Degraded::No,
+                        biased: met.is_some(),
+                        objects: Objects::Untouched,
+                    },
+                };
+            }
+        }
+    }
     let generations = if result.displaced.is_empty() {
         0
     } else {
@@ -362,14 +422,15 @@ pub(crate) struct Nudged {
 ///
 /// The pass fails if a nudge would exceed `NUDGE_MAX + GAP`, if the walls cut one more than [`SNAP`]
 /// short, if more than [`NUDGED_MAX`] people would move, or if any pair is still closer than
-/// [`CLEARANCE`] after [`CHAIN_MAX`] generations — or if a pusher would touch an anchored person:
-/// `anchored` is parallel to the scene's people (index `in_scene[i]` for `others[i]`), and an anchored
-/// person is never moved (SD-b-2), so the caller degrades to blocked at first contact.
+/// [`CLEARANCE`] after [`CHAIN_MAX`] generations — or if a pusher would touch a person who does not
+/// yield: `yields` is parallel to `others`, and a person who does not yield (an anchored person,
+/// SD-b-2, or a walker of higher rank, `ARC-333` R1) is never moved, so the caller degrades to
+/// blocked at first contact.
 pub(crate) fn nudge(
     scene: &Scene,
     others: &[(EntityId, Point)],
     in_scene: &[usize],
-    anchored: &[bool],
+    yields: &[bool],
     pusher: Point,
     fallback: Point,
     walls: Against,
@@ -393,7 +454,7 @@ pub(crate) fn nudge(
                 if between >= touching * touching {
                     continue;
                 }
-                if anchored.get(in_scene[index]).copied().unwrap_or(false) {
+                if !yields[index] {
                     return Err(());
                 }
                 let needed = spacing - between.isqrt();

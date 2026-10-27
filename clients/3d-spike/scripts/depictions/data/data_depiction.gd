@@ -25,22 +25,31 @@ var _file: SliceDepictionFile = null
 var terrain: DepictionTerrain = null
 ## The placed place art, when the file has a `models` section (null otherwise).
 var models: DepictionModels = null
+## How far below the terrain's lowest point the far field's flat near ground stands (schema default).
+const NEAR_GROUND_BELOW := 0.5
+## The station the file's `station_kit` sites, once built: { kit: StationKit, site, eaves }, or {}.
+var _station := {}
 
 
 ## Draws the file: the far field, the ground, the registration of every place, then each section the
 ## file has, in order. A section the file lacks draws nothing; places stay the stub's boxes until the
-## file has `buildings`.
+## file has `buildings` or `models`.
 func build(root: Node3D, far_field: MineWorldFarField, connected: bool) -> Node3D:
 	var g := Node3D.new()
 	g.name = "Depiction"
 	root.add_child(g)
 	var d := _data()
-	draw_far_field(g, far_field)
+	var view: SliceFarFieldView = null
 	if d.get("terrain") != null:
-		terrain = DepictionTerrain.build(g, d["terrain"], d.get("water"), _section("paths"), frame_origin())
-	elif _section("models").is_empty():
-		# the place art carries its own ground (16f-d2); a file with neither gets the stub's
-		draw_ground(g)
+		terrain = DepictionTerrain.build(g, d["terrain"], d.get("water"), _section("paths"), frame_origin(),
+			_section("decks"), DepictionStations.cuts(_section("stations"), self))
+		# the far field's flat ground inside the boundary goes under the file's terrain (D-S33d-12)
+		view = draw_far_field(g, far_field, SliceFarFieldView.GROUND_Y - (terrain.lowest() - NEAR_GROUND_BELOW))
+	else:
+		view = draw_far_field(g, far_field)
+		if _section("models").is_empty():
+			# the place art carries its own ground (16f-d2); a file with neither gets the stub's
+			draw_ground(g)
 	if d.get("water") != null:
 		DepictionWater.build(g, d["water"], far_field, frame_origin())
 	if not _section("models").is_empty():
@@ -51,12 +60,22 @@ func build(root: Node3D, far_field: MineWorldFarField, connected: bool) -> Node3
 	if models != null:
 		_register_model_doors()
 	draw_boxes(g)
+	if _has_shells():
+		DepictionInteriors.build(g, _section("buildings"), self)
 	if not _section("edges").is_empty():
 		DepictionEdges.build(g, _section("edges"), self)
 	if not _section("scatter").is_empty():
 		DepictionScatter.build(g, _section("scatter"), self)
+	if not _section("decks").is_empty():
+		DepictionDecks.build(g, _section("decks"), self)
+	if not _section("stations").is_empty():
+		DepictionStations.build(g, _section("stations"), self)
+	if d.get("trees") != null:
+		DepictionWoods.build(g, d["trees"], self)
+	_build_station_kit(g, view)
 	if not connected:
 		_draw_recorded_furnishings(g)
+		_draw_recorded_station(g)
 	if models != null:
 		# the frame-budget pass the art was drawn under before it was a pack asset (RL-b SD-RLb-3)
 		var b := SliceBudget.apply(g)
@@ -64,6 +83,70 @@ func build(root: Node3D, far_field: MineWorldFarField, connected: bool) -> Node3
 			% [b["ranged"], b["max_px"], b["violations"]])
 	_root = g
 	return g
+
+
+## The station the file's `station_kit` section sites (S29-d, `DECISIONS.md` ARC-192; moved from Social
+## Café's depiction script into its file in 16f-d2): the pack's station kit `kit`, its arch's façade on
+## the plan point `facade_mm`, facing `facing`, its floors `floor_m` above the frame's origin. The depot
+## and its interior are built from the kit; the trackbed is cut from the far field's near ground. A kit
+## the reader refuses refuses the run by its own code (`refusal`). Nothing here names a world.
+func _build_station_kit(g: Node3D, view: SliceFarFieldView) -> void:
+	var s: Variant = _data().get("station_kit")
+	if s == null:
+		return
+	var at := to_scene(_point(s["facade_mm"]))
+	var site := {"kit": String(s["kit"]), "facade_x": at.x, "axis_z": at.z, "facing": String(s["facing"]),
+		"floor_y": frame_origin().y + float(s["floor_m"])}
+	var opened := StationKit.open(site, SlicePack.select().dir)
+	if opened.has("refusal"):
+		refusal = opened["refusal"]
+		return
+	var eaves := []
+	for e in s.get("eaves", []):
+		eaves.append(to_scene(_point(e["corner_mm"])) + Vector3(0.0, float(e["eaves_m"]), 0.0))
+	_station = {"kit": opened["kit"], "site": opened["site"], "eaves": eaves}
+	var depot := StationDepot.build(g, opened["kit"], opened["site"])
+	if depot == null:
+		return
+	StationDepotInterior.build(depot, opened["kit"])
+	# the trackbed lies below the near ground (S29-e §5.5): the ground is cut where it is drawn
+	if view != null:
+		view.cut_near_ground(StationDepotInterior.report.get("trench", []))
+	# the depot is built from thousands of primitives, as the street was: batched as the slice batched it
+	var m := SliceBatch.merge(depot, SliceTrial.cell_size())
+	print("station kit %s: %d primitive instances -> %d meshes" % [site["kit"], m["merged_from"], m["merged_into"]])
+
+
+## Offline, the station's benches and kiosk come from the recorded observations of the recorded world's
+## station places (S29-e), each drawn into the kit place its tags bind: the kit place whose tags the
+## recorded place carries, the most specific first -- the layout's rule (`SliceLayout._candidate`).
+func _draw_recorded_station(g: Node3D) -> void:
+	if _station.is_empty():
+		return
+	var kit: StationKit = _station["kit"]
+	var furnishings := SliceFurnishings.load_pack(SlicePack.select().dir)
+	for path in SliceFurnishings.recorded_files(key, "station-"):
+		var tags := SliceFurnishings.recorded_tags(path)
+		var best := ""
+		for p in kit.place_names():
+			var fits: bool = StationDepot.report["origins"].has(p)
+			for t in kit.tags(p):
+				fits = fits and tags.has(t)
+			if fits and (best == "" or kit.tags(p).size() > kit.tags(best).size()):
+				best = p
+		if best != "":
+			furnishings.draw_recorded_file(path, g, StationDepot.report["origins"][best])
+
+
+func station() -> Dictionary:
+	return _station
+
+
+## The place entries, and one per kit place a station kit's door leads to (`StationViews.entries`).
+func depictions() -> Array[Dictionary]:
+	var out: Array[Dictionary] = super.depictions().duplicate()
+	out.append_array(StationViews.entries(_station))
+	return out
 
 
 ## Offline, the furniture of the place the recorded observation is of (`SliceFurnishings.RECORDED`,
@@ -97,10 +180,63 @@ func ground_at(mm: Vector2) -> Vector3:
 	return terrain.on_ground(mm) if terrain != null else to_scene(mm)
 
 
-## The stub's boxes, while the file draws no shells: on terrain only their walls, since the ground is
-## the floor.
-## With `models`, only a place no model depicts is a box, and the street is the art's.
+## The height (scene y) a body stands at over scene point (x, z): a deck's surface where a deck covers it
+## (ARC-178), else the drawn terrain, else the street's surface.
+func ground_height(x: float, z: float) -> float:
+	var o := frame_origin()
+	var mm := Vector2((x - o.x) * 1000.0, (o.z - z) * 1000.0)
+	for deck in _section("decks"):
+		if DepictionDecks.rect_of(deck).has_point(mm):
+			return o.y + DepictionDecks.surface_at(deck, mm)
+	var platform: Variant = DepictionStations.surface_at(_section("stations"), self, mm)
+	if platform != null:
+		return o.y + float(platform)
+	return terrain.height_at(x, z) if terrain != null else o.y
+
+
+## The index in `places()` of the one place `tags` name (ARC-179): the place whose tags are exactly
+## these, else the only place carrying them all; -1 when none does, or several do and none exactly.
+func place_index(tags: Array) -> int:
+	var carrying := []
+	# the file's places as written, not `places()`, whose floor heights are read through this
+	var all: Array = _data()["places"]
+	for i in all.size():
+		var have := _tags(all[i]["tags"])
+		var fits := true
+		for t in tags:
+			fits = fits and have.has(String(t))
+		if not fits:
+			continue
+		if have.size() == tags.size():
+			return i
+		carrying.append(i)
+	return carrying[0] if carrying.size() == 1 else -1
+
+
+## The footprint (plan mm) of the place at `place_index` `i`.
+func place_footprint(i: int) -> Rect2:
+	return _rect(_data()["places"][i]["footprint_mm"])
+
+
+## The scene volume of the one place `tags` name (`place_index`), or "".
+func volume_of(tags: Array) -> String:
+	var i := place_index(tags)
+	return place_volume(i) if i >= 0 else ""
+
+
+## The near water's surface (scene y), or the street's surface with no water.
+func water_level() -> float:
+	var w: Variant = _data().get("water")
+	return frame_origin().y + (float(w["level_m"]) if w != null else 0.0)
+
+
+## The places' drawing: the file's shells when it has `buildings` (and then nothing of the stub); else
+## the stub's boxes, on terrain only their walls, since the ground is the floor. With `models`, only a
+## place no model depicts is a box, and the street is the art's (16f-d2).
 func draw_boxes(g: Node3D) -> void:
+	if _has_shells():
+		DepictionShells.build(g, _section("buildings"), self)
+		return
 	if terrain == null and models == null:
 		super.draw_boxes(g)
 		return
@@ -164,38 +300,10 @@ func doorway_of(tags: PackedStringArray) -> Variant:
 	return null
 
 
-## The file's `light` section in the scene: { gi: [{box: AABB, subdiv: int}], probes: [{box: AABB,
-## interior: bool}] }. A box stands on the street's surface less the volumes' VOLUME_BELOW; a probe's
-## centre is `centre_up_m` above it. A probe whose centre stands inside a place's footprint is that
-## room's interior probe.
+
+## The file's `light` section, or {} when it has none (then the slice keeps its own GI and probes).
 func light() -> Dictionary:
-	var out := {"gi": [], "probes": []}
-	var l: Variant = _data().get("light")
-	if l == null:
-		return out
-	var base := frame_origin().y
-	for v in l.get("gi", []):
-		var b: Array = _box(_rect(v["box_mm"]))
-		var size := Vector3((b[1] as Vector3).x, float(v["height_m"]), (b[1] as Vector3).z)
-		var at := Vector3((b[0] as Vector3).x, base - VOLUME_BELOW + size.y * 0.5, (b[0] as Vector3).z)
-		out["gi"].append({"box": AABB(at - size * 0.5, size), "subdiv": int(v["subdiv"])})
-	for v in l.get("probes", []):
-		var b: Array = _box(_rect(v["box_mm"]))
-		var size := Vector3((b[1] as Vector3).x, float(v["height_m"]), (b[1] as Vector3).z)
-		var at := Vector3((b[0] as Vector3).x, base + float(v["centre_up_m"]), (b[0] as Vector3).z)
-		var inside := false
-		for p in places():
-			var r: Rect2 = p["footprint"]
-			var c := _plan_of(at)
-			inside = inside or r.has_point(c)
-		out["probes"].append({"box": AABB(at - size * 0.5, size), "interior": inside})
-	return out
-
-
-## A scene point's plan millimetres in the file's frame.
-func _plan_of(p: Vector3) -> Vector2:
-	var rel := p - frame_origin()
-	return Vector2(rel.x * 1000.0, -rel.z * 1000.0)
+	return _data()["light"] if _data().get("light") != null else {}
 
 
 ## A list section of the file, empty when absent.
@@ -255,8 +363,22 @@ func places() -> Array:
 	var out := []
 	for p in _data()["places"]:
 		out.append({"tags": _tags(p["tags"]), "label": p["label"], "footprint": _rect(p["footprint_mm"]),
-			"doorway": _point(p["doorway_mm"])})
+			"doorway": _point(p["doorway_mm"]), "floor_m": _floor_of(p["tags"], _rect(p["footprint_mm"]))})
 	return out
+
+
+## A place's floor height in the scene (metres above the street): the surface of the deck that depicts it
+## (ARC-178), or of the station platform whose footprint it is (ARC-179), else the street's surface.
+func _floor_of(tags: Array, footprint: Rect2) -> float:
+	for deck in _section("decks"):
+		var all := true
+		for t in deck["depicts"]:
+			if not (t in tags):
+				all = false
+		if all:
+			return float(deck["surface_m"])
+	var platform: Variant = DepictionStations.surface_at(_section("stations"), self, footprint.get_center())
+	return float(platform) if platform != null else 0.0
 
 
 func spawn() -> Dictionary:
@@ -273,14 +395,56 @@ func viewpoints() -> Dictionary:
 		farfield.append([vp["id"], _at(vp["at_mm"], vp["eye_m"]), Array(vp.get("roles", []))])
 	var route := []
 	for step in v.get("probe_route", []):
-		route.append(_tags(step))
-	return {
+		# a step that names a point inside its entry keeps it in the place's frame, millimetres
+		route.append(_tags(step) if step is Array
+			else {"tags": _tags(step["tags"]), "at_mm": Vector2(step["at_mm"][0], step["at_mm"][1])})
+	var out := {
 		"farfield": farfield,
 		"farfield_shots": _views(v.get("farfield_shots", [])),
-		"perf": _views(v.get("perf", [])),
+		# a perf view places the body (SlicePerf), so its eye_m is lowered to the feet by the eye height
+		"perf": _views(v.get("perf", []), -CameraRig.EYE_HEIGHT),
 		"perf_breakdown": Array(v.get("perf_breakdown", [])),
 		"probe_route": route,
 	}
+	if not _station.is_empty():
+		_station_viewpoints(out)
+	return out
+
+
+## A station kit's views (S29-d §§5.8-5.9), computed from the kit and the built depot (`StationViews`)
+## plus what the file's `station_kit` names: its street `views` toward the station (st_1, st_2), the
+## `landmark_shots` (names of `farfield_shots`) that are LM-2's footprint rows, and the `walk_via` points
+## on the street the walk in goes through.
+func _station_viewpoints(out: Dictionary) -> void:
+	var s: Dictionary = _data()["station_kit"]
+	var street := _views(s.get("views", []))
+	var lm2: Array = out["farfield_shots"].filter(func(r: Array) -> bool:
+		return Array(s.get("landmark_shots", [])).has(r[0]))
+	var via := []
+	for p in s.get("walk_via", []):
+		via.append(_at(p["at_mm"], float(p["up_m"])))
+	out["perf"] = out["perf"] + StationViews.perf(_station)
+	out["landmark"] = StationViews.landmark(_station, street, lm2)
+	out["station_shots"] = StationViews.shots(_station, street)
+	out["station_walk"] = StationViews.walk(_station, via)
+
+
+## The file's `extras_from` (S33-g §5.2), or "" for the pack's own extras.
+func extras_from() -> String:
+	return String(_data().get("extras_from", ""))
+
+
+## The file's `decor` figures (S33-g §5.3) in the scene, each on the drawn ground.
+func decor() -> Array:
+	var out := []
+	for d in _section("decor"):
+		if d["pose"] == "walking":
+			out.append({"pose": "walking", "from": ground_at(_point(d["from_mm"])),
+				"to": ground_at(_point(d["to_mm"]))})
+		else:
+			out.append({"pose": "standing", "at": ground_at(_point(d["at_mm"])),
+				"yaw": float(d.get("yaw_deg", 0.0))})
+	return out
 
 
 func hud_note() -> Dictionary:
@@ -312,9 +476,9 @@ func _at(p: Array, up: float) -> Vector3:
 	return to_scene(_point(p)) + Vector3(0.0, up, 0.0)
 
 
-func _views(views: Array) -> Array:
+func _views(views: Array, lift := 0.0) -> Array:
 	var out := []
 	for view in views:
-		out.append([view["name"], _at(view["at_mm"], view["eye_m"]), float(view["yaw_deg"]),
+		out.append([view["name"], _at(view["at_mm"], float(view["eye_m"]) + lift), float(view["yaw_deg"]),
 			float(view["pitch_deg"])])
 	return out

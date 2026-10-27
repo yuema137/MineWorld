@@ -17,7 +17,15 @@ A continuation aid only; the authority is [`pr-s33d-terrain-water-exterior.md`](
   depiction file (`ARC-307`).
 - Merge is the coordinator's.
 
-## State (2026-10-21)
+## State (2026-10-21, C13)
+
+- C0…C13 committed on PR #452 (C10 and C11 in one commit). Ready for operator review of the V-gate shots
+  (`clients/3d-spike/shots/lakeside/review/`, `shots/lakeside-v7/review/`).
+- Open: Q-S33d-7 (S33-a's far-field ID rows at Lakeside's low eyes; the nightly Lakeside 3D far-field check is
+  red by them until ruled); AC-d-5 perf counts (run when the machine is idle); the S33-e/f rows of
+  `--world=lakeside --geometry` (the line joins `clients-probes` when both land); M-d-4, M-d-5 at the milestone.
+
+## State (2026-10-21, C3)
 
 - PR #452 (draft). C0 `37e34ac8`, C1 `f17aebe2`, C2 `552690f1`, C3 `e3e8f8ee`; #395 (`b6d60223`) and #400
   (`cfb7890d`) merged in. `fast` green on C2 and C3.

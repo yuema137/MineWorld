@@ -46,6 +46,8 @@ clients/shared/                  a Godot project: the shared modules' runnable h
   SETTINGS.md                    this specification
   WORLD_TIME.md, HOST.md         the specifications of the two modules beside this one (TW-e, SET-c)
   world_time/                    the world-time module, res://mineworld_world_time (WORLD_TIME.md)
+  trade/                         the trade module, res://mineworld_trade (TRADE.md, S31-e); it words
+                                 through MineWorldText
   host/                          the host module and the World tab, res://mineworld_host (HOST.md)
   hud/                           MineWorldLineInput: the typed line both clients use, res://mineworld_hud
                                  (PR 16g1 D-3DS-2; its words ui.talk.prompt and ui.input.hint are in
@@ -90,6 +92,16 @@ config/custom_user_dir_name="MineWorld"
 
 With it, every client that sets it shares one settings file per user (§4). Without it, a client keeps a
 file of its own in its own user directory.
+
+**In an exported client, `--root=<dir>` (S23, `docs/DECISIONS.md` ARC-80).** An export has no folder
+behind `res://` (`ProjectSettings.globalize_path("res://")` is `""` in a release template), and Godot
+never packs the `.gdignore`'d `locale/` and `fonts/` (step-23 §18.2, P-1 and P-6). A bundle therefore
+ships them as plain files at the same repository-relative path under its `runtime/` folder
+(`runtime/clients/shared/settings/locale/*.po`, `…/fonts/NotoSansSC-Regular.otf`, `…/fonts/OFL.txt`), and
+the launcher passes `--root=<absolute runtime folder>`. `MineWorldText.module_dir()` reads that user
+argument itself (the store reads `--settings=` and `--extra-locale=` the same way) and returns
+`<root>/clients/shared/settings`; without it, the module's own folder, globalized, exactly as before.
+The argument changes where the files are read from, never what is read or in which order (§6.2).
 
 **The composition root's calls,** first in `_ready`, before it builds its own nodes:
 
@@ -312,6 +324,9 @@ ui.settings.*                       the settings menu, its tabs (General, Displa
                                     tab's key-map rows are `ui.settings.key.<action>` (SET-b, SD-SETb-12)
 hud.*  hint.*  camera.*  link.*     HUD lines and templates, the controls lines, camera titles,
 note.*  door.*                      3D connection messages, notes, door labels
+place.<tag>                         the name of a place a doorway leads to, by its tag (R-PK-1, ARC-82)
+sign.*                              the words a fixture shows: a departures board, a ticket window's plate
+                                    (S29-e §5.2)
 language.self_name                  how a language names itself ("English", "简体中文")
 clock.default                       the clock form a language prefers: "12h" or "24h"
 ```

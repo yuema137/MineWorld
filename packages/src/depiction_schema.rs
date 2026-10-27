@@ -54,14 +54,113 @@ pub struct Depiction {
     /// Boulders, reeds, grass and wildflower clumps.
     #[serde(default)]
     pub scatter: Vec<Scatter>,
+    /// Walked floors on piles: piers, jetties, boardwalks, platforms (`ARC-178`).
+    #[serde(default)]
+    pub decks: Vec<crate::depiction_deck::Deck>,
+    /// Stations' fixtures, platforms and tracks, drawn by the shared station pieces (`ARC-179`).
+    #[serde(default)]
+    pub stations: Vec<crate::depiction_station::Station>,
     /// GI volumes and reflection probes (absent: none).
     #[serde(default)]
     pub light: Option<Light>,
     /// Place art from the pack's `assets/places/`, each placed by an anchor (16f-d1; absent: none).
     #[serde(default)]
     pub models: Vec<Model>,
+    /// The world whose extras draw this world's unbound people and its decor figures (step-26 E-2,
+    /// S33-g §5.2; absent: the pack's own extras).
+    #[serde(default)]
+    pub extras_from: Option<Key>,
+    /// Decorative figures on the street (S33-g §5.3; absent: none).
+    #[serde(default)]
+    pub decor: Vec<DecorFigure>,
+    /// The pack's station kit sited on this street (S29-d, `ARC-192`; 16f-d2; absent: none).
+    #[serde(default)]
+    pub station_kit: Option<StationKitSite>,
     /// The checks' and captures' views.
     pub viewpoints: Viewpoints,
+}
+
+/// A station kit sited on the street (S29-d, `ARC-192`; moved from Social Café's depiction script into
+/// its file in 16f-d2): which kit of the pack's `stations/`, where its arch's façade stands and which
+/// way it faces (the client refuses a facing it cannot draw by the kit's own code), and what the
+/// station's checks read from the street the depot closes.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct StationKitSite {
+    /// The kit's name: `stations/<kit>.yaml` in the pack.
+    pub kit: Key,
+    /// The façade's point on the arch's axis.
+    pub facade_mm: PointMm,
+    /// The way the arch faces.
+    pub facing: Key,
+    /// The station's floors above the street frame's origin, metres.
+    pub floor_m: f64,
+    /// The westernmost eaves of each frontage at their façade corners: the landmark band's top.
+    #[serde(default)]
+    pub eaves: Vec<Eaves>,
+    /// The street's views toward the station (its shots `st_1`, `st_2` and the landmark's LM-1).
+    #[serde(default)]
+    pub views: Vec<View>,
+    /// The far-field shots, by name, that are the landmark's footprint rows (LM-2).
+    #[serde(default)]
+    pub landmark_shots: Vec<String>,
+    /// The street points the walk into the station goes through.
+    #[serde(default)]
+    pub walk_via: Vec<WalkPoint>,
+    /// Where the numbers come from.
+    #[serde(default)]
+    pub source: Option<String>,
+}
+
+/// A frontage's eaves at its façade corner.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Eaves {
+    /// The corner on the façade.
+    pub corner_mm: PointMm,
+    /// The eaves' height above the street frame's origin, metres.
+    pub eaves_m: f64,
+}
+
+/// A point a walk goes through.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WalkPoint {
+    /// Where.
+    pub at_mm: PointMm,
+    /// The body above the street frame's origin, metres.
+    pub up_m: f64,
+}
+
+/// A decorative figure (S33-g §5.3): a presentation person with no world entity. A walking figure
+/// states `from_mm` and `to_mm`; a standing one `at_mm` and optionally `yaw_deg`.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DecorFigure {
+    /// Walking or standing.
+    pub pose: DecorPose,
+    /// Where a walking figure starts.
+    #[serde(default)]
+    pub from_mm: Option<PointMm>,
+    /// Where a walking figure turns back.
+    #[serde(default)]
+    pub to_mm: Option<PointMm>,
+    /// Where a standing figure stands.
+    #[serde(default)]
+    pub at_mm: Option<PointMm>,
+    /// Which way a standing figure faces, degrees.
+    #[serde(default)]
+    pub yaw_deg: Option<f64>,
+}
+
+/// A decor figure's pose.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DecorPose {
+    /// Walks out and back.
+    Walking,
+    /// Stands (the idle clip; no speech).
+    Standing,
 }
 
 /// What a depiction file is for.
@@ -393,9 +492,72 @@ pub struct Building {
     /// A chimney.
     #[serde(default)]
     pub chimney: Option<Chimney>,
+    /// The room inside, for a shell that depicts a place a person can enter (S33-f).
+    #[serde(default)]
+    pub interior: Option<Interior>,
     /// Its citation.
     #[serde(default)]
     pub source: String,
+}
+
+/// The room inside a depicting shell: its finishes, the fitted parts of its shell, and its light.
+///
+/// Furniture is never written here: every free-standing piece is a furnishing in the world's data,
+/// drawn from the disclosure (`ARC-307`). A fitting is a part of the room's shell that the world states
+/// as a solid naming no furnishing (an oven wall, a fitted counter, a stair).
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Interior {
+    /// The floor's finish over the footprint.
+    pub floor: Surface,
+    /// The ceiling's finish, under the first upper storey (or the roof).
+    pub ceiling: Surface,
+    /// The fitted parts of the room's shell.
+    #[serde(default)]
+    pub fittings: Vec<Fitting>,
+    /// The room's lamps.
+    #[serde(default)]
+    pub lights: Vec<InteriorLight>,
+    /// Its citation.
+    #[serde(default)]
+    pub source: String,
+}
+
+/// A fitted part of a room's shell: a block standing on the floor.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Fitting {
+    /// Its name.
+    pub name: Key,
+    /// Its plan rectangle; it lies inside its building's footprint.
+    pub box_mm: RectMm,
+    /// Its height above the floor, metres.
+    pub height_m: f64,
+    /// A texture slug of the client's library.
+    pub material: AssetName,
+    /// An optional tint.
+    #[serde(default)]
+    pub tint: Option<Colour>,
+    /// Its citation.
+    #[serde(default)]
+    pub source: String,
+}
+
+/// A lamp in a room.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct InteriorLight {
+    /// Where, in plan; inside its building's footprint.
+    pub at_mm: PointMm,
+    /// How high above the floor, metres.
+    pub up_m: f64,
+    /// Its energy (Godot's light energy, a multiplier).
+    pub energy: f64,
+    /// Its range, metres.
+    pub range_m: f64,
+    /// Its colour (absent: white).
+    #[serde(default)]
+    pub colour: Option<Colour>,
 }
 
 /// A wall surface.
@@ -477,6 +639,10 @@ pub struct Opening {
     /// On the depicted place's doorway.
     #[serde(default)]
     pub at_doorway: bool,
+    /// On the doorway of another place, by its tags: a door from this building's place into a place
+    /// that opens off it (`ARC-179`).
+    #[serde(default)]
+    pub doorway_of: Option<Vec<Key>>,
     /// Width, metres.
     pub width_m: f64,
     /// Height, metres.
@@ -512,6 +678,8 @@ pub enum OpeningState {
     Open,
     /// A dark interior card.
     Dark,
+    /// Clear glass onto a room that is drawn (a window of a shell with an `interior`).
+    Glazed,
 }
 
 /// A chimney.
@@ -848,9 +1016,41 @@ pub struct Viewpoints {
     /// The perf breakdown's views, by name.
     #[serde(default)]
     pub perf_breakdown: Vec<String>,
-    /// The link probe's walk, by tags.
+    /// The link probe's walk: each step names a drawn entry by its tags, and may name a point inside
+    /// it to walk to.
     #[serde(default)]
-    pub probe_route: Vec<Vec<Key>>,
+    pub probe_route: Vec<RouteStep>,
+}
+
+/// One step of the link probe's walk.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+pub enum RouteStep {
+    /// Into the entry with these tags (`["pier", "landmark"]`).
+    Tags(Vec<Key>),
+    /// Into the entry with exactly these tags, then on to a point inside it.
+    Point(RoutePoint),
+}
+
+impl RouteStep {
+    /// The tags of the entry the step walks into.
+    pub fn tags(&self) -> &[Key] {
+        match self {
+            Self::Tags(tags) => tags,
+            Self::Point(point) => &point.tags,
+        }
+    }
+}
+
+/// A route step that walks to a point inside its entry.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RoutePoint {
+    /// The tags of exactly one entry: the street's, or one `places` entry's.
+    pub tags: Vec<Key>,
+    /// The point, in the place's frame: millimetres from its footprint's south-west corner, x east,
+    /// y north (`CORE_CONCEPTS.md` §6.1); inside the footprint.
+    pub at_mm: PointMm,
 }
 
 /// A far-field viewpoint.
@@ -878,6 +1078,10 @@ pub enum ViewpointRole {
     Judged,
     /// A high view.
     High,
+    /// The landmark check's LM-1 view: the landmark closes the view from here (S33-e §5.3).
+    LandmarkNear,
+    /// The landmark check's LM-2 view: the landmark is seen from here, across the far field or from above.
+    LandmarkFar,
 }
 
 /// A named view.

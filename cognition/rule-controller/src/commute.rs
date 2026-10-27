@@ -221,19 +221,86 @@ pub fn pending(observation: &Observation<Value>) -> Option<NextPart> {
     (next.punctual && here != Some(next.place) && observation.at() < next.from).then_some(next)
 }
 
-/// Whether I am already at a punctual next part's place shortly before it begins — within the cap and
-/// one pace of `from`, the longest a commute could have been planned for: arrived early, I wait there,
-/// so the part in force no longer calls me away (`ARC-282`). Earlier than that, the part in force has
-/// its day as usual. Never in `at-boundary` mode.
-pub fn holds(observation: &Observation<Value>, commute: &Commute, pace: SimDuration) -> bool {
+/// Whether I am already at a punctual next part's place shortly before it begins: arrived early, I wait
+/// there, so the part in force no longer calls me away (`ARC-282`). Never in `at-boundary` mode.
+///
+/// "Shortly" is the time a round trip to the part in force would take before the commute calls me back:
+///
+/// ```text
+/// holds at t  ⇔  mode = plan ∧ next.punctual ∧ I am in next.place ∧ t < next.from
+///                ∧ t + pace > next.from − window
+/// window       = min(cap, estimate(way back) + lead(way back))   way back: the disclosed way to the
+///                                                                 place of the part in force
+/// window       = cap                                             no such way disclosed, or that part
+///                                                                 is here
+/// ```
+///
+/// A commute's own arrival is always inside the window (it set out `lead` before `from` and walked about
+/// `estimate`), so a person who commuted waits as before. A person who came early for another reason —
+/// an errand at a shop that is also their workplace, whose food sold out before they reached the counter
+/// (F-Nh-5) — is no longer held for the whole cap: while walking back and setting out again still fits,
+/// the part in force has its day. Nothing names a place, a person or a world.
+pub fn holds(
+    observation: &Observation<Value>,
+    commute: &Commute,
+    pace: SimDuration,
+    stride: SimDuration,
+) -> bool {
     let now = observation.at().seconds();
     commute.mode == Mode::Plan
         && next_part(observation).is_some_and(|next| {
             let from = next.from.seconds();
             next.punctual
                 && now < from
-                && now + pace.seconds() > from - commute.cap_minutes * 60
+                && now + pace.seconds() > from - hold_window(observation, commute, &next, stride)
                 && observation.self_location().map(|here| here.place()) == Some(next.place)
+        })
+}
+
+/// Whether an errand walk to `to` still lets me set out in time for a punctual next part (F-Nh-7).
+///
+/// The due test asks whether waiting one pace *here* could make me late; an errand moves me first. So
+/// the errand is judged as a round trip, as [`holds`] judges a walk back to the part in force:
+///
+/// ```text
+/// fits(to)  ⇔  ¬ due at t with pace + window          no punctual next part, or at-boundary: fits
+/// window     = min(cap, estimate(way to) + lead(way to))   the walk there, and back again at most
+/// window     = cap                                       no way to `to` disclosed
+/// ```
+///
+/// By the triangle inequality the commute from `to` is at most the commute from here plus the way
+/// back, so an errand that fits leaves the commute due no earlier than a later consult. Nothing names
+/// a place, a person or a world: a hungry passer-by 15 minutes before a shift no longer walks to the
+/// far end of the street for breakfast and back (Market Town seeds 7 and 42).
+pub fn errand_fits(
+    observation: &Observation<Value>,
+    commute: &Commute,
+    pace: SimDuration,
+    stride: SimDuration,
+    to: PlaceId,
+) -> bool {
+    let cap = commute.cap_minutes * 60;
+    let window = way_to(observation, to).map_or(cap, |way| {
+        cap.min(estimate(&way, stride).saturating_add(commute.lead(Some(&way), stride)))
+    });
+    let ahead = SimDuration::from_seconds(pace.seconds().saturating_add(window));
+    commute.due(observation, ahead, stride).is_none()
+}
+
+/// [`holds`]' window, in world seconds: the round trip to the part in force, at most the cap.
+fn hold_window(
+    observation: &Observation<Value>,
+    commute: &Commute,
+    next: &NextPart,
+    stride: SimDuration,
+) -> i64 {
+    let cap = commute.cap_minutes * 60;
+    disclosed_agenda(observation)
+        .map(|disclosed| disclosed.agenda.place())
+        .filter(|place| *place != next.place)
+        .and_then(|place| way_to(observation, place))
+        .map_or(cap, |way| {
+            cap.min(estimate(&way, stride).saturating_add(commute.lead(Some(&way), stride)))
         })
 }
 
@@ -270,14 +337,17 @@ pub fn next_part(observation: &Observation<Value>) -> Option<NextPart> {
 
 /// The next part of the observer's day, as schedule discloses it with the agenda.
 fn agenda_next(observation: &Observation<Value>) -> Option<NextPart> {
+    disclosed_agenda(observation)?.next
+}
+
+/// The part of the observer's day in force and the next, as schedule discloses them.
+fn disclosed_agenda(observation: &Observation<Value>) -> Option<DisclosedAgenda> {
     let me = observation.entity(observation.observer())?;
     let record = me
         .components()
         .iter()
         .find(|record| *record.component_type() == Agenda::COMPONENT_TYPE)?;
-    let disclosed: DisclosedAgenda =
-        serde_json::from_value(record.payload_for::<Agenda>().ok()?.clone()).ok()?;
-    disclosed.next
+    serde_json::from_value(record.payload_for::<Agenda>().ok()?.clone()).ok()
 }
 
 /// The component type employment discloses a person's own job on, by its slug: employment's crate

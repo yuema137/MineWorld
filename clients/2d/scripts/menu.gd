@@ -3,12 +3,15 @@ extends CanvasLayer
 ## The interaction menu: the newest observation's affordances for one subject, in the server's order,
 ## nothing removed and nothing invented (step-13 §15.4 D-b-1 … D-b-4; `ARC-47` note 1).
 ##
-## A subject is a perceived person (their offers) or the observer itself (the target-less offers).
-## One entry per affordance:
+## A subject is a perceived person (their offers), the observer itself (the target-less offers), or a
+## drawn loose object (my target-less offers whose payload refers to it, ARC-342). One entry per
+## affordance:
 ##
 ## ```text
 ## complete      enabled; chosen → sent exactly as offered (intents.submit_offered)
 ## composable    enabled; chosen → the input it needs, then intents.compose
+## aim           after an offered complete affordance whose type intents aims (an object's menu only):
+##               chosen → `aim_chosen`; the next floor click sends it with that point (intents.aim_throw)
 ## other         listed disabled, "not supported by this client", never sent
 ## unavailable   greyed but still choosable, with the server's reason and declared range, unevaluated
 ## ```
@@ -25,6 +28,11 @@ const Words := preload("res://scripts/hud/words.gd")
 ## The entries shown changed (on opening, and when an observation changes them): the subject and the
 ## entries as data — the "one world, two views" report.
 signal listed(subject: String, entries: Array, offered: Array)
+## The menu opened about a subject, and closed: the trade panel beside it opens and closes with it (S31-e §5.5).
+signal opened(subject: String)
+signal closed
+## The player chose an "… at…" entry: the offered affordance to aim, sent on the next floor click.
+signal aim_chosen(affordance: Dictionary)
 
 var intents: Node
 var walker: Node
@@ -39,6 +47,8 @@ var entries: Array = []
 var glance := ""
 var inspect := PackedStringArray()
 var _self := false
+## Whether the subject is a drawn loose object.
+var _object := false
 var _observer := ""
 var _signature := ""
 var _box: PanelContainer
@@ -88,35 +98,52 @@ func is_open() -> bool:
 	return subject != ""
 
 
-## Opens the menu about `id` (a perceived person, or the observer for its own menu) at a screen point.
-func open(id: String, observation: MineWorldObservation, at: Vector2) -> void:
+## Opens the menu about `id` (a perceived person, the observer for its own menu, or with `is_object` a
+## drawn loose object) at a screen point.
+func open(id: String, observation: MineWorldObservation, at: Vector2, is_object := false) -> void:
 	subject = id
 	_observer = observation.observer()
-	_self = id == _observer
+	_object = is_object
+	_self = id == _observer and not is_object
 	_signature = ""
 	_box.position = at + Vector2(14, -10)
 	_box.visible = true
 	refresh(observation)
+	if is_open():
+		opened.emit(id)
 
 
 func close() -> void:
+	var was_open := is_open()
 	subject = ""
+	_object = false
 	entries = []
 	glance = ""
 	inspect = PackedStringArray()
 	_box.visible = false
+	if was_open:
+		closed.emit()
+
+
+## Where the menu's box is drawn, in screen pixels (the trade panel stands beside it).
+func box_rect() -> Rect2:
+	return Rect2(_box.position, _box.size)
 
 
 ## Rebuilds the entries from a newer observation; closes when the subject is no longer perceived.
 func refresh(observation: MineWorldObservation) -> void:
 	if subject == "":
 		return
-	if not _self and observation.entity(subject).is_empty():
+	if _object and not readers.loose_shapes(observation).has(subject):
 		close()
 		return
-	var offered: Array = observation.affordances("", "" if _self else subject)
+	if not _self and not _object and observation.entity(subject).is_empty():
+		close()
+		return
+	var offered: Array = about_object(observation, subject) if _object \
+		else observation.affordances("", "" if _self else subject)
 	entries = _build(observation, offered)
-	var seen := {} if _self else observation.entity(subject)
+	var seen := {} if _self or _object else observation.entity(subject)
 	glance = MineWorldAttributes.glance(seen)
 	inspect = MineWorldAttributes.inspect(MineWorldAttributes.blocks(seen))
 	var signature := JSON.stringify([glance, inspect, entries.map(func(e: Dictionary) -> Array:
@@ -143,6 +170,8 @@ func choose(index: int) -> void:
 			walker.approach(target)
 		"complete":
 			intents.submit_offered(affordance)
+		"aim":
+			aim_chosen.emit(affordance)
 		"composed":
 			var input: Dictionary = intents.input_for(entry["action_type"])
 			if not input.has("prompt"):
@@ -163,20 +192,42 @@ func choose(index: int) -> void:
 ## compose; reads no verdict itself (`_entry` does).
 func _build(observation: MineWorldObservation, offered: Array) -> Array:
 	var built: Array = []
-	if not _self:
+	if not _self and not _object:
 		var walk: Dictionary = intents.offered_walk(observation)
 		if not walk.is_empty():
 			built.append(_entry(walk, "walk", Words.text("ui.walk-to", {"target": readers.person(subject)})))
+	built.append_array(_offer_entries(offered, _object))
+	for i in built.size():
+		built[i]["index"] = i
+	return built
+
+
+## The entries the menu lists for `id` on `observation`, built as `open` builds them, without opening
+## it: the scripted checks' report of what each menu offers (PR 13f §4.2). The "walk to" entry a
+## person's menu leads with is left out; an object's "… at…" entries are kept, marked `aim`.
+func entries_for(observation: MineWorldObservation, id: String, is_object := false) -> Array:
+	var as_self := id == observation.observer() and not is_object
+	var offered: Array = about_object(observation, id) if is_object \
+		else observation.affordances("", "" if as_self else id)
+	return _offer_entries(offered, is_object)
+
+
+## One entry per offer, in the server's order; after an object's complete aiming offer, its "… at…".
+func _offer_entries(offered: Array, is_object: bool) -> Array:
+	var built: Array = []
 	for affordance in offered:
 		var type := String(affordance.get("action_type", ""))
 		var kind := "unsupported"
+		var aims: bool = intents.input_for(type).has("aim")
 		if MineWorldObservation.is_complete(affordance):
 			kind = "complete"
-		elif intents.composes(type):
+		elif intents.composes(type) and not aims:
 			kind = "point" if intents.input_for(type).has("point") else "composed"
+		elif intents.trades(type):
+			kind = "trade"
 		built.append(_entry(affordance, kind, Words.action(type, _names(affordance))))
-	for i in built.size():
-		built[i]["index"] = i
+		if is_object and kind == "complete" and aims:
+			built.append(_entry(affordance, "aim", Words.text("ui.throw-at", _names(affordance))))
 	return built
 
 
@@ -187,6 +238,8 @@ func _entry(affordance: Dictionary, kind: String, label: String) -> Dictionary:
 	var shown := label
 	if kind == "unsupported" or kind == "point":
 		shown = Words.text("ui.unsupported", {"label": label}) if kind == "unsupported" else label
+	elif kind == "trade":
+		shown = Words.text("ui.in-trade-panel", {"label": label})
 	elif not available:
 		shown = Words.text("ui.unavailable", {"label": label, "reason": Words.reason(reason)})
 		var declared: Variant = affordance.get("requirement")
@@ -198,7 +251,7 @@ func _entry(affordance: Dictionary, kind: String, label: String) -> Dictionary:
 	return {"action_type": String(affordance.get("action_type", "")), "kind": kind,
 		"target": null if target == null else String(target), "about": _about(affordance),
 		"complete": MineWorldObservation.is_complete(affordance), "available": available,
-		"reason": reason, "label": shown, "enabled": kind != "unsupported" and kind != "point",
+		"reason": reason, "label": shown, "enabled": kind != "unsupported" and kind != "point" and kind != "trade",
 		"affordance": affordance}
 
 
@@ -208,6 +261,12 @@ func _names(affordance: Dictionary) -> Dictionary:
 	var about := _about(affordance)
 	return {"target": "" if target == null else readers.person(String(target)),
 		"item": "" if about == "" else readers.thing(about)}
+
+
+## My target-less offers whose payload refers to the loose object `id`, in the server's order: the
+## object menu's offers (presentation only — my own menu still lists every one of them).
+static func about_object(observation: MineWorldObservation, id: String) -> Array:
+	return observation.affordances("", "").filter(func(a: Dictionary) -> bool: return _about(a) == id)
 
 
 ## The first entity a payload refers to by a typed reference, or "".
@@ -222,7 +281,7 @@ static func _about(affordance: Dictionary) -> String:
 
 
 func _draw() -> void:
-	_title.text = Words.text("ui.self") if _self else readers.person(subject)
+	_title.text = Words.text("ui.self") if _self else (readers.thing(subject) if _object else readers.person(subject))
 	_glance.text = glance
 	_glance.visible = glance != ""
 	for child in _inspect.get_children():

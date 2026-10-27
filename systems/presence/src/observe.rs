@@ -237,18 +237,26 @@ fn affordances(
     providers: &[&dyn PerceptionProvider],
 ) -> Vec<Affordance<Value>> {
     let targets = core::iter::once(None).chain(present.iter().copied().map(Some));
-    let mut affordances = Vec::new();
+    let mut ranked = Vec::new();
     for target in targets {
         for provider in providers {
             for offer in provider.offers(read, observer, target) {
                 if world.systems().provider(offer.action_type()).is_none() {
                     continue;
                 }
-                affordances.push(verdict(read, here, target, &offer));
+                ranked.push((offer.category(), verdict(read, here, target, &offer)));
             }
         }
     }
-    affordances
+    // Ordered by the category each pack declares for its action — social, then interaction, then
+    // commerce — and never by action name. The sort is stable, so inside one category the order
+    // above (target by target, then composition order) is kept, and replay stays comparable
+    // (operator ruling 2026-10-20, `pr-s27-g-offer-order.md`).
+    ranked.sort_by_key(|(category, _)| *category);
+    ranked
+        .into_iter()
+        .map(|(_, affordance)| affordance)
+        .collect()
 }
 
 /// The server's answer for one offer: available, or unavailable with the reason.

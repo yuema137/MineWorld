@@ -196,7 +196,6 @@ UNDOCUMENTED: frozenset[str] = frozenset(
         "View.inbox",
         "View.kind",
         "View.me",
-        "View.offers",
         "View.paused",
         "View.view",
         "View.weather",

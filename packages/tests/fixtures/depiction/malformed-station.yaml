@@ -1,0 +1,21 @@
+{
+  "format": 1,
+  "scope": {"world": "malformed-station"},
+  "frame": {"origin_m": [0, 0, 0]},
+  "street": {"tags": ["street"], "footprint_mm": [0, 0, 20000, 6000]},
+  "places": [
+    {"tags": ["ticket-office"], "label": "Tickets", "footprint_mm": [20000, 500, 4600, 4600], "doorway_mm": [19600, 3000]}
+  ],
+  "spawn": {"at_mm": [10000, 3000], "up_m": 0.1, "yaw_deg": 0},
+  "stations": [
+    {"name": "halt", "style": "timber",
+     "fixtures": [
+       {"piece": "window_bay", "in": ["ticket-office"], "at_mm": [22300, 4500], "up_m": 0.0, "facing_deg": 180,
+        "size_m": [4.6, 0.6], "counter_m": 1.1, "screen_m": 2.4}
+     ],
+     "source": "a fixture: a window bay without its grilles; approximate"}
+  ],
+  "viewpoints": {
+    "farfield": [{"id": "VP-1", "at_mm": [10000, 3000], "eye_m": 1.66, "roles": ["protected"]}]
+  }
+}

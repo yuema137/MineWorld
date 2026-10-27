@@ -33,6 +33,9 @@ signal shown_panels(panels: Array)
 ## A menu opened or closed: the slice holds gameplay input while one is open (D-16d-9).
 signal opened
 signal closed
+## A menu opened about `subject` (each time, also when one menu replaces another): the trade panel beside it
+## follows (S31-e §5.5).
+signal opened_on(subject: String)
 
 ## What the menus look like: the captions' panel and the HUD's text (D-16d-8).
 const PANEL_BG := Color(0, 0, 0, 0.45)
@@ -121,6 +124,13 @@ func open(id: String) -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		_holding = true
 		opened.emit()
+	if is_open():
+		opened_on.emit(subject)
+
+
+## Where the menu's box is drawn, in screen pixels (the trade panel stands beside it).
+func box_rect() -> Rect2:
+	return Rect2(_box.position, _box.size)
 
 
 func close() -> void:
@@ -157,6 +167,13 @@ func refresh(obs: MineWorldObservation) -> void:
 			shown_panels.emit(panels)
 
 
+## The entries the menu about `id` would list in `obs`, without opening it: the "one world, two
+## views" report's `affordances` (PR 16e, `clients/protocol/ADOPTION.md` §7; 2D's `entries_for`).
+func entries_for(obs: MineWorldObservation, id: String) -> Array:
+	var as_self := id == link.client.observer
+	return _build(obs.affordances("", "" if as_self else id))
+
+
 ## The player chose entry `index` (a click, Enter, or the harness -- one path). Reads no verdict.
 func choose(index: int) -> String:
 	if index < 0 or index >= entries.size():
@@ -189,6 +206,8 @@ func _build(offered: Array) -> Array:
 			kind = "body"
 		elif link.intents.composes(type):
 			kind = "composed"
+		elif SliceIntents.trades(type):
+			kind = "trade"
 		var entry := _entry(affordance, kind)
 		entry["index"] = built.size()
 		built.append(entry)
@@ -208,6 +227,8 @@ func _entry(affordance: Dictionary, kind: String) -> Dictionary:
 		shown = MineWorldText.text("ui.unsupported", {"label": label})
 	elif kind == "body":
 		shown = MineWorldText.text("ui.by-body", {"label": label})
+	elif kind == "trade":
+		shown = MineWorldText.text("ui.in-trade-panel", {"label": label})
 	elif not available:
 		shown = MineWorldText.text("ui.unavailable", {"label": label,
 			"reason": SliceThings.reason_words(reason)})

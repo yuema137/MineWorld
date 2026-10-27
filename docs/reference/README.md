@@ -9,7 +9,7 @@ Every field a World Pack's files may set, generated from the code that reads the
 | Page | What it lists |
 | --- | --- |
 | [world-pack.md](world-pack.md) | `world.yaml`, `people/<key>.yaml`, `places/<key>.yaml`, `items/<key>.yaml`, `organizations/<key>.yaml` |
-| [sections.md](sections.md) | `name`, `persona`, `routine`, `item`, `holdings`, `economy`, `job`, `body`, `fishing`, `appearance`, `attributes`, `sit-points`, `needs`, `notices` |
+| [sections.md](sections.md) | `name`, `persona`, `routine`, `item`, `holdings`, `economy`, `job`, `body`, `fishing`, `appearance`, `attributes`, `sit-points`, `needs`, `notices`, `price-survey` |
 | [configure.md](configure.md) | `configure/classes.yaml`, `configure/packages.yaml`, `configure/economy.yaml`, `configure/calendar.yaml`, `configure/weather.yaml`, `configure/happenings.yaml`, `configure/attributes.yaml`, `configure/notices.yaml` |
 | [interaction-list.md](interaction-list.md) | `configure/conversation.yaml`, `configure/group-activity.yaml`, `configure/relationships.yaml`, `configure/employment.yaml`, `configure/posture.yaml`, `configure/sleep.yaml`, `configure/needs.yaml` |
 | [decisions.md](decisions.md) | `decisions.yaml` |
@@ -56,6 +56,7 @@ The same schemas, as JSON Schema files an editor's YAML support can read, are in
 - [`schema/section-needs.schema.json`](schema/section-needs.schema.json)
 - [`schema/section-notices.schema.json`](schema/section-notices.schema.json)
 - [`schema/section-persona.schema.json`](schema/section-persona.schema.json)
+- [`schema/section-price-survey.schema.json`](schema/section-price-survey.schema.json)
 - [`schema/section-routine.schema.json`](schema/section-routine.schema.json)
 - [`schema/section-sit-points.schema.json`](schema/section-sit-points.schema.json)
 - [`schema/style.schema.json`](schema/style.schema.json)

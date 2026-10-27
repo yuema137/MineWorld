@@ -226,13 +226,14 @@ fn the_search_crate_stays_in_route_rs_and_movement_names_no_bodies() {
 }
 
 /// What this pack uses of the movement crate (step-11 §19, SD-D5, QD-5; ARC-39 notes 5 and 7): the
-/// Wayfinder seam it answers through, and `Passages` — the doorway points the genesis check reads —
-/// named exactly once, in `genesis.rs`. Nothing else of movement: not its stride rule, its constants or
-/// its walk.
+/// Wayfinder seam it answers through, `Passages` — the doorway points the genesis check and the doorway
+/// rules read (`genesis.rs`, `doorway.rs`; ARC-330) — and `Walking`, read by type to tell who has a walk in
+/// progress (ARC-330 R2). Nothing else of movement: not its stride rule, its constants or its walk.
 #[test]
 fn this_pack_uses_nothing_of_the_movement_crate_but_the_wayfinder_seam_and_passages() {
     const CRATE: &str = "mineworld_movement::";
-    const SEAM: [&str; 6] = [
+    const SEAM: [&str; 7] = [
+        "Walking",
         "RouteAnswer",
         "RouteAsk",
         "Wayfinder",
@@ -284,11 +285,12 @@ fn this_pack_uses_nothing_of_the_movement_crate_but_the_wayfinder_seam_and_passa
     );
     assert_eq!(
         passages.len(),
-        1,
-        "exactly one, in the genesis check: {passages:?}"
+        2,
+        "the genesis check and the doorway rules: {passages:?}"
     );
     assert!(
-        passages[0].contains("genesis.rs"),
+        passages.iter().any(|file| file.contains("genesis.rs"))
+            && passages.iter().any(|file| file.contains("doorway.rs")),
         "Passages is read by the genesis check: {passages:?}"
     );
 }

@@ -77,15 +77,35 @@ func _run(mode: String) -> void:
 
 func _geometry_check() -> void:
 	print("== step-11 §22.4 GE -- the scene's walls against the server's ==\n")
+	if not await _walk_places(_place_rows):
+		return
+	# the summary on a line of its own, in the form CI's probe verdict reads (ci_godot.py)
+	print("\n%d rows" % _geo_rows)
+	print("all geometry checks pass" if _geo_fails == 0 else "%d GEOMETRY CHECKS FAILED" % _geo_fails)
+	slice.link.client.disconnect_from_world("probe done")
+	await _hold(0.2)
+
+
+## The walk every per-place check shares (S36-P5 reuses it for `--slice-props`): seated in the café,
+## out through its door onto the street on foot, and into the store on foot. `visit(link, place,
+## label)` runs in each place reached; a place not reached is a `_geo_fail`. Returns false when the
+## walk could not start (no server, not seated).
+func _walk_places(visit: Callable) -> bool:
 	var link := slice.link
 	if link == null:
 		print("FAIL: no --server= given")
-		return
+		return false
 	if not await _seated(link):
-		return
+		return false
 	await _hold(0.8)
 	var lay := link.layout
-	_place_rows(link, link.here, "GE-1 café")
+	# a depiction that names a probe route is walked by it instead (S33-d C11)
+	var route: Array = SliceWorlds.current.viewpoints().get("probe_route", []) \
+		if SliceWorlds.current != null else []
+	if not route.is_empty():
+		await _route_geometry(link, route, visit)
+		return true
+	await visit.call(link, link.here, "GE-1 café")
 	# out through the café's door onto the pavement, on foot
 	await _walk_to_x(_anchor_sill().x)
 	player.rotation.y = PI
@@ -93,7 +113,7 @@ func _geometry_check() -> void:
 	await _until_place(link, lay.street)
 	await _hold(0.8)
 	if link.here == lay.street:
-		_place_rows(link, link.here, "GE-2 street")
+		await visit.call(link, link.here, "GE-2 street")
 	else:
 		_geo_fail("GE-2", "the server did not put the player on the street (%s)" % _where(link))
 	# into the store, the 16c route (§20.4 L-2)
@@ -108,14 +128,101 @@ func _geometry_check() -> void:
 		await _settled_report(link)
 		await _until_place(link, shop)
 		if link.here == shop:
-			_place_rows(link, shop, "GE-3 store")
+			await visit.call(link, shop, "GE-3 store")
 		else:
 			_geo_fail("GE-3", "the server did not put the player in the store (%s)" % _where(link))
-	# the summary on a line of its own, in the form CI's probe verdict reads (ci_godot.py)
-	print("\n%d rows" % _geo_rows)
-	print("all geometry checks pass" if _geo_fails == 0 else "%d GEOMETRY CHECKS FAILED" % _geo_fails)
-	link.client.disconnect_from_world("probe done")
-	await _hold(0.2)
+	return true
+
+
+## How far the body may stand off the drawn ground, and how many samples AC-d-4 asks for (S33-d).
+const GROUND_AGREE_M := 0.05
+const GROUND_SAMPLES := 20
+
+
+## The town's people drawn where the probe walks (S33-e sec.5.1.1; the operator's no-interpenetration rule,
+## 2026-10-19): every figure standing still in the observer's place, twice a second, is checked for ground
+## contact (its origin within GROUND_AGREE_M of the drawn ground: a deck's surface or the terrain) and for
+## interpenetration (`SliceProbeTown._in_wall`, S-4's capsule against every drawn collider but the ground).
+## Rows are kept once per person and place.
+var _people_seen := 0
+var _people_off: Array = []
+var _people_in: Array = []
+var _people_checked := {}
+
+
+func _people_rows(link: SliceLink, data: SliceDataDepiction) -> void:
+	for id in link.figures:
+		var fig := link.figures[id] as Node3D
+		if fig == null or not is_instance_valid(fig) or not fig.visible or not _standing(link, id):
+			continue
+		var key := "%s@%s" % [id, link.here]
+		if _people_checked.has(key):
+			continue
+		_people_checked[key] = true
+		_people_seen += 1
+		var p := fig.global_position
+		var off := p.y - data.ground_height(p.x, p.z)
+		if absf(off) > GROUND_AGREE_M:
+			_people_off.append("%s in %s at %s by %.3f m" % [id, link.here, p, off])
+		var inside := _in_wall(fig)
+		if inside != "":
+			_people_in.append("%s in %s at %s: %s" % [id, link.here, p, inside])
+
+
+## `--slice-geometry` for a depiction that names a probe route (S33-d C11, AC-d-3, AC-d-4): every place
+## the route reaches, walked on foot as `_route_check` walks it, is checked both ways as the café is;
+## and, when the depiction draws a terrain, the body's feet are sampled against the drawn ground's height
+## twice a second while it walks on a floor (AC-d-4: within GROUND_AGREE_M at GROUND_SAMPLES points).
+func _route_geometry(link: SliceLink, route: Array, visit: Callable) -> void:
+	var lay := link.layout
+	var data := SliceWorlds.current as SliceDataDepiction
+	var ground := []
+	var timer := Timer.new()
+	timer.wait_time = 0.5
+	add_child(timer)
+	if data != null and data.terrain != null:
+		timer.timeout.connect(func() -> void:
+			if player.is_on_floor():
+				var p := player.global_position
+				ground.append([p, p.y - data.ground_height(p.x, p.z)])
+			_people_rows(link, data))
+		timer.start()
+	var checked := {}
+	await visit.call(link, link.here, "GE %s" % _where(link))
+	checked[link.here] = true
+	for step in route:
+		var target := _place_of_entry(lay, _step_tags(step))
+		if target == "":
+			_geo_fail("GE", "no bound place is drawn as the entry tagged %s" % ",".join(_step_tags(step)))
+			break
+		if target != link.here and not await _cross(link, target):
+			_geo_fail("GE", "the server did not move the player into %s" % target)
+			break
+		await _hold(0.8)
+		if not checked.has(link.here):
+			await visit.call(link, link.here, "GE %s" % _where(link))
+			checked[link.here] = true
+	timer.stop()
+	if data != null and data.terrain != null:
+		var off := ground.filter(func(g: Array) -> bool: return absf(g[1]) > GROUND_AGREE_M)
+		print("ground   %d samples of the body's feet against the drawn terrain, %d off by more than %.2f m"
+			% [ground.size(), off.size(), GROUND_AGREE_M])
+		for g in off:
+			print("         OFF at %s by %.3f m" % [g[0], g[1]])
+		if ground.size() < GROUND_SAMPLES:
+			_geo_fail("GROUND", "only %d samples on a floor (%d asked)" % [ground.size(), GROUND_SAMPLES])
+		elif not off.is_empty():
+			_geo_fail("GROUND", "%d samples off the drawn terrain by more than %.2f m" % [off.size(), GROUND_AGREE_M])
+		print("people   %d samples of the town's people standing in the walked places: %d off the drawn ground by more than %.2f m, %d inside a collider"
+			% [_people_seen, _people_off.size(), GROUND_AGREE_M, _people_in.size()])
+		for row in _people_off:
+			print("         OFF %s" % row)
+		for row in _people_in:
+			print("         IN  %s" % row)
+		if not _people_off.is_empty():
+			_geo_fail("PEOPLE", "%d people off the drawn ground by more than %.2f m" % [_people_off.size(), GROUND_AGREE_M])
+		if not _people_in.is_empty():
+			_geo_fail("PEOPLE", "%d people inside a drawn collider (S-4's capsule)" % _people_in.size())
 
 
 func _seated(link: SliceLink) -> bool:
@@ -162,8 +269,13 @@ func _place_rows(link: SliceLink, place: String, label: String) -> void:
 	# DISCLOSED -> SCENE
 	_ramps.clear()
 	for cs in _scene_shapes(slice.world):
-		if cs.shape is BoxShape3D and _ramp(cs):
+		if (cs.shape is BoxShape3D and _ramp(cs)) or _step(cs):
 			_ramps.append((cs.get_parent() as CollisionObject3D).get_rid())
+	# a depiction's ramps are ground too (a deck's approach, ARC-178): walked on, never a wall
+	for body in get_tree().get_nodes_in_group(GROUND_GROUP):
+		for cs in body.get_children():
+			if cs is CollisionShape3D and cs.shape is BoxShape3D and _ramp(cs):
+				_ramps.append((body as CollisionObject3D).get_rid())
 	var faces: Array = []
 	var disclosed: Array = shape.get("solids", [])
 	for i in range(solids.size()):
@@ -287,8 +399,9 @@ func _sweep(space: PhysicsDirectSpaceState3D, link: SliceLink, place: String, ba
 
 ## The scene collider the last sweep met first ("" if none).
 var _last_met := ""
-## The scene's ramps (a box tilted no steeper than the controller climbs): floor
-## to walk up, never a face, so the sweep passes them (X12e-22).
+## The scene's ramps (a box tilted no steeper than the controller climbs) and drawn
+## steps (`Build.step`, PR S36-P4b): floor to walk up, never a face, so the sweep
+## passes them (X12e-22).
 var _ramps: Array[RID] = []
 
 
@@ -346,11 +459,18 @@ func _row(label: String, direction: String, what: String, mm: float, exempt: Str
 
 
 ## Every collision shape of a static body on the scene's layer under `root`.
+## The group of a depiction's ground and boundary colliders -- its terrain and its air walls (S33-d,
+## R-d-4): they decide where a body stands and keep the camera in, never where a wall is, so the probe
+## leaves them out in both directions.
+const GROUND_GROUP := "mw_depiction_ground"
+
+
 func _scene_shapes(root: Node) -> Array:
 	var out: Array = []
 	for c in root.get_children():
 		if c is CollisionShape3D and not (c as CollisionShape3D).disabled and c.get_parent() is StaticBody3D \
-				and ((c.get_parent() as StaticBody3D).collision_layer & SCENE_MASK) != 0:
+				and ((c.get_parent() as StaticBody3D).collision_layer & SCENE_MASK) != 0 \
+				and not c.get_parent().is_in_group(GROUND_GROUP):
 			out.append(c)
 		out.append_array(_scene_shapes(c))
 	return out
@@ -361,6 +481,9 @@ func _scene_shapes(root: Node) -> Array:
 ## edge.
 func _collider_row(link: SliceLink, place: String, label: String, cs: CollisionShape3D, base: float,
 		lo: Vector2, hi: Vector2, solids: Array) -> void:
+	# a drawn step is floor that is walked onto (`Build.step`, PR S36-P4b), not a solid to agree with
+	if _step(cs):
+		return
 	var aabb := _shape_aabb(cs)
 	if aabb.size == Vector3.ZERO:
 		return
@@ -421,6 +544,11 @@ static func _to_disclosed(p: Vector2, lo: Vector2, hi: Vector2, solids: Array) -
 ## A box's top surface height above the scene point `p`'s (x, z): the highest of
 ## its upward faces' planes there (the lowest of them, the box being convex):
 ## for an upright box its top, for a tilted one (a ramp) the sloped face.
+## Whether `cs` is a drawn step's collider (`Build.step`, in `Build.STEP_GROUP`).
+static func _step(cs: CollisionShape3D) -> bool:
+	return cs.get_parent() != null and cs.get_parent().is_in_group(Build.STEP_GROUP)
+
+
 ## Whether a box is a ramp: its top face tilted, but no steeper than the
 ## controller climbs (`Player.floor_max_angle`, 52°) -- a floor to walk up, not
 ## an obstacle.

@@ -82,7 +82,16 @@ func _ready() -> void:
 	_sun()
 	# connected or not is known from the arguments before anything is built
 	world = depiction.build(self, far_field, SliceLink.address_from_args() != "")
+	if depiction.refusal != "":
+		_refuse(depiction.refusal)   # a station kit or site refused by name (ARC-192)
+		world.queue_free()
+		world = null                 # nothing is played on a refused world (`_process`)
+		return
+	_decor()
 	_gi()
+	if not SliceTrial.apply(self):
+		get_tree().quit(2)
+		return
 	_reflections()
 	if low:
 		_cost_effects_off()
@@ -100,10 +109,14 @@ func _ready() -> void:
 			probe = SliceProbeMarket.new()
 		elif SliceProbeBodies.requested():
 			probe = SliceProbeBodies.new()
+		elif SliceProbeProps.requested():
+			probe = SliceProbeProps.new()
 		elif SliceProbeGeometry.requested():
 			probe = SliceProbeGeometry.new()
 		elif SliceProbeTown.requested():
 			probe = SliceProbeTown.new()
+		elif SliceProbeSeat.requested():
+			probe = SliceProbeSeat.new()
 		elif SliceProbeWorld.requested():
 			probe = SliceProbeWorld.new()
 		else:
@@ -164,6 +177,16 @@ func _refuse(line: String) -> void:
 		get_tree().quit(3)
 
 
+## The depiction's decorative figures (S33-g §5.3), drawn from the extras it asks for; none for a
+## depiction that states none (Social Café's street keeps its own, D-16c-6).
+func _decor() -> void:
+	if depiction.decor().is_empty():
+		return
+	var cast := SliceCast.load_pack(SlicePack.current.dir)
+	cast.use_extras_from(depiction.extras_from(), depiction.key)
+	SliceDecor.build(world, depiction, cast)
+
+
 ## Reads the far field before anything is drawn. A missing or faulty one is refused by name: printed,
 ## shown, and in a scripted or harness run the process exits 3. There is no fallback (ARC-102).
 ##
@@ -192,15 +215,16 @@ func _load_far_field() -> bool:
 ## Whether a scripted probe mode, standalone or connected, runs this session.
 static func _scripted() -> bool:
 	return SliceProbe.scripted() or SliceProbeWorld.requested() or SliceProbeTown.requested() \
-		or SliceProbeMarket.requested() \
-		or SliceProbeGeometry.requested() or SliceProbeBodies.requested()
+		or SliceProbeMarket.requested() or SliceProbeSeat.requested() \
+		or SliceProbeGeometry.requested() or SliceProbeBodies.requested() or SliceProbeProps.requested()
 
 
 ## Every probe mode is a harness flag: a scripted run never reads the player's settings (INV-SET-5).
 static func harness_flags() -> PackedStringArray:
 	var out := PackedStringArray()
 	for mode in SliceProbe.MODES + SliceProbeWorld.WORLD_MODES + SliceProbeTown.TOWN_MODES \
-			+ SliceProbeMarket.MARKET_MODES + SliceProbeGeometry.GEOMETRY_MODES + SliceProbeBodies.BODIES_MODES:
+			+ SliceProbeMarket.MARKET_MODES + SliceProbeGeometry.GEOMETRY_MODES + SliceProbeBodies.BODIES_MODES \
+			+ SliceProbeProps.PROPS_MODES + SliceProbeSeat.SEAT_MODES:
 		out.append("slice-" + mode)
 	return out
 
@@ -334,8 +358,14 @@ func _input(event: InputEvent) -> void:
 		talk_line.cancel()
 		get_viewport().set_input_as_handled()
 		return
-	if offer_menu != null and offer_menu.is_open() and not settings_menu.is_open():
+	# S31-e: a waiting price field or picker goes first, then the menu (R-S31e-5).
+	if trade_panel != null and not settings_menu.is_open() and trade_panel.cancel_input():
+		get_viewport().set_input_as_handled()
+	elif offer_menu != null and offer_menu.is_open() and not settings_menu.is_open():
 		offer_menu.close()
+		get_viewport().set_input_as_handled()
+	elif board_panel != null and board_panel.is_open() and not settings_menu.is_open():
+		board_panel.close()
 		get_viewport().set_input_as_handled()
 	elif settings_menu != null:
 		settings_menu.toggle()
@@ -569,78 +599,26 @@ func _ssil() -> void:
 	_env.ssil_normal_rejection = 1.0
 
 
-## The depiction's GI volumes (`SliceDepiction.light()`; a depiction file's `light` section, S33-d): one
+## The depiction's GI volumes (a depiction file's `light` section, S33-d C9; `DepictionLight`): one
 ## VoxelGI each. Bounded on purpose: the volume that needs real bounce is a room, and a VoxelGI large
 ## enough to cover a whole street would have cells too coarse to resolve a counter. Social Café's reaches
 ## 4 m out past the café's façade, so that the light spilling out of the door and the light bouncing in
-## off the sunlit paving are both inside the bake. A depiction with none bakes none.
+## off the sunlit paving are both inside the bake. A depiction with none bakes none (16f-d2: the café's
+## own volumes are its file's now).
 func _voxel_gi() -> void:
-	var i := 0
-	for v in depiction.light()["gi"]:
-		_voxel_gi_volume(v["box"], int(v["subdiv"]), i)
-		i += 1
+	var data := depiction as SliceDataDepiction
+	if data != null and not data.light().is_empty():
+		DepictionLight.voxel_gi(self, data.light(), data)
 
 
-func _voxel_gi_volume(box: AABB, subdiv: int, i: int) -> void:
-	var v := VoxelGI.new()
-	v.name = "GI_%d" % i
-	var d := VoxelGIData.new()
-	v.data = d
-	# 128, was 256: the Default tier's frame budget (RL-b SD-RLb-6a). The visible
-	# change -- a warmer, brighter florist, a small tone shift in the café -- was
-	# accepted by the operator on 2026-10-09 and the frames re-baselined on it.
-	v.subdiv = {64: VoxelGI.SUBDIV_64, 128: VoxelGI.SUBDIV_128, 256: VoxelGI.SUBDIV_256}.get(subdiv,
-		VoxelGI.SUBDIV_128)
-	v.size = box.size
-	v.position = box.get_center()
-	add_child(v)
-	# Baked at load, from script. The scene is fully built by this point, which
-	# is why `_gi()` runs after the depiction's build.
-	v.bake(self, false)
-	# The tuning lives on the data resource, not on the node: VoxelGI is the
-	# placement and VoxelGIData is the bake, and the bake is what `energy`,
-	# `propagation` and the biases belong to.
-	d = v.data
-	d.energy = 1.15
-	d.propagation = 0.62
-	d.bias = 1.4
-	d.normal_bias = 0.6
-
-
-## The depiction's reflection probes (`SliceDepiction.light()`). `VISUAL_SLICE.md` sec.7.1 requires
+## The depiction's reflection probes (`DepictionLight.probes`). `VISUAL_SLICE.md` sec.7.1 requires
 ## that glass, a polished counter top and metal reflect the room they are in rather than the sky
 ## through the ceiling, and sky-only reflection is exactly how an interior gets that wrong. A probe
-## inside a room is that room's interior probe; any other is a street probe.
+## inside a room is that room's interior probe, lit by INTERIOR_AMBIENT; any other is a street probe.
 func _reflections() -> void:
-	var i := 0
-	for p in depiction.light()["probes"]:
-		_probe(p["box"], bool(p["interior"]), i)
-		i += 1
-
-
-func _probe(box: AABB, interior: bool, i: int) -> void:
-	var probe := ReflectionProbe.new()
-	probe.name = "Probe_%d" % i
-	probe.size = box.size
-	probe.origin_offset = Vector3.ZERO
-	probe.position = box.get_center()
-	probe.box_projection = true
-	probe.interior = interior
-	probe.update_mode = ReflectionProbe.UPDATE_ONCE
-	if interior:
-		probe.intensity = 1.0
-		probe.max_distance = 26.0
-		# The room's own ambient, in place of the sky's: inside an interior probe
-		# Godot takes ambient light from the probe, so the room is lit by a warm,
-		# dim fill instead of a cool sky it cannot see. This is what lets the room
-		# read darker and warmer than the street, as in 03, without a black corner.
-		probe.ambient_mode = ReflectionProbe.AMBIENT_COLOR
-		probe.ambient_color = INTERIOR_AMBIENT
-		probe.ambient_color_energy = INTERIOR_AMBIENT_ENERGY
-	else:
-		probe.intensity = 0.85
-		probe.max_distance = 60.0
-	add_child(probe)
+	var data := depiction as SliceDataDepiction
+	if data != null and not data.light().is_empty():
+		DepictionLight.probes(self, data.light(), data)
 
 
 # --- player and HUD ------------------------------------------------------------
@@ -844,7 +822,81 @@ func _offers() -> void:
 	link.client.observed.connect(offer_menu.refresh)
 	offer_menu.opened.connect(func() -> void: _hold_input(true))
 	offer_menu.closed.connect(func() -> void: _hold_input(false))
+	_trade()
 	_talk_line()
+
+
+## S31-e: the trade panel beside the menus, the money line, sellers' tags and shops' boards, all from the
+## shared trade module (`res://mineworld_trade`, `clients/shared/TRADE.md`).
+var trade_panel: SliceTradePanel = null
+var trade: MineWorldTrade = null
+var price_boards: SlicePriceBoards = null
+var board_panel: SliceBoardPanel = null
+var _hud_money: Label = null
+var _hud_badge: Label = null
+
+
+func _trade() -> void:
+	trade = MineWorldTrade.new(SliceIntents.TRADE_INPUTS, link.things.name_of,
+		func(reason: Variant) -> String:
+			var said: Variant = SliceThings.reason_words(reason)
+			return MineWorldText.text(said.key, said.args) if said is MineWorldText.Ref else String(said))
+	trade_panel = SliceTradePanel.new()
+	trade_panel.name = "TradePanel"
+	trade_panel.link = link
+	trade_panel.menu = offer_menu
+	trade_panel.trade = trade
+	add_child(trade_panel)
+	offer_menu.opened_on.connect(trade_panel.open)
+	offer_menu.closed.connect(trade_panel.close)
+	link.client.observed.connect(trade_panel.refresh)
+	price_boards = SlicePriceBoards.new()
+	price_boards.name = "PriceBoards"
+	price_boards.link = link
+	price_boards.trade = trade
+	add_child(price_boards)
+	link.client.observed.connect(price_boards.observe)
+	board_panel = SliceBoardPanel.new()
+	board_panel.name = "BoardPanel"
+	board_panel.link = link
+	board_panel.trade = trade
+	add_child(board_panel)
+	link.client.observed.connect(board_panel.refresh)
+	board_panel.opened.connect(func() -> void: _hold_input(true))
+	board_panel.closed.connect(func() -> void: _hold_input(false))
+	settings_menu.opened.connect(func() -> void: board_panel.set_process_unhandled_input(false))
+	settings_menu.closed.connect(func() -> void: board_panel.set_process_unhandled_input(true))
+	if hud != null:
+		_hud_money = hud.add_line("")
+		_hud_money.name = "Money"
+		_hud_money.visible = false
+		_hud_badge = hud.add_line("")
+		_hud_badge.name = "Badge"
+		_hud_badge.visible = false
+	link.client.observed.connect(_show_money)
+
+
+## The money line (S31-e §5.7): balance, worth beside it, and how many held things have no reference value.
+## Absent without a wallet; worded again on every frame.
+func _show_money(obs: MineWorldObservation) -> void:
+	if _hud_money == null:
+		return
+	var held := MineWorldTrade.money_of(obs)
+	var said := ""
+	if not held.is_empty():
+		var worth := MineWorldTrade.wealth_of(obs)
+		if worth.is_empty():
+			said = MineWorldText.text("hud.money", {"money": link.things.money(held["balance"])})
+		else:
+			said = MineWorldText.text("hud.money.wealth", {"money": link.things.money(held["balance"]),
+				"wealth": link.things.money(worth["amount"])})
+			if worth["unvalued"] != 0:
+				said = MineWorldText.text("hud.money.unvalued", {"line": said, "count": worth["unvalued"]})
+	_hud_money.text = said
+	_hud_money.visible = said != ""
+	var fresh: int = board_panel.badge() if board_panel != null else 0
+	_hud_badge.text = MineWorldText.text("board.badge", {"count": fresh}) if fresh != 0 else ""
+	_hud_badge.visible = _hud_badge.text != ""
 
 
 ## The typed talk line (PR 16g1): while it is open the one gate holds walking, looking, the `move`

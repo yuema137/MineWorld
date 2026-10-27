@@ -100,6 +100,22 @@ func reconcile(observation: MineWorldObservation) -> void:
 			_people.erase(id)
 
 
+## Sets a drawn person's price tag (S31-e §5.8); the composition root words it from the disclosed asks.
+func set_tag(id: String, said: String) -> void:
+	if _people.has(id):
+		_people[id]["tag"].text = said
+
+
+## Every drawn tag that says something, `[{subject, text}]`, for the harness's HUD report.
+func tags() -> Array:
+	var out: Array = []
+	for id in _people:
+		var said: String = _people[id]["tag"].text
+		if said != "":
+			out.append({"subject": id, "text": said})
+	return out
+
+
 ## The walker's body for the observer: drawn there, whatever the last observation said.
 func set_player(plan: Vector2) -> void:
 	if _people.has(observer):
@@ -346,9 +362,21 @@ func _make(id: String, plan: Vector2, look: String) -> Dictionary:
 	zz.position = Vector2(-80, -top - 56)
 	zz.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	node.add_child(zz)
+	# A seller's price tag, under the figure (S31-e §5.8): the disclosed asks, formatted; "" for none.
+	var tag := Label.new()
+	tag.name = "tag"
+	tag.add_theme_font_size_override("font_size", 12)
+	tag.add_theme_color_override("font_color", Color("2f5a2a"))
+	tag.add_theme_color_override("font_outline_color", Color(1, 0.98, 0.93, 0.9))
+	tag.add_theme_constant_override("outline_size", 5)
+	tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tag.size = Vector2(200, 16)
+	tag.position = Vector2(-100, 6)
+	tag.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	node.add_child(tag)
 	world.add_child(node)
 	var height_m: Variant = null if views.is_empty() else views["front"].get("height_m")
-	return {"node": node, "body": body, "label": label, "marker": marker, "zz": zz, "plan": plan, "target": plan,
+	return {"node": node, "body": body, "label": label, "marker": marker, "zz": zz, "tag": tag, "plan": plan, "target": plan,
 		"phase": float(posmod(id.hash(), 628)) / 100.0, "away": false, "snap": true,
 		"height_m": height_m, "top": top, "activity": null, "drift": Vector2.ZERO, "walked": 0.0,
 		"turns": [], "shown": {"away": false, "side": 1.0, "view": 1}, "still_s": 0.0, "asleep": false,
@@ -440,7 +468,8 @@ static func _sheet_row(names: Array, view: int) -> int:
 ## viewer" (the plan direction the projection draws straight down the screen): 0 walks at the viewer,
 ## ±180 away; negative turns to the screen's right. Five views are drawn, all facing right; a positive
 ## angle mirrors them. The facing changes only when the travel leaves FACING8_KEEP_DEG of the current
-## one, and a straight up or down walk keeps the side it had.
+## one, and a straight up or down walk keeps the side it had; a turn of up to 90° waits until the
+## travel has held it for one pace.
 func _turn8(person: Dictionary, drift: Vector2) -> void:
 	var toward: Vector2 = projection.to_plan(Vector2(0, 1)).normalized()
 	var phi := rad_to_deg(atan2(toward.cross(drift), toward.dot(drift)))
@@ -454,13 +483,20 @@ func _turn8(person: Dictionary, drift: Vector2) -> void:
 	var side: float = body.scale.x
 	if view != 0 and view != 4:
 		side = -1.0 if phi > 0.0 else 1.0
-	# A one-sector turn (45°) must hold for two samples (2 × FACING_M): a route that bends round a
-	# planter for a step or two would otherwise turn the figure and turn it straight back.
+	# A turn of up to two sectors (90°) is made only once the travel has held the new facing for one
+	# pace (STRIDE_M): a route that bends round a planter or a door jamb for a step or two would
+	# otherwise turn the figure and turn it straight back. Holding a pace makes "never turn and turn
+	# back within one pace" true by construction (the drive's "facing is steady"), whatever the
+	# route. A larger turn is made at once, so a figure that reverses never walks backwards.
 	var target := float(view) * 45.0 * (-1.0 if side > 0.0 else 1.0)
 	var candidate := Vector2(view, side)
-	if absf(wrapf(target - current, -180.0, 180.0)) <= 45.0 + 0.01 and person.get("pending") != candidate:
-		person["pending"] = candidate
-		return
+	if absf(wrapf(target - current, -180.0, 180.0)) <= 90.0 + 0.01:
+		if person.get("pending") != candidate:
+			person["pending"] = candidate
+			person["pending_m"] = 0.0
+		person["pending_m"] = float(person["pending_m"]) + drift.length()
+		if float(person["pending_m"]) < STRIDE_M:
+			return
 	person["pending"] = null
 	person["view"] = view
 	person["away"] = view >= 3

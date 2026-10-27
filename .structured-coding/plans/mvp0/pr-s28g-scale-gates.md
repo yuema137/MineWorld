@@ -671,18 +671,69 @@ STOP CONDITION:          S28-g MERGE-READY — DO NOT MERGE
 
 ### Commit ledger
 
+Implementation session 2026-10-19 (Opus, worktree `impl-s28g`, branch `mvp0/pr-s28g`), under the charter's
+SPEED FIRST rule: quick local checks only, no mutation runs, no independent reviewer, no 300-day or 100-person
+run locally.
+
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C7 | — | [ ] | [ ] | [ ] |
+| D-g-0 stack: S28-f merged into S28-d's head | `9401e443` | [x] | [x] pyright 0; test_controller_seat 20, _log 6, _homes 15, test_home_open 12, test_scope_host 14, test_home_cassettes 2: PASS | [x] both PRs' behaviour kept (below) |
+| C2 streaming dump | `a6494ff6` | [x] | [x] test_home_store 12, test_home_golden 6, test_home_transparency 3: PASS | [x] same statements, same order; `dump()` is the join |
+| C1 tiler | `54352122` | [x] | [x] unit 13 PASS; real-binary 2: see Evidence | [x] scan: no world key in `tile.py` (AC-g-3 test) |
+| C3 harness + smoke | `68816fc8` | [x] | [~] static PASS; AC-g-6 scan PASS; smoke: see Evidence | [x] no perceived file; RSS taken in the worker |
+| C4 calibration | — | N/A locally | INCONCLUSIVE: left to the nightly (task rule) | — |
+| C5 gates | `ed61d92c` | [x] | [x] `--collect-only -m scale`: exactly 2; default run: 0 collected (2 deselected) | [x] every S-n in `check` only |
+| C6 nightly wiring | `7c96bb43` | [x] | [x] `ci_layer.py --list memory-scale` 3 commands; `ci_nightly.py --self-test` passed; `check_ci_pins.py` agrees; nightly.yml parses, 19 jobs = 19 needs = 19 `JOBS` | [x] the jobs differ from `stability-*` in name, layer, group, timeout only |
+| C7 close-out | this commit | [x] | AC-g-9 scan below | [x] deviations recorded |
 
 ### Evidence
 
-(none yet; C0 records the base; C4 records the calibration)
+- **Base (C0).** Not origin/main: the branch is stacked (D-g-0) on S28-d's head `2811550a` (PR #365, open) with
+  `origin/mvp0/pr-s28f` merged (`9401e443`); #361 (S28-f) merged to main during the session (`c6964872`).
+- **Re-anchors (C0).** S28-d: scopes `place`, `item` (`memory/scopes/anchored.py`), parameter `anchors_max`
+  (`AnchoredParameters`), table `<scope>_known` keyed by `seat`; S28-f: `MemoryConfig().page_cache_kib` (8 192),
+  `MemoryHome.open(…, page_cache_kib=…)`; S28-c: `resolve(choice, registry, seat=)`, `resolve_stack(choice,
+  registry, seat=)`, recall through `memory.scopes.host.recall(view, stack, RecallQuery(at=…), on_defect=)`;
+  S28-e: `memory.explain.explain(view, event, perceived)`. QS28f-1 ruled as recommended (no LRU):
+  `cache_records = 0`. QS28g-3 ruled: `K_FILE` = measured + 25 %.
+- **Schemas (C0 step 4).** Every top-level key of `social-cafe` and `bodies-yard` people/places/items files has a
+  schema (`section-name`, `-appearance`, `-routine`, `-persona`, `-body`, base `location`/`tags`/`note`/
+  `passages`): the tiler tiles both without a refusal.
+- **Tiler smoke (pure Python).** `tile.py --source worlds/social-cafe --people 100 --id town-100 --unique name
+  --drop settlement`: 219 files, 81 places, 36 items, 100 people, the 9th block `alice-09` … `dev-09`.
+- **Real-binary cases** (debug build, after #374 and #377 were merged in, 2026-10-20), each run alone:
+  - `test_tile.py` social-cafe-24, one day: PASS.
+  - `test_tile.py` bodies-yard-30, one day: PASS.
+  - `test_scale_harness.py`, 24 people × 2 days, per-block homes, 2 workers: 3 passed in 10.4 s. This
+    includes `check(...) == []` and every planted S-n firing (AC-g-4). It is within AC-g-7's 60 s.
+  - Extra smoke, not a gate: the café tiled to 100 people ran one day with `--stride 100` (6.6 s), and
+    `perceived --person alice-09` gave 1 103 facts. So the 100-person run is no longer refused.
+  - Before the fixes, the same cases failed as D-g-8 records.
+- **AC-g-9.** `git diff --name-only origin/main...HEAD` lists nothing under `kernel/`, `contracts/`, `server/`,
+  `persistence/`, `systems/`, `worlds/`, `sdk/` (run 2026-10-19: `.github` 1, `.structured-coding` 2,
+  `cognition` 62, `docs` 8, `scripts` 2, `tools` 7 files, S28-d's stacked diff included). PASS.
+- **Milestone command (AC-g-10, the coordinator's).** `gh workflow run nightly.yml -f groups=memory-scale -f
+  force=true`; C4's calibration is that night's `timings-memory-scale.json` (`file_over_physical`, walls, RSS).
 
 ### Mutations
 
-(none yet; M-g-1 … M-g-6 as §9 lists them)
+N/A for this session: the charter's SPEED FIRST rule (2026-10-18) removes mutation runs per PR; M-g-1 … M-g-6
+stay listed for the milestone batch.
 
 ### Deviations and findings
 
 F-S28g-1 … F-S28g-8 (§3.2), recorded at design time.
+
+| Id | Kind | Record |
+| --- | --- | --- |
+| D-g-0 | bounded (process) | Stacked on S28-d and S28-f before either merged (the lead's dispatch). The merge's three conflicts were resolved keeping both: `log.py` has both `ScopeChangeRecord` and `PassLine` in one `LogLine`; `seat.py` holds the view through `SeatHomes.hold` and binds the stack under the home's write lock; `home.py` imports both `scope_tables` and the page-cache config. Later the lead merged main into S28-d (#365, `42610bc4`) and reached the home through `held.view.home`. This branch merged that head and took its `seat.py` and `homes.py`, so the extra `HeldSeat.home` field is gone. |
+| D-g-1 | bounded | The café now has 9 places (not 6), so AC-g-1's "54 places" is 81; the test asserts `9 × len(source places)` and 36 items, which is the criterion's intent. |
+| D-g-2 | bounded | `tile.py` names no section: the per-block name suffix is the option `--unique <section>` and a world key the copy cannot keep is `--drop <key>`; the gates pass `--unique name --drop settlement`. A town's `settlement` names one station hall every seat must reach, which independent blocks (QS28g-1) cannot keep; the loader treats an absent settlement as optional. Also: the committed `docs/reference/schema/world.schema.json` has no `settlement` property although `worldpack/src/format.rs` carries a schemars type for it, so the tiler refuses `settlement` unless dropped (fail-closed, as R-g-4); flagged for the reference owner. |
+| D-g-3 | bounded | World-level single references (none on the café once `settlement` is dropped) name block 1's copy; a world `decisions:` list is refused by name (it names seats). |
+| D-g-4 | bounded | The fixture's `memory.default` is read from `mineworld decisions --json` through `ResolvedDecisions`; every seat entry carries the same choice and the harness gives it to every person, seats or not (§5.3's intent). |
+| D-g-5 | bounded | Frames of sampled café seats also end at each day's first fact, so the continuity point follows that day's pass; S-5 assumes framing independence, which the 256-frame rebuild checks. |
+| D-g-6 | bounded | `test_home_store.py`'s id-conversion scan failed after #361 (it does not list S28-f's `int(page_cache_kib)`, a configuration number). This was superseded by S28-d's fix (`{page_cache_kib:d}`, merged here), so the scan's set is back to as it was. |
+| D-g-8 | material stop, **RESOLVED** 2026-10-20 | Ruled as recommended. #374 (`fix/bodies-reachable-capacity`, ARC-340) checks a place's capacity only against the people who can reach it. #377 (`fix/headless-seat-cap`, ARC-341) adds `mineworld run --stride`. Both are merged into this branch. The harness and the tiler's real-binary test pass `--pace 900` (run's default `PACE`) and a computed `--stride`: the smallest divisor of the pace that is at least the default 30 s and greater than the pack's seat count. That gives 30 for the café and 100 for the 92-seat town. Re-run results after the fix are in the Evidence section. Original record: | The real-binary cases FAIL (debug build of this head, 2026-10-19): `tile.py` itself works, but `mineworld run` refuses a tiled town for two reasons this design did not foresee. (1) `systems/bodies/src/genesis.rs` (`bodies-capacity`) requires every place's floor to hold the **whole** population: "station-tickets-01's floor has room for a person at 54 points of the 650 mm grid; a world of 24 people needs 93". Already 24 people fail, so 100 people cannot run. (2) `tools/cli/src/run.rs:100` caps a headless run at 29 seats (`RUN_STEP` 30 s, one consult per second): "bodies-yard-30 offers 30 seats; a headless run consults at most 29". The 100-person town has 92 seats. Fixing (1) needs `systems/` (I-g-6 forbids it); fixing (2) needs `tools/cli` (outside scope). The smoke test (`test_scale_harness.py`, 24 people) fails for reason (1) too. Reported to the coordinator with options; the gates are wired but cannot pass until it is ruled. |
+| D-g-9 | finding, **RESOLVED** by #377 (it regenerates `docs/reference`, `world.schema.json` gains `settlement`) | The committed `docs/reference/schema/world.schema.json` has no `settlement`, but `mineworld reference --out` from this build writes it (3 matches): the committed reference is stale. |
+| D-g-7 | INCONCLUSIVE | C4 not run locally (task rule, saturated machine). `K_FILE = 3.95` is provisional (G-9's 3.13 × 1.25, rounded up to 0.05); the first nightly's `file_over_physical` recalibrates it, and the C4 stop rule (projection > 200 min) is judged from that night's walls. |
+| D-g-10 | bounded (measurement defect, post-merge) | Milestone run 40403074977 (main @30021293, the smoke's first Linux run) failed S-4 with `peak RSS 3358437376 B > 276824064 B`; macOS passed. Cause: on Linux `ru_maxrss` survives `exec` (`exec_mmap` folds the old mm's high-water mark into the signal's `maxrss`), and `spawn` starts the worker by vfork + exec from the pytest process, so the worker read the pytest process's peak. A Linux probe (python:3.12-slim, parent touched 1 GiB, then spawned one worker) read worker `ru_maxrss` 1 092 427 776 B and `VmHWM` 18 845 696 B. Fix: on Linux `peak_rss_bytes` reads `/proc/self/status` `VmHWM` (stdlib, still no `psutil`; §4's tool row otherwise unchanged), and the pool runs `max_tasks_per_child=1` so a reused worker never reports an earlier group's peak (F-S28g-8's intent). The S-4 bound is unchanged; no regression in the memory code. |

@@ -31,11 +31,20 @@ use std::process::Command;
 mod gdscript;
 use gdscript::lex;
 
+// The 3D client's directory, named once (16e D-e-3). Without the client (ARC-347's removal check), each
+// scan skips its 3D half and says so.
+#[macro_use]
+#[path = "support/client_3d.rs"]
+mod client_3d;
+
 /// The first segment of every catalog key (step-20 SD-SET-a-6, 13b's families). `place` is the name of
-/// a place a doorway leads to (R-PK-1, ARC-82); the 2D client builds `place.<tag>` from a tag.
-const KEY_FAMILIES: [&str; 17] = [
+/// a place a doorway leads to (R-PK-1, ARC-82); the 2D client builds `place.<tag>` from a tag. `sign` is
+/// the words a fixture shows — a departures board, a ticket window's plate (S29-e §5.2); `station.` names
+/// the 3D station's node categories, not text. `trade` and `board` are the shared trade module's (S31-e,
+/// `clients/shared/TRADE.md`).
+const KEY_FAMILIES: [&str; 20] = [
     "action", "reason", "state", "ui", "panel", "suggest", "format", "hud", "hint", "camera",
-    "link", "note", "door", "language", "clock", "place", "word",
+    "link", "note", "door", "language", "clock", "place", "word", "sign", "trade", "board",
 ];
 
 /// Every word a System Pack discloses for a need or a lateness level (S35 N-e, F-Ne-2): each must have a
@@ -110,7 +119,8 @@ const NAMED_CHANGES: [(&str, &str); 1] = [(
 /// client shows the same concepts (step-15 §22.3 D-16d-6). Each must have been 13b's, must now live in
 /// the shared layer and not in the pack, and must read exactly as it did. PR 16g1 moves the typed line's
 /// two words the same way, since both clients now open that line (`clients/shared/hud/line_input.gd`).
-const MOVED_BY_16D: [&str; 18] = [
+/// `format.money` was one of them; S31-e retired it (`RETIRED`).
+const MOVED_BY_16D: [&str; 17] = [
     "ui.talk.prompt",
     "ui.input.hint",
     "ui.unsupported",
@@ -128,8 +138,15 @@ const MOVED_BY_16D: [&str; 18] = [
     "panel.shop",
     "ui.row.holding",
     "ui.row.shop",
-    "format.money",
 ];
+
+/// 13b's entries a later PR removed from every layer, each with why: (key, why). Each must have been 13b's
+/// and must now be in no layer.
+const RETIRED: [(&str, &str); 1] = [(
+    "format.money",
+    "S31-e: an amount is formatted from the currency the world discloses (`format.money.*`, \
+     `clients/shared/TRADE.md` §3); 13b's key assumed two decimals",
+)];
 
 fn root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -641,12 +658,23 @@ fn the_catalogs_are_complete_and_consistent() {
     }
     // Every key named in code exists where that client loads it.
     let shared_keys = shared.keys();
+    // Without the 3D client, its keys are not checked, and neither is "no key unused": a key only the
+    // 3D client asks for would read as unused.
+    let with_3d = client_3d::present(
+        &root(),
+        "the 3D client's catalog keys, and the unused-key check, which needs every client (AC-SET-4)",
+    );
     let two_d = scripts_of(&["clients/2d/scripts"]);
-    let three_d = scripts_of(&["clients/3d-spike/scripts"]);
+    let three_d = if with_3d {
+        scripts_of(&[client_3d!("scripts")])
+    } else {
+        Vec::new()
+    };
     let module = scripts_of(&[
         "clients/shared/settings",
         "clients/shared/world_time",
         "clients/shared/host",
+        "clients/shared/trade",
     ]);
     // The checks name keys no catalog has on purpose (the fallback); they count as asking, not as a client.
     let checks = scripts_of(&["clients/shared/checks"]);
@@ -674,7 +702,8 @@ fn the_catalogs_are_complete_and_consistent() {
     for key in shared_keys.iter().chain(&pack_keys) {
         let family = key.split('.').next().unwrap_or("");
         let data_built = ["action", "reason", "state", "word"].contains(&family);
-        if !used.contains(key)
+        if with_3d
+            && !used.contains(key)
             && !prefixes.iter().any(|prefix| key.starts_with(prefix))
             && !data_built
         {
@@ -730,6 +759,12 @@ fn the_move_of_13b_wording_is_verbatim() {
     let mut found = Vec::new();
     let mut named_used = [false; NAMED_CHANGES.len()];
     for entry in &before.entries {
+        if RETIRED.iter().any(|(key, _)| *key == entry.key) {
+            if pack.get(&entry.key).is_some() || shared.get(&entry.key).is_some() {
+                found.push(format!("\"{}\" is retired and still in a layer", entry.key));
+            }
+            continue;
+        }
         let effective = pack.get(&entry.key).or_else(|| shared.get(&entry.key));
         let Some(effective) = effective else {
             found.push(format!(
@@ -764,6 +799,12 @@ fn the_move_of_13b_wording_is_verbatim() {
                     entry.key, effective.text, entry.text
                 )),
             }
+        }
+    }
+    for (key, why) in RETIRED {
+        assert!(!why.is_empty(), "{key}: a retirement needs its reason");
+        if before.get(key).is_none() {
+            found.push(format!("\"{key}\" is listed as retired and was not 13b's"));
         }
     }
     // An entry of MOVED_BY_16D admits a move only of an entry 13b had, to the shared layer.
@@ -846,9 +887,11 @@ fn shown_literals(text: &str) -> Vec<(usize, String)> {
             };
             let before = code[..start].trim_end();
             // A dictionary key — `data["name"]`, `get("name")`, `{"fps": n}` — names data; it shows nothing.
+            // So does a node's metadata name — `get_meta("text_key")`, `has_meta(…)`, `set_meta(…)`.
             let subscript = before.ends_with('[')
                 || before.ends_with("get(")
                 || before.ends_with("has(")
+                || before.ends_with("_meta(")
                 || code[start + 2..].trim_start().starts_with(':');
             if start < sink
                 || subscript
@@ -866,15 +909,20 @@ fn shown_literals(text: &str) -> Vec<(usize, String)> {
 
 #[test]
 fn no_hardcoded_ui_text_in_the_3d_client_or_the_settings_module() {
-    let files = scripts_of(&[
-        "clients/3d-spike/scripts",
+    let with_3d = client_3d::present(&root(), "the 3D client's UI text scan (AC-SET-3)");
+    let mut roots = vec![
         "clients/shared/settings",
         "clients/shared/world_time",
         "clients/shared/host",
-    ]);
+        "clients/shared/trade",
+    ];
+    if with_3d {
+        roots.push(client_3d!("scripts"));
+    }
+    let files = scripts_of(&roots);
     // The 3D client's 34 scripts and the settings module's: a walk that skipped a folder reads fewer.
     assert!(
-        files.len() >= 39,
+        files.len() >= if with_3d { 39 } else { 5 },
         "every script is scanned: {}",
         files.len()
     );
@@ -1042,12 +1090,15 @@ fn the_world_time_and_host_modules_keep_their_boundaries() {
         }
     }
     // HTTPRequest is host/'s alone among the client scripts (AC-WC-15).
-    for file in scripts_of(&[
+    let mut roots = vec![
         "clients/2d/scripts",
-        "clients/3d-spike/scripts",
         "clients/shared/settings",
         "clients/shared/world_time",
-    ]) {
+    ];
+    if client_3d::present(&root(), "the 3D client's HTTPRequest scan (AC-WC-15)") {
+        roots.push(client_3d!("scripts"));
+    }
+    for file in scripts_of(&roots) {
         let text = std::fs::read_to_string(&file).expect("a script reads");
         for (index, code) in lex(&text).code.iter().enumerate() {
             if names_identifier(code, "HTTPRequest") {

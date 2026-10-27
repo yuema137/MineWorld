@@ -1,6 +1,6 @@
 {
   "format": 1,
-  "about": "How the 3D client draws a world's furnishings (ARC-307; clients/3d-spike/PRESENTATION.md §5). A world names a furnishing's kind; this file binds a kind to a model of the client's library. A kind not listed falls back to its shorter `.`-prefix (chair.painted -> chair). front_md: the model's yaw, in millidegrees, that turns it to face north; scene yaw = front - facing. dressing: hand-scale props that follow the piece (never solids), as sets; one set is chosen by FNV-1a 32 of `<place id>/<furnishing key>`. Each prop: at = [x, z] metres in the model's own frame, up = metres above the floor, yaw_md relative to the model.",
+  "about": "How the 3D client draws a world's furnishings (ARC-307; clients/3d-spike/PRESENTATION.md §5). A world names a furnishing's kind; this file binds a kind to a model of the client's library. A kind not listed falls back to its shorter `.`-prefix (chair.painted -> chair). front_md: the model's yaw, in millidegrees, that turns it to face north; scene yaw = front - facing. dressing: hand-scale props that follow the piece (never solids), as sets; one set is chosen by FNV-1a 32 of `<place id>/<furnishing key>`. Each prop: at = [x, z] metres in the model's own frame, from its bounds' centre, on one of its boards inside one bay (the display shelves' partitions split each board into three 0.32 m bays at -0.35 / 0 / 0.35), or on its top; up = metres above the floor of the board it stands on (the client settles it onto the drawn board, S36-P5c); yaw_md relative to the model. repeat: true copies the model along its solids' longer side to fill it (a long bench, a run of racks). form (instead of model): a generic form built over the piece's own solids in `material` (a texture slug) -- table (top_m, leg_m), bench (the same, a backless seat a sitter may face either way), hull (cradle_m) -- for a piece the library has no model of (S33-f).",
   "kinds": {
     "table.round": {
       "model": "round_wooden_table_02", "front_md": 180000, "tint": [1.04, 0.96, 0.86],
@@ -30,8 +30,8 @@
       "model": "wooden_display_shelves_01", "front_md": 180000, "tint": [1.02, 0.94, 0.86],
       "dressing": [
         [
-          { "model": "ceramic_vase_02", "at": [0.00, 0.06], "up": 1.02, "yaw_md": -38434, "tint": [1.02, 0.96, 0.88] },
-          { "model": "calathea_orbifolia_01", "parts": ["_b"], "at": [-0.45, 0.10], "up": 1.02, "yaw_md": -61352, "tint": [0.92, 1.02, 0.88] }
+          { "model": "ceramic_vase_02", "at": [0.00, 0.35], "up": 0.79, "yaw_md": -38434, "tint": [1.02, 0.96, 0.88] },
+          { "model": "calathea_orbifolia_01", "parts": ["_b"], "at": [0.00, -0.25], "up": 1.54, "yaw_md": 0, "tint": [0.92, 1.02, 0.88] }
         ]
       ]
     },
@@ -39,16 +39,55 @@
       "model": "Shelf_01", "front_md": 180000, "tint": [1.02, 0.94, 0.86],
       "dressing": [
         [
-          { "model": "wicker_basket_01", "at": [0.00, 0.06], "up": 0.86, "yaw_md": 112919, "tint": [1.02, 0.96, 0.88] }
+          { "model": "jug_01", "at": [0.00, 0.0065], "up": 0.94, "yaw_md": 0, "tint": [1.02, 0.96, 0.88] }
         ]
       ]
     },
     "shelves": { "model": "Shelf_01", "front_md": 180000, "tint": [1.02, 0.94, 0.86] },
+    "shelves.bread": {
+      "model": "wooden_display_shelves_01", "front_md": 180000, "tint": [1.0, 0.90, 0.80], "repeat": true,
+      "dressing": [
+        [
+          { "model": "croissant", "at": [-0.20, 0.02], "up": 1.02, "yaw_md": 20000 },
+          { "model": "croissant", "at": [0.05, 0.04], "up": 1.02, "yaw_md": -35000 },
+          { "model": "wicker_basket_01", "at": [0.30, 0.02], "up": 1.02, "yaw_md": 90000, "tint": [1.02, 0.96, 0.88] }
+        ],
+        [
+          { "model": "wicker_basket_01", "at": [-0.25, 0.02], "up": 1.02, "yaw_md": 10000, "tint": [1.02, 0.96, 0.88] },
+          { "model": "croissant", "at": [0.20, 0.03], "up": 1.02, "yaw_md": 70000 }
+        ]
+      ]
+    },
+    "table.long": {
+      "form": "table", "material": "wood_table_worn", "tint": [0.92, 0.82, 0.70], "top_m": 0.05, "leg_m": 0.08,
+      "dressing": [
+        [
+          { "model": "jug_01", "at": [0.0, -0.60], "up": 0.75, "yaw_md": 0 },
+          { "model": "wooden_bowl_01", "at": [0.10, 0.40], "up": 0.75, "yaw_md": 40000 },
+          { "model": "croissant", "at": [0.10, 0.40], "up": 0.80, "yaw_md": 15000 }
+        ]
+      ]
+    },
+    "table.work": {
+      "form": "table", "material": "wood_table_worn", "tint": [0.80, 0.70, 0.58], "top_m": 0.07, "leg_m": 0.09,
+      "dressing": [
+        [
+          { "model": "pot_enamel_01", "at": [-0.80, 0.0], "up": 0.90, "yaw_md": 0, "tint": [0.30, 0.28, 0.26] },
+          { "model": "wooden_bowl_01", "at": [0.50, 0.05], "up": 0.90, "yaw_md": 60000 }
+        ]
+      ]
+    },
+    "boat.rowing": { "form": "hull", "material": "weathered_brown_planks", "tint": [0.92, 0.86, 0.78], "cradle_m": 0.3 },
+    "bench.pier": { "form": "bench", "material": "weathered_brown_planks", "tint": [0.86, 0.80, 0.72], "top_m": 0.045, "leg_m": 0.07 },
+    "bench.park": { "form": "bench", "material": "wood_table_worn", "tint": [0.92, 0.84, 0.72], "top_m": 0.045, "leg_m": 0.07 },
     "plant.potted": { "model": "potted_plant_02", "front_md": 180000, "tint": [0.92, 1.02, 0.88] },
     "plant": { "model": "potted_plant_02", "front_md": 180000, "tint": [0.92, 1.02, 0.88] },
     "table": { "model": "round_wooden_table_02", "front_md": 180000, "tint": [1.04, 0.96, 0.86] },
     "bench": { "model": "painted_wooden_bench", "front_md": 180000, "tint": [1.02, 0.95, 0.86] },
     "kiosk": { "model": "steel_frame_shelves_02", "front_md": 180000, "tint": [1.0, 0.96, 0.9] },
+    "bench.station": { "piece": "bench_row", "front_md": 0, "style": "oak" },
+    "bench.platform": { "piece": "bench_row", "front_md": 0, "style": "timber" },
+    "kiosk.news": { "piece": "kiosk", "front_md": 0, "style": "oak" },
     "well": { "model": "planter_pot_clay", "front_md": 0, "tint": [0.92, 0.92, 0.90] },
     "pump": { "model": "wooden_crate_01", "front_md": 0, "tint": [0.80, 0.82, 0.84] },
     "boat": { "model": "wooden_crate_01", "front_md": 0, "tint": [1.02, 0.94, 0.86] },

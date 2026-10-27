@@ -323,6 +323,42 @@ stop          any change to a frozen invariant, a public contract beyond §4 (Pl
   seed 1 0 too early; late-shop variant seed 1 **3 too early** (F-Nh-5, open: arrivals 1.2–2.5 h before a
   punctual part with no errand). AC-S35-8 sleep rows FAIL on Market Town seeds 1, 7 (5.81 h, 6.89 h; 757 ‰
   asleep at 03:00 on seed 1) — not N-h's rows; Social Café seed 1 one part +41 min (F-Nh-6, open).
+- **Round 3 (2026-10-21, `ARC-361`, PR #447).** The sleep rows and F-Nh-6 predate #429 (base 5.69 h / 4.78 h;
+  Social Café +41 min on the base too). Causes and generic fixes: an arrival placed in a sealed pocket (E3 now
+  reachable-only), a doorway deadlock (`DOORWAY_REACH`), a replan that avoided one person of a group (now
+  everybody present); CP-4's drained wallet from chance newspaper buys (`chance_spend_permille`).
+- **F-Nh-5 resolved (2026-10-26, bounded, `ARC-282` amendment, branch `fix/nh5-early-arrivals`).** Trace of
+  the late-shop variant, seed 1: the three early arrivals (Cy at 06:29 for 09:00 on two days, Ben at 06:20 for 07:30)
+  were fetch errands to the bakery, which is also their workplace. The disclosed stock had bread when they set
+  out; another baker bought the last loaf a minute before they reached the counter, so no item was received
+  and the arrival counted as a commute. They then stayed until `from` because `commute::holds` held anyone at
+  a punctual next part's place for the whole commute cap (120 min) plus a pace — twice AC-LE-3's one-hour
+  bound — and for Cy, whose arrival was 151 min early, two consults of replies and wandering bridged the gap
+  until the cap window opened. Not a planning error: departure was planned against the right `from`; the hold
+  window was too wide. Generic fix: the window is now the round trip to the part in force,
+  `min(cap, estimate(way back) + lead(way back))`, from the disclosed way to the agenda's place (the cap when
+  that way is not disclosed, or that part is here). A commute's own arrival always falls inside it, so
+  commuters wait as before; an early arrival for any other reason goes back while a round trip still fits.
+  Rule and motivated share it. No seed, world or slack was tuned. Evidence: AC-Nh-2 late-shop × {1, 7, 42} ×
+  30 days **PASS** (0 too early; 15 / 12 / 15 errands), the test is no longer `#[ignore]`d (3 s);
+  Market Town, Social Café, Commute Town × {1, 7, 42} × 30 days: every punctual part on time, 0 too early.
+- **F-Nh-7 (open, movement; exposed by F-Nh-5's fix, not caused by it).** Market Town seed 1 × 30 days, one
+  shift of 90 missed: day 19, Ivan 4 min late to the station. Everyone woke at 06:00 and four people (#15, #16,
+  #18, #21) stood on the street by the apartments' doorway, each `stopped-short` by another at the first
+  stride; each walk ended and was asked again only at the next consult (15 min), so Ivan lost 40 min. Nobody
+  in the jam was at a punctual place, so the hold rule took no part that morning; the changed trajectories of
+  earlier days only moved the jam onto this seed. It is the doorway-gridlock class of `ARC-361` and belongs to
+  movement's local avoidance (adopt a crowd-avoidance method, tools first), not to the commute.
+  **Re-checked after S35 N-f/N-g (#370, #453, #475), 2026-10-26:** seed 1 is 90 of 90, 0 late; the jam is
+  gone. Seeds 7 and 42 now each had one late shift, and neither is a jam: both are Ivan on a hungry fetch
+  errand. At 06:15 (day 10, seed 7; day 26, seed 42), not yet due for his 07:00 shift from where he stood,
+  the fetch band walked him to the shop at the far end of the street; at 06:30 the commute fell due from
+  there, and the walk back took 30 min 8 s (seed 7) and 33 min (seed 42). The due test asks whether waiting
+  one pace *here* could make me late, and an errand moves me first. **Bounded correction (rule fetch band
+  row 10, `commute::errand_fits`):** a fetch walk away is judged as a round trip, like `holds`' window —
+  allowed only while the commute is not due at `pace + min(cap, estimate + lead)` of the way to the errand.
+  Purchases here are never held back. Market Town and Commute Town × seeds 1, 7, 42 × 30 days: every shift
+  present, 0 late. Generic: names no place, person or world.
 
 ## 7. Records
 

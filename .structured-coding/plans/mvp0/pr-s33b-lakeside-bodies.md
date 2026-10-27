@@ -603,8 +603,45 @@ F-S33b-1 … F-S33b-7 (§3.2), recorded at design time. During implementation:
   **Lakeside needs re-recording on this PR's head once the machine is free** (the operator's video
   reservation forbids local cargo now); until then the nightly parity will show Lakeside moved by S33-b.
   The 2D/3D binding conflicts kept both sides (main's `kiosk`, this PR's well, pump, boat, boulder; main's
-  `bench` tint).
+  `bench` tint). **Resolved 2026-10-21** (operator approved the local record): after merging main
+  fa214d54 (which carries the bodies/movement fix e9d51bd3), one long record of `f3dd14a3` (Darwin/arm64,
+  14 840 s under load). `[world lakeside]` against main's milestone F section: summary-300 354 → 358 lines,
+  summary-1000 1 078 → 1 082, summary-300s 353 → 357, facts-300s 6 805 → 11 936 rows, journal-300s
+  4 879 → 7 979, sealed-300s 126 → 139; written by hand with one `reason S33-b` line. Every other world
+  also differs from main's file (main's own drift since milestone F, e.g. e9d51bd3); this PR does not
+  move them (its only non-Lakeside change is binding data, and market-town's 30-day summary is identical
+  with main's and this branch's presentation pack), so their sections are left as main has them. An
+  earlier record of b6d60223 (before e9d51bd3) is superseded.
 - **D-b-6.** `milestone_e.rs` not run locally (SPEED FIRST; 300-day runs): INCONCLUSIVE until CI core / the
   milestone run. The S33-c stub (`depictions/lakeside/depiction.gd`) still holds the "before" doorway
   points and draws tickets 4.6 × 4.0 and the platform at y −17 000…23 000 while the files place it at
   −1 000…39 000: listed in the PR body for the lead (no client change here).
+
+### Post-merge: milestone fd-1026 (run 40403074977, main `30021293`) — 2026-10-26
+
+Both `lakeside_bodies.rs` failures are stale expectations after deliberate, merged changes in other lanes;
+neither is a regression, and neither touches bodies' or the doorways' semantics as S33-b set them.
+
+- **F-b-post-1 — `without_bodies_only_the_doorways_moved` (fixture stale).** Bisected with
+  `git bisect --first-parent` over main from `079ed94c` (#395's merge; the test passes there) to
+  `3f288d1e`: the first bad merge is **#439 `210ec53c`** (`fix(movement)`: a walk to a person ends at a
+  stand point on the walker's side of a counter, `ARC-75` amendment 1). The no-bodies summary recorded at
+  `210ec53c` is byte-identical to main `3f288d1e`'s, so nothing later moved it. The change is in
+  movement's last leg and the rule controller's pacing: day 1 facts 2 504 → 2 502, `walk-to` 9 916 →
+  9 877, `arrived` 25 958 → 25 867; `person-entered-place` stays 2 402 (the doorways are untouched).
+  **Bounded change:** the fixture is re-recorded from main `3f288d1e` (C1's procedure: the copy without
+  `bodies` and every `body:`, 30 days, seed 7, every line but `wall`), with a dated `# reason` note naming
+  the commit; the test ignores the fixture's `#` lines. Computing the expectation inside the test instead
+  was considered and rejected: the only world the test can build is the no-bodies copy itself, so the
+  comparison would be a tautology; the stored record is what makes (5) evidence from before the code under
+  test. A future merged change outside bodies and the doorways re-records it the same way.
+- **F-b-post-2 — `nobody_stands_in_the_lake_…` (scan bound stale).** The 1 825 violations ("celia moved
+  269 mm (at most 260)", up to 459 mm) are displaced arrivals beyond the old 260 mm nudge bound
+  (`NUDGE_LIMIT` in `tools/cli/tests/bodies/mod.rs`). #370 (S35 N-f, merged `b788d426` after #395) made
+  bodies move a person who is not walking aside by up to `GIVE_WAY_MAX` = 1 200 mm
+  (`systems/bodies/src/doorway.rs:39`; `ARC-330` R2, frozen design `pr-s35-nf-doorways.md`), stated by
+  `gave-way` (R4). All observed moves are within that contract. The shared scan was updated by #475
+  (`GIVE_WAY_LIMIT`, mirrored like `R`, and each displaced arrival must be stated by `gave-way`); this
+  test already uses that scan, so no Lakeside-specific constant is added. Locally with #475's scan:
+  `--test lakeside_bodies` 4/4 PASS; strides 27 495, geometry 207 (0.8 %), every place entered 100 % of
+  the no-bodies copy.

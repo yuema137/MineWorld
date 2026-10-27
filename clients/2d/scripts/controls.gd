@@ -21,6 +21,7 @@ const ACTIONS := [
 	["person_menu", KEY_Q, "ui.settings.key.person_menu"],
 	["things", KEY_I, "ui.settings.key.things"],
 	["conversations", KEY_H, "ui.settings.key.conversations"],
+	["notices", KEY_N, "ui.settings.key.notices"],
 ]
 
 

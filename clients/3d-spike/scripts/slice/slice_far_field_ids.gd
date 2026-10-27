@@ -235,6 +235,12 @@ static func shore(body: Dictionary, bearing: float) -> float:
 	return float(body["shore_m"]) + (OUTER_M - float(body["shore_m"])) * (1.0 - s)
 
 
+## The horizon's dip (degrees, negative) over water whose surface stands at `level_m` above sea level,
+## from scene height `eye_y` (Q-S33d-7 (A)); at level 0 it is `sea_horizon_deg`.
+func water_horizon_deg(eye_y: float, level_m: float) -> float:
+	return -rad_to_deg(sqrt(2.0 * maxf(_datum + eye_y - level_m, 0.01) / EARTH_R))
+
+
 ## The sea horizon's dip (degrees, negative) and distance (m) from scene height `eye_y`.
 func sea_horizon_deg(eye_y: float) -> float:
 	return -rad_to_deg(sqrt(2.0 * maxf(_datum + eye_y, 0.01) / EARTH_R))
@@ -375,7 +381,6 @@ func _crest(where: String, pos: Vector3, az: float, ids: PackedByteArray, hd: Pa
 	var judged := 0
 	var good := 0
 	var err := 0.0
-	var eh := sea_horizon_deg(pos.y)
 	for x in cols:
 		var b := _bearing(az, x)
 		var best := -INF
@@ -385,8 +390,13 @@ func _crest(where: String, pos: Vector3, az: float, ids: PackedByteArray, hd: Pa
 		if best == -INF:
 			continue
 		var expect := rad_to_deg(best)
-		if not water_at(b).is_empty() and eh >= expect - CREST_TOL_DEG:
-			continue   # the sea's horizon, not a band, is the top here
+		# Q-S33d-7 (A), ruled 2026-10-21: only a crest above the water's horizon is judged -- one below
+		# it cannot be seen. The horizon is the water body's own, from the eye's height above ITS level
+		# (an inland lake's, not the sea's at 0 m), as FF-ORDER's sea_horizon_m already takes it.
+		var body := water_at(b)
+		if not body.is_empty() \
+				and water_horizon_deg(pos.y, float(body["level_m"])) >= expect - CREST_TOL_DEG:
+			continue   # the water's horizon, not a band, is the top here
 		var rc := _row(x, expect)
 		if rc < CREST_CLEAR_ROWS or rc > _h - 1 - CREST_CLEAR_ROWS:
 			continue

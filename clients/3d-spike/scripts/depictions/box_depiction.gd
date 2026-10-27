@@ -62,12 +62,13 @@ func build(root: Node3D, far_field: MineWorldFarField, _connected: bool) -> Node
 	return g
 
 
-## The world's far field, drawn round the protected viewpoints.
-func draw_far_field(g: Node3D, far_field: MineWorldFarField) -> void:
+## The world's far field, drawn round the protected viewpoints; its flat ground inside the boundary
+## `near_ground_drop` below where it stands for a world drawn on it (`SliceFarFieldView.build`).
+func draw_far_field(g: Node3D, far_field: MineWorldFarField, near_ground_drop := 0.0) -> SliceFarFieldView:
 	var eyes := PackedVector3Array()
 	for vp in far_field_viewpoints("protected"):
 		eyes.append(vp[1])
-	SliceFarFieldView.build(g, far_field, eyes)
+	return SliceFarFieldView.build(g, far_field, eyes, near_ground_drop)
 
 
 ## The stub's flat ground.
@@ -86,10 +87,15 @@ func register(g: Node3D) -> void:
 		frame_origin()))
 	var i := 0
 	for p in places():
-		var volume := _volume(g, "stub.%d" % i, p["footprint"])
+		var volume := _volume(g, place_volume(i), p["footprint"])
 		var door := _door(g, p, volume)
 		_entries.append(SliceDepiction.entry(p["tags"], volume, SliceLayout.ROOM, door))
 		i += 1
+
+
+## The scene volume's name of the `i`-th place of `places()`.
+static func place_volume(i: int) -> String:
+	return "stub.%d" % i
 
 
 ## The stub's drawing: a floor on the street and a walled grey box on every place, each wall with a
@@ -165,7 +171,8 @@ func _door(g: Node3D, p: Dictionary, volume: String) -> int:
 	var yaw := atan2(out.x, out.z)
 	var at := to_scene(p["doorway"])
 	var sill := at - out * SliceLayout.DOOR_INSET
-	SliceDoors.rows.append([sill, yaw, door_label(p["label"]), volume, 0.0, 0.0])
+	# the room's floor height (a deck's surface, ARC-178) puts its in-point, and so its frame, on that floor
+	SliceDoors.rows.append([sill, yaw, door_label(p["label"]), volume, 0.0, float(p.get("floor_m", 0.0))])
 	Build.label(g, sill + Vector3(0.0, WALL_H + 0.35, 0.0) + out * 0.05, p["label"], 0.45,
 		Color(0.95, 0.95, 0.92), yaw)
 	return SliceDoors.rows.size() - 1

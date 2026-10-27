@@ -92,11 +92,32 @@ pub const WALK_STRIDE: Millimetres = Millimetres::new(1_340);
 /// (Hall 1966, 0.46–1.22 m) — near enough to talk, not on top of them.
 pub const PERSON_APPROACH: Millimetres = Millimetres::new(1_200);
 
+/// The farthest a walk to a person may end from them: 2 100 mm, the far limit of the close phase of
+/// social distance (Hall 1966, 1.2–2.1 m), the distance of impersonal business — being served across a
+/// counter. A walk ends within [`PERSON_APPROACH`] when the way there is direct; when furniture stands
+/// between the two (a counter, a table), it ends on the walker's side of it if that is quicker than
+/// walking round, never farther than this (`ARC-75` amendment 1).
+pub const PERSON_REACH: Millimetres = Millimetres::new(2_100);
+
+/// How near a doorway a walker stopped short of it may still step through it: 500 mm, about the width
+/// of a person's shoulders. Two people each wanting the one doorway point otherwise keep each other off
+/// it for good — the walker standing in the doorway is let through instead (S35 N-h round 3: three
+/// shoppers wedged at a shop door all night). Asked only after a stride to the doorway fell short.
+pub const DOORWAY_REACH: Millimetres = Millimetres::new(500);
+
 /// Consecutive steps with less than [`STALL_PROGRESS`] of progress after which a walk ends `stalled`.
 pub const STALLS_MAX: u32 = 3;
 
 /// What counts as progress for [`STALLS_MAX`]: 50 mm between one step and the next.
 pub const STALL_PROGRESS: Millimetres = Millimetres::new(50);
+
+/// Consecutive steps a walk may spend **waiting** before it ends `stalled` (`DECISIONS.md` `ARC-333`
+/// R2): steps whose stride was stopped short by a walker whose walk ranks higher — started earlier,
+/// or at the same instant with a lower id. Such a step is not a stall and not a re-plan; it counts
+/// here instead. 20 is about twenty strides of the walker ahead: long enough for a queue of four or
+/// five people to clear a single-file door (a stride is 1 340 mm, and a doorway passage one to two
+/// strides a person), short enough that a true deadlock still ends the walk within minutes.
+pub const WAITS_MAX: u32 = 20;
 
 /// Re-plans one walk may make — after a stopped or displaced stride, or a person destination that moved
 /// — before it ends `stalled`.

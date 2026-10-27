@@ -114,6 +114,7 @@ The motivated model's parameters; a key it does not take, or a value outside its
 | `commute` | [Commute](#decisions-commute) | no | — | — | When to set out for a punctual part of the day: the same block as `rule`'s (`ARC-282`). |
 | `curve` | mapping: each key is text, each value is list of list | no | — | — | Per-world overrides of single curves, by name, as the points written. |
 | `curves` | one of `atus-a3-2025` | no | — | — | The named curve set. Only `atus-a3-2025` ships (SD-DLb-8). |
+| `homeward` | whole number | no | — | 0 to 600 | The tiredness a door home adds before it reads `pressure`, 0 … 600 (`pr-s35-nc3` SD-Nc3-2). |
 | `reply_floor` | whole number | no | — | 0 to 1000 | Per mille, 0 … 1 000: the least chance an addressed person replies. |
 | `roles` | [Roles](#decisions-roles) | no | — | — | The tags each role names. |
 | `social_need_hours` | whole number | no | — | 1 to 72 | Hours without contact at which loneliness reaches its top, 1 … 72. |
@@ -283,6 +284,7 @@ Whether the person plans the way at all.
 | --- | --- | --- | --- | --- | --- |
 | `bed_clear_of_doors_mm` | whole number | no | — | 0 to 10000 | Millimetres, 0 … 10 000: at bedtime, standing this near a doorway, walk first to my own spot on the floor clear of every doorway; 0 sleeps where I stand. |
 | `bedtime_spread_minutes` | whole number | no | — | 0 to 240 | Minutes, 0 … 240: each person's bedtime is `night.from` plus a seeded offset up to this. |
+| `chance_spend_permille` | whole number | no | — | 0 to 1000 | Per mille of my wallet, 0 … 1 000, that one purchase made by chance may cost, in a world where I eat: money a person lives on goes on food first (S35 N-h round 3). 1 000 holds nothing back. |
 | `eat_from` | whole number | no | — | 1 to 1000 | Hunger at which a held food is eaten, 1 … 1 000. |
 | `exhausted_from` | whole number | no | — | 1 to 1000 | Tiredness at which bed is chosen at any hour, 1 … 1 000 and at least `tired_from`. The default, 1 000, is the scale's top: outside the night only the fully exhausted go to bed (Q-S35-OP1 (a)). |
 | `fetch_food` | true or false | no | — | — | Whether a hungry person who holds nothing nourishing goes for food (Q-S35-OP1 (b)). |
@@ -352,4 +354,4 @@ How long a person who goes to bed inside the night sleeps for (Q-S35-OP1 (a)).
 **Type:** `night-end` or `rested`.
 
 - `night-end`: Until the night ends (`night.until`), or the commute's leave-by, whichever comes first.
-- `rested`: Until rested (tiredness ÷ the disclosed rest per hour), as before the ruling.
+- `rested`: Until rested (tiredness at or below [`RESTED`], recovering at the disclosed rate), as before the ruling.

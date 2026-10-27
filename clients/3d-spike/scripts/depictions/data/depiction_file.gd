@@ -1,5 +1,5 @@
 ## A world's depiction file, read and checked by this client (`DECISIONS.md` ARC-177;
-## `docs/MODULE_SPEC.md` sec.6.1.2; `PRESENTATION.md` sec.6).
+## `docs/MODULE_SPEC.md` sec.6.1.2; `PRESENTATION.md` sec.7).
 ##
 ## `mineworld packs validate` checks a file in full (`mineworld_packages::depiction`). This reader checks
 ## what it must before drawing, and refuses by the same names: DEPICTION_MALFORMED (types, required keys,
@@ -22,16 +22,17 @@ const REFERENCE := "DEPICTION_REFERENCE"
 ## The section that binds the street every place opens onto: the format's word, not a place.
 const STREET := "street"
 
-## The tree builder forms and cards this client's library has (`Props`, `Procgen`). A later builder that
-## adds a form or a card adds its name here.
-const FORMS := ["conifer", "broadleaf"]
-const CARDS := ["needle", "leaf"]
+## The tree builder forms and cards this client's library has: `Props.FORMS` and `Props.CARDS`, the one
+## list of each.
+const FORMS := Props.FORMS
+const CARDS := Props.CARDS
 
 ## The schema. A spec is a primitive name, or [kind, ...]:
 ##   int   an integral number          uint  a non-negative integral number
 ##   num   a number                    str   a string                bool  a boolean
 ##   key   1-48 of a-z 0-9 -           name  1-64 of a-z 0-9 _ -     colour  #rrggbb
 ##   ["list", spec]  ["tuple", n, spec]  ["obj", type]  ["enum", [values]]  ["null_or", spec]
+##   ["list_or", item, spec]  a list of `item`, or else `spec`
 ## Each object type: { field: [spec, required] }.
 const POINT := ["tuple", 2, "int"]
 const RECT := ["tuple", 4, "int"]
@@ -45,13 +46,64 @@ const TYPES := {
 		"paths": [["list", ["obj", "path"]], false], "buildings": [["list", ["obj", "building"]], false],
 		"trees": [["obj", "trees"], false], "scatter": [["list", ["obj", "scatter"]], false],
 		"light": [["obj", "light"], false], "models": [["list", ["obj", "model"]], false],
-		"viewpoints": [["obj", "viewpoints"], true],
+		"extras_from": ["key", false], "decor": [["list", ["obj", "decor"]], false],
+		"viewpoints": [["obj", "viewpoints"], true], "decks": [["list", ["obj", "deck"]], false],
+		"stations": [["list", ["obj", "station_entry"]], false],
+		"station_kit": [["obj", "station_kit"], false],
 	},
+	# `station_kit` (S29-d, ARC-192; 16f-d2): the pack's station kit sited on this street -- its arch's
+	# façade point, facing and floor -- with the west-end eaves the landmark band is read from, the street
+	# views toward it, the far-field shots that are its footprint rows, and the walk's street points
+	"station_kit": {"kit": ["key", true], "facade_mm": [POINT, true], "facing": ["key", true],
+		"floor_m": ["num", true], "eaves": [["list", ["obj", "eaves"]], false],
+		"views": [["list", ["obj", "view"]], false], "landmark_shots": [["list", "str"], false],
+		"walk_via": [["list", ["obj", "walk_point"]], false], "source": ["str", false]},
+	"eaves": {"corner_mm": [POINT, true], "eaves_m": ["num", true]},
+	"walk_point": {"at_mm": [POINT, true], "up_m": ["num", true]},
+	# `stations` (ARC-179; S33-e sec.5.2): fixtures, a platform and its track, from S29-e's station pieces
+	"station_entry": {"name": ["key", true], "style": [["enum", ["timber", "oak"]], true],
+		"fixtures": [["list", ["obj", "fixture"]], false], "platform": [["obj", "platform"], false],
+		"source": ["str", false]},
+	"fixture": {"piece": [["enum", ["board", "clock", "window_bay"]], true], "in": [["list", "key"], true],
+		"at_mm": [POINT, true], "up_m": ["num", true], "facing_deg": ["num", true],
+		"size_m": [["tuple", 2, "num"], true], "post_m": ["num", false], "counter_m": ["num", false],
+		"screen_m": ["num", false], "grilles": ["uint", false]},
+	"platform": {"depicts": [["list", "key"], true], "edge": [["enum", ["n", "s", "e", "w"]], true],
+		"surface_m": ["num", true], "height_m": ["num", true], "coping_mm": ["uint", true],
+		"strip_mm": ["uint", true], "end_fence_m": ["num", true], "canopy": [["obj", "canopy"], false],
+		"track": [["obj", "track"], true]},
+	"canopy": {"along_mm": [["tuple", 2, "int"], true], "depth_m": ["num", true], "eaves_m": ["num", true],
+		"pitch_deg": ["num", true], "material": ["name", true], "tint": ["colour", false]},
+	"track": {"gauge_mm": ["uint", true], "near_mm": ["uint", true], "tie_mm": [["tuple", 2, "uint"], true],
+		"tie_pitch_mm": ["uint", true], "rail_mm": [["tuple", 2, "uint"], true],
+		"buffer": [["enum", ["n", "s", "e", "w"]], false], "beyond_m": ["num", true], "cutting_m": ["num", true],
+		"bank_m": ["num", true]},
 	# 16f-d1: a place asset of the pack (`assets/places/<asset>/`), placed by an anchor (ARC-177 amended).
 	"model": {"asset": ["key", true], "depicts": [["null_or", ["list", "key"]], false],
 		"anchor": [["obj", "anchor"], true]},
 	"anchor": {"entrance": ["name", false], "at_doorway": ["bool", false], "at_mm": [POINT, false],
 		"yaw_deg": ["num", false]},
+	# `decks` (ARC-178; S33-e sec.5.1.1): a walked floor on piles
+	"deck": {"name": ["key", true], "depicts": [["list", "key"], true], "footprint_mm": [RECT, true],
+		"surface_m": ["num", true], "thickness_m": ["num", true], "boards": [["obj", "boards"], true],
+		"approach": [["obj", "approach"], false], "piles": [["obj", "piles"], true],
+		"rails": [["obj", "deck_rails"], false], "curb": [["obj", "curb"], false],
+		"shelter": [["obj", "shelter"], false], "moored": [["list", ["obj", "moored"]], false],
+		"source": ["str", false]},
+	"boards": {"material": ["name", true], "tint": ["colour", false], "across": [["enum", ["x", "y"]], true],
+		"width_mm": ["uint", true], "gap_mm": ["uint", true]},
+	"approach": {"side": [["enum", ["n", "s", "e", "w"]], true], "length_m": ["num", true],
+		"from_m": ["num", true]},
+	"piles": {"bents": ["uint", true], "diameter_m": ["num", true], "inset_m": ["num", true],
+		"to_m": ["num", true], "bracing": ["bool", true], "material": ["name", true]},
+	"deck_rails": {"sides": [["list", ["enum", ["n", "s", "e", "w"]]], true], "height_m": ["num", true],
+		"rail_m": ["num", true], "post_m": ["num", true], "posts_m": ["num", true], "material": ["name", true]},
+	"curb": {"height_m": ["num", true], "width_m": ["num", true]},
+	"shelter": {"posts_mm": [POLYGON, true], "post_m": ["num", true], "eaves_m": ["num", true],
+		"roof": [["obj", "roof"], true], "lantern": [["obj", "lantern"], false]},
+	"lantern": {"post": ["uint", true], "up_m": ["num", true]},
+	"moored": {"kind": [["enum", ["rowing_boat"]], true], "at_mm": [POINT, true], "yaw_deg": ["num", true],
+		"length_m": ["num", true], "beam_m": ["num", true]},
 	"scope": {"world": ["key", true]},
 	"frame": {"origin_m": [["tuple", 3, "num"], true]},
 	"street": {"tags": [["list", "key"], true], "footprint_mm": [RECT, true]},
@@ -92,7 +144,14 @@ const TYPES := {
 		"footprint_mm": [POLYGON, true], "storeys": ["uint", true], "storey_m": ["num", true],
 		"plinth_m": ["num", true], "walls": [["obj", "surface"], true], "roof": [["obj", "roof"], true],
 		"openings": [["list", ["obj", "opening"]], false], "chimney": [["obj", "chimney"], false],
-		"source": ["str", false]},
+		"interior": [["obj", "interior"], false], "source": ["str", false]},
+	"interior": {"floor": [["obj", "surface"], true], "ceiling": [["obj", "surface"], true],
+		"fittings": [["list", ["obj", "fitting"]], false],
+		"lights": [["list", ["obj", "interior_light"]], false], "source": ["str", false]},
+	"fitting": {"name": ["key", true], "box_mm": [RECT, true], "height_m": ["num", true],
+		"material": ["name", true], "tint": ["colour", false], "source": ["str", false]},
+	"interior_light": {"at_mm": [POINT, true], "up_m": ["num", true], "energy": ["num", true],
+		"range_m": ["num", true], "colour": ["colour", false]},
 	"surface": {"material": ["name", true], "tint": ["colour", false]},
 	"roof": {"form": [["enum", ["gable", "hip", "mono", "flat"]], true],
 		"ridge": [["enum", ["x", "y"]], false], "falls": [["enum", ["n", "s", "e", "w"]], false],
@@ -101,18 +160,18 @@ const TYPES := {
 	"opening": {"side": [["enum", ["n", "s", "e", "w"]], true],
 		"kind": [["enum", ["door", "double_door", "window", "shop_window"]], true],
 		"storey": ["uint", true], "offset_m": ["num", false], "at_doorway": ["bool", false],
-		"width_m": ["num", true], "height_m": ["num", true], "sill_m": ["num", false],
-		"state": [["enum", ["closed", "open", "dark"]], true]},
+		"doorway_of": [["list", "key"], false], "width_m": ["num", true], "height_m": ["num", true], "sill_m": ["num", false],
+		"state": [["enum", ["closed", "open", "dark", "glazed"]], true]},
 	"chimney": {"at_mm": [POINT, true], "size_m": [["tuple", 2, "num"], true],
 		"above_ridge_m": ["num", true]},
 	"trees": {"species": [["list", ["obj", "species"]], true],
-		"stands": [["list", ["obj", "stand"]], false], "singles": [["list", ["obj", "single"]], false],
+		"stands": [["list", ["obj", "tree_stand"]], false], "singles": [["list", ["obj", "single"]], false],
 		"keep_clear": [["obj", "keep_clear"], true], "lod_m": ["num", true],
 		"air_walls": [["list", ["obj", "air_wall"]], false], "source": ["str", false]},
 	"species": {"name": ["key", true], "latin": ["str", true], "form": ["name", true],
 		"card": ["name", true], "height_m": [["obj", "range"], true], "source": ["str", false]},
 	"range": {"min": ["num", true], "max": ["num", true]},
-	"stand": {"name": ["key", true], "area": [["obj", "area"], true], "spacing_m": ["num", true],
+	"tree_stand": {"name": ["key", true], "area": [["obj", "area"], true], "spacing_m": ["num", true],
 		"density": [["obj", "density"], true], "mix": [["list", ["obj", "mix"]], true],
 		"seed": ["uint", true]},
 	"area": {"ring": [["obj", "ring"], false], "polygon_mm": [POLYGON, false]},
@@ -137,11 +196,15 @@ const TYPES := {
 		"update": [["enum", ["once"]], true]},
 	"viewpoints": {"farfield": [["list", ["obj", "farfield_viewpoint"]], true],
 		"farfield_shots": [["list", ["obj", "view"]], false], "perf": [["list", ["obj", "view"]], false],
-		"perf_breakdown": [["list", "str"], false], "probe_route": [["list", ["list", "key"]], false]},
+		"perf_breakdown": [["list", "str"], false],
+		"probe_route": [["list", ["list_or", "key", ["obj", "route_point"]]], false]},
+	"route_point": {"tags": [["list", "key"], true], "at_mm": [POINT, true]},
 	"farfield_viewpoint": {"id": ["str", true], "at_mm": [POINT, true], "eye_m": ["num", true],
-		"roles": [["list", ["enum", ["protected", "judged", "high"]]], false]},
+		"roles": [["list", ["enum", ["protected", "judged", "high", "landmark_near", "landmark_far"]]], false]},
 	"view": {"name": ["str", true], "at_mm": [POINT, true], "eye_m": ["num", true],
 		"yaw_deg": ["num", true], "pitch_deg": ["num", true]},
+	"decor": {"pose": [["enum", ["walking", "standing"]], true], "from_mm": [POINT, false],
+		"to_mm": [POINT, false], "at_mm": [POINT, false], "yaw_deg": ["num", false]},
 }
 
 ## The file, parsed and checked: the root object of `TYPES.file`. Empty when refused.
@@ -227,6 +290,8 @@ static func _check(value: Variant, spec: Variant, at: String) -> String:
 			return ""
 		"null_or":
 			return "" if value == null else _check(value, spec[1], at)
+		"list_or":
+			return _check(value, ["list", spec[1]], at) if value is Array else _check(value, spec[2], at)
 		"obj":
 			return _object(value, TYPES[spec[1]], at, where)
 	return "%s: the schema has no spec %s" % [where, str(spec)]
@@ -321,6 +386,14 @@ static func _shape(root: Dictionary) -> String:
 			return "%s: posts_m is stated for a rail, and only for a rail" % at
 		if (e["line_mm"] as Array).size() < 2:
 			return "%s.line_mm: a line has at least two points" % at
+	var decor: Array = _list(root, "decor")
+	for i in decor.size():
+		var d: Dictionary = decor[i]
+		var fits: bool = (d.has("from_mm") and d.has("to_mm") and not d.has("at_mm") and not d.has("yaw_deg")) \
+			if d["pose"] == "walking" else (d.has("at_mm") and not d.has("from_mm") and not d.has("to_mm"))
+		if not fits:
+			return ("decor[%d]: a walking figure states from_mm and to_mm, a standing one at_mm and "
+				+ "optionally yaw_deg") % i
 	var paths: Array = _list(root, "paths")
 	for i in paths.size():
 		if (paths[i]["line_mm"] as Array).size() < 2:
@@ -333,8 +406,13 @@ static func _shape(root: Dictionary) -> String:
 			return "%s.roof: falls is stated for a mono roof, and only for it" % at
 		var openings: Array = b.get("openings", [])
 		for j in openings.size():
-			if bool(openings[j].get("at_doorway", false)) == openings[j].has("offset_m"):
-				return "%s.openings[%d]: exactly one of offset_m and at_doorway: true" % [at, j]
+			var o: Dictionary = openings[j]
+			var placed := int(bool(o.get("at_doorway", false))) + int(o.has("offset_m")) \
+				+ int(o.get("doorway_of") != null)
+			if placed != 1:
+				return "%s.openings[%d]: exactly one of offset_m, at_doorway: true and doorway_of" % [at, j]
+		if b.get("interior") != null and b.get("depicts") == null:
+			return "%s.interior: a room is drawn only inside a shell that depicts a place" % at
 	if root.get("trees") != null:
 		var stands: Array = root["trees"].get("stands", [])
 		for i in stands.size():
@@ -366,6 +444,27 @@ static func _shape(root: Dictionary) -> String:
 			return "%s: exactly one of polygon_mm, or along_mm with width_m" % at
 		if strip and (a["along_mm"] as Array).size() < 2:
 			return "%s: a line has at least two points" % at
+	var decks: Array = _list(root, "decks")
+	for i in decks.size():
+		var s: Variant = decks[i].get("shelter")
+		if s == null:
+			continue
+		if (s["roof"]["form"] == "mono") != s["roof"].has("falls"):
+			return "decks[%d].shelter.roof: falls is stated for a mono roof, and only for it" % i
+		if s.get("lantern") != null and int(s["lantern"]["post"]) >= (s["posts_mm"] as Array).size():
+			return "decks[%d].shelter.lantern.post: %d names no post (there are %d)" \
+				% [i, int(s["lantern"]["post"]), (s["posts_mm"] as Array).size()]
+	var stations: Array = _list(root, "stations")
+	for i in stations.size():
+		var fixtures: Array = stations[i].get("fixtures", []) if stations[i].get("fixtures") != null else []
+		for j in fixtures.size():
+			var f: Dictionary = fixtures[j]
+			var at := "stations[%d] \"%s\".fixtures[%d]" % [i, stations[i]["name"], j]
+			var bay := [f.has("counter_m"), f.has("screen_m"), f.has("grilles")]
+			if f["piece"] == "window_bay" and (bay != [true, true, true] or f.has("post_m")):
+				return "%s: a window bay states counter_m, screen_m and grilles, and no post_m" % at
+			if f["piece"] != "window_bay" and bay != [false, false, false]:
+				return "%s: counter_m, screen_m and grilles are a window bay's, not a %s's" % [at, f["piece"]]
 	return ""
 
 
@@ -388,6 +487,28 @@ static func _names(root: Dictionary) -> String:
 	for i in buildings.size():
 		materials.append(["buildings[%d].walls.material" % i, buildings[i]["walls"]["material"]])
 		materials.append(["buildings[%d].roof.material" % i, buildings[i]["roof"]["material"]])
+		var room: Variant = buildings[i].get("interior")
+		if room != null:
+			for part in ["floor", "ceiling"]:
+				if room.get(part) != null:
+					materials.append(["buildings[%d].interior.%s.material" % [i, part], room[part]["material"]])
+			var fittings: Array = room.get("fittings", [])
+			for j in fittings.size():
+				materials.append(["buildings[%d].interior.fittings[%d].material" % [i, j], fittings[j]["material"]])
+	var decks := _list(root, "decks")
+	for i in decks.size():
+		var d: Dictionary = decks[i]
+		materials.append(["decks[%d].boards.material" % i, d["boards"]["material"]])
+		materials.append(["decks[%d].piles.material" % i, d["piles"]["material"]])
+		if d.get("rails") != null:
+			materials.append(["decks[%d].rails.material" % i, d["rails"]["material"]])
+		if d.get("shelter") != null:
+			materials.append(["decks[%d].shelter.roof.material" % i, d["shelter"]["roof"]["material"]])
+	var stations := _list(root, "stations")
+	for i in stations.size():
+		var p: Variant = stations[i].get("platform")
+		if p != null and p.get("canopy") != null:
+			materials.append(["stations[%d].platform.canopy.material" % i, p["canopy"]["material"]])
 	for m in materials:
 		if not has_texture(m[1]):
 			return "%s: this client's texture library has no %s" % [m[0], m[1]]

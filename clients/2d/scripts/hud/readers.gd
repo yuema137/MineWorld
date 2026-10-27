@@ -17,8 +17,8 @@ const NEEDS_PANELS := ["needs", "asleep", "agenda"]
 
 ## Components shown elsewhere or not at all: names label the figures, participation is the marker
 ## over each participant, passages are the drawn doorways, and a look chooses how a figure is drawn
-## (`ARC-92`), never text.
-const SHOWN_ELSEWHERE := ["display-name", "participation", "passages", "look"]
+## (`ARC-92`), never text. The currency formats every amount, and the notice board has its own panel (S31-e).
+const SHOWN_ELSEWHERE := ["display-name", "participation", "passages", "look", "currency", "notice-board"]
 ## The component a place discloses the world's item kinds in: `{kinds: [{item, category, name}]}` (`item`
 ## pack, `ARC-37` note). Items are never perceived entities, so this is where an item's name comes from.
 const CATALOGUE := "item-catalogue"
@@ -66,7 +66,35 @@ func person(id: String) -> String:
 ## world names nowhere (QS13b-3).
 func thing(id: String) -> String:
 	var name := _known_name(id)
-	return name if name != "" else Words.text("ui.item", {"id": id})
+	if name != "":
+		return name
+	# A loose object the world names nowhere is called by its disclosed shape, never by its id (PR 13d).
+	var shape: String = loose_shapes(_latest).get(id, "") if _latest != null else ""
+	if OBJECT_WORDS.has(shape):
+		return Words.text(OBJECT_WORDS[shape])
+	return Words.text("ui.item", {"id": id})
+
+
+## The wording key of a loose object's shape, for an object the world gives no name.
+const OBJECT_WORDS := {"ball": "ui.object.ball", "box": "ui.object.box"}
+
+
+## The loose objects lying in the place in view, id → their disclosed shape's kind (`ball`, `box`, or ""
+## for a shape this reader does not know): the `loose-objects` listing's `shape` keys.
+static func loose_shapes(observation: MineWorldObservation) -> Dictionary:
+	var out := {}
+	var listing: Variant = observation.component_value(observation.place(), "loose-objects")
+	if typeof(listing) != TYPE_ARRAY:
+		return out
+	for lying in listing:
+		if typeof(lying) != TYPE_DICTIONARY:
+			continue
+		var shape: Variant = lying.get("shape")
+		var kind := ""
+		if typeof(shape) == TYPE_DICTIONARY and shape.size() == 1:
+			kind = String(shape.keys()[0])
+		out[_ref(lying.get("object"))] = kind
+	return out
 
 
 ## A place: its tags as the world lists them now, else as they were last seen (where one stood, or on a
@@ -199,12 +227,14 @@ func _rows(kind: String, payload: Variant, observation: MineWorldObservation) ->
 		return sheet if not sheet.is_empty() else null
 	match kind:
 		"wallet":
-			return PackedStringArray([Words.money(payload.get("balance", 0))]) if payload.has("balance") else null
+			var money := MineWorldTrade.money_of(observation)
+			return PackedStringArray([Words.money(money["balance"])]) if not money.is_empty() else null
 		"wealth":
 			if not payload.has("amount"):
 				return null
 			var rows := PackedStringArray([Words.text("ui.row.wealth", {"amount": Words.money(payload["amount"])})])
-			if int(payload.get("unvalued", 0)) > 0:
+			# A count of items with no value, never money: tested for presence, not compared (S31-e check e).
+			if int(payload.get("unvalued", 0)) != 0:
 				rows.append(Words.text("ui.row.wealth.unvalued", {"count": int(payload["unvalued"])}))
 			return rows
 		"currency":
@@ -220,10 +250,18 @@ func _rows(kind: String, payload: Variant, observation: MineWorldObservation) ->
 		"holdings":
 			return _list(payload.get("held"), func(h: Dictionary) -> String:
 				return Words.text("ui.row.holding", {"item": thing(_ref(h.get("item"))), "count": int(h.get("count", 0))}))
+		# What I ask (S31-e): read by the shared trade module, formatted in the world's money. What I am
+		# worth is the `wealth` row above.
+		"asks":
+			return PackedStringArray(MineWorldTrade.own_asks(observation).map(func(a: Dictionary) -> String:
+				return Words.text("trade.row.ask", {"item": thing(a["item"]), "price": Words.money(a["price"])})))
 		"shop":
-			return _list(payload.get("listed"), func(l: Dictionary) -> String:
-				return Words.text("ui.row.shop", {"item": thing(_ref(l.get("item"))),
-					"price": Words.money(l.get("price", 0)), "stock": int(l.get("in_stock", 0))}))
+			var listing := MineWorldTrade.listing_of(observation)
+			if listing.is_empty():
+				return null
+			return PackedStringArray(listing["listed"].map(func(l: Dictionary) -> String:
+				return Words.text("ui.row.shop", {"item": thing(l["item"]), "price": Words.money(l["price"]),
+					"stock": l["in_stock"]})))
 		"conversation-history":
 			return _list(payload.get("heard"), func(h: Dictionary) -> String:
 				return Words.text("ui.row.heard", {"speaker": person(_ref(h.get("speaker"))),

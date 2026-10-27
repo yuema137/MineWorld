@@ -728,8 +728,8 @@ Perf (`--perf`, median p95 ms of three runs, base → head): street wide 10.78 �
 | AC | Run | Result |
 | --- | --- | --- |
 | AC-16f-12 | `client_rules` `no_world_has_a_depiction_script_of_its_own`; `ls scripts/depictions/` = `box_depiction.gd`, `data/`, `depiction.gd`, `doors.gd`, `plain_depiction.gd`, `registry.gd` | **PASS**; a planted `scripts/depictions/social-cafe/` fails it by name |
-| AC-16f-13 | the 40 frames above against Q-16f-6's SSIM ≥ 0.98 | **FAIL**: 29 of 40 meet it; 11 do not (F-d2-2, F-d2-6). The operator's look is open |
-| AC-16f-14 | `--perf` ±10 % of the base | **FAIL as worded** (two views more than 10 % *faster*: F-d2-7); no view is slower |
+| AC-16f-13 | the 40 frames above against Q-16f-6's SSIM ≥ 0.98 | 29 of 40 meet it; 11 do not (F-d2-2, F-d2-6). **Accepted by the operator, 2026-10-26** (rulings below) |
+| AC-16f-14 | `--perf` ±10 % of the base | **PASS** under the operator's reading (2026-10-26: no more than 10 % slower); every view is faster (F-d2-7) |
 | AC-16f-15 | greybox: `--world --link`, `--world=market-town --link`, `--world=bodies-yard --link` | **PASS** (all three drawn plainly: no café art); `--geometry` 20 FAIL, `--bodies` 5 FAIL: **FAIL** (F-d2-8) |
 | connected, default pack | `--world --link`, `--world --layout`, `--world=market-town --link`, `--world=lakeside --link`, `--world=bodies-yard --link` | **PASS** each |
 | connected, default pack | `--world --geometry` 7 FAIL, `--world --bodies` 2 FAIL (B-b, C-2b) | **same as the base** (base: 7 and 2, the same rows); not 16f-d2's |
@@ -935,5 +935,36 @@ Perf (`--perf`, median p95 ms of three runs, base → head): street wide 10.78 �
 - **Observation (not 16f-d1's).** `cargo test -p mineworld-packages --test far_field` fails
   `two_d_and_three_d_water_agree` on this base: bodies-yard's 3D far field (16f-b) has no water body and its 2D
   one has one. 16f-d1 changes no far field. Left for the milestone run.
+
+### Operator rulings, 2026-10-26 (16f-d2)
+
+The operator ruled every pending question "as recommended" (relayed by the coordinator, 2026-10-26):
+
+| Question | Ruling |
+| --- | --- |
+| AC-16f-13, parity (F-d2-2, F-d2-6) | **Accepted at 29 of 40 frames** at SSIM ≥ 0.98. Most misses are where the base drew decorative passers-by, which the pack art no longer draws (people are the world's, D-16c-6). The too-dark tree shade west of the café (F-d2-6) gets its own follow-up, issue #514; it does not block 16f-d2 |
+| AC-16f-14, "±10 % frame time" (F-d2-7) | Means **no more than 10 % slower** than the base. Every view is faster, so AC-16f-14 **PASS** under the ruling |
+| F-d1-5, the 10 MB budget | Covers **place art only** (`assets/` and `materials/`, what the export writes), as `scripts/check_pack_size.py` measures it: 8.4 MB in the default pack after the merge below |
+
+- **F-d2-12 (bounded, merge of `origin/main @ 43679f44`, 2026-10-26).** Main merged S29-d (#366's sibling,
+  `ARC-192`) after 16f-d2's last merge: Social Café's depiction script, which this PR deletes, gained the depot
+  from the pack's station kit `depot`, sited at the street's west end, with its forecourt in the street, its
+  entries, its viewpoints (perf, landmark, station shots, station walk) and its offline furnishings. Keeping
+  both intents means the site moves from the script into the depiction file: a new optional section
+  `station_kit` (`kit`, `facade_mm`, `facing`, `floor_m`, the west-end `eaves` the landmark band is read
+  from, the street `views` toward the station, the `landmark_shots`, the `walk_via` points), read by both the
+  validator (`StationKitSite` in `packages/src/depiction_schema.rs`) and the client's reader, and drawn by
+  `SliceDataDepiction` (`_build_station_kit`, `_draw_recorded_station`, `station()`, the kit's entries, the
+  station viewpoints). The authoring source (`social_cafe/source.gd`) builds the street for the site
+  (forecourt in place of the west parapet, the street's volume run on to the façade, as `SliceWorld` did)
+  and writes the section; the `social-cafe-halt` place asset and the halt's place entry are gone, since the
+  kit draws the station. The place art and both depiction files were re-exported with the tool; every
+  piece's bytes changed, because main's shared builders (`SlicePalette`, `Build`, the props) changed too.
+  `StationViews.band_top` takes the eaves as data instead of reading the built terrace. The depot's
+  occluder boxes are kept but no longer consumed (F-d2-9). Main's other changes merged as unions:
+  `DepictionLight` is the one light builder (it gained 16f-d2's interior-probe rule), the door registry is
+  `SliceDoors` everywhere, `feet_course.gd --scene street` loads the street's builder from the authoring
+  source, and the perf views are only the depiction's. Parity was not re-measured after the merge (the
+  street now ends at the depot, which the base captures do not have).
 
 ### Design review

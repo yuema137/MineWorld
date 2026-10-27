@@ -34,7 +34,9 @@
 mod declared;
 pub mod depiction;
 mod depiction_check;
+mod depiction_deck;
 mod depiction_schema;
+mod depiction_station;
 mod error;
 pub mod far_field;
 mod far_field_check;

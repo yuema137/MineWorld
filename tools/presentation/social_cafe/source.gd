@@ -6,7 +6,7 @@ extends RefCounted
 ## Nothing at run time reads this file: the 3D client draws the street from the pack.
 ##
 ## What is here is the street's composition (the frontage tables, the retaining wall, the café's
-## placement, the halt's door), its viewpoints, and the builders under `builders/` (`street.gd`,
+## placement, the station kit's site), its viewpoints, and the builders under `builders/` (`street.gd`,
 ## `cafe.gd`, `cafe_interior.gd`, `shop_interior.gd`, `terrace.gd`, `streetscape.gd`, `profile.gd`,
 ## `occluders.gd`), moved unchanged out of the 3D client in 16f-d2 (finding F-d1-1). They are outside
 ## the Godot project, so they have no global class names: each is a preload constant of its old name.
@@ -79,12 +79,21 @@ const CAFE_AT := Vector3(6.0, SliceStreet.WALK_Y, SliceStreet.NORTH_FACE)
 ## The scene volumes of the two rooms (`SliceWorld`): names the doors' registry rows carry.
 const CAFE_VOLUME := SliceCafe.VOLUME
 const FLORIST_VOLUME := "florist.main"
-## The halt's door (S29-a), as the social-cafe depiction draws it: the street side of the station hall's
-## arch, mm in the street's frame, and the outward normal of the hall's east façade there.
-const HALT_DOORWAY := Vector2(-62050.0, -4900.0)
-const HALT_OUTWARD := Vector3(1.0, 0.0, 0.0)
-const HALT_DOOR_W := 1.60
-const HALT_DOOR_H := 2.80
+## The station's site (S29-d §5.5, ARC-192; moved from the client's Social Café depiction in the merge
+## of S29-d into 16f-d2): the pack's station kit `depot`, its façade line, the street's axis and the arch's
+## facing. The street's doorway to the station is (-62 050, -4 900) mm in the street's frame, whose
+## (0, 0) lands at scene (3.45, -4.90), so the doorway is at scene (-58.60, 0.00) and the façade, 0.40 m
+## behind it, at x = -59.00 on the axis z = 0. The client draws the depot from the kit at run time; the
+## street's art is built for the site (its forecourt in place of the west parapet).
+const STATION_SITE := {"kit": "depot", "facade_x": -59.0, "axis_z": 0.0, "facing": "east"}
+## The station's street views (S29-d §5.8): st_1 from the spawn, st_2 from the street's east end, both
+## facing west; and the far-field shot that is the landmark's footprint row.
+const STATION_VIEWS := [["st_1_spawn_west", Vector3(-11.5, 1.8, -5.55), 90.0, 4.0],
+	["st_2_east_end_west", Vector3(30.0, 1.8, 0.0), 90.0, 2.0]]
+const STATION_LANDMARK_SHOTS := ["ff_5_west_aerial"]
+## The walk in: from the café door out to the street's axis, then west along it to the arch (the
+## carriageway is clear of the pavement's furniture).
+const STATION_WALK_VIA := [Vector3(3.45, 0.45, 0.0)]
 ## The offline spawn (`depictions/social-cafe/depiction.gd`).
 const SPAWN := Vector3(-11.5, 0.45, -5.55)
 const SPAWN_YAW := -78.0
@@ -109,8 +118,6 @@ func pieces() -> Array:
 		{"id": "social-cafe-cafe", "build": _cafe, "frame_origin": FRAME_ORIGIN,
 			"entrances": {"front_door": func(d: Array) -> bool: return d[3] == CAFE_VOLUME},
 			"spaces": {"cafe_room": _cafe_box}, "volume_spaces": {CAFE_VOLUME: "cafe_room"}},
-		{"id": "social-cafe-halt", "build": _halt, "frame_origin": FRAME_ORIGIN,
-			"entrances": {"front_door": func(d: Array) -> bool: return str(d[2]).begins_with("the halt")}},
 	]
 
 
@@ -165,9 +172,11 @@ func authoring() -> String:
 # --- the pieces --------------------------------------------------------------------------------------
 
 func _street(g: Node3D) -> void:
-	SliceStreet.build(g)
-	# No decorative townspeople: people are the world's, drawn from the server (D-16c-6).
-	SliceStreetscape.build(g, false)
+	# the station closes the west end: its forecourt replaces the parapet, the towers' setback from the kit
+	SliceStreet.build(g, STATION_SITE, _kit().m("towers", "forward_mm"))
+	# No decorative townspeople: people are the world's, drawn from the server (D-16c-6). The street runs
+	# on west over the station's forecourt (S29-d).
+	SliceStreetscape.build(g, false, true)
 	# the frontage stops against a stone retaining wall and the planted bank
 	Build.box(g, Vector3(24.0, SliceStreet.WALK_Y + 0.95, SliceStreet.NORTH_FACE + 1.1),
 		Vector3(11.0, 1.90, 2.2), SlicePalette.kerbstone(), 0.0, true)
@@ -175,10 +184,16 @@ func _street(g: Node3D) -> void:
 		Vector3(11.2, 0.12, 2.4), SlicePalette.kerbstone())
 
 
+## The street's volume: with the station, it runs on over the forecourt to the façade (S29-d §5.6).
 func _street_box() -> AABB:
-	var size := Vector3(SliceStreet.X_MAX - SliceStreet.X_MIN, 3.5,
-		SliceStreet.SOUTH_FACE - SliceStreet.NORTH_FACE)
-	return AABB(Vector3(0.0, SliceStreet.WALK_Y + 1.25, 0.0) - size * 0.5, size)
+	var west := float(STATION_SITE["facade_x"])
+	var size := Vector3(SliceStreet.X_MAX - west, 3.5, SliceStreet.SOUTH_FACE - SliceStreet.NORTH_FACE)
+	return AABB(Vector3((SliceStreet.X_MAX + west) * 0.5, SliceStreet.WALK_Y + 1.25, 0.0) - size * 0.5, size)
+
+
+## The station kit the site names, read from the default pack (its towers' setback shapes the forecourt).
+func _kit() -> StationKit:
+	return StationKit.load_kit(SlicePack.select().dir, String(STATION_SITE["kit"]))
 
 
 ## The four secondary façades west of the café (`SliceWorld._north_frontage`, unchanged).
@@ -299,29 +314,6 @@ func _cafe_box() -> AABB:
 	return AABB(centre - size * 0.5, size)
 
 
-## The halt's closed door in a short façade at the street's west forecourt
-## (`depictions/social-cafe/depiction.gd` `_build_halt_door`, unchanged).
-func _halt(g: Node3D) -> void:
-	var at := FRAME_ORIGIN + MineWorldSpace.to_3d({"x": HALT_DOORWAY.x, "y": HALT_DOORWAY.y})
-	var sill := Vector3(at.x, SliceStreet.WALK_Y, at.z) - HALT_OUTWARD * SliceLayout.DOOR_INSET
-	var yaw := atan2(HALT_OUTWARD.x, HALT_OUTWARD.z)
-	var f := Node3D.new()
-	f.name = "HaltDoor"
-	g.add_child(f)
-	f.position = sill
-	f.rotation.y = yaw
-	var stone := SlicePalette.limestone()
-	var half := HALT_DOOR_W * 0.5
-	var pier := 1.6
-	var top := HALT_DOOR_H + 1.2
-	for sx in [-1.0, 1.0]:
-		Build.box(f, Vector3(sx * (half + pier * 0.5), top * 0.5, -0.20), Vector3(pier, top, 0.40), stone)
-	Build.box(f, Vector3(0.0, HALT_DOOR_H + (top - HALT_DOOR_H) * 0.5, -0.20),
-		Vector3(HALT_DOOR_W, top - HALT_DOOR_H, 0.40), stone)
-	Profile.door(f, 0.0, 0.0, HALT_DOOR_W, HALT_DOOR_H, Color(0.30, 0.20, 0.12), false)
-	SliceDoors.rows.append([sill, yaw, "the halt -- door", "", 0.0, 0.0])
-
-
 # --- the depiction files (the pack's depictions/, 16f-d2) ----------------------------------------------
 
 ## The worlds drawn on this street: Social Café, and Market Town on the same geometry (step-15 D-16d-2).
@@ -344,8 +336,6 @@ func depiction(world: String, _pack: String) -> Dictionary:
 				"doorway_mm": _plan(CAFE_AT + Vector3(SliceCafe.DOOR_X, 0.0, SliceLayout.DOOR_INSET))},
 			{"tags": ["store"], "label": "The Flower Room", "footprint_mm": _rect(florist_box),
 				"doorway_mm": _florist_doorway()},
-			{"tags": ["station"], "label": "The halt", "footprint_mm": _halt_footprint(),
-				"doorway_mm": [int(HALT_DOORWAY.x), int(HALT_DOORWAY.y)]},
 		],
 		"spawn": {"at_mm": _plan(SPAWN), "up_m": _m(SPAWN.y), "yaw_deg": SPAWN_YAW},
 		"models": [
@@ -356,9 +346,8 @@ func depiction(world: String, _pack: String) -> Dictionary:
 				"anchor": {"entrance": "front_door", "at_doorway": true}},
 			{"asset": "social-cafe-florist", "depicts": ["store"],
 				"anchor": {"entrance": "front_door", "at_doorway": true}},
-			{"asset": "social-cafe-halt", "depicts": ["station"],
-				"anchor": {"entrance": "front_door", "at_doorway": true}},
 		],
+		"station_kit": _station_kit(),
 		"light": _light(),
 		"viewpoints": {
 			"farfield": _farfield(),
@@ -377,11 +366,36 @@ func _florist_doorway() -> Array:
 	return _plan(_florist_out)
 
 
-## The station hall's floor in the street's frame: its east façade 0.4 m behind the doorway, its floor
-## 16.8 m by 51.8 m with the arch 25.9 m from its south end (`worlds/social-cafe/places/station.yaml`).
-func _halt_footprint() -> Array:
-	var east := int(HALT_DOORWAY.x) - 400
-	return [east - 16800, int(HALT_DOORWAY.y) - 25900, 16800, 51800]
+## The station kit's section (S29-d, ARC-192): the site in the street's frame, the west-end eaves of
+## each frontage (the westernmost unit's eaves at its west façade corner, from the terrace as built), the
+## street views toward the station, the landmark's footprint shots and the walk's street points.
+func _station_kit() -> Dictionary:
+	var west := {}      # side (-1 north, +1 south) -> [x of the west corner, eaves height, façade z]
+	for m in SliceTerrace.massing:
+		var xf: Transform3D = m[0]
+		var side := signf(xf.origin.z)
+		var x0: float = xf.origin.x - float(m[1]) * 0.5
+		if not west.has(side) or x0 < west[side][0]:
+			west[side] = [x0, xf.origin.y + float(m[2]), xf.origin.z]
+	var eaves := []
+	for side in [-1.0, 1.0]:
+		if west.has(side):
+			var w: Array = west[side]
+			eaves.append({"corner_mm": _plan(Vector3(w[0], 0.0, w[2])), "eaves_m": _m(w[1] - FRAME_ORIGIN.y)})
+	var via := []
+	for p: Vector3 in STATION_WALK_VIA:
+		via.append({"at_mm": _plan(p), "up_m": _m(p.y)})
+	return {
+		"kit": STATION_SITE["kit"],
+		"facade_mm": _plan(Vector3(float(STATION_SITE["facade_x"]), 0.0, float(STATION_SITE["axis_z"]))),
+		"facing": STATION_SITE["facing"],
+		"floor_m": _m(SliceStreet.WALK_Y - FRAME_ORIGIN.y),
+		"eaves": eaves,
+		"views": _views(STATION_VIEWS),
+		"landmark_shots": STATION_LANDMARK_SHOTS,
+		"walk_via": via,
+		"source": "S29-d sec.5.5 and sec.5.8 (ARC-192): the depot kit's façade 0.40 m behind the street's doorway to the station (-62 050, -4 900) mm, on the street's axis, the arch facing east; its floors on the pavement (the street's WALK_Y); the eaves are the terrace's as built",
+	}
 
 
 ## The café's VoxelGI and the two reflection probes (`SliceMain._voxel_gi`, `_reflections`).

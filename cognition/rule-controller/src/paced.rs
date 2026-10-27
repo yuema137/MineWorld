@@ -62,8 +62,8 @@
 //! hours)`, so that a door is kept long enough to arrive at.
 
 use mineworld_contracts::{
-    Action, ActionRequest, ActionTypeId, EntityId, LocalPosition, Millimetres, Observation,
-    PerceivedEntity, PersonId, PlaceId, SimDuration,
+    Action, ActionRequest, ActionTypeId, Affordance, EntityId, LocalPosition, Millimetres,
+    Observation, PerceivedEntity, PersonId, PlaceId, SimDuration,
 };
 use mineworld_conversation::{Talk, Utterance};
 use mineworld_group_activity::{
@@ -84,7 +84,9 @@ use crate::read::{
 use crate::{agenda, offered, social};
 
 /// Within this distance of somebody, approaching them again is pointless; the controller wanders.
-/// A walk to a person ends within movement's `PERSON_APPROACH` (1 200 mm) of them, inside this.
+/// A walk to a person ends within movement's `PERSON_APPROACH` (1 200 mm) of them when the way is
+/// direct, and at most `PERSON_REACH` (2 100 mm) away across furniture (`ARC-75` amendment 1); a walk
+/// that ended across a counter and is asked again ends where the walker already stands.
 const CLOSE_ENOUGH: i64 = 1_500;
 
 /// The largest offset a wander names on each axis: a point a stride or two away. The walk there is
@@ -285,18 +287,20 @@ impl PacedRuleController {
         let mine = agenda::own(observation);
         // Arrived early at a punctual next part's place, I wait there: it counts as being where my day
         // says (`commute.rs`).
-        let waiting = self
-            .commute
-            .is_some_and(|(commute, _)| crate::commute::holds(observation, &commute, self.pace));
+        let waiting = self.commute.is_some_and(|(commute, stride)| {
+            crate::commute::holds(observation, &commute, self.pace, stride)
+        });
         // Hungry with nothing nourishing held: buy food here, or walk toward a disclosed shop, no draw
         // (`needs.rs`, Q-S35-OP1 (b)) — while waiting at a punctual part's place for it to begin, only a
         // purchase here, never a walk away (D-Nc2-5, F-Nd-8), so that an errand does not make me late.
         // No `needs` disclosed, nothing here changes.
-        if let Some(decided) = self
-            .needs
-            .as_ref()
-            .and_then(|needs| needs.fetch(observation, waiting))
-        {
+        if let Some(decided) = self.needs.as_ref().and_then(|needs| {
+            needs.fetch_within(observation, waiting, |to| {
+                self.commute.is_none_or(|(commute, stride)| {
+                    crate::commute::errand_fits(observation, &commute, self.pace, stride, to)
+                })
+            })
+        }) {
             return decided;
         }
         let at_agenda = waiting
@@ -323,7 +327,12 @@ impl PacedRuleController {
         // What the world offers complete — an action of a pack this controller was never compiled
         // against — sometimes (`offered.rs`, `ARC-34`). Nothing complete offered, nothing changes; what
         // the bands above decide by name is not drawn a second time (`ARC-151`).
-        if let Some(offered) = offered::attempt(observation, &draw, &DECIDED_BY_NAME) {
+        let beyond = |affordance: &Affordance<Value>| {
+            self.needs
+                .as_ref()
+                .is_some_and(|needs| needs.beyond_chance_budget(observation, affordance))
+        };
+        if let Some(offered) = offered::attempt(observation, &draw, &DECIDED_BY_NAME, &beyond) {
             return Some(offered);
         }
         // Heading for a door: never while part of an activity, never away from the agenda's place, and

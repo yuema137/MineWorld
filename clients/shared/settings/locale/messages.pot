@@ -468,6 +468,10 @@ msgstr ""
 msgid "ui.settings.key.conversations"
 msgstr ""
 
+#. Show the notice board
+msgid "ui.settings.key.notices"
+msgstr ""
+
 #. {label} — not supported by this client
 msgid "ui.unsupported"
 msgstr ""
@@ -520,6 +524,18 @@ msgstr ""
 msgid "panel.shop"
 msgstr ""
 
+#. Worth
+msgid "panel.wealth"
+msgstr ""
+
+#. I sell
+msgid "panel.asks"
+msgstr ""
+
+#. {label} — in the panel beside
+msgid "ui.in-trade-panel"
+msgstr ""
+
 #. {item} × {count}
 msgid "ui.row.holding"
 msgstr ""
@@ -529,7 +545,135 @@ msgid "ui.row.shop"
 msgstr ""
 
 #. {amount}
-msgid "format.money"
+msgid "format.money.plain"
+msgstr ""
+
+#. {symbol}{amount}
+msgid "format.money.before"
+msgstr ""
+
+#. {amount} {symbol}
+msgid "format.money.after"
+msgstr ""
+
+#. ,
+msgid "format.money.group_mark"
+msgstr ""
+
+#. .
+msgid "format.money.decimal_mark"
+msgstr ""
+
+#. Money: {money}
+msgid "hud.money"
+msgstr ""
+
+#. Money: {money}  ·  worth {wealth}
+msgid "hud.money.wealth"
+msgstr ""
+
+#. {line} ({count} not valued)
+msgid "hud.money.unvalued"
+msgstr ""
+
+#. For sale
+msgid "panel.trade"
+msgstr ""
+
+#. My stall
+msgid "panel.stall"
+msgstr ""
+
+#. {item}  ·  {price}
+msgid "trade.row.sale"
+msgstr ""
+
+#. {item}  ·  {price}
+msgid "trade.row.ask"
+msgstr ""
+
+#. {item} × {count}
+msgid "trade.row.held"
+msgstr ""
+
+#. {item}  ·  {price}  ·  {stock} left
+msgid "trade.row.shelf"
+msgstr ""
+
+#. Buy
+msgid "trade.buy"
+msgstr ""
+
+#. Change price…
+msgid "trade.change-price"
+msgstr ""
+
+#. Withdraw
+msgid "trade.withdraw"
+msgstr ""
+
+#. List for sale…
+msgid "trade.list"
+msgstr ""
+
+#. List another kind for the shop…
+msgid "trade.list-for-shop"
+msgstr ""
+
+#. This shop's prices…
+msgid "trade.shop-prices"
+msgstr ""
+
+#. Price for {item}, in {currency}
+msgid "trade.price.prompt"
+msgstr ""
+
+#. "{text}" is not an amount in {currency}
+msgid "trade.price.not-an-amount"
+msgstr ""
+
+#. Which kind?
+msgid "trade.item.pick"
+msgstr ""
+
+#. Cancel
+msgid "trade.cancel"
+msgstr ""
+
+#. {item} {price}
+msgid "trade.tag"
+msgstr ""
+
+#. {item} {price} · sold out
+msgid "trade.tag.sold-out"
+msgstr ""
+
+#. {tag} · +{count}
+msgid "trade.tag.more"
+msgstr ""
+
+#. +{count} more
+msgid "trade.tag.rest"
+msgstr ""
+
+#. Notice board
+msgid "panel.board"
+msgstr ""
+
+#. {topic}  ·  {publisher}  ·  until {time}
+msgid "board.row.title"
+msgstr ""
+
+#. {item} {price} ({basis} seen)
+msgid "board.row.price"
+msgstr ""
+
+#. No notices
+msgid "board.empty"
+msgstr ""
+
+#. {count} new
+msgid "board.badge"
 msgstr ""
 
 #. Walk
@@ -690,6 +834,14 @@ msgstr ""
 
 #. You put it down
 msgid "action.put-down.done"
+msgstr ""
+
+#. Look over the prices
+msgid "action.survey"
+msgstr ""
+
+#. You looked over the prices
+msgid "action.survey.done"
 msgstr ""
 
 #. Put {item} up for sale
@@ -868,6 +1020,74 @@ msgstr ""
 msgid "reason.sleep-for-out-of-bound"
 msgstr ""
 
+#. that is not for sale
+msgid "reason.not-for-sale"
+msgstr ""
+
+#. the price has changed
+msgid "reason.price-changed"
+msgstr ""
+
+#. not enough money
+msgid "reason.insufficient-funds"
+msgstr ""
+
+#. sold out
+msgid "reason.out-of-stock"
+msgstr ""
+
+#. you cannot carry any more
+msgid "reason.cannot-carry"
+msgstr ""
+
+#. that is already for sale
+msgid "reason.already-listed"
+msgstr ""
+
+#. that price is not allowed
+msgid "reason.price-out-of-range"
+msgstr ""
+
+#. you do not have one
+msgid "reason.not-held"
+msgstr ""
+
+#. that is already the price
+msgid "reason.price-unchanged"
+msgstr ""
+
+#. there is no such topic
+msgid "reason.unknown-topic"
+msgstr ""
+
+#. that topic takes another kind of notice
+msgid "reason.body-mismatch"
+msgstr ""
+
+#. the notice is too long
+msgid "reason.body-too-large"
+msgstr ""
+
+#. the notice is not valid
+msgid "reason.body-invalid"
+msgstr ""
+
+#. that is not an allowed time for a notice to last
+msgid "reason.validity-out-of-range"
+msgstr ""
+
+#. too many notices on that topic today
+msgid "reason.over-daily-limit"
+msgstr ""
+
+#. you already follow that topic
+msgid "reason.already-subscribed"
+msgstr ""
+
+#. you do not follow that topic
+msgid "reason.not-subscribed"
+msgstr ""
+
 #. How you feel
 msgid "panel.needs"
 msgstr ""
@@ -994,6 +1214,18 @@ msgstr ""
 
 #. street
 msgid "place.street"
+msgstr ""
+
+#. No service yet
+msgid "sign.no_service"
+msgstr ""
+
+#. Closed
+msgid "sign.window_closed"
+msgstr ""
+
+#. Departures
+msgid "sign.departures"
 msgstr ""
 
 #. Say to {target}:

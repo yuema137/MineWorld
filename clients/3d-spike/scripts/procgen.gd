@@ -201,3 +201,52 @@ static func treeline_card(seed_v: int) -> Texture2D:
 	var t := ImageTexture.create_from_image(img)
 	_cache[key] = t
 	return t
+
+
+## A long-needled pine's tufts (S33-d, DEP-79: Jeffrey and Coulter pine): sparse bundles of long, pale
+## grey-green needles radiating from a few twig ends, open between them.
+static func needle_long_card(seed_v: int) -> Texture2D:
+	var key := "needlelong%d" % seed_v
+	if _cache.has(key):
+		return _cache[key]
+	var n := 256
+	var img := _blank(n)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_v
+	for tuft in range(7):
+		var cx := n * rng.randf_range(0.22, 0.78)
+		var cy := n * rng.randf_range(0.18, 0.82)
+		for i in range(26):
+			var a := rng.randf() * TAU
+			var g := rng.randf_range(-0.04, 0.06)
+			var c := Color(0.20 + g * 0.6, 0.31 + g, 0.20 + g * 0.5)
+			var spoke := rng.randf_range(16.0, 30.0)
+			_leaf(img, cx + cos(a) * spoke * 0.5, cy + sin(a) * spoke * 0.5, 1.6, spoke * 0.5, a + PI * 0.5, c)
+	img.generate_mipmaps()
+	var t := ImageTexture.create_from_image(img)
+	_cache[key] = t
+	return t
+
+
+## A cedar's flat fern-like sprays (S33-d, DEP-79: incense cedar): dense, yellow-green, a fan of
+## scale-leaved branchlets.
+static func spray_card(seed_v: int) -> Texture2D:
+	var key := "spray%d" % seed_v
+	if _cache.has(key):
+		return _cache[key]
+	var n := 256
+	var img := _blank(n)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_v
+	for i in range(260):
+		var fy := rng.randf()
+		var halfw := (1.0 - fy) * 0.40 + 0.05
+		var cx := n * (0.5 + rng.randf_range(-halfw, halfw))
+		var cy := n * (0.06 + fy * 0.9)
+		var g := rng.randf_range(-0.05, 0.06)
+		var c := Color(0.20 + g * 0.6, 0.36 + g, 0.12 + g * 0.4)
+		_leaf(img, cx, cy, rng.randf_range(3.0, 5.0), rng.randf_range(6.0, 10.0), rng.randf_range(-0.6, 0.6), c)
+	img.generate_mipmaps()
+	var t := ImageTexture.create_from_image(img)
+	_cache[key] = t
+	return t
