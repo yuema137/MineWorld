@@ -22,7 +22,9 @@ use serde_json::Value;
 use crate::action::{PublishNotice, REQUIREMENT, Subscribe, Unsubscribe};
 use crate::board::{BoardState, Notice, NoticesProcess, board, board_process};
 use crate::codec;
-use crate::component::{DisclosedSubscriptions, NoticeBoardRecord, Subscriptions};
+use crate::component::{
+    DisclosedSubscriptions, NoticeBoardRecord, Subscriptions, TopicLine, TopicsRecord,
+};
 use crate::event::{
     NoticePublished, NoticesConfigured, Origin, Subscribed, SubscriptionsSeeded, Unsubscribed,
 };
@@ -135,6 +137,7 @@ impl System for NoticesSystem {
         SystemDeclaration::of::<Self>()
             .owning::<Subscriptions>()
             .owning::<NoticeBoardRecord>()
+            .owning::<TopicsRecord>()
             .providing::<PublishNotice>()
             .providing::<Subscribe>()
             .providing::<Unsubscribe>()
@@ -156,7 +159,8 @@ impl System for NoticesSystem {
 
     fn install(&self, tables: &mut Declarations<'_, Self>) -> Result<(), KernelError> {
         tables.component::<Subscriptions>()?;
-        tables.component::<NoticeBoardRecord>()
+        tables.component::<NoticeBoardRecord>()?;
+        tables.component::<TopicsRecord>()
     }
 
     /// The payload decodes (`PreconditionFailed` otherwise), there is no target
@@ -409,9 +413,10 @@ impl PerceptionProvider for NoticesSystem {
         offers
     }
 
-    /// To the person themself only (I-S31-9): its `subscriptions`, and its `notice-board` — the
+    /// To the person themself only (I-S31-9): its `subscriptions`; its `notice-board` — the
     /// notices current at this read's instant on the topics it subscribes to or publishes, absent
-    /// when there are none. Nothing to any other observer.
+    /// when there are none; and, in a configured world, its `topics` record — every declared topic
+    /// with whether it may publish and subscribes (S31-b2 §5.6). Nothing to any other observer.
     fn discloses(
         &self,
         world: &WorldRead<'_>,
@@ -452,6 +457,24 @@ impl PerceptionProvider for NoticesSystem {
                 codec::to_value(&NoticeBoardRecord { notices }),
             ));
         }
+        let mut topics: Vec<TopicLine> = state
+            .topics()
+            .iter()
+            .map(|topic| TopicLine {
+                topic: topic.topic().clone(),
+                body: topic.body(),
+                valid_min: topic.valid_min(),
+                valid_max: topic.valid_max(),
+                per_day: topic.per_day(),
+                may_publish: topic.publishers().contains(&person),
+                subscribed: held.is_some_and(|held| held.contains(topic.topic())),
+            })
+            .collect();
+        topics.sort_by(|a, b| a.topic.cmp(&b.topic));
+        disclosed.push(ComponentRecord::new::<TopicsRecord>(
+            subject,
+            codec::to_value(&TopicsRecord { topics }),
+        ));
         disclosed
     }
 }
