@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If you use MineWorld in your work, please cite it as below."
+type: software
+title: MineWorld
+version: 0.1.0
+# date-released is set by hand in the release PR that bumps the version (design S23 R-d, section 4.1).
+authors:
+  - family-names: Ma
+    given-names: Yue
+license: MIT
+repository-code: "https://github.com/yuema137/MineWorld"
+abstract: "MineWorld is an open-source framework for building persistent, modular living game worlds, composed from independent entities, simulation systems, controllers and presentation layers."
+keywords:
+  - game framework
+  - living worlds
+  - simulation
+  - entity component system
+  - Godot
+  - Rust
