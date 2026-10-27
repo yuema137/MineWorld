@@ -8,14 +8,14 @@
 ## entity id is never returned as a name: what the world has not named reads as "something".
 ##
 ## The 2D client has its own reader for the same shapes (`clients/2d/scripts/hud/readers.gd`). The
-## two are compared field for field through their `MENU` reports (§22.4 P-2); joining them in one
-## shared module is a later, coordinated PR (Q-16d-5).
+## two are compared field for field through their `MENU` reports (§22.4 P-2). Money, worth and the shop
+## listing are read and formatted by the shared trade module both use (S31-e, `ARC-184`).
 class_name SliceThings
 extends RefCounted
 
 ## The three panels this client shows (Q-16d-8), by component type: the observer's own wallet and
 ## holdings, and the listing of the shop the observer stands in.
-const OWN_PANELS := ["wallet", "holdings"]
+const OWN_PANELS := ["wallet", "wealth", "holdings"]
 const PLACE_PANELS := ["shop"]
 ## The component a place discloses its kinds of things in (12d SD-D10).
 const CATALOGUE := "item-catalogue"
@@ -105,35 +105,43 @@ func panels(obs: MineWorldObservation) -> Array:
 				continue
 			var kind := String(record.get("component_type", ""))
 			if OWN_PANELS.has(kind):
-				out.append(_panel(kind, record.get("payload")))
+				out.append(_panel(kind, record.get("payload"), obs))
 	for kind in PLACE_PANELS:
 		var payload: Variant = obs.component_value(obs.place(), kind)
 		if payload != null:
-			out.append(_panel(kind, payload))
+			out.append(_panel(kind, payload, obs))
 	return out
 
 
-func _panel(kind: String, payload: Variant) -> Dictionary:
-	var rows: Variant = _rows(kind, payload)
+func _panel(kind: String, payload: Variant, obs: MineWorldObservation) -> Dictionary:
+	var rows: Variant = _rows(kind, payload, obs)
 	return {"component": kind, "title": MineWorldText.text("panel." + kind),
 		"rows": rows if rows != null else PackedStringArray(), "payload": payload}
 
 
-## The rows a known component reads as, or null when the payload is not the shape this reader knows.
-func _rows(kind: String, payload: Variant) -> Variant:
+## The rows a known component reads as, or null when the payload is not the shape this reader knows. Money,
+## worth and the listing are read by the shared trade module (S31-e).
+func _rows(kind: String, payload: Variant, obs: MineWorldObservation) -> Variant:
 	if typeof(payload) != TYPE_DICTIONARY:
 		return null
 	match kind:
 		"wallet":
-			return PackedStringArray([money(payload["balance"])]) if payload.has("balance") else null
+			var held := MineWorldTrade.money_of(obs)
+			return PackedStringArray([money(held["balance"])]) if not held.is_empty() else null
+		"wealth":
+			var worth := MineWorldTrade.wealth_of(obs)
+			return PackedStringArray([money(worth["amount"])]) if not worth.is_empty() else null
 		"holdings":
 			return _list(payload.get("held"), func(h: Dictionary) -> String:
 				return MineWorldText.text("ui.row.holding", {"item": name_of(ref(h.get("item"))),
 					"count": int(h.get("count", 0))}))
 		"shop":
-			return _list(payload.get("listed"), func(l: Dictionary) -> String:
-				return MineWorldText.text("ui.row.shop", {"item": name_of(ref(l.get("item"))),
-					"price": money(l.get("price", 0)), "stock": int(l.get("in_stock", 0))}))
+			var listing := MineWorldTrade.listing_of(obs)
+			if listing.is_empty():
+				return null
+			return PackedStringArray(listing["listed"].map(func(l: Dictionary) -> String:
+				return MineWorldText.text("ui.row.shop", {"item": name_of(l["item"]),
+					"price": money(l["price"]), "stock": l["in_stock"]})))
 	return null
 
 
@@ -148,13 +156,16 @@ static func _list(listing: Variant, row: Callable) -> Variant:
 	return rows
 
 
-## An amount of the wallet's minor units, as `format.money` words it: 13b's formatting (`words.gd`),
-## the one place this client formats money (S31 replaces it with the disclosed currency).
-static func money(minor: Variant) -> String:
-	var units := int(minor)
-	var minus := "-" if units < 0 else ""
-	units = absi(units)
-	return MineWorldText.text("format.money", {"amount": "%s%d.%02d" % [minus, units / 100, units % 100]})
+## An amount of minor units in the currency the newest observation disclosed, through the shared formatter
+## (S31-e §5.2, `res://mineworld_trade`): no scale is assumed here.
+func money(minor: Variant) -> String:
+	return MineWorldMoney.format(minor, currency())
+
+
+## The currency the newest observation disclosed, or {} (no economy, or before the first frame).
+func currency() -> Dictionary:
+	var obs := link.client.latest if link != null and link.client != null else null
+	return MineWorldMoney.currency_of(obs) if obs != null else {}
 
 
 ## An identity as a string, from an identity string or a typed reference `{entity, entity_type}`.

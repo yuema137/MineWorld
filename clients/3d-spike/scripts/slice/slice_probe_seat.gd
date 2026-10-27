@@ -70,7 +70,7 @@ func _seat_check() -> void:
 	var done := {}
 	var route: Array = SliceWorlds.current.viewpoints().get("probe_route", [])
 	for step in route:
-		var target := _place_of_entry(link.layout, step)
+		var target := _place_of_entry(link.layout, _step_tags(step))
 		if target == "":
 			continue
 		if target != link.here and not await _cross(link, target):

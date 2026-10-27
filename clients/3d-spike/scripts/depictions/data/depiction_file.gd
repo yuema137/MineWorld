@@ -32,6 +32,7 @@ const CARDS := Props.CARDS
 ##   num   a number                    str   a string                bool  a boolean
 ##   key   1-48 of a-z 0-9 -           name  1-64 of a-z 0-9 _ -     colour  #rrggbb
 ##   ["list", spec]  ["tuple", n, spec]  ["obj", type]  ["enum", [values]]  ["null_or", spec]
+##   ["list_or", item, spec]  a list of `item`, or else `spec`
 ## Each object type: { field: [spec, required] }.
 const POINT := ["tuple", 2, "int"]
 const RECT := ["tuple", 4, "int"]
@@ -185,7 +186,9 @@ const TYPES := {
 		"update": [["enum", ["once"]], true]},
 	"viewpoints": {"farfield": [["list", ["obj", "farfield_viewpoint"]], true],
 		"farfield_shots": [["list", ["obj", "view"]], false], "perf": [["list", ["obj", "view"]], false],
-		"perf_breakdown": [["list", "str"], false], "probe_route": [["list", ["list", "key"]], false]},
+		"perf_breakdown": [["list", "str"], false],
+		"probe_route": [["list", ["list_or", "key", ["obj", "route_point"]]], false]},
+	"route_point": {"tags": [["list", "key"], true], "at_mm": [POINT, true]},
 	"farfield_viewpoint": {"id": ["str", true], "at_mm": [POINT, true], "eye_m": ["num", true],
 		"roles": [["list", ["enum", ["protected", "judged", "high", "landmark_near", "landmark_far"]]], false]},
 	"view": {"name": ["str", true], "at_mm": [POINT, true], "eye_m": ["num", true],
@@ -277,6 +280,8 @@ static func _check(value: Variant, spec: Variant, at: String) -> String:
 			return ""
 		"null_or":
 			return "" if value == null else _check(value, spec[1], at)
+		"list_or":
+			return _check(value, ["list", spec[1]], at) if value is Array else _check(value, spec[2], at)
 		"obj":
 			return _object(value, TYPES[spec[1]], at, where)
 	return "%s: the schema has no spec %s" % [where, str(spec)]

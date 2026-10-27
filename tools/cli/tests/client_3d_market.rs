@@ -185,12 +185,22 @@ fn int(value: &Value) -> u64 {
     whole
 }
 
-/// Minor units as 13b formats them and the shared catalog's `format.money` ("{amount}") words them.
+/// Minor units as the shared trade module formats them in Market Town's declared currency (S31-e,
+/// `clients/shared/TRADE.md` §3; `worlds/market-town/configure/economy.yaml`: `$`, exponent 2, before):
+/// grouped in threes, two decimals, the symbol first.
 fn money(minor: &Value) -> String {
     let units = minor.as_f64().expect("an amount");
     #[allow(clippy::cast_possible_truncation)]
     let units = units as i64;
-    format!("{}.{:02}", units / 100, units % 100)
+    let digits = (units / 100).to_string();
+    let mut grouped = String::new();
+    for (at, digit) in digits.chars().enumerate() {
+        if at > 0 && (digits.len() - at).is_multiple_of(3) {
+            grouped.push(',');
+        }
+        grouped.push(digit);
+    }
+    format!("${grouped}.{:02}", units % 100)
 }
 
 /// N-2: no whole-word number on screen equals an id the session has seen, once the numbers the

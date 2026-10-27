@@ -66,10 +66,43 @@ func submit_offered(client: MineWorldClient, affordance: Dictionary, actor_locat
 
 
 ## Whether this file composes an incomplete affordance of `action`: talk only (Q-16d-7), its words typed
-## by the player in the talk line (PR 16g1) and sent by `talk`. Anything else incomplete is listed by the
-## menus as not supported and never sent.
+## by the player in the talk line (PR 16g1) and sent by `talk`. The seller actions are composed from the
+## trade panel (`trades`); anything else incomplete is listed by the menus as not supported and never sent.
 static func composes(action: String) -> bool:
 	return action == TALK
+
+
+## S31-e: the seller actions this client composes from the trade panel, as the shared trade module reads
+## them (`clients/shared/TRADE.md` §5.2): what the player supplies, the rows each serves, its button's words.
+const TRADE_INPUTS := {
+	"list-for-sale": {"ask": ["amount"], "row": ["held", "note"], "label": "trade.list"},
+	"set-price": {"ask": ["amount"], "row": ["ask", "shelf"], "label": "trade.change-price"},
+	"withdraw": {"ask": [], "row": ["ask", "shelf"], "label": "trade.withdraw"},
+}
+
+
+## Whether `action` is composed from the trade panel beside the menus.
+static func trades(action: String) -> bool:
+	return TRADE_INPUTS.has(action)
+
+
+## Composes a seller action from the trade panel's `input` `{item, price, shop}`: the item reference exactly
+## as the world disclosed it, the parsed price, and `for: shop` when the row is the shop's (S31-e §5.6).
+## Sent whatever the observation says; the server answers. Returns the token, or "" for another type.
+func compose_trade(client: MineWorldClient, affordance: Dictionary, input: Dictionary,
+		actor_location: Dictionary) -> String:
+	var action := String(affordance.get("action_type", ""))
+	if not trades(action):
+		return ""
+	var payload := {"item": input.get("item")}
+	if action != "withdraw":
+		payload["price"] = int(input.get("price", 0))
+	if input.get("shop", false):
+		payload["for"] = "shop"
+	var tok := client.submit(action, null, payload, actor_location)
+	if tok != "":
+		_pending[tok] = {"action": action, "target": "", "about": SliceThings.ref(input.get("item"))}
+	return tok
 
 
 ## The connection dropped: every unanswered request, forgotten and never resent (13b §4.6 point 5).

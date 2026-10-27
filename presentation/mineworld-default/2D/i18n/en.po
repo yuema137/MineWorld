@@ -176,6 +176,7 @@ msgstr "on shift"
 msgid "panel.ways"
 msgstr "Ways from here"
 
+#. override
 msgid "panel.wealth"
 msgstr "What you are worth"
 

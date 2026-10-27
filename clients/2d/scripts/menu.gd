@@ -28,6 +28,9 @@ const Words := preload("res://scripts/hud/words.gd")
 ## The entries shown changed (on opening, and when an observation changes them): the subject and the
 ## entries as data — the "one world, two views" report.
 signal listed(subject: String, entries: Array, offered: Array)
+## The menu opened about a subject, and closed: the trade panel beside it opens and closes with it (S31-e §5.5).
+signal opened(subject: String)
+signal closed
 ## The player chose an "… at…" entry: the offered affordance to aim, sent on the next floor click.
 signal aim_chosen(affordance: Dictionary)
 
@@ -106,15 +109,25 @@ func open(id: String, observation: MineWorldObservation, at: Vector2, is_object 
 	_box.position = at + Vector2(14, -10)
 	_box.visible = true
 	refresh(observation)
+	if is_open():
+		opened.emit(id)
 
 
 func close() -> void:
+	var was_open := is_open()
 	subject = ""
 	_object = false
 	entries = []
 	glance = ""
 	inspect = PackedStringArray()
 	_box.visible = false
+	if was_open:
+		closed.emit()
+
+
+## Where the menu's box is drawn, in screen pixels (the trade panel stands beside it).
+func box_rect() -> Rect2:
+	return Rect2(_box.position, _box.size)
 
 
 ## Rebuilds the entries from a newer observation; closes when the subject is no longer perceived.
@@ -210,6 +223,8 @@ func _offer_entries(offered: Array, is_object: bool) -> Array:
 			kind = "complete"
 		elif intents.composes(type) and not aims:
 			kind = "point" if intents.input_for(type).has("point") else "composed"
+		elif intents.trades(type):
+			kind = "trade"
 		built.append(_entry(affordance, kind, Words.action(type, _names(affordance))))
 		if is_object and kind == "complete" and aims:
 			built.append(_entry(affordance, "aim", Words.text("ui.throw-at", _names(affordance))))
@@ -223,6 +238,8 @@ func _entry(affordance: Dictionary, kind: String, label: String) -> Dictionary:
 	var shown := label
 	if kind == "unsupported" or kind == "point":
 		shown = Words.text("ui.unsupported", {"label": label}) if kind == "unsupported" else label
+	elif kind == "trade":
+		shown = Words.text("ui.in-trade-panel", {"label": label})
 	elif not available:
 		shown = Words.text("ui.unavailable", {"label": label, "reason": Words.reason(reason)})
 		var declared: Variant = affordance.get("requirement")
@@ -234,7 +251,7 @@ func _entry(affordance: Dictionary, kind: String, label: String) -> Dictionary:
 	return {"action_type": String(affordance.get("action_type", "")), "kind": kind,
 		"target": null if target == null else String(target), "about": _about(affordance),
 		"complete": MineWorldObservation.is_complete(affordance), "available": available,
-		"reason": reason, "label": shown, "enabled": kind != "unsupported" and kind != "point",
+		"reason": reason, "label": shown, "enabled": kind != "unsupported" and kind != "point" and kind != "trade",
 		"affordance": affordance}
 
 

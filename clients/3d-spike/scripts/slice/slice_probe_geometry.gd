@@ -191,9 +191,9 @@ func _route_geometry(link: SliceLink, route: Array, visit: Callable) -> void:
 	await visit.call(link, link.here, "GE %s" % _where(link))
 	checked[link.here] = true
 	for step in route:
-		var target := _place_of_entry(lay, step)
+		var target := _place_of_entry(lay, _step_tags(step))
 		if target == "":
-			_geo_fail("GE", "no bound place is drawn as the entry tagged %s" % ",".join(step))
+			_geo_fail("GE", "no bound place is drawn as the entry tagged %s" % ",".join(_step_tags(step)))
 			break
 		if target != link.here and not await _cross(link, target):
 			_geo_fail("GE", "the server did not move the player into %s" % target)

@@ -65,12 +65,15 @@ static func reason(rejection: Variant) -> String:
 	return MineWorldText.code("reason", said) if said != "" else ""
 
 
-## An amount of the wallet's minor units, in the pack's money format.
+## The currency the newest observation disclosed (`MineWorldMoney.currency_of`), set by the composition root on
+## every frame; `{}` before one arrives or in a world without one.
+static var currency := {}
+
+
+## An amount of minor units in the world's currency, through the shared formatter (S31-e §5.2): no scale is
+## assumed here, so a world without a currency shows the bare integer.
 static func money(minor: Variant) -> String:
-	var units := int(minor)
-	var minus := "-" if units < 0 else ""
-	units = absi(units)
-	return text("format.money", {"amount": "%s%d.%02d" % [minus, units / 100, units % 100]})
+	return MineWorldMoney.format(minor, currency)
 
 
 ## The status line's day and time: `hud.day_time`, the time in the 12- or 24-hour form the settings

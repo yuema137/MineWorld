@@ -682,6 +682,24 @@ y −1 000 (the quay).
   point in it); the probe does not yet have a waypoint step. No category `station.halt` is set on the shells
   (the `stations` nodes are `station.halt` and the pieces keep `station.*`).
 
+**Bounded follow-up (2026-10-26; branch `fix/s33-route-points`; closes D-e2-9's route half).** Probe tooling inside
+S33-c §5.2 and S33-d §5.0, approved by the coordinator; no server, protocol, contract or `SliceDepiction` method
+change. A `viewpoints.probe_route` step may now be `{"tags": [...], "at_mm": [x, y]}` besides `[tag, ...]`: into the
+entry with exactly those tags, then to that point in the place's frame (millimetres from the entry's footprint's
+south-west corner, which is the server place's frame origin, as for the pier) and back the same way.
+`mineworld_packages::depiction` refuses a point off its entry's footprint (`DEPICTION_OUT_OF_RANGE`) and tags that
+are no entry's exactly (`DEPICTION_REFERENCE`); the client reader accepts the object form (a `list_or` spec) and
+refuses unknown fields (`DEPICTION_MALFORMED`). Corpus: `valid-deck` gains a point step;
+`out-of-range-route-point`, `reference-route-point`, `malformed-route-point` are new. The probe walks the point with
+the existing `walk-to` intent and the body's own `move` reports (`_route_to`), stepping round any person drawn on
+the line (Nils stands mid-pier at (2 000, 10 000)), checks the server's view within 0.5 m, then returns. Lakeside's
+route walks to the pier head at (2 000, 1 500), 0.75 m north of the bench; `lakeside-v7` was regenerated (seed 7;
+the only diff is that step). Evidence (local, macOS, `with-slot.sh`): Godot `--import` and `--check-only` 0 errors;
+`--world=lakeside --link` PASS (pier head reached 0.14 m off, 273 moves accepted, 0 refused); `--world --link` PASS;
+`lakeside-v7` `--link` PASS (0.14 m off); `cargo test -p mineworld-packages --test depiction` 7/7,
+`-p mineworld-cli --test packs` 7/7, `-p mineworld-acceptance --test client_rules` 9/9, `client_depiction --ignored`
+1/1; clippy and fmt clean. D-e2-9's `station.halt` half stays open.
+
 **S33-e1 C0 (2026-10-21).** Base `mvp0/pr-s33d @ cee33a64` (S33-d, PR #452, open, stacked on #387, #395, #400;
 `origin/main @ 93cffc5e`). S33-d is **not merged**: S33-e1 is stacked on it by the lane lead's dispatch, so the
 start condition "S33-d merged" is met by the stack, not by `main`. The landmark check: no `--slice-landmark` exists

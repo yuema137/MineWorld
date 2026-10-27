@@ -6,7 +6,7 @@ use crate::depiction::DepictionCode;
 use crate::depiction_deck;
 use crate::depiction_schema::{
     Area, Building, DecorPose, Depiction, EdgeKind, Height, Interior, OpeningState, PointMm,
-    RectMm, RoofForm, ScatterArea, ScatterKind,
+    RectMm, RoofForm, RouteStep, ScatterArea, ScatterKind,
 };
 use crate::depiction_station;
 use crate::place_asset::PlaceAssets;
@@ -551,6 +551,25 @@ fn check_ranges(file: &Depiction) -> Result<(), Refusal> {
             );
         }
     }
+    for (i, step) in v.probe_route.iter().enumerate() {
+        // a point in a named entry lies on its footprint; an entry that names nothing is the
+        // references' fault
+        if let RouteStep::Point(point) = step
+            && let Some(rect) = route_entry(file, &point.tags)
+            && r.0.is_none()
+        {
+            let [x, y] = point.at_mm;
+            if !((0..=rect[2]).contains(&x) && (0..=rect[3]).contains(&y)) {
+                r.0 = Some(format!(
+                    "viewpoints.probe_route[{i}].at_mm: ({x}, {y}) lies outside the {} × {} mm \
+                     footprint of the entry tagged {}",
+                    rect[2],
+                    rect[3],
+                    joined(&point.tags)
+                ));
+            }
+        }
+    }
     match r
         .0
         .or_else(|| depiction_deck::ranges(&file.decks, HEIGHT_M, EXTENT_MM))
@@ -854,10 +873,18 @@ fn check_references(file: &Depiction, waters: Option<&[String]>) -> Result<(), R
     let street_or_place =
         |tag: &str| file.street.tags.iter().any(|t| t.as_str() == tag) || tagged(tag);
     for (i, step) in file.viewpoints.probe_route.iter().enumerate() {
-        if let Some(tag) = step.iter().find(|t| !street_or_place(t.as_str())) {
+        if let Some(tag) = step.tags().iter().find(|t| !street_or_place(t.as_str())) {
             return missing(format!(
                 "viewpoints.probe_route[{i}]: neither the street nor any place is tagged {}",
                 tag.as_str()
+            ));
+        }
+        if let RouteStep::Point(point) = step
+            && route_entry(file, &point.tags).is_none()
+        {
+            return missing(format!(
+                "viewpoints.probe_route[{i}].tags: no entry is tagged exactly {}",
+                joined(&point.tags)
             ));
         }
     }
@@ -907,6 +934,18 @@ fn resolve<'a>(
         .find(|p| p.tags.len() == tags.len())
         .or_else(|| (carrying.len() == 1).then(|| &carrying[0]))
         .copied()
+}
+
+/// The footprint of the entry a route point walks in: the street, or the `places` entry, whose tags
+/// are exactly `tags` (the probe binds a step the same way).
+fn route_entry(file: &Depiction, tags: &[crate::depiction_schema::Key]) -> Option<RectMm> {
+    if file.street.tags.as_slice() == tags {
+        return Some(file.street.footprint_mm);
+    }
+    file.places
+        .iter()
+        .find(|p| p.tags.as_slice() == tags)
+        .map(|p| p.footprint_mm)
 }
 
 fn joined(tags: &[crate::depiction_schema::Key]) -> String {

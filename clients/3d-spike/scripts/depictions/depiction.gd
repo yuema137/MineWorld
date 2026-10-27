@@ -67,7 +67,8 @@ func spawn() -> Dictionary:
 ##   farfield_shots  [[name, position, yaw, pitch]]
 ##   perf            [[name, position, yaw, pitch]]; perf_breakdown: [name]
 ##   probe_route     [PackedStringArray of tags, ...]: the link probe's walk, by entries' tags; empty
-##                   means the world's own bespoke walk
+##                   means the world's own bespoke walk. A step may instead be { tags: PackedStringArray,
+##                   at_mm: Vector2 }: into that entry, then on to that point in the place's frame
 ##   landmark        [[name, position, yaw, pitch, azimuth_deg, band_top_deg]] (LM-1) and
 ##                   [[name, position, yaw, pitch, "footprint"]] (LM-2): `--slice-landmark` (S29-d §5.9)
 ##   station_shots   [[name, position, yaw, pitch]]: `--slice-station-shots`, under shots/<world>/station

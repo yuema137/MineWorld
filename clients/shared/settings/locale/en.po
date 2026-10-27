@@ -369,6 +369,9 @@ msgstr "Show things"
 msgid "ui.settings.key.conversations"
 msgstr "Show conversations"
 
+msgid "ui.settings.key.notices"
+msgstr "Show the notice board"
+
 # The interaction menus, the panels of what you have, and the words of an answer: concepts both clients
 # show (step-15 §22.3 D-16d-6). Moved here verbatim from the 2D pack's en.po (S12 13b), keys unchanged.
 msgid "ui.unsupported"
@@ -411,14 +414,126 @@ msgstr "Carrying"
 msgid "panel.shop"
 msgstr "For sale here"
 
+msgid "panel.wealth"
+msgstr "Worth"
+
+msgid "panel.asks"
+msgstr "I sell"
+
+# A seller action, listed in a menu: it is done from the trade panel beside it (S31-e).
+msgid "ui.in-trade-panel"
+msgstr "{label} — in the panel beside"
+
 msgid "ui.row.holding"
 msgstr "{item} × {count}"
 
 msgid "ui.row.shop"
 msgstr "{item}  ·  {price}  ·  {stock} left"
 
-msgid "format.money"
+# Money, in the currency the world discloses (S31-e §5.2, clients/shared/TRADE.md §3): the amount comes
+# grouped and with its decimals, the symbol is the world's, and the world says which side it goes on.
+# plain is an amount with no currency disclosed: the bare integer of minor units.
+msgid "format.money.plain"
 msgstr "{amount}"
+
+msgid "format.money.before"
+msgstr "{symbol}{amount}"
+
+msgid "format.money.after"
+msgstr "{amount} {symbol}"
+
+msgid "format.money.group_mark"
+msgstr ","
+
+msgid "format.money.decimal_mark"
+msgstr "."
+
+# Trade (S31-e §§5.5–5.8): the money line, the sale panel, the stall, price tags.
+msgid "hud.money"
+msgstr "Money: {money}"
+
+msgid "hud.money.wealth"
+msgstr "Money: {money}  ·  worth {wealth}"
+
+msgid "hud.money.unvalued"
+msgstr "{line} ({count} not valued)"
+
+msgid "panel.trade"
+msgstr "For sale"
+
+msgid "panel.stall"
+msgstr "My stall"
+
+msgid "trade.row.sale"
+msgstr "{item}  ·  {price}"
+
+msgid "trade.row.ask"
+msgstr "{item}  ·  {price}"
+
+msgid "trade.row.held"
+msgstr "{item} × {count}"
+
+msgid "trade.row.shelf"
+msgstr "{item}  ·  {price}  ·  {stock} left"
+
+msgid "trade.buy"
+msgstr "Buy"
+
+msgid "trade.change-price"
+msgstr "Change price…"
+
+msgid "trade.withdraw"
+msgstr "Withdraw"
+
+msgid "trade.list"
+msgstr "List for sale…"
+
+msgid "trade.list-for-shop"
+msgstr "List another kind for the shop…"
+
+msgid "trade.shop-prices"
+msgstr "This shop's prices…"
+
+msgid "trade.price.prompt"
+msgstr "Price for {item}, in {currency}"
+
+msgid "trade.price.not-an-amount"
+msgstr "\"{text}\" is not an amount in {currency}"
+
+msgid "trade.item.pick"
+msgstr "Which kind?"
+
+msgid "trade.cancel"
+msgstr "Cancel"
+
+msgid "trade.tag"
+msgstr "{item} {price}"
+
+msgid "trade.tag.sold-out"
+msgstr "{item} {price} · sold out"
+
+msgid "trade.tag.more"
+msgstr "{tag} · +{count}"
+
+msgid "trade.tag.rest"
+msgstr "+{count} more"
+
+# The notice board (S31-e §5.9). {time} is a world time; {basis} is how many observations the publisher
+# says back a price.
+msgid "panel.board"
+msgstr "Notice board"
+
+msgid "board.row.title"
+msgstr "{topic}  ·  {publisher}  ·  until {time}"
+
+msgid "board.row.price"
+msgstr "{item} {price} ({basis} seen)"
+
+msgid "board.empty"
+msgstr "No notices"
+
+msgid "board.badge"
+msgstr "{count} new"
 
 # Menu entries, one per action type a System Pack declares. {target}: the person the action is
 # directed at; {item}: the thing its payload names.
@@ -684,6 +799,58 @@ msgstr "too many requests"
 
 msgid "reason.sleep-for-out-of-bound"
 msgstr "that many minutes is out of bounds here"
+
+# The economy's refusals (S31-a §5.5) and the notices' (S31-b §5.7), by code.
+msgid "reason.not-for-sale"
+msgstr "that is not for sale"
+
+msgid "reason.price-changed"
+msgstr "the price has changed"
+
+msgid "reason.insufficient-funds"
+msgstr "not enough money"
+
+msgid "reason.out-of-stock"
+msgstr "sold out"
+
+msgid "reason.cannot-carry"
+msgstr "you cannot carry any more"
+
+msgid "reason.already-listed"
+msgstr "that is already for sale"
+
+msgid "reason.price-out-of-range"
+msgstr "that price is not allowed"
+
+msgid "reason.not-held"
+msgstr "you do not have one"
+
+msgid "reason.price-unchanged"
+msgstr "that is already the price"
+
+msgid "reason.unknown-topic"
+msgstr "there is no such topic"
+
+msgid "reason.body-mismatch"
+msgstr "that topic takes another kind of notice"
+
+msgid "reason.body-too-large"
+msgstr "the notice is too long"
+
+msgid "reason.body-invalid"
+msgstr "the notice is not valid"
+
+msgid "reason.validity-out-of-range"
+msgstr "that is not an allowed time for a notice to last"
+
+msgid "reason.over-daily-limit"
+msgstr "too many notices on that topic today"
+
+msgid "reason.already-subscribed"
+msgstr "you already follow that topic"
+
+msgid "reason.not-subscribed"
+msgstr "you do not follow that topic"
 
 # What I am told about my needs, my sleep and my next part of the day (S35 N-e §4.2). {need} and {word} are
 # the pack's own names and words; {since}, {alarm} and {from} are clock times.
