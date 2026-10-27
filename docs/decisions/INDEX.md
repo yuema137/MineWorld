@@ -189,6 +189,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-350](ARC-350.md) | Offers are ordered by the category each pack declares for its actions |
 | [ARC-360](ARC-360.md) | Putting things down, seeing shelves, keeping shifts |
 | [ARC-361](ARC-361.md) | Nobody trapped in a pocket or a doorway, and chance purchases within a budget |
+| [ARC-362](ARC-362.md) | The onboarding cold-start check: a clean runner, the guide in cold-start mode, the bundle check |
 
 ## DEP — Dependencies, and building our own instead
 

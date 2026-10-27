@@ -1,8 +1,8 @@
 # PR 25g — The onboarding cold-start check, layers A and B
 
-**Lifecycle:** `DESIGN FROZEN 2026-10-27 (operator approved in the primary session: every question answered as recommended) (not frozen)`. Written 2026-10-26 by a design session for the release lane. Nothing here
-authorizes implementation, a workflow run that costs money, a tag, a release or a merge. Only the operator
-freezes this design.
+**Lifecycle:** `DESIGN FROZEN 2026-10-27 (operator approved in the primary session: every question answered as recommended)`. Written 2026-10-26 by a design session for the release lane. The operator's ruling of
+2026-10-27 (relayed by the coordinator) freezes it; the execution contract (§16) was filled by the lane lead on that
+relay. Nothing here authorizes a workflow run that costs money, a tag, a release or a merge.
 **Author / worktree:** `/Users/yuema137/mineworld-worktrees/design-25g-cold-start`, branch
 `docs/pr-design-25g-cold-start`, from `origin/main @ 0b2faf2f`.
 **Effort:** `mvp0` · **Parent:** [`step-25-creator-docs.md`](step-25-creator-docs.md) (S25; this is a new PR
@@ -597,9 +597,12 @@ this is a draft.
 `docs/decisions/ARC-362.md` and its INDEX line; a dated note in `ARC-48.md`; this design's ledger.
 **Non-goals.** No change to §4.6's default rules.
 
-- [ ] Implementation: the three spec edits and the record (options C1–C4, P1–P2, the not-achievable list of §4.3).
-- [ ] Validation: `python3 scripts/check_doc_headings.py`; `python3 scripts/check_decision_ids.py --write-index`.
-- [ ] LLM review: §4.7 and the default §4.6 cannot both apply to one run; every rule of §5.1 has a test in C1/C2.
+- [x] Implementation: `docs/GUIDE_FORMAT.md` §4.6 (cold-start blocks listed, not carried), §4.7 (rules 1–12), §6
+      row `cold-start`, §11 item 5; `docs/decisions/ARC-362.md`; `ARC-48` note; `INDEX.md` regenerated.
+- [x] Validation: `check_doc_headings.py` → "255 numbered sections … none duplicated"; `check_decision_ids.py
+      --write-index` → "258 decision ids, all distinct; index current".
+- [x] LLM review: §4.7 opens "A run is in exactly one mode"; the mode is a single enum chosen by the entry point
+      (default test → Repository, `cold_start` → ColdStart). Rules 1–5 and the directive are covered by C1's tests.
 
 ### C1 — Runner: binary parameter, modes, timings, directive
 
@@ -716,24 +719,32 @@ Empty until implementation is authorized.
 
 ---
 
-## 16. Execution contract (unfilled)
+## 16. Execution contract (filled 2026-10-27)
+
+Filled by the release lane lead on the coordinator's relay of the operator's ruling of 2026-10-27 (every Q-25g
+answered as recommended; decision record `ARC-362`).
 
 ```text
 PROJECT / PR:              S25 PR 25g — onboarding cold-start check, layers A and B
 PRIMARY DESIGN DOC:        .structured-coding/plans/mvp0/pr-25g-cold-start.md
 RELATED / BINDING DOCS:    step-25-creator-docs.md; step-14-ci.md; step-23-release.md; docs/GUIDE_FORMAT.md;
                            docs/decisions/ARC-48.md, ARC-83.md, ARC-154.md, DEP-19.md; pr-s23-rb-release-workflow.md
-IMPLEMENTATION BASE:       <unfilled: origin/main at dispatch>
-APPROVED SCOPE:            <unfilled>
-FROZEN INVARIANTS:         <unfilled; proposed: §1.2; default guide run unchanged except §5.4; no model; no cache in
-                           the clean jobs; never a required check; no PAT or secret>
-APPROVED IMPLEMENTATION SEQUENCE: <unfilled; proposed C0–C6>
-AUTONOMOUS VALIDATION BUDGET: <unfilled; proposed: local runner tests via with-slot.sh; at most 2 code-PR CI runs in
-                           flight; cold-start/** pushes: at most 4 full runs (≈ 4 × 50 macOS minutes) plus the AD
-                           runs; LFS ≤ 3 GiB in total>
+IMPLEMENTATION BASE:       origin/main @ 315a50a9
+APPROVED SCOPE:            this design as frozen, with Q-25g-1 … Q-25g-10 answered as recommended (§17)
+FROZEN INVARIANTS:         the design's own (§1.2; the default guide run unchanged except §5.4); never a required
+                           check; no paid model in CI; no cache in the clean jobs (cold-start-a, cold-start-b);
+                           no PAT or secret
+APPROVED IMPLEMENTATION SEQUENCE: C0–C6
+AUTONOMOUS VALIDATION BUDGET: local: the guide test for the pages touched and clippy on the crates touched, heavy
+                           jobs through cast-slots/with-slot.sh; CI: at most ONE cold-start run in flight, polled
+                           at most every 5 minutes; cold-start/** pushes or dispatches on this branch
 REQUIRED LIVE DOCUMENTATION: this file
-CONTEXT HANDOFF / MEMORY FILE: .structured-coding/plans/mvp0/handoff-25g.md
-ENDPOINT AUTHORITY:        commit: <unresolved> · push: <unresolved> · PR: <unresolved> · merge: operator only
+CONTEXT HANDOFF / MEMORY FILE: this file's §14 ledger
+ENDPOINT AUTHORITY:        commit: autonomous · push: autonomous (branch mvp0/pr-25g-cold-start and cold-start/**)
+                           · PR: autonomous (open, no labels) · run cold-start.yml on this branch: autonomous
+                           · merge, auto-merge, tags, Releases: the coordinator only
+STOP CONDITIONS:           any change to frozen scope, a public contract, an ownership boundary, or a new
+                           dependency
 ```
 
 ---
