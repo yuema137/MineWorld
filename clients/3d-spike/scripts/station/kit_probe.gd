@@ -14,6 +14,10 @@ const POINT_TOL := 0.01
 const TOWER_TOL := 0.05
 ## How far a measuring ray may travel.
 const RAY := 80.0
+## What a measuring ray meets: the ground and the art. Walls, jambs and towers are art and collide on
+## `LAYER_ART` (16f-b, `ARC-52`), not on `LAYER_WORLD`, so a ray on the ground's layer alone meets none
+## of them. The same scene mask as `--slice-geometry`'s.
+const MASK := Build.LAYER_WORLD | Build.LAYER_ART
 
 
 static func run(probe: SliceProbe) -> void:
@@ -51,9 +55,9 @@ static func _row(nm: String, v: float, lo: float, hi: float) -> int:
 	return 0 if ok else 1
 
 
-## The distance from `from` along `dir` to the first world collider, or INF.
+## The distance from `from` along `dir` to the first collider on `MASK`, or INF.
 static func _cast(space: PhysicsDirectSpaceState3D, from: Vector3, dir: Vector3) -> float:
-	var q := PhysicsRayQueryParameters3D.create(from, from + dir * RAY, Build.LAYER_WORLD)
+	var q := PhysicsRayQueryParameters3D.create(from, from + dir * RAY, MASK)
 	var hit := space.intersect_ray(q)
 	return INF if hit.is_empty() else from.distance_to(hit["position"])
 
