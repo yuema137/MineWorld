@@ -1,0 +1,549 @@
+# MineWorld release: a version tag builds the downloadable bundle for every target, smoke-tests each bundle
+# on a fresh runner of its own OS as a player would, compares each bundle's server with a reference build
+# (AC-8), and leaves a DRAFT GitHub release with SHA256SUMS, an SBOM and provenance attestations. Only the
+# operator publishes it (ARC-79). No job here publishes anything, reads a secret, or runs on a pull request.
+#
+# Design: .structured-coding/plans/mvp0/pr-s23-rb-release-workflow.md (R-b) on step-23-release.md §§5, 9,
+# 10; docs/decisions ARC-79 (channels), ARC-80 (the bundle), ARC-48 (this file's note), DEP-38
+# (cargo-about), DEP-40 (SBOM), DEP-41 (export templates), DEP-42 (provenance), DEP-45 (Godot). The rules
+# are scripts': package.py (the bundle and its smoke test), ci_release.py (tag, checksums, notes) and
+# ci_parity.py (AC-8). This file only puts tools in place and calls them.
+#
+# Runs:
+#   push of a tag v*            the release: verify-tag checks the tag, ancestry and green checks; a draft.
+#   workflow_dispatch           a dry run on any ref; with `draft: true`, a draft named test-<run id>
+#                               (deleted by hand afterwards). A dispatch needs this file on main (F-13c-8).
+#   push to release-dry-run/**  the same dry run, for evidence before this file is on main; never a draft.
+#
+# The artifact interface (design §4.3; consumed by the onboarding layer B): workflow "Release", artifact
+# `MineWorld-<target>` holding `MineWorld-<version>-<target>.<zip|tar.gz>` and its `.sha256`; kept 7 days
+# for a dry run and 90 for a tag run.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+    branches: ["release-dry-run/**"]
+  workflow_dispatch:
+    inputs:
+      draft:
+        description: "Also create a draft release named test-<run id> (deleted by hand afterwards)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+env:
+  # The scripts print ≠, → and 世界; Windows' console code page would refuse them.
+  PYTHONUTF8: "1"
+
+jobs:
+  verify-tag:
+    name: verify-tag
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      checks: read
+    outputs:
+      tag: ${{ steps.verify.outputs.tag }}
+      version: ${{ steps.verify.outputs.version }}
+      dry: ${{ steps.verify.outputs.dry }}
+      prerelease: ${{ steps.verify.outputs.prerelease }}
+      epoch: ${{ steps.verify.outputs.epoch }}
+      retention: ${{ steps.verify.outputs.dry == 'true' && 7 || 90 }}
+    steps:
+      # Full history: the ancestry test reads origin/main.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: The tag against the workspace version, main and the required checks (A-R2)
+        id: verify
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [ "$REF_TYPE" = "tag" ]; then dry=""; else dry="--dry"; fi
+          # shellcheck disable=SC2086
+          python3 scripts/ci_release.py verify-tag --tag "$REF_NAME" --commit "$GITHUB_SHA" $dry \
+            --repo "$GITHUB_REPOSITORY" --output "$GITHUB_OUTPUT"
+
+  bundle:
+    name: bundle (${{ matrix.target }})
+    needs: verify-tag
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux-x86_64
+            os: ubuntu-24.04
+            triples: x86_64-unknown-linux-musl
+            templates: ~/.local/share/godot/export_templates
+          - target: windows-x86_64
+            os: windows-2025
+            triples: x86_64-pc-windows-msvc
+            templates: ~/AppData/Roaming/Godot/export_templates
+          - target: macos-universal
+            os: macos-26
+            triples: aarch64-apple-darwin x86_64-apple-darwin
+            templates: ~/Library/Application Support/Godot/export_templates
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 150
+    defaults:
+      run:
+        shell: bash
+    env:
+      TARGET: ${{ matrix.target }}
+      TRIPLES: ${{ matrix.triples }}
+      SOURCE_DATE_EPOCH: ${{ needs.verify-tag.outputs.epoch }}
+      # package.py fetches Godot's LICENSE and COPYRIGHT through `gh api` (read-only, public repository).
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      # LFS: the cast's buffers and textures (.gitattributes, S26-c). Without them the bundle would ship
+      # pointer files and the 3D client would draw every cast member as the town figure.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          lfs: true
+
+      - name: Python for the scripts
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then echo "PY=python" >> "$GITHUB_ENV"; else echo "PY=python3" >> "$GITHUB_ENV"; fi
+
+      - name: The pinned Rust toolchain and the target's triples
+        run: |
+          rustup toolchain install
+          # shellcheck disable=SC2086
+          rustup target add $TRIPLES
+
+      - name: musl (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends musl-tools
+
+      - uses: ./.github/actions/godot
+
+      - name: Restore the export templates
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ matrix.templates }}
+          key: godot-templates-${{ runner.os }}-${{ hashFiles('scripts/ci_godot.py') }}
+
+      - name: Fetch and verify the export templates (DEP-41)
+        run: '"$PY" scripts/ci_godot.py templates'
+
+      - name: cargo-about (DEP-38)
+        run: cargo install cargo-about --version 0.9.2 --locked --features cli
+
+      - name: Assemble the bundle
+        run: '"$PY" scripts/package.py assemble --target "$TARGET"'
+
+      - name: Find the archive and write its checksum
+        run: |
+          # One archive per target: .tar.gz on Linux, .zip elsewhere (package.py TARGETS).
+          if [ "$RUNNER_OS" = "Linux" ]; then kind=tar.gz; else kind=zip; fi
+          archive=""
+          for found in target/package/"$TARGET"/MineWorld-*-"$TARGET"."$kind"; do
+            [ -f "$found" ] && archive=$found
+          done
+          [ -n "$archive" ] || { echo "no .$kind archive under target/package/$TARGET"; exit 1; }
+          echo "ARCHIVE=$archive" >> "$GITHUB_ENV"
+          "$PY" scripts/ci_release.py sums --out "$archive.sha256" "$archive"
+
+      # A fast check on the build runner; the honest test is the fresh `smoke` leg below (design §2).
+      - name: Unpack the archive and probe the bundle in place
+        run: |
+          # Windows: a POSIX form of RUNNER_TEMP (its backslashes would be glob escapes below), and the
+          # system's bsdtar, which reads .zip (Git Bash's GNU tar does not).
+          temp="$RUNNER_TEMP"; untar=tar
+          if [ "$RUNNER_OS" = "Windows" ]; then temp=$(cygpath -u "$RUNNER_TEMP"); untar=/c/Windows/System32/tar.exe; fi
+          place="$temp/MineWorld 世界"
+          mkdir -p "$place"
+          "$untar" -xf "$ARCHIVE" -C "$place"
+          bundle=$(ls -d "$place"/MineWorld-*)
+          "$PY" scripts/package.py probe "$bundle"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### $TARGET"
+            if [ -n "${ARCHIVE:-}" ]; then
+              echo "archive: \`$(basename "$ARCHIVE")\`, $(wc -c < "$ARCHIVE" | tr -d ' ') bytes"
+            else
+              echo "no archive"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep the archive
+        if: env.ARCHIVE != ''
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: MineWorld-${{ matrix.target }}
+          path: |
+            ${{ env.ARCHIVE }}
+            ${{ env.ARCHIVE }}.sha256
+          retention-days: ${{ needs.verify-tag.outputs.retention }}
+          if-no-files-found: error
+          compression-level: 0
+
+  # Linux arm64 (QR-2, design §3.3, F-Rb-6): the server and the launchers are built natively on arm64; the
+  # Linux x86_64 Godot editor exports the `Linux arm64` presets from the same templates, so no arm64 editor
+  # is needed. The bundle runs on arm64 only in its smoke leg.
+  server-arm64:
+    name: server (linux-arm64)
+    needs: verify-tag
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: The pinned Rust toolchain and the musl triple
+        run: |
+          rustup toolchain install
+          rustup target add aarch64-unknown-linux-musl
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends musl-tools
+
+      - name: Build the server and the launchers
+        run: python3 scripts/package.py build --target linux-arm64
+
+      - name: Keep the binaries
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-linux-arm64-binaries
+          path: |
+            target/package/linux-arm64/mineworld
+            target/package/linux-arm64/launch/
+          retention-days: 1
+          if-no-files-found: error
+
+  bundle-arm64:
+    name: bundle (linux-arm64)
+    needs: [verify-tag, server-arm64]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    env:
+      TARGET: linux-arm64
+      SOURCE_DATE_EPOCH: ${{ needs.verify-tag.outputs.epoch }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          lfs: true
+
+      # cargo-about runs on this host; nothing else is compiled here.
+      - name: The pinned Rust toolchain
+        run: rustup toolchain install
+
+      - uses: ./.github/actions/godot
+
+      - name: Restore the export templates
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.local/share/godot/export_templates
+          key: godot-templates-${{ runner.os }}-${{ hashFiles('scripts/ci_godot.py') }}
+
+      - name: Fetch and verify the export templates (DEP-41)
+        run: python3 scripts/ci_godot.py templates
+
+      - name: cargo-about (DEP-38)
+        run: cargo install cargo-about --version 0.9.2 --locked --features cli
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-linux-arm64-binaries
+          path: ${{ runner.temp }}/arm64
+
+      - name: Assemble the bundle with the arm64 binaries
+        run: |
+          bin="$RUNNER_TEMP/arm64"
+          chmod +x "$bin/mineworld" "$bin"/launch/*
+          python3 scripts/package.py assemble --target "$TARGET" --server "$bin/mineworld" --launchers "$bin/launch"
+          archive=""
+          for found in target/package/"$TARGET"/MineWorld-*-"$TARGET".tar.gz; do
+            [ -f "$found" ] && archive=$found
+          done
+          [ -n "$archive" ] || { echo "no .tar.gz archive under target/package/$TARGET"; exit 1; }
+          echo "ARCHIVE=$archive" >> "$GITHUB_ENV"
+          python3 scripts/ci_release.py sums --out "$archive.sha256" "$archive"
+          echo "### $TARGET: \`$(basename "$archive")\`, $(wc -c < "$archive" | tr -d ' ') bytes" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep the archive
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: MineWorld-linux-arm64
+          path: |
+            ${{ env.ARCHIVE }}
+            ${{ env.ARCHIVE }}.sha256
+          retention-days: ${{ needs.verify-tag.outputs.retention }}
+          if-no-files-found: error
+          compression-level: 0
+
+  # The AC-8 reference of this commit (design §3.5): a native glibc release build, the profile AC-8's native
+  # legs use, run on the bundle's worlds copied from the checkout by package.py's own lists. A different
+  # build path from every bundle (glibc against musl, one architecture against universal, the checkout's
+  # copy against the archive's), so the comparison is not self-referential.
+  reference:
+    name: reference (AC-8)
+    needs: verify-tag
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          lfs: true
+
+      - name: The pinned Rust toolchain
+        run: rustup toolchain install
+
+      - name: Build the server
+        run: cargo build --release --locked -p mineworld-cli
+
+      - name: Record the reference
+        run: |
+          root="$RUNNER_TEMP/reference"
+          python3 scripts/ci_release.py reference-root "$root"
+          python3 scripts/ci_parity.py record --binary target/release/mineworld --root "$root" \
+            --out release-ac8-reference.txt
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-ac8-reference
+          path: release-ac8-reference.txt
+          retention-days: ${{ needs.verify-tag.outputs.retention }}
+          if-no-files-found: error
+
+  # step-23 §9.1 on a fresh runner of each OS: no Rust and no Godot are installed, the repository is checked
+  # out only for the scripts, and the bundle is the downloaded archive (design §3.4).
+  smoke:
+    name: smoke (${{ matrix.leg }})
+    needs: [verify-tag, bundle, bundle-arm64]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - leg: macos-26
+            target: macos-universal
+          - leg: macos-15
+            target: macos-universal
+          - leg: windows-2025
+            target: windows-x86_64
+          - leg: ubuntu-24.04
+            target: linux-x86_64
+          - leg: ubuntu-24.04-arm
+            target: linux-arm64
+    runs-on: ${{ matrix.leg }}
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    env:
+      LEG: ${{ matrix.leg }}
+      TARGET: ${{ matrix.target }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: MineWorld-${{ matrix.target }}
+          path: ${{ runner.temp }}/download
+
+      # §9.1 step 1: unpacked with the OS's own tool, as a player would, into a path with a space and a
+      # non-ASCII character: tar on Linux, ditto (what Finder uses) on macOS, Windows' own bsdtar.
+      - name: "Step 1: unpack as a player would"
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            echo "PY=python" >> "$GITHUB_ENV"; temp=$(cygpath -u "$RUNNER_TEMP")
+          else
+            echo "PY=python3" >> "$GITHUB_ENV"; temp="$RUNNER_TEMP"
+          fi
+          archive=""
+          for found in "$temp"/download/MineWorld-*-"$TARGET".zip "$temp"/download/MineWorld-*-"$TARGET".tar.gz; do
+            [ -f "$found" ] && archive=$found
+          done
+          [ -n "$archive" ] || { echo "no MineWorld-*-$TARGET archive was downloaded"; exit 1; }
+          place="$temp/MineWorld 世界"
+          mkdir -p "$place"
+          case "$RUNNER_OS" in
+            Linux) tar -xzf "$archive" -C "$place" ;;
+            macOS) ditto -x -k "$archive" "$place" ;;
+            Windows) /c/Windows/System32/tar.exe -xf "$archive" -C "$place" ;;
+          esac
+          bundle=$(ls -d "$place"/MineWorld-*)
+          echo "ARCHIVE=$archive" >> "$GITHUB_ENV"
+          echo "BUNDLE=$bundle" >> "$GITHUB_ENV"
+          echo "unpacked $(basename "$archive") into $bundle"
+
+      - name: "Step 2: the archive against its checksum"
+        run: '"$PY" scripts/ci_release.py sums --check "$ARCHIVE.sha256"'
+
+      - name: "Step 3: the server alone, recorded for AC-8"
+        run: |
+          runtime="$BUNDLE/runtime"
+          "$PY" scripts/ci_parity.py record --binary "$runtime/mineworld" --root "$runtime" --out "release-ac8-$LEG.txt"
+
+      # Steps 2 (BUNDLE.toml's file list and the entry points), 4, 5 and 6, through the launcher's entry
+      # points, on the bundle as the OS's own tool unpacked it.
+      - name: "Steps 2, 4-6: the launcher with the 2D and the 3D client"
+        run: '"$PY" scripts/package.py smoke "$BUNDLE" --modes 2d,3d 2>&1 | tee "release-smoke-$LEG.log"'
+
+      # QR-10 / AC-15. Blocking on a tag run; a dry run reports it without blocking while step-23 F-RC-7 (the
+      # 3D client seated `wanderer` fails its link probe) waits for its ruling (design §12, D-Rb-1).
+      - name: "Steps 4+5, 6: the launcher with both clients"
+        continue-on-error: ${{ needs.verify-tag.outputs.dry == 'true' }}
+        run: '"$PY" scripts/package.py smoke "$BUNDLE" --modes both 2>&1 | tee -a "release-smoke-$LEG.log"'
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: release-ac8-${{ matrix.leg }}
+          path: |
+            release-ac8-${{ matrix.leg }}.txt
+            release-smoke-${{ matrix.leg }}.log
+          retention-days: ${{ needs.verify-tag.outputs.retention }}
+          if-no-files-found: warn
+
+  # A-R8: every leg's bundle server simulates the reference's worlds key for key. A missing record fails.
+  parity:
+    name: parity (AC-8)
+    needs: [verify-tag, reference, smoke]
+    if: ${{ always() && needs.verify-tag.result == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: release-ac8-*
+          merge-multiple: true
+          path: records
+
+      - name: The reference against every leg
+        run: |
+          python3 scripts/ci_parity.py match records/release-ac8-reference.txt \
+            records/release-ac8-macos-26.txt records/release-ac8-macos-15.txt \
+            records/release-ac8-windows-2025.txt records/release-ac8-ubuntu-24.04.txt \
+            records/release-ac8-ubuntu-24.04-arm.txt
+
+  # The only job that can write (ARC-79, ARC-48's note): on a tag run, or on a dispatch with `draft: true`,
+  # and only when every job above is green (no `always()`: a red or skipped leg skips this job, A-R7).
+  draft:
+    name: draft
+    needs: [verify-tag, bundle, server-arm64, bundle-arm64, reference, smoke, parity]
+    if: ${{ needs.verify-tag.outputs.dry == 'false' || (github.event_name == 'workflow_dispatch' && inputs.draft) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ needs.verify-tag.outputs.tag }}
+      VERSION: ${{ needs.verify-tag.outputs.version }}
+      DRY: ${{ needs.verify-tag.outputs.dry }}
+      PRERELEASE: ${{ needs.verify-tag.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: MineWorld-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/built
+
+      # design §3.6: the build runner's checksum against the downloaded file (a change in transit fails).
+      - name: The archives against their build runners' checksums
+        run: |
+          python3 scripts/ci_release.py sums --check "$RUNNER_TEMP"/built/*.sha256
+          mkdir -p "$RUNNER_TEMP/release"
+          mv "$RUNNER_TEMP"/built/MineWorld-*.zip "$RUNNER_TEMP"/built/MineWorld-*.tar.gz "$RUNNER_TEMP/release/"
+
+      # DEP-40: the source tree's lock files (Cargo.lock, uv.lock); the notes say what it does not cover.
+      - name: SBOM
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        with:
+          path: .
+          format: spdx-json
+          output-file: ${{ runner.temp }}/release/MineWorld-${{ needs.verify-tag.outputs.version }}-sbom.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: SHA256SUMS
+        run: |
+          cd "$RUNNER_TEMP/release"
+          python3 "$GITHUB_WORKSPACE/scripts/ci_release.py" sums --out SHA256SUMS MineWorld-*
+          sha256sum -c SHA256SUMS
+
+      # DEP-42: provenance for each archive and SHA256SUMS; then the SBOM bound to each archive.
+      - name: Provenance attestations
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: |
+            ${{ runner.temp }}/release/MineWorld-*.zip
+            ${{ runner.temp }}/release/MineWorld-*.tar.gz
+            ${{ runner.temp }}/release/SHA256SUMS
+
+      - name: SBOM attestations
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: |
+            ${{ runner.temp }}/release/MineWorld-*.zip
+            ${{ runner.temp }}/release/MineWorld-*.tar.gz
+          sbom-path: ${{ runner.temp }}/release/MineWorld-${{ needs.verify-tag.outputs.version }}-sbom.spdx.json
+
+      - name: Verify the attestations as a player would
+        run: |
+          cd "$RUNNER_TEMP/release"
+          for file in MineWorld-*.zip MineWorld-*.tar.gz SHA256SUMS; do
+            gh attestation verify "$file" -R "$GITHUB_REPOSITORY"
+          done
+          for file in MineWorld-*.zip MineWorld-*.tar.gz; do
+            gh attestation verify "$file" -R "$GITHUB_REPOSITORY" --predicate-type https://spdx.dev/Document/v2.3
+          done
+
+      - name: Release notes
+        run: |
+          tag_run=""
+          if [ "$DRY" = "false" ]; then tag_run="--tag-run"; fi
+          # shellcheck disable=SC2086
+          python3 scripts/ci_release.py notes --version "$VERSION" --sha "$GITHUB_SHA" \
+            --run-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            --assets "$RUNNER_TEMP/release" --out "$RUNNER_TEMP/notes.md" $tag_run
+
+      # A draft only. Nothing here publishes: the operator presses "Publish" (ARC-79).
+      - name: The draft release
+        run: |
+          cd "$RUNNER_TEMP/release"
+          if [ "$DRY" = "false" ]; then
+            pre=""
+            if [ "$PRERELEASE" = "true" ]; then pre="--prerelease"; fi
+            # shellcheck disable=SC2086
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --draft --verify-tag $pre \
+              --title "MineWorld $VERSION" --notes-file "$RUNNER_TEMP/notes.md" MineWorld-* SHA256SUMS
+          else
+            gh release create "test-$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --draft --target "$GITHUB_SHA" \
+              --title "TEST $GITHUB_RUN_ID — not a release" --notes-file "$RUNNER_TEMP/notes.md" MineWorld-* SHA256SUMS
+          fi
+          echo "draft created; publish it by hand only (ARC-79)" >> "$GITHUB_STEP_SUMMARY"
