@@ -1289,7 +1289,14 @@ STOP CONDITION:          S31-d MERGE-READY (PR number and head SHA reported) —
 
 ### 14.1 Rulings
 
-(none yet)
+Ruled 2026-10-20 by the operator in the primary session (the freeze header above; relayed in the
+implementation dispatch of 2026-10-26): **every question is answered as recommended.**
+
+- Q-S31d-1 → (a): wire mirrors read and build by slug, `ARC-182` with a note under `ARC-35` (C1, C2, C3).
+- Q-S31d-2 → yes: a closed registry of typed fillers, `ARC-183` with a note under `ARC-72` (C1, C6).
+- Q-S31d-3 → (a): the `due` trigger on calendar's `day-began` (C6).
+- Q-S31d-4 → yes: `sell:` / `buy:` halves, each with a `tags:` filter (C2, C3).
+- Q-S31d-5 → accept: an LM clerk sees only where it stands; the swap test places the clerk in the store (C7).
 
 ---
 
@@ -1299,11 +1306,61 @@ STOP CONDITION:          S31-d MERGE-READY (PR number and head SHA reported) —
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C8 | — | [ ] | [ ] | [ ] |
+| C0 | (this commit) | [x] | [x] `check_decision_ids.py` PASS | [x] §2.3 holds (below) |
+| C1 … C8 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
-(none yet)
+**C0 — base and prerequisites (2026-10-26).**
+
+1. Base: `origin/main` = `0b2faf2f989c2497b809e45adf4dfb6720a13ca9` (GitHub `commits/main` agrees). Dispatch: the
+   coordinator's implementation brief of 2026-10-26 ("Execute its §9 commit plan under its §12 contract"; the
+   design "DESIGN FROZEN 2026-10-20; all questions ruled as recommended — record that at C0"). Milestone F's
+   checklist: the dispatch is the coordinator's statement that the start condition holds (the S29 timing rule is
+   the coordinator's to judge; the operator's "autonomous until milestone" ruling of 10-19 runs past F).
+2. Merged on the base: S31-a (#380), S31-b (#349), S31-c (#424, W5 #435), S31-e (#422), S31-g (#418).
+   `systems/economy/src/sale.rs`, `systems/notices/src/lib.rs`, `systems/price-survey/src/lib.rs` exist.
+3. Real names (all read on the base):
+   - economy (`SystemId "economy"`): `asks` view = component type `asks`, schema 1, `{ asks: [{ item, price,
+     available }] }` (`AsksView`, `component.rs:345-380`, disclosed about a person seller to whoever perceives
+     it, `system.rs:669`); `currency` schema 1, `{ name, symbol, exponent, symbol_at, references: [{ item, value
+     }] }` (`currency.rs:66-80`), to each living Person about itself; the shop listing = component type `shop`,
+     **schema 2** (WE-a bumped `Shop`; the listing view is disclosed under `Shop`'s labels, `system.rs:675`),
+     `{ operator, listed: [{ item, price, in_stock }] }` (`component.rs:300-330`); `set-price` / `list-for-sale`
+     `{ item, price, for?: "shop" }` (`deny_unknown_fields`, `ShopSide` snake_case, `action.rs:57-110`); `buy`
+     `{ item, price }`.
+   - inventory (`"inventory"`): `holdings` schema 1, `{ held: [{ item, count }] }` plus **`capacity` when
+     bounded** (`system.rs:144-175`, `DisclosedHoldings` flattens) — the mirror admits the optional key.
+   - item (`"item"`): `item-catalogue` schema 1, `{ kinds: [{ item, category, name }] }` (`component.rs:44-111`).
+   - price-survey: `mineworld_price_survey::{PriceBook, KindNotes, Note, Source, Survey}`; `PriceBook` is
+     `survey-book` schema 1 with `kinds()`, `kind(item)`, `KindNotes::{item, notes}`, `Note::{at, place, seller,
+     price, source, in_stock}`; `Survey {}` is `survey`, `deny_unknown_fields`; codes in `judge::codes`.
+   - notices: `PublishNotice::new(TopicId, NoticeBody, u32)`, `NoticeBody::Prices(Vec<PriceLine>)`,
+     `PriceLine::new(EntityId, u64, u16)`, `NOTICE_PRICE_MAX = 10^12`, `PRICE_LINES_MAX = 32`,
+     `NoticeBoardRecord { pub notices }` (`notice-board`, schema 1), `Notice::{topic, publisher, body,
+     issued_at, valid_until}`, `TopicId::new`.
+4. S31-h (#426) is **OPEN**, owned by another agent: §2.3's "S31-d merges first" branch — `price/` carries the
+   two `// S31-h:` call sites that do nothing, and the decoder refuses `buy.haggle` and
+   `sell.accept_at_least_permille` until S31-h adds them. WE-a (#189) is **MERGED**: a shop's active adjustment
+   shows **only as the adjusted `price` in the listing**; the listing does not disclose `adjustments`, and the
+   `shop` record on a place is the listing view (`component.rs:310-325`, `Listing::of` applies
+   `Shop::adjust`). R-S31d-4's second branch therefore holds: the policy cannot tell an adjusted listing price
+   from the ask, and the overshoot (or a `price-unchanged` refusal) while a happening runs is a **recorded
+   limitation** until economy discloses the adjustment.
+5. Rulings: §14.1 (all as recommended): C2/C3 take the wire-mirror branch, C6 the filler registry and the
+   `day-began` trigger.
+6. Anchor drift (statements unchanged unless noted): A-2 **changed** — `rule` is no longer parameterless: since
+   S35/LE it has `RuleParameters { commute, boss, needs }` (`model.rs:27-40`) with builder methods
+   `commuting/bossing/needing` on `PacedRuleController`. Bounded: `pricing` becomes the fourth key and a
+   `pricing(..)` builder replaces §5.4's `decide_priced` (same behaviour, same default parity). A-3:
+   `MODULE_SPEC.md:816`. A-5: `cognition/installed/src/lib.rs:20-24` unchanged;
+   `tools/cli/tests/decision_models.rs:52`. A-6: `packs.rs:119`. A-7 **moved**: `paced.rs` now has more hard
+   rungs (asleep, commute, eat, boss, bed, fetch); draw indices 0–6, 8–15 still taken, 7 free; the seller
+   band goes after the boss rung and before bed (no draw, so position cannot move a draw). A-8: `offered.rs`
+   `attempt(observation, draw, decided_by_name, excluded)`; constants unchanged. A-9: `motivated::decide`
+   takes `&Settings`; the `pricing` block is carried in `Settings`. A-13: `ac1_composability.rs:651-662,
+   884-917`. A-21: `run.rs:48`. A precedent for slug reading already exists in `rule-controller`:
+   `fetch.rs:100-140` reads `holdings`, `shop-stock`, `buy` by slug (S35 N-h).
 
 ### Mutations
 
