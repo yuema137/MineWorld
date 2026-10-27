@@ -147,6 +147,10 @@ static func has(key: String) -> bool:
 ## form (followed by its arguments), never raw.
 static func text(key: String, args: Dictionary = {}) -> String:
 	var worded := _worded(args)
+	# A count of exactly one takes `<key>.one` where the catalogs declare one (English "1 thing", not "1
+	# things"); every other count, and every language without the form, takes `<key>`.
+	if worded.get("count") == 1 and has(key + ".one"):
+		key += ".one"
 	if has(key):
 		var said := String(TranslationServer.translate(key))
 		return said.format(worded) if not worded.is_empty() else said

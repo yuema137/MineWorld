@@ -210,3 +210,43 @@ fn schema_two_entries_carry_label_facets_and_rank_in_rank_order() {
             "text": "alpha one" })
     );
 }
+
+const COUNTED: &str = "format: 1
+attributes:
+  children:
+    group: background
+    kind: { quantity: { unit: count, scale: 0, min: 0, max: 20 } }
+    visibility: learnable
+    mutability: evolving
+    label: Children
+    phrase: \"{value} children\"
+    phrase_one: \"{value} child\"
+";
+
+/// A quantity of exactly one unit takes its `phrase_one`; every other amount takes `phrase`.
+#[test]
+fn a_quantity_of_one_unit_takes_its_singular_phrase() {
+    let catalogue =
+        Catalogue::build(&[file("town", DataSource::World, "t", COUNTED)]).expect("builds");
+    let declaration = catalogue.resolve("town.children").expect("declared");
+    let rendered = |units: i64| {
+        phrase(
+            declaration,
+            &AttributeValue::Quantity(ScaledInt::new(units, 0)),
+            &units.to_string(),
+        )
+    };
+    assert_eq!(rendered(1).as_deref(), Some("1 child"));
+    assert_eq!(rendered(0).as_deref(), Some("0 children"));
+    assert_eq!(rendered(2).as_deref(), Some("2 children"));
+}
+
+/// A one-unit phrase is for a quantity only: a flag declaring one is refused at the catalogue.
+#[test]
+fn a_one_unit_phrase_on_a_non_quantity_is_refused() {
+    let text = COUNTED.replace(
+        "kind: { quantity: { unit: count, scale: 0, min: 0, max: 20 } }",
+        "kind: flag",
+    );
+    assert!(Catalogue::build(&[file("town", DataSource::World, "t", &text)]).is_err());
+}
