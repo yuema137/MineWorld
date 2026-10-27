@@ -75,7 +75,7 @@ def strings(schema: JsonValue, path: str) -> list[str]:
 
 def test_every_operation_model_has_a_json_schema() -> None:
     # S27-d publishes these as inputSchema / outputSchema: each must generate, and be an object.
-    assert len(OPERATION_MODELS) == 30, [m.__name__ for m in OPERATION_MODELS]  # with `ActArgs`
+    assert len(OPERATION_MODELS) == 34, [m.__name__ for m in OPERATION_MODELS]  # with `ActArgs`
     for model in OPERATION_MODELS:
         schema = model.model_json_schema()
         assert schema["type"] == "object", model.__name__

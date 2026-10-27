@@ -491,6 +491,32 @@ msgstr "List for sale…"
 msgid "trade.list-for-shop"
 msgstr "List another kind for the shop…"
 
+# Haggling in the sale panel (S31-h §5.13): an offer beside a buy row, offers made to me, mine to others.
+# {until} is a world time; {ask} is the seller's asking price now.
+msgid "trade.offer-price"
+msgstr "Offer a price…"
+
+msgid "trade.incoming"
+msgstr "{buyer} offers {price} for {item} · until {until}"
+
+msgid "trade.incoming.ask"
+msgstr "{buyer} offers {price} for {item} (ask {ask}) · until {until}"
+
+msgid "trade.accept"
+msgstr "Accept"
+
+msgid "trade.decline"
+msgstr "Decline"
+
+msgid "trade.your-offer"
+msgstr "Your offer: {item} {price} · valid until {until}"
+
+msgid "trade.declined"
+msgstr "Declined: {item} {price} · until {until}"
+
+msgid "trade.withdraw-offer"
+msgstr "Withdraw"
+
 msgid "trade.shop-prices"
 msgstr "This shop's prices…"
 
@@ -682,6 +708,30 @@ msgstr "Stop selling {item}"
 msgid "action.withdraw.done"
 msgstr "You stopped selling it"
 
+msgid "action.propose-price"
+msgstr "Offer a price"
+
+msgid "action.propose-price.done"
+msgstr "You made an offer"
+
+msgid "action.accept-proposal"
+msgstr "Accept the offer"
+
+msgid "action.accept-proposal.done"
+msgstr "You accepted the offer"
+
+msgid "action.decline-proposal"
+msgstr "Decline the offer"
+
+msgid "action.decline-proposal.done"
+msgstr "You declined the offer"
+
+msgid "action.withdraw-proposal"
+msgstr "Withdraw your offer"
+
+msgid "action.withdraw-proposal.done"
+msgstr "You withdrew your offer"
+
 msgid "action.publish-notice"
 msgstr "Post a notice"
 
@@ -821,6 +871,12 @@ msgstr "that is already for sale"
 
 msgid "reason.price-out-of-range"
 msgstr "that price is not allowed"
+
+msgid "reason.no-such-proposal"
+msgstr "that offer is no longer open"
+
+msgid "reason.proposal-limit"
+msgstr "no more offers to this seller for now"
 
 msgid "reason.not-held"
 msgstr "you do not have one"

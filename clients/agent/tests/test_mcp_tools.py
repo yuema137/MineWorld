@@ -30,9 +30,11 @@ from mineworld_agent.mcp_server import (
 )
 from mineworld_agent.models import (
     Accepted,
+    AcceptProposalArgs,
     ActResult,
     AgentModel,
     AttemptArgs,
+    DeclineProposalArgs,
     EventLine,
     EventsResult,
     InboxCounts,
@@ -43,6 +45,7 @@ from mineworld_agent.models import (
     Point,
     PriceArg,
     PricesBody,
+    ProposePriceArgs,
     PublishNoticeArgs,
     SayArgs,
     SeatsResult,
@@ -56,6 +59,7 @@ from mineworld_agent.models import (
     View,
     WalkToArgs,
     WithdrawArgs,
+    WithdrawProposalArgs,
     WorldLine,
     WorldText,
     render_text,
@@ -438,13 +442,29 @@ ACT_CALLS: dict[str, tuple[dict[str, Any], AgentModel]] = {
         {"kind": "unsubscribe", "topic": "news.daily"},
         UnsubscribeArgs(handle=HANDLE, topic="news.daily"),
     ),
+    "propose_price": (
+        {"kind": "propose_price", "to": "E2", "item": "E4", "price": 350},
+        ProposePriceArgs(handle=HANDLE, to="E2", item="E4", price=350),
+    ),
+    "accept_proposal": (
+        {"kind": "accept_proposal", "proposal": 7},
+        AcceptProposalArgs(handle=HANDLE, proposal=7),
+    ),
+    "decline_proposal": (
+        {"kind": "decline_proposal", "proposal": 7},
+        DeclineProposalArgs(handle=HANDLE, proposal=7),
+    ),
+    "withdraw_proposal": (
+        {"kind": "withdraw_proposal", "proposal": 7},
+        WithdrawProposalArgs(handle=HANDLE, proposal=7),
+    ),
 }
 """Each `act` kind, the arguments an agent sends, and the library call it must become."""
 
 
-def test_the_act_kinds_are_the_twelve_operations() -> None:
-    """The dispatch table and the published union name the same twelve kinds, in the same order."""
-    assert len(ACTS) == 12
+def test_the_act_kinds_are_the_sixteen_operations() -> None:
+    """The dispatch table and the published union name the same sixteen kinds, in the same order."""
+    assert len(ACTS) == 16
     assert act_kinds() == tuple(ACTS) == tuple(ACT_CALLS)
 
 

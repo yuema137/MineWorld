@@ -48,6 +48,7 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 
 from mineworld_agent import reference
 from mineworld_agent.models import (
+    AcceptProposalArgs,
     Act,
     ActArgs,
     ActResult,
@@ -55,6 +56,7 @@ from mineworld_agent.models import (
     AttemptArgs,
     ClockArgs,
     ClockResult,
+    DeclineProposalArgs,
     EventsArgs,
     EventsResult,
     InboxStatus,
@@ -71,6 +73,7 @@ from mineworld_agent.models import (
     ObserveArgs,
     ObserveResult,
     PlayerRefusal,
+    ProposePriceArgs,
     PublishNoticeArgs,
     SayArgs,
     Seated,
@@ -87,6 +90,7 @@ from mineworld_agent.models import (
     WaitResult,
     WalkToArgs,
     WithdrawArgs,
+    WithdrawProposalArgs,
     WorldText,
     json_bytes,
     render_text,
@@ -189,6 +193,10 @@ ACTS: Final[dict[str, tuple[type[Seated], str]]] = {
     "publish_notice": (PublishNoticeArgs, "publish_notice"),
     "subscribe": (SubscribeArgs, "subscribe"),
     "unsubscribe": (UnsubscribeArgs, "unsubscribe"),
+    "propose_price": (ProposePriceArgs, "propose_price"),
+    "accept_proposal": (AcceptProposalArgs, "accept_proposal"),
+    "decline_proposal": (DeclineProposalArgs, "decline_proposal"),
+    "withdraw_proposal": (WithdrawProposalArgs, "withdraw_proposal"),
 }
 """The `act` tool's dispatch: each `kind` → the library's argument model and the `Player` operation it calls.
 The only place a kind is bound to an operation (pr-s27d1 §3; the `ARC-153` note: one typed kind per action an

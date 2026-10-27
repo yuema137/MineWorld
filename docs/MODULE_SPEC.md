@@ -1054,7 +1054,14 @@ economy   economy    people,  One section, three carriers (`ARC-38`, `ARC-112`, 
                               (`price-out-of-range`). A wallet and the wealth view are disclosed to the
                               holder; a shop's listing (operator, prices, how many the operator holds) to
                               whoever perceives its place; a person's asks (price, available or not, never
-                              a count) to whoever perceives the person
+                              a count) to whoever perceives the person. Haggling needs no authoring
+                              (`ARC-118`): a buyer may `propose-price { item, price }` for one unit; the
+                              seller, or a keeper standing in the shop, may `accept-proposal` or
+                              `decline-proposal { proposal }`; the buyer may `withdraw-proposal {
+                              proposal }`. All four are offered incomplete. A proposal lasts 15 world
+                              minutes, at most 8 live per seller, and is disclosed (the `proposals`
+                              record) only to its buyer and to whoever may answer it; acceptance settles
+                              as a `buy` at the proposed price, every check re-run, nothing reserved
 price-survey price-survey people
                               { kinds: { categories: [ <category> ] }, depth?, window?, resurvey_after?
                               }: kinds 1–16 distinct item categories; depth 1–64 notes kept per kind

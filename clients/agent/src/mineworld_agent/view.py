@@ -344,6 +344,7 @@ def render(
         doing=disclosed.doing(mine),
         wallet=disclosed.wallet(mine, known),
         wealth=disclosed.wealth(mine, known),
+        proposals=disclosed.proposals(refs, mine, known),
         subscriptions=disclosed.subscriptions(mine),
         holdings=disclosed.holdings(refs, mine, known),
         job=disclosed.job(refs, mine, known),

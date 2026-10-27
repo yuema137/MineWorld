@@ -13,10 +13,12 @@ async with Player(PlayerConfig(server="ws://127.0.0.1:7878/ws"), Invite(invite))
 """
 
 from mineworld_agent.models import (
+    AcceptProposalArgs,
     ActResult,
     AttemptArgs,
     ClockArgs,
     ClockResult,
+    DeclineProposalArgs,
     ErrorCode,
     EventsArgs,
     EventsResult,
@@ -33,6 +35,7 @@ from mineworld_agent.models import (
     ObserveArgs,
     ObserveResult,
     PlayerRefusal,
+    ProposePriceArgs,
     PublishNoticeArgs,
     SayArgs,
     SeatLostRefusal,
@@ -49,6 +52,7 @@ from mineworld_agent.models import (
     WaitResult,
     WalkToArgs,
     WithdrawArgs,
+    WithdrawProposalArgs,
     WorldText,
     render_text,
 )
@@ -57,10 +61,12 @@ from mineworld_agent.roles import ROLE_TAGS, RoleTag
 
 __all__ = [
     "ROLE_TAGS",
+    "AcceptProposalArgs",
     "ActResult",
     "AttemptArgs",
     "ClockArgs",
     "ClockResult",
+    "DeclineProposalArgs",
     "ErrorCode",
     "EventsArgs",
     "EventsResult",
@@ -79,6 +85,7 @@ __all__ = [
     "Player",
     "PlayerConfig",
     "PlayerRefusal",
+    "ProposePriceArgs",
     "PublishNoticeArgs",
     "RoleTag",
     "SayArgs",
@@ -96,6 +103,7 @@ __all__ = [
     "WaitResult",
     "WalkToArgs",
     "WithdrawArgs",
+    "WithdrawProposalArgs",
     "WorldText",
     "render_text",
 ]

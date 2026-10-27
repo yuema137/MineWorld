@@ -7,13 +7,14 @@
 
 use mineworld_contracts::{
     EntityId, Event, EventSchemaVersion, EventTypeId, ItemId, OrganizationId, PersonId, PlaceId,
-    SystemId,
+    SystemId, WorldTime,
 };
 use mineworld_happenings::HappeningRef;
 use mineworld_kernel::SystemIdentity;
 use serde::{Deserialize, Serialize};
 
 use crate::configuration::{Currency, ResolvedModifier};
+use crate::proposal::ProposalId;
 use crate::system::EconomySystem;
 
 /// The world's currency, as `configure/economy.yaml` declared it (`ARC-111`): a genesis fact,
@@ -544,3 +545,183 @@ impl Sold {
         self.place
     }
 }
+
+/// `buyer` proposes to buy one `item` from `seller` at `price` (`ARC-118`): from a shop's operator
+/// (with the shop's `place`) or from a person seller (no place), open until `valid_until`. Heard by
+/// the buyer and whoever may answer it, nobody else. Reduced into the seller's
+/// [`Proposals`](crate::proposal::Proposals).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PriceProposed {
+    proposal: ProposalId,
+    seller: EntityId,
+    buyer: PersonId,
+    item: ItemId,
+    price: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    place: Option<PlaceId>,
+    valid_until: WorldTime,
+}
+
+impl Event for PriceProposed {
+    const EVENT_TYPE: EventTypeId = EventTypeId::from_static("price-proposed");
+    const OWNER: SystemId = EconomySystem::ID;
+    const SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(1);
+}
+
+impl PriceProposed {
+    pub(crate) const fn new(
+        terms: ProposalTerms,
+        place: Option<PlaceId>,
+        valid_until: WorldTime,
+    ) -> Self {
+        Self {
+            proposal: terms.proposal,
+            seller: terms.seller,
+            buyer: terms.buyer,
+            item: terms.item,
+            price: terms.price,
+            place,
+            valid_until,
+        }
+    }
+
+    /// The proposal.
+    pub const fn proposal(&self) -> ProposalId {
+        self.proposal
+    }
+
+    /// Who would sell: a Person, or the Organization running the shop.
+    pub const fn seller(&self) -> EntityId {
+        self.seller
+    }
+
+    /// Who proposes.
+    pub const fn buyer(&self) -> PersonId {
+        self.buyer
+    }
+
+    /// Which kind.
+    pub const fn item(&self) -> ItemId {
+        self.item
+    }
+
+    /// The proposed price of one, in minor units.
+    pub const fn price(&self) -> u64 {
+        self.price
+    }
+
+    /// The shop's place, for a shop's proposal.
+    pub const fn place(&self) -> Option<PlaceId> {
+        self.place
+    }
+
+    /// The first instant at which the proposal is dead.
+    pub const fn valid_until(&self) -> WorldTime {
+        self.valid_until
+    }
+}
+
+/// The terms an answer or a withdrawal names (SD-S31h-6): which proposal, who would sell, who
+/// proposed, the kind and the price — so the reduction finds the seller directly and a reader can say
+/// who answered what.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ProposalTerms {
+    proposal: ProposalId,
+    seller: EntityId,
+    buyer: PersonId,
+    item: ItemId,
+    price: u64,
+}
+
+impl ProposalTerms {
+    pub(crate) const fn new(
+        proposal: ProposalId,
+        seller: EntityId,
+        buyer: PersonId,
+        item: ItemId,
+        price: u64,
+    ) -> Self {
+        Self {
+            proposal,
+            seller,
+            buyer,
+            item,
+            price,
+        }
+    }
+
+    /// The proposal.
+    pub const fn proposal(&self) -> ProposalId {
+        self.proposal
+    }
+
+    /// Who would sell.
+    pub const fn seller(&self) -> EntityId {
+        self.seller
+    }
+
+    /// Who proposed.
+    pub const fn buyer(&self) -> PersonId {
+        self.buyer
+    }
+
+    /// Which kind.
+    pub const fn item(&self) -> ItemId {
+        self.item
+    }
+
+    /// The proposed price, in minor units.
+    pub const fn price(&self) -> u64 {
+        self.price
+    }
+}
+
+/// Declares one of the three facts that close or decline a proposal: the same terms, its own type.
+macro_rules! proposal_fact {
+    ($(#[$doc:meta])* $name:ident, $event_type:literal) => {
+        $(#[$doc])*
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+        #[serde(transparent)]
+        pub struct $name {
+            terms: ProposalTerms,
+        }
+
+        impl Event for $name {
+            const EVENT_TYPE: EventTypeId = EventTypeId::from_static($event_type);
+            const OWNER: SystemId = EconomySystem::ID;
+            const SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(1);
+        }
+
+        impl $name {
+            pub(crate) const fn new(terms: ProposalTerms) -> Self {
+                Self { terms }
+            }
+
+            /// The proposal's terms.
+            pub const fn terms(&self) -> &ProposalTerms {
+                &self.terms
+            }
+        }
+    };
+}
+
+proposal_fact!(
+    /// The seller, or a keeper of the proposal's shop, declined it (`ARC-118`): it stays, marked
+    /// declined, until it expires, so the buyer sees the "no" (Q-S31h-6).
+    ProposalDeclined,
+    "proposal-declined"
+);
+
+proposal_fact!(
+    /// The buyer took its proposal back (`ARC-118`): it is removed.
+    ProposalWithdrawn,
+    "proposal-withdrawn"
+);
+
+proposal_fact!(
+    /// The seller, or a keeper of the proposal's shop, accepted it (`ARC-118`): it is removed, and the
+    /// same dispatch states the sale at the proposed price — `sold`, `money-transferred` and
+    /// `items-transferred`.
+    ProposalAccepted,
+    "proposal-accepted"
+);

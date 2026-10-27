@@ -217,6 +217,8 @@ pub struct Town {
     pub world: World,
     pub keys: BTreeMap<EntityKey, EntityId>,
     pub genesis: Vec<EventEnvelope>,
+    /// Every fact so far, genesis's first, in log order: what `perceived_by` folds over.
+    pub log: Vec<EventEnvelope>,
 }
 
 impl Town {
@@ -271,12 +273,25 @@ impl Town {
         more: impl FnOnce(&mut World),
         extra: Vec<Emission>,
     ) -> Result<Self, KernelError> {
-        let (packs, stock, configuration) = (
-            setup.packs,
-            setup.stock.as_str(),
-            setup.configuration.as_deref(),
-        );
+        let (mut world, keys, mut facts) = Self::assemble(setup, more);
+        facts.extend(extra);
+        let genesis = world.genesis(GENESIS, facts)?;
+        Ok(Self {
+            world,
+            keys,
+            log: genesis.clone(),
+            genesis,
+        })
+    }
+
+    /// A fresh world with the packs `setup` names installed and no entity: what a save resumes into.
+    pub fn compose(setup: &Setup) -> World {
         let mut world = World::new();
+        Self::install(&mut world, setup.packs);
+        world
+    }
+
+    fn install(world: &mut World, packs: Packs) {
         world.install(PresenceSystem).expect("presence");
         world.install(MovementSystem).expect("movement");
         world.install(ItemSystem).expect("item");
@@ -291,6 +306,21 @@ impl Town {
                 .install(EmploymentSystem)
                 .expect("employment installs after inventory and presence");
         }
+    }
+
+    /// The store's world, its entities created, and its genesis facts not yet stated: what
+    /// [`Town::build_with`] begins, or a save is created from.
+    pub fn assemble(
+        setup: &Setup,
+        more: impl FnOnce(&mut World),
+    ) -> (World, BTreeMap<EntityKey, EntityId>, Vec<Emission>) {
+        let (packs, stock, configuration) = (
+            setup.packs,
+            setup.stock.as_str(),
+            setup.configuration.as_deref(),
+        );
+        let mut world = World::new();
+        Self::install(&mut world, packs);
         more(&mut world);
         let mut keys = BTreeMap::new();
         for (name, entity_type) in [
@@ -399,13 +429,7 @@ impl Town {
                 }
             }
         }
-        facts.extend(extra);
-        let genesis = world.genesis(GENESIS, facts)?;
-        Ok(Self {
-            world,
-            keys,
-            genesis,
-        })
+        (world, keys, facts)
     }
 
     pub fn id(&self, name: &str) -> EntityId {
@@ -495,7 +519,29 @@ impl Town {
         if let Some(target) = target {
             intent = intent.with_target(self.id(target));
         }
-        self.world.dispatch(&intent, at)
+        let done = self.world.dispatch(&intent, at)?;
+        self.log.extend(done.events().iter().cloned());
+        Ok(done)
+    }
+
+    /// Dispatches `actor`'s request for action `A`, aimed at `target` when named, as request `id`
+    /// at second `id`.
+    pub fn request<A: mineworld_contracts::Action + serde::Serialize>(
+        &mut self,
+        actor: &str,
+        target: Option<&str>,
+        action: &A,
+        id: u64,
+    ) -> Result<Dispatched, KernelError> {
+        let record = ActionRecord::new::<A>(serde_json::to_vec(action).expect("encodes"));
+        self.act(actor, target, record, id)
+    }
+
+    /// Whether `observer` perceived a fact of type `kind`, over the whole log (presence's own audience
+    /// rule, `perceived_by`).
+    pub fn perceived(&self, observer: &str, kind: &str) -> bool {
+        mineworld_presence::audience::perceived_by(&self.log, self.id(observer), None)
+            .any(|fact: &EventEnvelope| fact.event_type().as_str() == kind)
     }
 
     /// Dispatches `actor`'s seller action `action`, as request `id` at second `id`.

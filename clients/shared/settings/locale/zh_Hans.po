@@ -471,6 +471,30 @@ msgstr "上架出售…"
 msgid "trade.list-for-shop"
 msgstr "为本店上架另一种商品…"
 
+msgid "trade.offer-price"
+msgstr "出个价…"
+
+msgid "trade.incoming"
+msgstr "{buyer} 出价 {price} 买 {item} · 有效至 {until}"
+
+msgid "trade.incoming.ask"
+msgstr "{buyer} 出价 {price} 买 {item}（标价 {ask}） · 有效至 {until}"
+
+msgid "trade.accept"
+msgstr "接受"
+
+msgid "trade.decline"
+msgstr "拒绝"
+
+msgid "trade.your-offer"
+msgstr "你的出价：{item} {price} · 有效至 {until}"
+
+msgid "trade.declined"
+msgstr "已被拒绝：{item} {price} · 至 {until}"
+
+msgid "trade.withdraw-offer"
+msgstr "撤回"
+
 msgid "trade.shop-prices"
 msgstr "本店价格…"
 
@@ -658,6 +682,30 @@ msgstr "不再卖{item}"
 msgid "action.withdraw.done"
 msgstr "你不再卖了"
 
+msgid "action.propose-price"
+msgstr "出价"
+
+msgid "action.propose-price.done"
+msgstr "你出了价"
+
+msgid "action.accept-proposal"
+msgstr "接受出价"
+
+msgid "action.accept-proposal.done"
+msgstr "你接受了出价"
+
+msgid "action.decline-proposal"
+msgstr "拒绝出价"
+
+msgid "action.decline-proposal.done"
+msgstr "你拒绝了出价"
+
+msgid "action.withdraw-proposal"
+msgstr "撤回出价"
+
+msgid "action.withdraw-proposal.done"
+msgstr "你撤回了出价"
+
 msgid "action.publish-notice"
 msgstr "贴一张告示"
 
@@ -792,6 +840,12 @@ msgstr "这个已经在卖了"
 
 msgid "reason.price-out-of-range"
 msgstr "这个价格不允许"
+
+msgid "reason.no-such-proposal"
+msgstr "这个出价已经失效"
+
+msgid "reason.proposal-limit"
+msgstr "暂时不能再向这位卖家出价"
 
 msgid "reason.not-held"
 msgstr "你没有这个"

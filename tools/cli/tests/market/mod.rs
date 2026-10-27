@@ -261,11 +261,26 @@ pub enum MarketFact {
         item: ItemId,
         count: u32,
     },
+    /// One of the four proposal facts (`ARC-118`): `price-proposed`, `proposal-declined`,
+    /// `proposal-withdrawn` or `proposal-accepted`, by its slug.
+    Proposal {
+        slug: &'static str,
+        proposal: u64,
+        seller: EntityId,
+        buyer: EntityId,
+        item: ItemId,
+        price: u64,
+    },
 }
 
 /// The market fact types the tests read, by slug, each with the schema version the mirror reads.
-/// `shop-opened` is at 2 since S31-a: its prices left it, as the operator's `listed` (`ARC-112`).
-pub const MARKET_SLUGS: [(&str, u32); 12] = [
+/// `shop-opened` is at 2 since S31-a: its prices left it, as the operator's `listed` (`ARC-112`). The
+/// four proposal facts since S31-h (`ARC-118`).
+pub const MARKET_SLUGS: [(&str, u32); 16] = [
+    ("price-proposed", 1),
+    ("proposal-declined", 1),
+    ("proposal-withdrawn", 1),
+    ("proposal-accepted", 1),
     ("funded", 1),
     ("shop-opened", 2),
     ("listed", 1),
@@ -304,6 +319,29 @@ pub fn market_fact(fact: &EventEnvelope) -> Option<MarketFact> {
         )
     };
     Some(match slug {
+        "price-proposed" | "proposal-declined" | "proposal-withdrawn" | "proposal-accepted" => {
+            let proposed = slug == "price-proposed";
+            let mut fields = vec!["proposal", "seller", "buyer", "item", "price"];
+            if proposed {
+                fields.push("valid_until");
+                if value.get("place").is_some() {
+                    fields.push("place");
+                }
+            }
+            let map = exactly(&value, &what, &fields);
+            let (slug, _) = MARKET_SLUGS
+                .iter()
+                .find(|(known, _)| *known == slug)
+                .expect("matched above");
+            MarketFact::Proposal {
+                slug,
+                proposal: number(&map, "proposal"),
+                seller: entity(&map, "seller"),
+                buyer: person(&map, "buyer").entity_id(),
+                item: item(&map, "item"),
+                price: number(&map, "price"),
+            }
+        }
         "funded" => {
             let map = exactly(&value, &what, &["holder", "balance"]);
             MarketFact::Funded {
@@ -799,6 +837,41 @@ pub fn sales_are_atomic(facts: &[EventEnvelope]) -> usize {
             .iter()
             .filter(|fact| matches!(fact, MarketFact::MoneyTransferred { .. }))
             .count();
+        // I-h-3 (S31-h, `ARC-118`): an acceptance is one `proposal-accepted` and its sale, on the
+        // same terms; any other proposal fact moves nothing.
+        let agreed: Vec<&MarketFact> = mirrored
+            .iter()
+            .filter(|fact| {
+                matches!(fact, MarketFact::Proposal { slug, .. } if *slug == "proposal-accepted")
+            })
+            .collect();
+        let other_proposal_facts = mirrored
+            .iter()
+            .any(|fact| matches!(fact, MarketFact::Proposal { slug, .. } if *slug != "proposal-accepted"));
+        if other_proposal_facts {
+            assert!(
+                sold.is_empty() && paid == 0 && agreed.is_empty(),
+                "{cause}: a proposal, a decline or a withdrawal moves nothing"
+            );
+        }
+        if let [
+            MarketFact::Proposal {
+                seller,
+                buyer,
+                item,
+                price,
+                ..
+            },
+        ] = agreed.as_slice()
+        {
+            assert!(
+                matches!(sold.as_slice(), [MarketFact::Sold { seller: s, buyer: b, item: i, price: p, .. }]
+                    if s == seller && b == buyer && i == item && p == price),
+                "{cause}: an acceptance settles one sale on its terms: {sold:?}"
+            );
+        } else {
+            assert!(agreed.is_empty(), "{cause}: one acceptance per request");
+        }
         if sold.is_empty() {
             assert_eq!(
                 paid, 0,

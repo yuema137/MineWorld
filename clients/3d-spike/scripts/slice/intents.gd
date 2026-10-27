@@ -78,6 +78,11 @@ const TRADE_INPUTS := {
 	"list-for-sale": {"ask": ["amount"], "row": ["held", "note"], "label": "trade.list"},
 	"set-price": {"ask": ["amount"], "row": ["ask", "shelf"], "label": "trade.change-price"},
 	"withdraw": {"ask": [], "row": ["ask", "shelf"], "label": "trade.withdraw"},
+	# S31-h §5.13: offer a price beside a buy row; answer an offer made to me; take back my own.
+	"propose-price": {"ask": ["amount"], "row": ["sale"], "label": "trade.offer-price"},
+	"accept-proposal": {"ask": [], "row": ["incoming"], "label": "trade.accept"},
+	"decline-proposal": {"ask": [], "row": ["incoming"], "label": "trade.decline"},
+	"withdraw-proposal": {"ask": [], "row": ["outgoing"], "label": "trade.withdraw-offer"},
 }
 
 
@@ -95,13 +100,22 @@ func compose_trade(client: MineWorldClient, affordance: Dictionary, input: Dicti
 	if not trades(action):
 		return ""
 	var payload := {"item": input.get("item")}
-	if action != "withdraw":
-		payload["price"] = int(input.get("price", 0))
+	match action:
+		"accept-proposal", "decline-proposal", "withdraw-proposal":
+			# The proposal the answer row names, from the `proposals` record (S31-h §5.4).
+			payload = {"proposal": int(input.get("proposal", 0))}
+		"withdraw":
+			pass
+		_:
+			payload["price"] = int(input.get("price", 0))
 	if input.get("shop", false):
 		payload["for"] = "shop"
-	var tok := client.submit(action, null, payload, actor_location)
+	# The offer's own target: the seller for a price offer to a person, the buyer for an accept (S31-h).
+	var target: Variant = affordance.get("target")
+	var tok := client.submit(action, target, payload, actor_location)
 	if tok != "":
-		_pending[tok] = {"action": action, "target": "", "about": SliceThings.ref(input.get("item"))}
+		_pending[tok] = {"action": action, "target": "" if target == null else String(target),
+			"about": SliceThings.ref(input.get("item"))}
 	return tok
 
 

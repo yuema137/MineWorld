@@ -27,7 +27,7 @@ Start condition:        step-31 §16.5: "Nothing starts before Milestone F's che
 Execution contract:     §12 (filled, endpoint authority included; ends at MERGE-READY; the coordinator merges)
 Implementer:            Opus-class (step-31 §16.2, the S31-h row: "economy state with expiry, re-validation
                         at acceptance"); reviewer the lane lead plus an Opus logic review of C4
-Lifecycle:              DRAFT
+Lifecycle:              FROZEN 2026-10-20 (§14.1); IMPLEMENTING on mvp0/pr-s31h from origin/main @ fec906f2
 ```
 
 **Effort:** `mvp0`, release-blocking (Q-S31-1 and Q-S31-6 re-ruled) · **Step:**
@@ -931,7 +931,17 @@ STOP CONDITION:          S31-h MERGE-READY — the implementation session does n
 
 ### 14.1 Rulings
 
-None yet.
+The operator froze S31-c … S31-h on 2026-10-20 in the primary session, answering every question as
+recommended (relayed to the implementation session by the lane lead):
+
+| Id | Ruling |
+| --- | --- |
+| Q-S31h-1 | `withdraw-proposal` is offered **incomplete**, like accept and decline |
+| Q-S31h-2 | "Whichever merges second" also applies to S31-d: if S31-h merges first, S31-d adds the two haggling options (R-S31d-h-1) |
+| Q-S31h-3 | Four typed `act` kinds, not four tools (`ARC-153` kept) |
+| Q-S31h-4 | No LM haggling in S31-h; it arrives with the general "attempt an incomplete offer by name" mechanism |
+| Q-S31h-5 | Option (a): a composition-only re-baseline, measured to move no fact or summary (Q-S31f-6 confirms it) |
+| Q-S31h-6 | A declined proposal stays visible, marked declined, and blocks the same buyer, kind and seller for its 15 minutes |
 
 ---
 
@@ -956,16 +966,113 @@ None yet.
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C10 | — | [ ] | [ ] | [ ] |
+| C0 | (this commit) | [x] base, merge states, conditional commits chosen | [x] `ci_layer.py docs` | [x] §2.3 holds; `sale.rs` has the shape §5.6 splits |
+| C1 | `60de7b85` | [x] `ARC-118`, index, MODULE_SPEC §4.1 economy row | [x] `check_decision_ids.py` (215 distinct), `check_doc_headings.py`, `ci_layer.py docs` | [x] no new ontology term; every §5.5 code named in `ARC-118` |
+| C2–C4 | `564eeaae` (one commit, F-S31h-10) | [x] `proposal.rs`, `haggle.rs`, the four facts, the `sale.rs` split, wiring, version 5, catalogs (F-S31h-13) | [x] fmt, clippy `-D warnings` (economy, all targets); `--test haggle` 7/7, `--test haggle_settlement` 3/3 (10 000 states, 1.5 s), `--test haggle_persisted` 1/1; S31-a's `--test sale` 6/6, `--test settlement` 1/1, `--test buy` 6/6 unchanged | [x] §16 review notes below |
+| C5 | `1c165295` | [x] the mirror reads the four facts; the scan ties `proposal-accepted` to its sale | [x] `cargo clippy -p mineworld-cli --tests -D warnings` (compiles the mirror); the runs are CI/milestone (R-LOAD-1) | [x] the `buy` path is unchanged: a cause with no proposal fact is judged exactly as before |
+| C6 | N/A | N/A: S31-d not merged at C0; R-S31d-h-1 binds S31-d | N/A | N/A |
+| C7 | `715d04c1` (on merge `208c2266`) | [x] §5.14: `MeLine.proposals` (`ProposalsLine`/`ProposalLine`, amounts with `display`), four typed `act` kinds bound to `Player.propose_price`/`accept_proposal`/`decline_proposal`/`withdraw_proposal` (accept's target is the buyer read from the seat's newest `proposals` record), `ProposalReading` for the four facts in the inbox; golden `docs/reference/agent-tools.json` and `.md` regenerated | [x] `uv run --locked pytest` one file at a time, all PASS: `test_market_acts.py` 14/14 (AC-h-9), `test_market_inbox.py` 9/9, `test_mcp_tools.py` 15/15, `test_mcp_secrets.py` 2/2, `test_world_text.py` 5/5, `test_cli.py` 9/9 (golden byte-equal to `mineworld-agent schema`), `test_markdown_reference.py` 4/4, `test_descriptions.py` 3/3, `test_reference_pages.py` 3/3, `test_mcp_resources.py` 10/10, `test_guide_chapter.py` 7/7, `test_market_view.py` 20/20, `test_inbox.py` 7/7, `test_view.py` 22/22; ruff and pyright clean | [x] the kinds are typed and closed (no generic free-form act, QS27-9/A-10); no error echoes agent input; the record is read from my own entity only (I-h-5) |
+| C8 | `da543c28` (on merge `907d6fbb`, S31-e #422 merged) | [x] §5.13 through S31-e's panel model (R-S31e-h-1, S31-e merged first): `MineWorldTrade.answer_rows` reads the `proposals` record (incoming open lines: the buyer-targeted accept, whose verdict the row shows, and the target-less decline; outgoing: withdraw while open, none once declined; every button fills `{proposal}`); both clients' `TRADE_INPUTS` gain the four types (propose-price beside buy rows via `sale_rows`); both `intents` compose `{item, price}` and `{proposal}` and send the offer's own target (the 3D `compose_trade` sent `null` before); words in the shared `en.po`/`zh_Hans.po` (F-S31h-17); `clients/shared/TRADE.md` §§5.3, 5.6; economy's proposal macro spells each type with `from_static` so the client-rules scan knows them (F-S31h-18) | [x] `trade_check.gd` PASS (new `_proposals` case); Godot `--import` + `--check-only` of every script: 2D 0 failing, 3D 0 failing; `client_rules` 11/11, `client_text` 6/6 (`messages.pot` regenerated); `-p mineworld-economy` PASS; clippy `-D warnings` clean. AC-h-12's drives and three-OS shots run at the milestone (revision 2, SPEED FIRST) | [x] no client compares a proposal with an ask or a wallet (check e holds with `MONEY_ADMITTED` empty); both clients draw one panel model; nothing hidden by a verdict |
+| C9 | milestone | the nightly `parity-long` dispatch runs at the milestone (charter SPEED FIRST; §12 endpoint) | milestone | milestone |
+| C10 | (this commit) | [x] README table; I-h-1 diff scan clean (no path under `kernel/`, `contracts/`, `persistence/`, `server/`, `systems/inventory/`, `systems/item-transfer/`); PR opened | [ ] `fast` CI green on the exact head (recorded in the PR) | [x] every deviation recorded (F-S31h-10 … 15) |
+
+**Left for the milestone (SPEED FIRST):** C9's `parity-long` nightly dispatch and composition-only re-baseline of
+`[world market-town]` (AC-h-10, Q-S31h-5); the planted mutations X-13, X-14, M-h-1 … M-h-4; the independent Opus
+review of C4; the full economy and `tools/cli` market runs (R-LOAD-1); the remaining economy test files and the
+acceptance `client_text` test (the catalogs gained the four keys).
 
 ### Evidence
 
-(none yet)
+**C0 (2026-10-20).** Base `origin/main @ fec906f2` (#412). Merge states on the base: S31-a merged (#380,
+`16f19d3f`), S31-b merged (#349), WE-a merged (#189), S29-b merged, S27-d1 merged (#261); Milestone F's checklist
+handed over (milestone F batches 1–2 are on main). S31-d, S31-e and S31-g are **not** merged, so C6, C7 and C8 are
+N/A here and R-S31d-h-1, R-S31e-h-1 and R-S31g-h-1 bind those PRs (§2.3). S31-c is implemented in parallel; both
+PRs may touch `docs/MODULE_SPEC.md`, and whichever lands second merges. Q-S31h-2, -3 and -5 are ruled as
+recommended (§14.1). The base Market Town 30-day save for AC-h-10 and C9's re-baseline are milestone work
+(SPEED FIRST), not built here.
+
+Re-audit of S31-a as merged (A-1, A-15): `systems/economy/src/sale.rs` holds `judge_sale(world, buyer, target,
+item, submitted)` in S31-a's order 1–9, a private `Sale { seller: Seller, item, price }` and `settle(world, buyer,
+target, &Buy)`, so §5.6's split applies. Bounded changes S31-a recorded and this PR builds on: `Shop::adjust`
+(WE-a) is applied to a shop's asking price by `offer::asking_price`; economy's `SystemVersion` is **4** on the
+base, so this PR raises it to **5** (§5.11 "or 3 → 4 if WE-a's landed between": one more step, recorded);
+`EconomyConfiguration` carries `price_modifiers` and `currency`, untouched here. `ActionIntent::action_id()`
+(A-4) and `WorldRead::at()` (A-5) are as audited.
+
+**C2–C4 review (implementing agent, 2026-10-20).** The acceptance path reads no ask: `judge_acceptance` calls
+`judge_authority` then `judge_exchange` on a `Sale` built from the stored proposal's price. Every `buy` check runs
+through `judge_exchange`, the function `judge_sale` calls (I-h-7). The facts are built only through `pay`,
+`inventory::transfer` (inside the shared `settle`) and economy's own proposal constructors. Audiences match
+§5.7: all four proposal facts are `Participants` = buyer + person seller, or buyer + keepers standing in the shop
+(`haggle::heard_by`). Only `proposal::reduce` writes `Proposals`, each reduction pruning dead entries first and
+refusing a broken limit, a repeated id or a non-open entry. No float and no draw. Sizes: `haggle.rs` ≈ 560 lines
+and `proposal.rs` ≈ 500 (above §5.1's estimate; both under the 800-line warning). The independent Opus review of
+C4 is milestone work (SPEED FIRST).
+
+**C7 (2026-10-26).** S31-g merged to main (#418) after C0, so C7 came into scope by §2.3's "whichever merges
+second": `origin/main` was merged into this branch first (conflicts in `systems/economy/src/system.rs`, both
+`Proposals` and S35's `ShopStock` kept, and `docs/MODULE_SPEC.md`, the haggling text and the `price-survey` row
+both kept; `docs/decisions/INDEX.md` regenerated). AC-h-9 is asserted at the unit layer S31-g's privacy tests
+use (planted real observations, `test_market_acts.py`): Bob's `outgoing` and Grace's `incoming` show proposal 7 at
+3.50 against an ask of 4.50; Carol's view and her `inspect` of Grace carry no `proposals`; a record planted on
+someone else never reaches the view. The real-server leg rides the milestone runs (SPEED FIRST).
 
 ### Mutations
 
-(none yet; X-13, X-14, M-h-1 … M-h-4 as §8.1 lists them)
+Milestone (charter SPEED FIRST): X-13, X-14, M-h-1 … M-h-4 as §8.1 lists them are planted at the milestone, not
+per PR. Each has a named test written here to turn red: X-13 →
+`haggle.rs::acceptance_rechecks_every_buy_check_and_a_refusal_moves_nothing` (the funds arm); X-14 →
+`haggle_settlement.rs::an_accepted_proposal_settles_atomically_at_the_proposed_price` (Alice and Carol never
+hear `price-proposed`) and `haggle.rs::a_proposal_is_heard_by_two_shows_in_their_records_and_reserves_nothing`;
+M-h-1 → `haggle.rs::a_proposal_expires_at_its_valid_until_with_no_fact`; M-h-2 →
+`haggle.rs::the_limits_hold_and_a_decline_blocks_the_kind_until_it_expires`; M-h-3 →
+`haggle.rs::every_haggling_offer_is_incomplete_and_per_target`; M-h-4 → see F-S31h-12.
 
 ### Deviations and findings
 
 F-S31h-1 … F-S31h-9 (§3.2) and SD-S31h-1 … 10 (§11), recorded at design time.
+
+- **F-S31h-10 (bounded) — C2, C3 and C4 are one commit.** The state, the two buyer actions and the two seller
+  actions share `haggle.rs`, `proposal.rs` and the `system.rs` wiring; splitting them would have produced two
+  intermediate heads with half-wired dispatch. SPEED FIRST; the ledger rows C2–C4 share one SHA.
+- **F-S31h-11 (bounded) — §5.6's split, as built.** `Sale` gained `buyer`; the step-5 keeper check reads the
+  `Shop` at the sale's place rather than a flag carried from `resolve_seller`, so `judge_exchange(world, &Sale)`
+  needs nothing else and acceptance runs it unchanged. `judge_exchange` is `judge_self_trade` then `judge_goods`;
+  `propose-price` runs the limit check between the two (§5.5 step 6 sits between steps 5 and 7).
+  `settle(world, &Sale)` is the shared settlement; `settle_buy` re-judges a `buy` and calls it. No `buy` outcome
+  changes: the order of steps 1–9 and every code are as S31-a's; `sale.rs`, `settlement.rs` and `buy.rs` run
+  unchanged at the milestone (R-S31h-1).
+- **F-S31h-12 (bounded) — tests written against the fixture's own people.** The store fixture has no Dave and no
+  1 m bystander: "Grace gives her last bread to Dave" is Alice buying Grace's last loaf; the bystander in W1 is
+  Alice (2 m away, same place) plus Carol on the street; "Bob walks to 3.1 m" is a `move` to (3 500, 1 000), 3.2 m
+  from Grace. W2 is the same streets re-authored (crowns, exponent 0, two keepers with one outside). AC-h-6's
+  generator varies the buyer's wallet, the proposed price, the seller's stock, a spend, a sell-off, a walk-away,
+  the buyer's load and the age (0 … 1 200 s), for a person seller and the shop. M-h-4's forged ninth entry needs
+  a test-only stater past `validate`; it is a milestone item.
+- **F-S31h-13 (bounded) — the client catalogs.** `tests/acceptance/tests/client_text.rs` (AC-SET-4) needs an
+  `action.<type>` key for every declared action type, so the four actions get `action.*` and `.done` lines in
+  `en.po`, `zh_Hans.po` and `messages.pot` (the a7d145f5 precedent). These are not C8's sale-panel rows, which
+  stay R-S31e-h-1.
+- **F-S31h-14 (bounded) — the `proposals` record's component type.** The record is disclosed under the
+  `proposals` component type (the state's), as S31-a discloses `AsksView` under `asks`: a view about the observer
+  itself, never the stored state. No second component type is declared.
+- **F-S31h-15 (bounded) — the fixture support.** `tests/support/mod.rs` gained `Town::assemble` and
+  `Town::compose` (the save test's world before genesis, and a fresh composition to resume into), a `log` of every
+  fact for presence's `perceived_by`, and `Town::request` for any action.
+- **F-S31h-16 (bounded) — C7 also touches `disclosed.py` and `__init__.py`.** S31-g's pattern reads every pack
+  record in `disclosed.py` (the `proposals` parser and the buyer lookup for `accept_proposal`) and exports each
+  `*Args` from the package; §5.14's file list named the other five. A proposal number is `ProposalNumber`
+  (1 … 2^64−1, economy's `ProposalId`); an `accept_proposal` whose number is not in my newest `incoming` is refused
+  `not_offered` before anything is sent, an existing adapter code.
+- **F-S31h-17 (bounded) — C8's word keys follow S31-e's catalog families.** §5.13 named `sale.*` and `refusal.*`
+  keys; the shared catalogs admit only the families of `tests/acceptance/tests/client_text.rs` (`KEY_FAMILIES`),
+  where S31-e's panel words are `trade.*` and refusals `reason.*`. So the rows use `trade.offer-price`,
+  `trade.incoming`, `trade.incoming.ask`, `trade.accept`, `trade.decline`, `trade.your-offer`, `trade.declined`,
+  `trade.withdraw-offer`, and the refusals `reason.no-such-proposal`, `reason.proposal-limit`. The
+  `proposal-limit` detail (`seller-full`, `already-proposed`) is not worded separately: the reason formatter
+  words a code, not a detail, and one sentence covers both. `answer_rows` gains an optional `clock` (the bare
+  world time without one), as `board_rows` takes one; existing callers are unchanged.
+- **F-S31h-18 (bounded) — the scan learns the three proposal types.** `client_rules`' `action_types` reads
+  `ActionTypeId::from_static("…")` literals; economy's `proposal_action!` macro built the call from a literal
+  argument, so the scan knew only `propose-price` and the clients' admissions of the other three admitted
+  nothing. The macro now takes the `ActionTypeId` expression, spelled at each call. No behaviour change.

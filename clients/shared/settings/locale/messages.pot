@@ -620,6 +620,38 @@ msgstr ""
 msgid "trade.list-for-shop"
 msgstr ""
 
+#. Offer a price…
+msgid "trade.offer-price"
+msgstr ""
+
+#. {buyer} offers {price} for {item} · until {until}
+msgid "trade.incoming"
+msgstr ""
+
+#. {buyer} offers {price} for {item} (ask {ask}) · until {until}
+msgid "trade.incoming.ask"
+msgstr ""
+
+#. Accept
+msgid "trade.accept"
+msgstr ""
+
+#. Decline
+msgid "trade.decline"
+msgstr ""
+
+#. Your offer: {item} {price} · valid until {until}
+msgid "trade.your-offer"
+msgstr ""
+
+#. Declined: {item} {price} · until {until}
+msgid "trade.declined"
+msgstr ""
+
+#. Withdraw
+msgid "trade.withdraw-offer"
+msgstr ""
+
 #. This shop's prices…
 msgid "trade.shop-prices"
 msgstr ""
@@ -868,6 +900,38 @@ msgstr ""
 msgid "action.withdraw.done"
 msgstr ""
 
+#. Offer a price
+msgid "action.propose-price"
+msgstr ""
+
+#. You made an offer
+msgid "action.propose-price.done"
+msgstr ""
+
+#. Accept the offer
+msgid "action.accept-proposal"
+msgstr ""
+
+#. You accepted the offer
+msgid "action.accept-proposal.done"
+msgstr ""
+
+#. Decline the offer
+msgid "action.decline-proposal"
+msgstr ""
+
+#. You declined the offer
+msgid "action.decline-proposal.done"
+msgstr ""
+
+#. Withdraw your offer
+msgid "action.withdraw-proposal"
+msgstr ""
+
+#. You withdrew your offer
+msgid "action.withdraw-proposal.done"
+msgstr ""
+
 #. Post a notice
 msgid "action.publish-notice"
 msgstr ""
@@ -1046,6 +1110,14 @@ msgstr ""
 
 #. that price is not allowed
 msgid "reason.price-out-of-range"
+msgstr ""
+
+#. that offer is no longer open
+msgid "reason.no-such-proposal"
+msgstr ""
+
+#. no more offers to this seller for now
+msgid "reason.proposal-limit"
 msgstr ""
 
 #. you do not have one
