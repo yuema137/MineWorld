@@ -59,6 +59,19 @@ owned_component! {
     schema_version = 1,
 }
 
+/// The `subscriptions` record as disclosed (S31-b2 §5.5): the topics, and — where the world enables
+/// `attributes` — the `notices.subscriptions` attribute block, rendered by the model crate
+/// (`disclose_owned`). Without `attributes` the field is omitted and the record is byte-identical to the
+/// component itself.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DisclosedSubscriptions {
+    /// The topics, sorted.
+    pub topics: Vec<TopicId>,
+    /// The owned attribute's disclosure, when the world enables `attributes`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub attributes: Option<serde_json::Value>,
+}
+
 /// `notice-board`: the notices current now on the topics the observer subscribes to or publishes, in
 /// (topic, publisher) order.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

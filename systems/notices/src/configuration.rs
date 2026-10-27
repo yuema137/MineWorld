@@ -14,7 +14,9 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use mineworld_authoring::{ConfigurationContext, PackConfiguration, Reference, Seeding};
+use mineworld_authoring::{
+    ConfigurationContext, DataDirectory, PackConfiguration, Reference, Seeding, YieldedFile,
+};
 use mineworld_contracts::{EntityType, EventTypeId, LifecycleState, PersonId, Rejection, Tag};
 use mineworld_kernel::Emission;
 use serde::Deserialize;
@@ -26,6 +28,9 @@ use crate::topic::{Topic, TopicId};
 /// The most topics one world may declare. Because a person subscribes only to declared topics, it is
 /// also the most subscriptions one person can hold (F-S31b-7).
 pub const TOPICS_MAX: usize = 32;
+
+/// The `attributes` pack's vocabulary directory, which this configuration yields one file into.
+const VOCABULARIES: DataDirectory = DataDirectory::from_static("vocabularies");
 
 /// A world's public-notice topics, and the default subscriptions by tag.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, schemars::JsonSchema)]
@@ -113,6 +118,21 @@ impl PackConfiguration for NoticesSystem {
         <NoticesConfigured as mineworld_contracts::Event>::EVENT_TYPE,
         <SubscriptionsSeeded as mineworld_contracts::Event>::EVENT_TYPE,
     ];
+
+    /// The vocabulary `notices.topics` (S31-b2 §5.2, SD-b2-1): `vocabularies/topics.yaml` listing this
+    /// world's topic keys, sorted. Collected only where the world enables `attributes`, the owner of
+    /// `vocabularies/`; elsewhere it is skipped and nothing changes.
+    fn yields(configuration: &NoticesConfiguration) -> Vec<YieldedFile> {
+        let topics: Vec<&str> = configuration.topics.keys().map(TopicId::as_str).collect();
+        vec![YieldedFile {
+            directory: VOCABULARIES,
+            name: "topics.yaml".to_owned(),
+            text: format!(
+                "format: 1\nvocabularies:\n  topics: [{}]\n",
+                topics.join(", ")
+            ),
+        }]
+    }
 
     /// Every publisher is a Person the world declares; the loader refuses any other by name.
     fn references(configuration: &NoticesConfiguration) -> Vec<Reference<'_>> {

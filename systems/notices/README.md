@@ -26,6 +26,19 @@ defaults:
 notices: { subscribe: [prices.ingredients] }  # replaces the defaults; [] means none
 ```
 
+### In a world that enables `attributes`
+
+Subscriptions are then the attribute `notices.subscriptions`, written like any other attribute. Its
+values are the world's own topic keys. Set them with `attributes:` in a person's file, a lock, or
+`roles` in a population profile. `defaults.by_tag` and the `notices:` section are then refused
+(`subscriptions-are-attributes`), so each world has one source.
+
+```yaml
+# populations/town.yaml
+roles:
+  - { when: { tags: [barista] }, add: { notices.subscriptions: [prices.ingredients] } }
+```
+
 ## What happens
 
 - `publish-notice { topic, body, valid_for }`: a listed publisher posts. The notice reaches exactly the
@@ -43,4 +56,6 @@ random. A refusal is always named: `unknown-topic`, `body-mismatch`, `body-too-l
 
 - The decision: [`docs/decisions/ARC-115.md`](../../docs/decisions/ARC-115.md).
 - Every field: the generated [`docs/reference/`](../../docs/reference/).
-- The design: [`pr-s31b-notices.md`](../../.structured-coding/plans/mvp0/pr-s31b-notices.md).
+- The design: [`pr-s31b-notices.md`](../../.structured-coding/plans/mvp0/pr-s31b-notices.md); the
+  attribute: [`pr-s31b2-notices-attributes.md`](../../.structured-coding/plans/mvp0/pr-s31b2-notices-attributes.md)
+  and [`docs/decisions/ARC-124.md`](../../docs/decisions/ARC-124.md).
