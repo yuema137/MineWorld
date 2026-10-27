@@ -585,9 +585,26 @@ func _physics_process(delta: float) -> void:
 	# Pressing into a person or an object, the body stands still; the travel the
 	# input wished for counts instead (press-through, step-11 §22 SD-E5).
 	flat = maxf(flat, player.pressed_travel)
+	if _since >= REPORT_GAP and _rests_unreported(at):
+		report_position(at)
+		return
 	if _since < REPORT_GAP or (flat < REPORT_DIST and turned < REPORT_TURN):
 		return
 	report_position(at)
+
+
+## THE REST REPORT. The travel cadence alone leaves the last stretch of a walk unreported: a body that
+## stops less than REPORT_DIST after its last report stands up to half a metre from where the server
+## holds it, and every verdict that depends on distance -- a shove's 1 m reach, a kick's 800 mm -- is
+## then judged at the stale point (the 3D market probe's shove came back `too_far_away` 0.74 m from
+## the person, nightly triage 10-26). So a body that has come to rest, and is not pressing into
+## anything, reports once where it stands, at the protocol's millimetre, unless that is what it last
+## reported or what the server already holds.
+func _rests_unreported(place: String) -> bool:
+	if not Vector2(player.velocity.x, player.velocity.z).is_zero_approx() or player.press_dir != Vector3.ZERO:
+		return false
+	var at := _mm(to_world(place, player.global_position))
+	return at != _mm(last_sent_local) and at != _prev_auth
 
 
 ## Report where the body is now, in the place the slice draws it in -- or, while
