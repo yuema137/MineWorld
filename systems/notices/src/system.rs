@@ -3,9 +3,13 @@
 
 use std::collections::BTreeSet;
 
+use mineworld_attributes_model::{
+    AttributeOwner, AttributeValue, AttributesComposed, AttributesHanded, QualifiedId,
+    RunningCatalogue, ValueSlug, disclose_owned,
+};
 use mineworld_contracts::{
     ActionIntent, ComponentRecord, EntityId, EntityType, Event, EventEnvelope, EventTypeId,
-    LifecycleState, Rejection, SystemId,
+    LifecycleState, Rejection, RejectionCode, SystemId,
 };
 use mineworld_kernel::{
     Declarations, Emission, KernelError, ProcessStart, System, SystemDeclaration, SystemIdentity,
@@ -18,7 +22,7 @@ use serde_json::Value;
 use crate::action::{PublishNotice, REQUIREMENT, Subscribe, Unsubscribe};
 use crate::board::{BoardState, Notice, NoticesProcess, board, board_process};
 use crate::codec;
-use crate::component::{NoticeBoardRecord, Subscriptions};
+use crate::component::{DisclosedSubscriptions, NoticeBoardRecord, Subscriptions};
 use crate::event::{
     NoticePublished, NoticesConfigured, Origin, Subscribed, SubscriptionsSeeded, Unsubscribed,
 };
@@ -46,6 +50,52 @@ impl SystemPack for NoticesSystem {
     const BIOGRAPHICAL: &'static [EventTypeId] = BIOGRAPHICAL;
     mineworld_sdk::configures!();
     mineworld_sdk::owns_section!();
+    mineworld_sdk::ships_data!("attributes/subscriptions.yaml");
+}
+
+/// The attribute this pack owns (step-30 §9.6 N-2).
+pub const SUBSCRIPTIONS_ATTRIBUTE: &str = "notices.subscriptions";
+
+/// The refusal of a second source of initial subscriptions in a world whose subscriptions are the
+/// `notices.subscriptions` attribute (S31-b2 §5.4, Q-S31b2-2).
+fn subscriptions_are_attributes(event_type: EventTypeId, detail: &str) -> KernelError {
+    refused(
+        event_type,
+        Rejection::System {
+            code: RejectionCode::from_static("subscriptions-are-attributes"),
+            detail: Some(detail.to_owned()),
+        },
+    )
+}
+
+/// `notices.subscriptions` (S31-b2 §5.3): projected from the person's [`Subscriptions`], sorted;
+/// absent when the person has none. Exists only where the world enables `attributes`.
+impl AttributeOwner for NoticesSystem {
+    fn project(
+        world: &WorldRead<'_>,
+        person: EntityId,
+        attribute: &QualifiedId,
+    ) -> Option<AttributeValue> {
+        if attribute.as_str() != SUBSCRIPTIONS_ATTRIBUTE {
+            return None;
+        }
+        let held = world.component::<Subscriptions>(person)?;
+        held.topics()
+            .iter()
+            .map(|topic| ValueSlug::new(topic.as_str()).ok())
+            .collect::<Option<BTreeSet<ValueSlug>>>()
+            .map(AttributeValue::Set)
+    }
+}
+
+/// Whether the running world's catalogue declares `notices.subscriptions`.
+fn subscriptions_are_declared(read: &WorldRead<'_>) -> bool {
+    RunningCatalogue::in_world(read).is_some_and(|running| {
+        running
+            .catalogue()
+            .attributes()
+            .any(|declaration| declaration.id.as_str() == SUBSCRIPTIONS_ATTRIBUTE)
+    })
 }
 
 /// A fact this pack may not take: a defect in whoever stated it past the rule (`ARC-26`).
@@ -98,6 +148,10 @@ impl System for NoticesSystem {
             .subscribing_to::<Subscribed>()
             .subscribing_to::<Unsubscribed>()
             .subscribing_to::<NoticePublished>()
+            // The owner interface (S31-b2 §§5.3-5.4, ARC-124): subscribing needs no dependency
+            // (ARC-28 item 2); in a world without `attributes` neither fact is ever stated.
+            .subscribing_to::<AttributesComposed>()
+            .subscribing_to::<AttributesHanded>()
     }
 
     fn install(&self, tables: &mut Declarations<'_, Self>) -> Result<(), KernelError> {
@@ -198,9 +252,33 @@ impl System for NoticesSystem {
                 )))
                 .uninterruptible(),
             )?;
+        } else if kind == AttributesComposed::EVENT_TYPE {
+            // Genesis reduces configuration facts before context facts (A-10), so a person holding
+            // subscriptions now got them from `defaults.by_tag`: a second source (§5.4). The payload
+            // is read, not the running catalogue, which `attributes` may start after this reaction.
+            let composed: AttributesComposed = codec::event_payload(event.payload())?;
+            let declared = composed
+                .catalogue
+                .attributes
+                .iter()
+                .any(|declaration| declaration.id.as_str() == SUBSCRIPTIONS_ATTRIBUTE);
+            if declared && world.read().components::<Subscriptions>().next().is_some() {
+                return Err(subscriptions_are_attributes(
+                    kind,
+                    "use roles in a population profile instead of defaults.by_tag",
+                ));
+            }
+        } else if kind == AttributesHanded::EVENT_TYPE {
+            return handed(event);
         } else if kind == SubscriptionsSeeded::EVENT_TYPE {
             let seeded: SubscriptionsSeeded = codec::event_payload(event.payload())?;
             let read = world.read();
+            if seeded.origin() == Origin::Authored && subscriptions_are_declared(&read) {
+                return Err(subscriptions_are_attributes(
+                    kind,
+                    "write attributes: { notices.subscriptions: [...] }",
+                ));
+            }
             let state = board_for(&read, &kind)?;
             if seeded
                 .topics()
@@ -255,6 +333,36 @@ impl System for NoticesSystem {
         }
         Ok(Vec::new())
     }
+}
+
+/// A person's resolved `notices.subscriptions`, handed by `attributes` at genesis (S31-b2 §5.3): stated
+/// as the same `subscriptions-seeded` fact a configuration default is, `origin: default` (SD-b2-2), so
+/// the existing reduction writes [`Subscriptions`] and checks every topic. Another owner's values are
+/// not this pack's; a value that is not a set is refused `PreconditionFailed`.
+fn handed(event: &EventEnvelope) -> Result<Vec<Emission>, KernelError> {
+    let kind = event.event_type().clone();
+    let handed: AttributesHanded = codec::event_payload(event.payload())?;
+    if handed.owner != NoticesSystem::ID {
+        return Ok(Vec::new());
+    }
+    let Some((_, value)) = handed
+        .values
+        .iter()
+        .find(|(id, _)| id.as_str() == SUBSCRIPTIONS_ATTRIBUTE)
+    else {
+        return Ok(Vec::new());
+    };
+    let AttributeValue::Set(slugs) = value else {
+        return Err(refused(kind, Rejection::PreconditionFailed));
+    };
+    let topics = slugs
+        .iter()
+        .map(|slug| crate::TopicId::new(slug.as_str()))
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|_| refused(kind, code("unknown-topic")))?;
+    Ok(vec![
+        SubscriptionsSeeded::new(handed.person, topics, Origin::Default).emission(),
+    ])
 }
 
 /// None of this pack's actions has a target.
@@ -316,9 +424,13 @@ impl PerceptionProvider for NoticesSystem {
         let mut disclosed = Vec::new();
         let held = world.component::<Subscriptions>(subject);
         if let Some(held) = held {
+            let record = DisclosedSubscriptions {
+                topics: held.topics().to_vec(),
+                attributes: disclose_owned::<Self>(world, observer, subject),
+            };
             disclosed.push(ComponentRecord::new::<Subscriptions>(
                 subject,
-                codec::to_value(held),
+                codec::to_value(&record),
             ));
         }
         let Ok((person, state)) = judge_actor(world, subject) else {

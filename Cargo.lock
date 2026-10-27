@@ -1386,6 +1386,8 @@ dependencies = [
 name = "mineworld-notices"
 version = "0.1.0"
 dependencies = [
+ "mineworld-attributes",
+ "mineworld-attributes-model",
  "mineworld-authoring",
  "mineworld-contracts",
  "mineworld-kernel",

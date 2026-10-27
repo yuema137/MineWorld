@@ -464,7 +464,7 @@ correction under R-b2-3's logic and is recorded in §15.
 | --- | --- | --- | --- | --- |
 | C0 | this commit | [x] | [x] | [x] |
 | C1 | see `git log` (`feat(authoring): a configuration may yield …`) | [x] | [x] `cargo test -p mineworld-worldpack --lib data`: 9 passed (3 new); clippy `-D warnings` on `mineworld-worldpack`, `mineworld-authoring` clean | [x] no existing world's load changes: `yields` defaults to none, so `collect` adds nothing; the existing order test is unchanged and passes |
-| C2 | — | [ ] | [ ] | [ ] |
+| C2 | see `git log` (`feat(notices): subscriptions are the notices.subscriptions attribute …`) | [x] | [x] `cargo test -p mineworld-notices` (all test files): 25 passed, incl. `--test attributes` 5 (AC-b2-1 pack half, AC-b2-2, AC-b2-3, AC-b2-4, AC-b2-5 pack half, on W1/W2 and W1-attr/W2-attr); clippy `-D warnings` clean | [x] no fact changes shape (I-b2-2: handed sets are the existing `subscriptions-seeded`, `origin: default`, SystemInternal, about the person); two sources cannot seed one person in an `attributes` world (by_tag refused at `attributes-composed`, authored refused at reduction); mutations M-b2-1 … M-b2-3 reasoned against the tests, not planted (speed-first charter) |
 | C3 | — | [ ] | [ ] | [ ] |
 | C4 | — | [ ] | [ ] | [ ] |
 | C5 | — | [ ] | [ ] | [ ] |

@@ -1135,7 +1135,10 @@ notices   notices    people   { subscribe: [ <topic> ] }: 0–32 distinct topics
                               `unknown-topic`). Optional: when present it replaces the configuration's
                               defaults.by_tag for this person, and `subscribe: []` means "none". The
                               person's subscriptions: notices on those topics reach their inbox.
-                              Disclosed to the person only (`ARC-115`)
+                              Disclosed to the person only (`ARC-115`). In a world that enables
+                              `attributes`, the section is refused (`subscriptions-are-attributes`):
+                              subscriptions are then the attribute `notices.subscriptions`, written
+                              in `attributes:`, a lock or `roles` (`ARC-124` note 2026-10-26)
 ```
 
 An eighth section, `attributes` (owned by the `attributes` System Pack, carried by people), is specified below
@@ -1336,7 +1339,9 @@ about each living Person observer, so a client formats amounts from the world an
 (`valid_for: { min, max }`, each `"<n>m"`, `"<n>h"` or `"<n>d"`, within 1 minute … 30 days) and `per_day`,
 the most notices one publisher may post on it in any 24 hours of world time (1 … 96). An optional
 `defaults.by_tag` subscribes every person with a tag to listed topics, unless the person's own `notices:`
-section says otherwise. A notice reaches exactly the topic's subscribers at that instant and its publisher;
+section says otherwise. In a world that enables `attributes`, `defaults.by_tag` is refused
+(`subscriptions-are-attributes`; `roles` in a population profile take its place), and the configuration yields
+the vocabulary `notices.topics`, its topic keys sorted (§4.1 "Vocabularies"; `ARC-124` note 2026-10-26). A notice reaches exactly the topic's subscribers at that instant and its publisher;
 it stops being current at its `valid_until`, with no fact stated. Every field is in the generated
 [`docs/reference/configure.md`](reference/configure.md).
 

@@ -15,19 +15,28 @@
 #![allow(dead_code)]
 
 use std::collections::BTreeMap;
+use std::path::PathBuf;
 
+use mineworld_attributes::AttributesSystem;
+use mineworld_attributes_model::declaration::{AttributesFile, VocabulariesFile};
+use mineworld_attributes_model::facts::COMPOSED_SCHEMA;
+use mineworld_attributes_model::{
+    AttributeValue, AttributesComposed, AttributesHanded, Catalogue, DataFile, QualifiedId,
+    ValueSlug,
+};
 use mineworld_authoring::{
-    Attached, AuthoredSection, ConfigurationContext, EntityClasses, Seeding,
+    Attached, AuthoredSection, ConfigurationContext, DataDirectory, DataOrigin, DataSource,
+    EntityClasses, Seeding, YieldedFile,
 };
 use mineworld_contracts::{
     Action, ActionId, ActionIntent, ActionRecord, EntityId, EntityKey, EntityType, Event,
     EventEnvelope, LocalPosition, Location, Millimetres, Observation, PersonId, PlaceId, Tag, Tags,
-    WorldTime,
+    Visibility, WorldTime,
 };
-use mineworld_kernel::{Dispatched, Emission, KernelError, World};
+use mineworld_kernel::{Dispatched, Emission, KernelError, SystemIdentity, World};
 use mineworld_notices::{
     AuthoredNotices, Notice, NoticeBoardRecord, NoticeBody, NoticeText, NoticesSystem, PriceLine,
-    PublishNotice, Subscribe, Subscriptions, TopicId, Unsubscribe,
+    PublishNotice, SUBSCRIPTIONS_ATTRIBUTE, Subscribe, Subscriptions, TopicId, Unsubscribe,
 };
 use mineworld_presence::{PerceptionProvider, PresenceSystem, arrival};
 use mineworld_sdk::SystemPack;
@@ -107,24 +116,72 @@ pub struct Cafe {
     next: u64,
 }
 
-/// Decodes the configuration as the loader does and seeds it.
+/// Decodes the configuration as the loader does and seeds it; with the files it yields (S31-b2 §5.1).
 fn seed_configuration(
     world: &World,
     keys: &BTreeMap<EntityKey, EntityId>,
     text: &str,
-) -> Vec<Emission> {
+) -> (Vec<Emission>, Vec<YieldedFile>) {
     let decoded = serde_saphyr::with_deserializer_from_str(text, |file| {
         NoticesSystem::decode_configuration(file)
     })
     .expect("the configuration decodes");
     let read = world.read();
     let (classes, attached) = (EntityClasses::default(), Attached::none());
-    decoded
+    let seeded = decoded
         .seed(
             &Seeding::new(&read, keys),
             &ConfigurationContext::new(&classes, &attached),
         )
-        .expect("seeds")
+        .expect("seeds");
+    (seeded, decoded.yields())
+}
+
+/// The shipped declaration of `notices.subscriptions`.
+pub const DECLARATION: &str = include_str!("../../attributes/subscriptions.yaml");
+
+/// A world that enables `attributes` (S31-b2 W1-attr): the values `attributes` hands `notices` at
+/// genesis, per person, as its resolution (authored, lock, roles) would.
+#[derive(Default)]
+pub struct WithAttributes<'a> {
+    pub handed: Vec<(&'a str, AttributeValue)>,
+}
+
+/// A `set` value of these slugs.
+pub fn set(values: &[&str]) -> AttributeValue {
+    AttributeValue::Set(
+        values
+            .iter()
+            .map(|value| ValueSlug::new(value).expect("a slug"))
+            .collect(),
+    )
+}
+
+/// The catalogue `attributes` would compose from `notices`' shipped declaration and the vocabulary its
+/// configuration yields, as the loader collects them (origin `notices`, a System Pack).
+pub fn catalogue(yielded: &[YieldedFile]) -> Result<Catalogue, String> {
+    let origin = |directory: &'static str, path: String| DataOrigin {
+        pack: "notices".to_owned(),
+        source: DataSource::SystemPack,
+        directory: DataDirectory::from_static(directory),
+        path: PathBuf::from(path),
+    };
+    let declared: AttributesFile = serde_saphyr::from_str(DECLARATION).expect("decodes");
+    let mut files = vec![(
+        origin("attributes", "attributes/subscriptions.yaml".to_owned()),
+        DataFile::Attributes(declared),
+    )];
+    for file in yielded {
+        let vocabulary: VocabulariesFile = serde_saphyr::from_str(&file.text).expect("decodes");
+        files.push((
+            origin(
+                "vocabularies",
+                format!("configure/notices.yaml → vocabularies/{}", file.name),
+            ),
+            DataFile::Vocabularies(vocabulary),
+        ));
+    }
+    Catalogue::build(&files).map_err(|error| error.to_string())
 }
 
 impl Cafe {
@@ -135,11 +192,24 @@ impl Cafe {
 
     /// A café from `recipe`, begun at instant 0, or the refusal genesis reports.
     pub fn try_begin(recipe: &Recipe<'_>) -> Result<Self, KernelError> {
+        Self::try_begin_with(recipe, None)
+    }
+
+    /// A café from `recipe`, with `attributes` enabled when `attributes` is given: its genesis states
+    /// `attributes-composed` after the configuration's facts and before the sections', and each handed
+    /// value after the sections', in the loader's order (A-10).
+    pub fn try_begin_with(
+        recipe: &Recipe<'_>,
+        attributes: Option<&WithAttributes<'_>>,
+    ) -> Result<Self, KernelError> {
         let mut world = World::new();
         world.install(PresenceSystem).expect("presence");
         world
             .install(NoticesSystem)
             .expect("notices, with no dependency");
+        if attributes.is_some() {
+            world.install(AttributesSystem).expect("attributes");
+        }
         let mut keys = BTreeMap::new();
         let place = world
             .create_entity(key("cafe"), EntityType::Place)
@@ -175,8 +245,25 @@ impl Cafe {
             ));
             facts.push(arrival(&world.read(), person, at).expect("admitted"));
         }
+        let mut yielded = Vec::new();
         if let Some(text) = recipe.configuration {
-            facts.extend(seed_configuration(&world, &keys, text));
+            let (seeded, files) = seed_configuration(&world, &keys, text);
+            facts.extend(seeded);
+            yielded = files;
+        }
+        if attributes.is_some() {
+            let composed = AttributesComposed {
+                schema: COMPOSED_SCHEMA,
+                catalogue: catalogue(&yielded)
+                    .expect("the catalogue builds")
+                    .projection(),
+                population: None,
+                composition: None,
+            };
+            facts.push(Emission::new::<AttributesComposed>(
+                serde_json::to_vec(&composed).expect("encodes"),
+                Visibility::SystemInternal,
+            ));
         }
         {
             let read = world.read();
@@ -187,6 +274,27 @@ impl Cafe {
                     NoticesSystem::seed(&seeding, keys[&key(person)], &authored).expect("seeded"),
                 );
             }
+        }
+        for (person, value) in attributes
+            .map(|with| with.handed.as_slice())
+            .unwrap_or_default()
+        {
+            let id = keys[&key(person)];
+            let handed = AttributesHanded {
+                person: PersonId::new(id, EntityType::Person).expect("a person"),
+                owner: NoticesSystem::ID,
+                values: vec![(
+                    QualifiedId::new(SUBSCRIPTIONS_ATTRIBUTE).expect("an id"),
+                    value.clone(),
+                )],
+            };
+            facts.push(
+                Emission::new::<AttributesHanded>(
+                    serde_json::to_vec(&handed).expect("encodes"),
+                    Visibility::SystemInternal,
+                )
+                .about(vec![id]),
+            );
         }
         let genesis = world.genesis(t(0), facts)?;
         Ok(Self {

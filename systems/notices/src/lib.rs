@@ -24,6 +24,11 @@
 //! discloses   subscriptions             to the person only
 //!             notice-board              to the person only: the notices current now on its topics
 //! depends on  nothing
+//! owner of    notices.subscriptions     where the world enables `attributes` (S31-b2, ARC-124): the
+//!                                       declaration is shipped, the vocabulary notices.topics is yielded
+//!                                       by configure/notices.yaml, values arrive by attributes-handed;
+//!                                       defaults.by_tag and the notices: section are then refused
+//!                                       (subscriptions-are-attributes)
 //! ```
 //!
 //! **Lazy expiry.** A notice is current while `issued_at ≤ now < valid_until` and no newer notice from
@@ -55,7 +60,7 @@ pub use body::{
     NOTICE_PRICE_MAX, NoticeBody, NoticeText, PRICE_LINES_MAX, PriceLine, TEXT_MAX_BYTES,
     judge_body,
 };
-pub use component::{NoticeBoardRecord, Subscriptions};
+pub use component::{DisclosedSubscriptions, NoticeBoardRecord, Subscriptions};
 pub use configuration::{NoticesConfiguration, TOPICS_MAX};
 pub use event::{
     ConfiguredTopic, NoticePublished, NoticesConfigured, Origin, Subscribed, SubscriptionsSeeded,
@@ -63,5 +68,5 @@ pub use event::{
 };
 pub use judge::{Change, judge_publish, judge_subscription};
 pub use section::AuthoredNotices;
-pub use system::{BIOGRAPHICAL, NoticesSystem};
+pub use system::{BIOGRAPHICAL, NoticesSystem, SUBSCRIPTIONS_ATTRIBUTE};
 pub use topic::{BodyKind, NoticeDuration, TopicId, ValidFor};
