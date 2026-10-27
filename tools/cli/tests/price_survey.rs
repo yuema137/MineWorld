@@ -6,7 +6,9 @@
 //!                                                 of food and drink; 30 days, seed 7. The causes of
 //!                                                 her `price-noted { sale }` equal the tracked `sold`
 //!                                                 she perceived by presence's fold over the real log
-//! moving_the_routine_removes_store_sales  AC-c-7  W3: Carol's 07:00 store segment moved to the park
+//! moving_the_routine_removes_store_sales  AC-c-7  W3: Carol's 07:00 store segment moved to the park;
+//!                                                 against W2, no store sale while her agenda names
+//!                                                 the store, and fewer store sales in her book
 //! book_is_persisted_and_replayed          AC-c-8  W2's save replays; its last snapshot's book equals a
 //!                                                 mirror fold of the save's own facts
 //! optional_and_removable                  AC-c-9  Social Café + price-survey without economy fails
@@ -298,17 +300,35 @@ fn reporter_knows_only_what_it_perceived() {
 
 #[test]
 fn moving_the_routine_removes_store_sales() {
+    // W2, the routine at the store: the baseline the move is measured against.
+    let w2 = Copy::new("price-survey-w3-baseline", true, false);
+    w2.run();
+    let (w2_perceived, w2_facts) = assert_book_equals_perception(&w2);
+    let w2_book = store_sales_by_agenda(&w2.world(), &w2_perceived, &w2_facts);
+    // W3, the 07:00 segment moved to the park.
     let copy = Copy::new("price-survey-w3", true, true);
     copy.run();
     let (perceived, facts) = assert_book_equals_perception(&copy);
+    let book = store_sales_by_agenda(&copy.world(), &perceived, &facts);
     let town = Town::read(&copy.world());
     let store = town.id("store");
-    let by_id: BTreeMap<EventId, &EventEnvelope> = facts.iter().map(|f| (f.id(), f)).collect();
+    // The routine brought Carol to the store in W2, so her book there holds store sales her agenda
+    // put her in front of; moved, it holds none. She may still walk in on an errand of her own (a
+    // hungry person goes where food is sold, rule's fetch band), and a sale she sees then is in her
+    // book as AC-c-6 requires: what the move removes is the routine's share, which is most of it.
     assert!(
-        perceived
-            .iter()
-            .all(|id| sale(by_id[id]).place.entity_id() != store),
-        "no store sale in Carol's book"
+        w2_book.contains(&Some(store)),
+        "non-vacuous: in W2 Carol notes store sales while her routine has her at the store"
+    );
+    assert!(
+        book.iter().all(|agenda| *agenda != Some(store)),
+        "no store sale in Carol's W3 book while her agenda names the store"
+    );
+    assert!(
+        book.len() < w2_book.len(),
+        "moving the routine removes store sales from Carol's book: W3 {} vs W2 {}",
+        book.len(),
+        w2_book.len()
     );
     assert!(
         facts
@@ -317,6 +337,38 @@ fn moving_the_routine_removes_store_sales() {
                 && sale(fact).place.entity_id() == store),
         "the store still sells"
     );
+}
+
+/// For each store sale in Carol's book (`perceived`), the place her agenda named when it was sold, read
+/// from schedule's `agenda-changed` facts in log order (`None` before her first one).
+fn store_sales_by_agenda(
+    world: &Path,
+    perceived: &BTreeSet<EventId>,
+    facts: &[EventEnvelope],
+) -> Vec<Option<EntityId>> {
+    let town = Town::read(world);
+    let (carol, store) = (town.id("carol"), town.id("store"));
+    let mut agenda: Option<EntityId> = None;
+    let mut out = Vec::new();
+    for fact in facts {
+        match fact.event_type().as_str() {
+            "agenda-changed" => {
+                let value = payload(fact);
+                let person: PersonId =
+                    serde_json::from_value(value["person"].clone()).expect("person");
+                if person.entity_id() == carol {
+                    let place: Option<PlaceId> =
+                        serde_json::from_value(value["place"].clone()).expect("place");
+                    agenda = place.map(|place| place.entity_id());
+                }
+            }
+            "sold" if perceived.contains(&fact.id()) && sale(fact).place.entity_id() == store => {
+                out.push(agenda);
+            }
+            _ => {}
+        }
+    }
+    out
 }
 
 /// §5.3's rules written out: per kind a ring of `depth`, pruned by `window` at each note; by item.
