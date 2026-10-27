@@ -160,7 +160,11 @@ func _row(point: String, name: String, spec: Dictionary, at: Vector3, yaw: float
 	await get_tree().process_frame
 	var low := SeatContact.lowest(n.body)
 	_rows += 1
-	if low == INF:
+	if not n.body.contact_measured():
+		# a body whose skin did not read back whole has no sole and no contact (`SkinArrays`): named, never judged
+		_fails += 1
+		print("FAIL: %s with %s: its skin did not read back whole; the body is unmeasured" % [point, name])
+	elif low == INF:
 		_fails += 1
 		print("FAIL: %s with %s: no seat vertex measured" % [point, name])
 	else:
