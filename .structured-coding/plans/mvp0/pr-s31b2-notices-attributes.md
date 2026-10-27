@@ -463,7 +463,7 @@ correction under R-b2-3's logic and is recorded in §15.
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
 | C0 | this commit | [x] | [x] | [x] |
-| C1 | — | [ ] | [ ] | [ ] |
+| C1 | see `git log` (`feat(authoring): a configuration may yield …`) | [x] | [x] `cargo test -p mineworld-worldpack --lib data`: 9 passed (3 new); clippy `-D warnings` on `mineworld-worldpack`, `mineworld-authoring` clean | [x] no existing world's load changes: `yields` defaults to none, so `collect` adds nothing; the existing order test is unchanged and passes |
 | C2 | — | [ ] | [ ] | [ ] |
 | C3 | — | [ ] | [ ] | [ ] |
 | C4 | — | [ ] | [ ] | [ ] |
