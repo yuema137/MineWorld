@@ -3,7 +3,7 @@
 ## Lifecycle
 
 ```text
-Design revision:        revision 2 (2026-10-26), DRAFT — R2: recorded mocap replaces code-built clips (§15)
+Design revision:        revision 2 (2026-10-26), DESIGN FROZEN 2026-10-27 (operator approved in the primary session: every question answered as recommended) — R2: recorded mocap replaces code-built clips (§15)
 Approved by / evidence: none yet — awaiting the operator's freeze (questions in §14)
 Audit base:             origin/main @ 0b2faf2f (after #462 S33-f, #368 S34-c1, #363 S34-b, #301 S34-a)
 Start condition:        S34-e merged (the shared walk-then-sit chain in clients/shared/sitting/, and the
@@ -497,6 +497,8 @@ Post-merge sync owner:  this session owns this file's ledger; the primary sessio
 | The player's own seated body clips the camera in first person | The body is hidden in first person (A-14); only the eye moves |
 
 ## 14. Operator questions (each with a recommendation)
+
+**Ruled 2026-10-27 (operator, primary session):** every question below is answered as recommended.
 
 | Id | Question | Recommendation |
 | --- | --- | --- |
