@@ -98,14 +98,18 @@ async fn the_hosted_town_lives_within_its_tick_budget() {
         println!("{line}");
         // Driven means the host's controller acted for the seat and the world accepted it: strides by
         // day, or `sleep` at night since S35 N-a, so the count is every accepted request, not walk-steps.
+        // The town is hosted from genesis (00:00) for 24 world minutes, so a seat that starts at home
+        // goes to sleep at once and, rightly, asks nothing more until its alarm: since `ARC-330` R4 a
+        // passer-by's push no longer wakes it. One accepted `sleep` is therefore driven too.
         let accepted: u64 = line
             .split_once(" consults, ")
             .and_then(|(_, rest)| rest.split_once(" accepted"))
             .and_then(|(number, _)| number.trim().parse().ok())
             .unwrap_or(0);
+        let slept = line.contains(" accepted (sleep ");
         assert!(
-            accepted >= 3,
-            "{seat} had {accepted} accepted request(s): {line}"
+            accepted >= 3 || slept,
+            "{seat} had {accepted} accepted request(s) and did not go to sleep: {line}"
         );
         driven += 1;
     }
