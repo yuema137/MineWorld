@@ -53,3 +53,21 @@ the packaged clients publicly? Of course, otherwise nobody else can play"). The 
 Releases, mirrored to itch.io, archived on Zenodo. The ruling decides that they are published, not when.
 The first public tag still follows QR-12 (after Milestone F's hands-on acceptance and after the visuals
 settle), and the operator gives the go-ahead for publishing after milestone acceptance.
+
+## ARC-79 note — 2026-10-27: the gates of the publishing path (S23 R-d)
+
+Written by the R-d design (`pr-s23-rd-publish.md`, frozen 2026-10-27). Four decisions it fixes:
+
+1. **Tag shape gates the publish.** `publish.yml`'s gate job publishes only for tags matching
+   `^v\d+\.\d+\.\d+(-rc\.\d+)?$`. A promo release (`promo-v*`) also fires `release: published`; it ends green
+   with `publish=false`, and the `itch` Environment accepts deployments only from tags `v*` (F-Rd-2).
+2. **Verification is a separate job without the key.** `verify` checks `SHA256SUMS` and each attestation
+   against the published release. Only the `push` job, in Environment `itch`, holds `BUTLER_API_KEY`, and it
+   re-checks the hashes after the artifact hop (A-R9).
+3. **Candidates go to hidden channels.** A `-rc.N` release pushes to `windows-rc`, `mac-rc`, `linux-rc` and
+   `linux-arm64-rc`, created with `--hidden`, so a candidate never shows on the player page (Q-Rd-7).
+4. **Zenodo and candidates.** Zenodo's archive decision stays Q-Rd-2 (sandbox test first). Until it is settled,
+   no Zenodo step exists in the repository, and the live publish switch `MINEWORLD_PUBLISH_LIVE` (default off)
+   gates every live step (design §14).
+
+The publishing mechanism is unchanged by this note; the first public tag still follows QR-12.

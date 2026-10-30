@@ -1,20 +1,21 @@
 # PR S23 R-d — Publishing: itch.io mirror, Zenodo archive, changelog, citation, download docs
 
-## DESIGN FROZEN 2026-10-27 (operator approved in the primary session: every question answered as recommended) (not frozen)
+## DESIGN FROZEN 2026-10-27 (operator approved in the primary session: every question answered as recommended)
 
 **Ruled 2026-10-27 (operator, primary session):** every question below is answered as recommended.
 
 ```text
-Design revision:        revision 1 (2026-10-26), DRAFT (not frozen)
+Design revision:        revision 1 (2026-10-26), frozen 2026-10-27, with the bounded addition of §14 (the live-publish switch)
 Author:                 design sub-agent (Opus), worktree /Users/yuema137/mineworld-worktrees/design-s23-rb-rd,
                         branch docs/pr-design-s23-rb-rd, planning base origin/main @ 0b2faf2f
-Approved by / evidence: nobody yet. Only the operator freezes this design (CLAUDE.md §3.1)
-Implementation base:    origin/main after R-b (pr-s23-rb-release-workflow.md) merges
-Start condition:        this design frozen; R-b merged; PR #497 (ARC-79, QB-14) merged; the operator actions
-                        of §5 that the dry runs need (none) — the live checkpoint needs all of them
-Execution contract:     §12, left unfilled on purpose
+Approved by / evidence: the operator, 2026-10-27, relayed by the coordinator: every Q-Rd-1..8 answered as
+                        recommended, plus the §14 switch (a bounded addition from that ruling)
+Implementation base:    origin/main @ 315a50a9 (R-b, `mvp0/pr-s23-rb`, is built in parallel; see §12)
+Start condition:        this design frozen (met 2026-10-27); PR #497 (ARC-79, QB-14) merged (met); R-b merged is NOT
+                        required for the C0–C3 commits; C1 merges with R-b's `scripts/ci_release.py` if it exists by then
+Execution contract:     §12
 Implementer:            Opus-class for publish.yml (secret handling); Haiku-class for the docs commits
-Lifecycle:              DRAFT (not frozen)
+Lifecycle:              FROZEN 2026-10-27 (scope, invariants and acceptance frozen; progress and evidence writable)
 ```
 
 **Effort:** `mvp0` · **Step:** [`step-23-release.md`](step-23-release.md) §§4.2, 4.3, 5.1, 10, 11 (R-R4, R-R8),
@@ -301,41 +302,62 @@ Each is free of charge. In order:
 
 ### C0 — revision marker and base (Markdown only)
 
-- Implementation: [ ] base recorded; §1 re-verified, including the butler digest by download.
-- Validation: [ ] `check_doc_headings.py`. LLM review: [ ] anchors current.
+- Implementation: [x] base recorded (origin/main 315a50a9); §1 re-verified; butler digest by download: PASS
+  (`gh release download v15.32.0 -R itchio/butler`, 10 599 491 bytes, `shasum -a 256` =
+  `5db7b053…4574b3`, equal to GitHub's asset digest). Stray "(not frozen)" fixed; §14 switch recorded; §12 filled.
+- Validation: [x] `check_doc_headings.py` PASS (254 sections, 337 documents, none duplicated).
+  LLM review: [x] anchors in §§1, 3, 9, 14 checked against this file; the C0 changes touch only the header,
+  §12, the ledger and §14.
 
 ### C1 — `publish.yml` and its script commands
 
 - Scope: §3; `ci_release.py publish-gate`, `verify-assets`, `itch-channels`, `check-secrets` with
   self-tests; `ci_layer.py fast` line.
-- Implementation: [ ] workflow; [ ] script; [ ] fast line.
-- Validation: [ ] `python3 scripts/ci_release.py --self-test` (cases: `v0.1.0` publish; `v0.1.0-rc.1` with
+- Implementation: [x] workflow (`publish.yml`: gate, verify, push; switch in §14); [x] script (`publish-gate`,
+  `verify-assets`, `itch-channels`, `check-secrets`, `check-switch`, `citation`); [x] fast line (four lines in
+  `ci_layer.py fast`). Evidence: commit 47be44a0; `ruby` parses `publish.yml` (valid YAML, 3 jobs).
+- Validation: [x] PASS `python3.12 scripts/ci_release.py --self-test` ("ci_release self-test: passed"; the cases: `v0.1.0` publish; `v0.1.0-rc.1` with
   `prerelease=true`; `v0.1.0-rc.1` with `prerelease=false` refused; `promo-v2.3` → publish=false;
   channel table; a secret in `ci.yml` refused; `pull_request_target` refused);
-  [ ] `check_ci_pins.py`; [ ] **A-R9 (dispatch, no publish):** R-b's dry run with `draft: true` makes draft
+  [x] `check_ci_pins.py` PASS (every new action pinned to the SHA the repository already uses);
+  INCONCLUSIVE, owner R-b: **A-R9 (dispatch, no publish):** `origin/mvp0/pr-s23-rb` and its draft do not exist
+  on 2026-10-27, so no dispatch run exists. R-b's dry run with `draft: true` makes draft
   `test-<run>`; dispatch `publish.yml` with that name → `verify` PASS; then replace one archive in the
   draft with a modified copy (`gh release upload --clobber`) and dispatch again → `verify` red naming the
   file at `sha256sum -c`; draft deleted; run URLs in the ledger. (On a draft, `--source-ref` is skipped,
   since a draft has no tag.)
-  [ ] **A-R10:** the static guard's planted cases; `gh api repos/yuema137/MineWorld/environments/itch` output
-  showing the reviewer and the `v*` tag policy (after the operator creates it; until then INCONCLUSIVE with
-  the owner named).
-- LLM review: [ ] the key reaches only two steps; [ ] `push` cannot run on dispatch; [ ] nothing published.
+  [x] **A-R10 static guard:** the planted cases PASS (`ci_release.py --self-test`: a planted ungated push, a
+  butler step moved into verify, a key outside push, a secret outside publish.yml, an Environment outside
+  publish.yml, `pull_request_target`, a `push` trigger); the real tree PASSES `check-secrets` and `check-switch`.
+  INCONCLUSIVE, owner the operator: the Environment's evidence (`gh api repos/yuema137/MineWorld/environments/itch`
+  showing the reviewer and the `v*` tag policy) does not exist until the operator creates `itch` (§5.2).
+  Also INCONCLUSIVE, owner the operator: `MINEWORLD_PUBLISH_LIVE` is unset on the repository, so the live
+  path is not exercised; the switch's OFF branch is what this PR proves.
+- LLM review: [x] the key reaches only the two steps of job `push` (checked by `check-switch`); [x] `push` requires
+  `event == release`, the gate's publish output and the switch; [x] nothing published by this PR.
+  INCONCLUSIVE on two `gh`/`butler` details that only a live run shows: the `--source-ref` and `--signer-workflow`
+  flags of `gh attestation verify`, and `butler status` on a missing channel (used to decide `--hidden`).
+  Owner R-b for the first two (its dispatch run); owner the operator for the third (the live rehearsal, §7).
 - Failure cases: an asset missing from `SHA256SUMS` → FAIL; an attestation missing → FAIL (never skip);
   butler download mismatch → FAIL before the key is read.
 
 ### C2 — `CITATION.cff`, `CHANGELOG.md`, `ci_release.py citation`, `DEP-39`, `ARC-79` note
 
-- Validation: [ ] self-test for `citation` (equal / unequal version); [ ] `cffconvert --validate` or the
-  CFF JSON schema check (**verify** a stdlib-only route; else a pinned `cffconvert` run once locally,
-  output recorded, not added to CI); [ ] `check_decision_ids.py --write-index`; [ ] `check_doc_headings.py`.
-- LLM review: [ ] every CHANGELOG entry cites a PR that exists and is merged.
+- Validation: [x] self-test for `citation` (equal, quoted, stale, nested-only, no workspace version) PASS;
+  [ ] INCONCLUSIVE: CFF schema validation was not run. No stdlib route exists here, and `cffconvert` would be
+  a new dependency (a stop condition, §12); the citation's fields follow CFF 1.2.0 by hand. Owner: the
+  operator, to decide on a pinned validator; [x] `check_decision_ids.py --write-index` (258 ids, index current);
+  [x] `check_doc_headings.py` PASS (254 sections, 338 documents). Butler's digest was re-downloaded in C0.
+- LLM review: [x] the 12 CHANGELOG entries (#261, #291, #292, #320, #385, #401, #407, #465, #494, #496, #510,
+  #512) each cite a PR that `gh pr view` reports MERGED.
 
 ### C3 — README section and guide Step 1.1 (both languages)
 
-- Validation: [ ] the guide test on the PR (`fast` and the guide test in `test`; CI only, R-LOAD-1):
-  the new blocks reported as `operator-only` pending, every other block unchanged; mirror parity PASS.
-- LLM review: [ ] the README stays short; the guide's every step reads "Do this → You should see this".
+- Validation: [x] mirror parity PASS for chapter 01 (11 blocks in each file, equal byte for byte; the same
+  step numbers). [ ] INCONCLUSIVE, owner CI: the guide test itself (`tools/cli/tests/guide.rs`) runs only in CI
+  (no cargo here, R-LOAD-1); the three new blocks should appear as `operator-only` pending.
+- LLM review: [x] the README section is three lines and a link; [x] Step 1.1 keeps "Do this" and the version
+  "You should see" check; the download branch is marked operator-only (Q-Rd-6).
 
 ### C4 — gate
 
@@ -413,20 +435,41 @@ CI IMPACT          fast gains two self-test lines; the guide test sees new opera
 
 ## 12. Execution contract
 
-Left unfilled on purpose; the operator freezes this design and the coordinator fills the contract before
-any code.
+Filled 2026-10-27 by the lane lead's brief, on the coordinator's relay of the operator's ruling (every
+Q-Rd-1..8 as recommended, plus §14). Scope and invariants above are frozen; this section is the execution
+contract for the implementing session.
 
 ```text
-PROJECT / PR:              (unfilled)
-PRIMARY DESIGN DOC:        (unfilled)
-IMPLEMENTATION BASE:       (unfilled)
-APPROVED SCOPE:            (unfilled)
-FROZEN INVARIANTS:         (unfilled)
-AUTONOMOUS ACTIONS:        (unfilled)
-STOP CONDITIONS:           (unfilled)
-VALIDATION BUDGET:         (unfilled)
-MERGE AUTHORITY:           (unfilled)
+PROJECT / PR:              MineWorld / S23 R-d — publishing behind a default-off switch
+PRIMARY DESIGN DOC:        .structured-coding/plans/mvp0/pr-s23-rd-publish.md (this file), with §14
+IMPLEMENTATION BASE:       origin/main @ 315a50a9. Branch mvp0/pr-s23-rd, worktree
+                           /Users/yuema137/mineworld-worktrees/impl-s23-rd (held by one session only)
+APPROVED SCOPE:            §2 files as frozen: publish.yml (§3), CITATION.cff, CHANGELOG.md, README download section,
+                           guide chapter 01 Step 1.1 (en + zh-CN), DEP-39, ARC-79 note, INDEX.md regenerated,
+                           the ci_release.py commands publish-gate / verify-assets / itch-channels / check-secrets /
+                           citation with self-tests, and the fast line. Plus the §14 switch. Non-goals per §2.
+                           C1 adds R-b's commands beside ours only if R-b's file exists; otherwise ours alone (§12 note).
+FROZEN INVARIANTS:         §3.1 triggers and jobs (release published + workflow_dispatch; push job only on release
+                           events, in Environment `itch`, behind the §14 switch); §3.2 channel table; §3.3 butler pin
+                           v15.32.0 with SHA-256 5db7b053fc9b578b86ffaf3520a12b952eb95c9225171cc5720dfbc9fe4574b3;
+                           §3.4 Environment shape; §3.5 static guard; gate regex for tags; A-R9, A-R10 criteria;
+                           nothing published by this PR (ARC-79, QB-14, QR-12).
+AUTONOMOUS ACTIONS:        Edit, validate locally, commit semantic commits with the trailer, push mvp0/pr-s23-rd,
+                           open the PR (no labels), read-only gh calls (gh pr view, gh release download of butler
+                           from itchio/butler to /tmp for the digest check), poll CI at most every 5 minutes.
+STOP CONDITIONS:           any change to frozen scope, invariant, public contract (script command names, workflow
+                           triggers, Environment name), ownership boundary (R-b owns release.yml and the shared
+                           ci_release.py layout), a new dependency (cffconvert or any tool beyond the design's
+                           butler pin), a need for an operator action, or any live publish. Stop and report.
+VALIDATION BUDGET:         local: `ci_release.py --self-test`, `check_ci_pins.py`, `check_decision_ids.py`
+                           --write-index, `check_doc_headings.py`, `ci_layer.py fast` where runnable. No cargo, no
+                           Godot. CI on the head: `fast` only (component PR; R-LOAD-1).
+MERGE AUTHORITY:           coordinator only. This session never merges, arms auto-merge, tags or creates a Release.
 ```
+
+Explicit non-actions (CLAUDE.md §4 rules, the brief's hard limits): no tag, no Release (not even a draft), no
+butler run against itch.io, no Zenodo action, no secret read or created, no `environment` or `secrets.`
+reference in any workflow but `publish.yml`.
 
 ---
 
@@ -435,3 +478,44 @@ MERGE AUTHORITY:           (unfilled)
 | Date | Commit / run | Event |
 | --- | --- | --- |
 | 2026-10-26 | — | revision 1 drafted from origin/main 0b2faf2f; QB-14 (PR #497) reflected |
+| 2026-10-27 | — | operator ruling: frozen, every Q-Rd-1..8 as recommended; §14 switch added as a bounded addition; §12 filled; C0 begins from origin/main 315a50a9 |
+| 2026-10-27 | ffe8e4a1 | C0: freeze header, §12 contract, §14 switch; butler digest re-downloaded (PASS) |
+| 2026-10-27 | ece8914b | C2: CITATION.cff, CHANGELOG (12 merged PRs), DEP-39, ARC-79 note, `ci_release.py citation`; index regenerated |
+| 2026-10-27 | 54724426 | C3: README download section; guide Step 1.1 both languages, download branch operator-only; parity PASS |
+| 2026-10-27 | 47be44a0 | C1: publish.yml (gate, verify, push behind MINEWORLD_PUBLISH_LIVE, default off); ci_release.py commands and self-tests; fast lines |
+| 2026-10-27 | — | Deviations: `origin/mvp0/pr-s23-rb` absent, so `ci_release.py` created here with R-b's commands left to R-b; the brief's Opus trailer replaced by the Haiku trailer the session is attributed to; C0 contract cites the frozen scope |
+
+---
+
+## 14. Bounded addition: the live-publish switch (operator ruling 2026-10-27)
+
+**Source.** The operator ruled, on 2026-10-27, that itch.io and Zenodo are set up only when we publish. So every
+live-publish step must sit behind a switch that defaults OFF. This section records that addition. It changes
+no other section's requirement; it narrows where §3 may run live.
+
+**The switch.** A repository variable named `MINEWORLD_PUBLISH_LIVE` (read as `vars.MINEWORLD_PUBLISH_LIVE`).
+Live means: `butler push`, `butler status`, and any step that reaches itch.io or Zenodo. Unset, or any value
+other than the exact string `true`, means OFF.
+
+**Gating (publish.yml).**
+
+- The `push` job carries, in addition to §3.1's conditions, `vars.MINEWORLD_PUBLISH_LIVE == 'true'` in its
+  `if:`. With the variable unset the job is skipped before the `itch` Environment is requested, so no reviewer
+  is asked to approve anything.
+- The `verify` job, which runs on every trigger, has a step that prints `live publishing is off` when the
+  variable is not `true`. With the variable unset, `publish.yml` runs its verification job only and logs that line.
+- The job-level `if` on `push` must also require `needs.gate.outputs.publish == 'true'` (§3.1); the switch
+  does not replace the tag gate.
+- Zenodo: the repository contains no Zenodo step. Zenodo archives only after the operator enables the
+  repository on Zenodo's side (§5.3), which is an operator action taken after the go-ahead. The switch is the
+  repository's gate; the operator's Zenodo enablement is the same decision, taken in the same window. This is
+  recorded as a limit: GitHub's webhook is not a workflow step and cannot be read from the repository.
+
+**Static guard (`ci_release.py check-switch`).** Runs in `fast` with `check-secrets`. It fails when `publish.yml`
+has a job that runs `butler` or names `BUTLER_API_KEY` and whose `if:` does not contain
+`vars.MINEWORLD_PUBLISH_LIVE == 'true'`, and when a step inside `push` that runs `butler` is not under that
+job's gate. Self-test with planted texts: a gated `push` passes; an ungated one fails naming the job and line;
+a `butler` step moved into `verify` fails.
+
+**Acceptance.** A-R10 is unchanged. The switch adds a self-test case for `check-switch` and the static guard
+result on the head. Enabling it is a later operator action (the repository variable), not part of this PR.
