@@ -1,0 +1,143 @@
+# MineWorld release dry run: build the downloadable bundle for each target, check that it launches, and
+# keep it as a workflow artifact. Nothing is published.
+#
+# Design: .structured-coding/plans/mvp0/step-23-release.md §5 (R-b), §9; docs/decisions ARC-79 (channels:
+# a dispatch on any ref builds and uploads workflow artifacts only), ARC-80 (the bundle), DEP-38
+# (cargo-about), DEP-41 (export templates), DEP-45 (Godot). The packaging steps are scripts/package.py's,
+# the same commands a developer runs; this file only puts the tools in place and calls them.
+#
+# This is the smallest part of R-b: the dispatch dry run. It has no tag trigger, no `verify-tag`, no SBOM,
+# no attestation, no draft release, no secret, and no write permission, so it cannot publish anything.
+# R-b adds those jobs under its own frozen design; R-d's publish.yml is the only place itch.io is reached.
+#
+# Targets: macos-universal, windows-x86_64 and linux-x86_64, each built, exported and probed on its own OS.
+# linux-arm64 waits for an arm64 Godot pin in scripts/ci_godot.py (the probe runs the bundle natively).
+name: Release dry run
+
+on:
+  workflow_dispatch:
+  # A workflow is dispatchable only once it is on main (F-13c-8), so a push to `release-dry-run/**` runs
+  # the same dry run for pre-merge evidence. ci.yml does not run on these branches.
+  push:
+    branches: ["release-dry-run/**"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-dry-run-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bundle:
+    name: bundle (${{ matrix.target }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux-x86_64
+            os: ubuntu-24.04
+            triples: x86_64-unknown-linux-musl
+            templates: ~/.local/share/godot/export_templates
+          - target: windows-x86_64
+            os: windows-2025
+            triples: x86_64-pc-windows-msvc
+            templates: ~/AppData/Roaming/Godot/export_templates
+          - target: macos-universal
+            os: macos-26
+            triples: aarch64-apple-darwin x86_64-apple-darwin
+            templates: ~/Library/Application Support/Godot/export_templates
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 150
+    defaults:
+      run:
+        shell: bash
+    env:
+      TARGET: ${{ matrix.target }}
+      TRIPLES: ${{ matrix.triples }}
+      # package.py fetches Godot's LICENSE and COPYRIGHT through `gh api` (read-only, public repository).
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      # LFS: the cast's buffers and textures (.gitattributes, S26-c). Without them the bundle would ship
+      # pointer files and the 3D client would draw every cast member as the town figure.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          lfs: true
+
+      - name: Python for the scripts
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then echo "PY=python" >> "$GITHUB_ENV"; else echo "PY=python3" >> "$GITHUB_ENV"; fi
+
+      - name: The pinned Rust toolchain and the target's triples
+        run: |
+          rustup toolchain install
+          # shellcheck disable=SC2086
+          rustup target add $TRIPLES
+
+      - name: musl (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends musl-tools
+
+      - uses: ./.github/actions/godot
+
+      - name: Restore the export templates
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ matrix.templates }}
+          key: godot-templates-${{ runner.os }}-${{ hashFiles('scripts/ci_godot.py') }}
+
+      - name: Fetch and verify the export templates (DEP-41)
+        run: '"$PY" scripts/ci_godot.py templates'
+
+      - name: cargo-about (DEP-38)
+        run: cargo install cargo-about --version 0.9.2 --locked --features cli
+
+      - name: Assemble the bundle
+        run: '"$PY" scripts/package.py assemble --target "$TARGET"'
+
+      # step-23 §9.1 (1): unpack the archive as a player would, into a path with a space and a non-ASCII
+      # character, then run the bundle's server with each exported client, headless (`package.py probe`).
+      - name: Unpack the archive and probe the bundle
+        run: |
+          # One archive per target: .tar.gz on Linux, .zip elsewhere (package.py TARGETS).
+          if [ "$RUNNER_OS" = "Linux" ]; then kind=tar.gz; else kind=zip; fi
+          archive=""
+          for found in target/package/"$TARGET"/MineWorld-*-"$TARGET"."$kind"; do
+            [ -f "$found" ] && archive=$found
+          done
+          [ -n "$archive" ] || { echo "no .$kind archive under target/package/$TARGET"; exit 1; }
+          echo "ARCHIVE=$archive" >> "$GITHUB_ENV"
+          # Windows: a POSIX form of RUNNER_TEMP (its backslashes would be glob escapes below), and the
+          # system's bsdtar, which reads .zip (Git Bash's GNU tar does not).
+          temp="$RUNNER_TEMP"; untar=tar
+          if [ "$RUNNER_OS" = "Windows" ]; then temp=$(cygpath -u "$RUNNER_TEMP"); untar=/c/Windows/System32/tar.exe; fi
+          place="$temp/MineWorld 世界"
+          mkdir -p "$place"
+          "$untar" -xf "$archive" -C "$place"
+          bundle=$(ls -d "$place"/MineWorld-*)
+          "$PY" scripts/package.py probe "$bundle"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### $TARGET"
+            if [ -n "${ARCHIVE:-}" ]; then
+              echo "archive: \`$(basename "$ARCHIVE")\`, $(wc -c < "$ARCHIVE" | tr -d ' ') bytes"
+            else
+              echo "no archive"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep the archive
+        if: env.ARCHIVE != ''
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: MineWorld-${{ matrix.target }}
+          path: ${{ env.ARCHIVE }}
+          retention-days: 7
+          if-no-files-found: error
+          compression-level: 0
