@@ -181,3 +181,15 @@ Tested content SHA-256 `clients/3d-spike/scripts/physics_engine.gd.uid`: `639237
 Tested content SHA-256 `clients/3d-spike/scripts/slice/slice_probe.gd`: `25e6c46c435ae75a083159b8c2d1a5f815fb51e98f10368a1130f4635444c5c7`.
 
 Tested content SHA-256 `clients/3d-spike/tools/physics_engine.gd`: `9dc635adc96ecf472bf25039f1349e6e63cb360c01461b18ea550bb9f6bb3441`.
+
+### Publication checkpoint
+
+Local executable commit: `67cedbeadaa23f40ad0b4472be8f19996da07075`.
+Automatic approval review rejected `git push -u origin fix/packaged-physics-probe` twice. After the
+first rejection, read-only `git remote -v` and `gh repo view yuema137/MineWorld --json
+nameWithOwner,isPrivate,url` verified the configured origin is the public
+`https://github.com/yuema137/MineWorld` repository. The second rejection still requires explicit user
+authorization for publishing this payload to that public destination. No bypass was attempted.
+Branch publication, draft PR creation and canonical exact-head CI are therefore blocked, not complete.
+The coordinator has the exact action and review reason for operator resolution. Implementation remains
+locally reviewable; this is not READY FOR OPERATOR REVIEW under the full CI contract.
