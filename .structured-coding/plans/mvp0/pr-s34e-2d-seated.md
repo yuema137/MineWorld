@@ -927,9 +927,10 @@ persistence/restart. Gate1 N/A (no model semantics). Gate2 owns exported loading
 window/input and persistence. Broad suites/remoteCI NOT RUN (local-only lane).
 Source assertions alone cannot validate this escaped integration defect.
 
-- [ ] Implementation: propagate parsed root to existing Seating constructor.
-- [ ] Validation: exported pose oracle and source-mode regression; preserve failures.
-- [ ] Independent review: concrete diff and final artifact/evidence review.
+- [x] Implementation: propagate parsed root to existing Seating constructor.
+- [x] Validation: exported pose oracle and source-mode regression; preserve failures.
+- [x] Independent review: concrete diff and final artifact/evidence review;
+  `/tmp/mineworld-playable-20261122-independent-review.md` approves bounded local trial.
 
 Regression implementation: `scripts/check_packaged_seating.py` reuses the existing
 packager server lifecycle and client drive steps, with a fresh evidence directory
@@ -940,3 +941,49 @@ log is RED for both477.133mm/239.300mm cases; assertions/tolerances unchanged.
 Python parse check and client-rule scan PASS. Initial py_compile could not write
 the system cache; redirected only its bytecode cache into isolated evidence.
 Independent1line production review PASS; regression/final review pending.
+
+First exported regression (pose-exported,6.079s) FAIL in fixture navigation:
+new actual pelvis3160.012/1666.867mm and height0.6893m resolve correctly, but
+`floor_near_seat` chooses a point under the default sprite, opening the self
+menu. That helper was designed/tested with plain drawing. The root regression
+now uses existing open-self/choose-stand to observe the same real posture
+transition without assuming a free sprite pixel. No production input logic,
+fixture target or tolerance changes. Floor-click/window checks stay separate.
+
+Exported pose with real self-menu stand PASS5.167s; checkout mode (no root)
+PASS5.367s. Two seated poses in each match the independently measured stool
+anchor within0.001mm horizontally/height. Actual Metal windowed2D sequence
+PASS28.243s: walk-to, sit, self-menu stand, sit;3screenshots1600x900 retained.
+The previous windowed click failure did not recur; its exact cause remains
+unestablished. This automated real-window evidence is not manual human play.
+CUA getApp timed out after299s when the scripted window had already exited;
+no control permissions changed and no native input success is claimed.
+
+Independent reviewer required explicit drawn:true and same-point assertions in
+the regression. Added both; all3retained successful logs/6seated poses PASS
+under the final comparator, and a drawn:false mutation is rejected. Fixture
+coordinates and tolerance remain unchanged.
+
+Final local package checks: existing2D,3D,both launchers PASS in272.353s total,
+with terminal verdicts and clean server/child/scratch shutdown. Combined walker
+met the observer at the doorway, completed without collision bypass, and passed
+its unchanged assertions. Save restart/replay PASS2.330s:8revisions,108facts and
+1snapshot reproduced byte-for-byte. Archivechecksum and AC8reference comparison
+remain explicitly NOTRUN. Windowed2D doorway traversal still running.
+
+Windowed doorway scenario completed PASS 163.366 s, exact drive terminal,
+31/31 strides accepted, two place changes, Cafe facade lifted in 0.22 s
+(bound 1 s), four saved 1600x900 screenshots. All target package checks are
+complete. Independent review verified all 772 package hashes and approved
+bounded local operator trial; final doorway supplement was submitted.
+Durable copy under `target/local-playable-20261122/` in the primary checkout
+uses the existing launchers, with isolated trial-save commands in START-HERE.txt;
+all 772 copied file hashes match. This is gitignored delivery output, not a
+public release or a modification to the primary source tree.
+
+Final source checkpoint contains only regression/ledger updates after executable
+commit `e3f207186ea76d562800dbd6c53cb40daf9dacc1`; BUNDLE.toml intentionally
+retains that actual executable checkpoint. Final test comparator SHA and all
+191 retained evidence hashes are recorded outside the bundle. No re-export or
+repeat broad suite is required for the test-only correction. The reviewer will
+record the final source commit and doorway supplement in its external report.

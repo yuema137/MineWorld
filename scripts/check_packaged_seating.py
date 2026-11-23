@@ -23,8 +23,8 @@ def check_pose(text: str) -> list[dict]:
     results = []
     for row in (postures[0], postures[2]):
         seat = row["seated"]
-        if seat is None:
-            raise package.Failure("observer was not drawn seated")
+        if seat is None or seat.get("drawn") is not True or seat.get("point") != row["point"]:
+            raise package.Failure("observer was not drawn at the reported seat")
         target = targets[row["point"]]
         actual = [float(x) for x in re.findall(r"-?\d+(?:\.\d+)?", seat["pelvis"])]
         expected = [x * 1000 for x in target["drawing_anchor_place_m"]]
@@ -50,7 +50,8 @@ def main() -> int:
     runtime = args.bundle.resolve() / "runtime"
     info = package.read_bundle_toml(runtime)
     steps = [{"click_sit": "nearest-far"}, {"await": {"component": "posture-state"}},
-             {"report_posture": True}, {"floor_near_seat": True},
+             {"report_posture": True}, {"open": "self"},
+             {"choose": {"action_type": "stand"}},
              {"await": {"component": "posture-state", "present": False}},
              {"report_posture": True}, {"click_sit": "last"},
              {"await": {"component": "posture-state"}}, {"report_posture": True}]
