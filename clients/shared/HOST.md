@@ -171,6 +171,15 @@ The 3D launcher's `--world` keeps a save under `clients/3d-spike/.save/social-ca
 over), as `./mineworld-2d` does, so reopening resumes the same minute. Its scripted modes keep running
 on a world without a save, as before.
 
+### 6.1 Packaged supervisor
+
+`tools/launch/LAUNCHER.md` §7.1 specifies the portable packaged path. It gives the owned
+server and clients a fresh private admin capability through their environments, so the
+existing World tab works. It does not pass `--hosted-here` or expose Keep Running: its
+stdin-EOF supervisor retains ownership until every client exits. It adds no `--solo`
+permission, including in Both mode. This distinction is deliberate; the shell-launcher
+close/keep-running rules above do not implicitly replace the packaged lifecycle.
+
 ## 7. Per platform
 
 | Concern | macOS | Linux (X11, Wayland) | Windows (Git Bash launchers) |
