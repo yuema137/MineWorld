@@ -225,12 +225,12 @@ record deviations before local semantic commit. No recovered S30-j model work in
 may hold cohesive tests instead of growing the already large load.rs), test fixture migration.
 Depends on C1; no configure comparison rewrite, capability additions or runtime semantics.
 **Implementation:**
-- [ ] Collect/validate all final context owners and resolutions before publishing either.
-- [ ] Use one private installation operation from read_with and applicable test builders.
-- [ ] Preserve unchanged contexts and ordering; ensure initial HeldIn cannot seed resolving owners.
-- [ ] Add focused final-context tests through production installation/assembly functions.
+- [x] Collect/validate all final context owners and resolutions before publishing either.
+- [x] Use one private installation operation from read_with and applicable test builders.
+- [x] Preserve unchanged contexts and ordering; ensure initial HeldIn cannot seed resolving owners.
+- [x] Add focused final-context tests through production installation/assembly functions.
 **Validation:**
-- [ ] Deterministic F2–F6: changed derived context, two owners, owner mismatch, later refusal,
+- [x] Deterministic F2–F6: changed derived context, two owners, owner mismatch, later refusal,
   zero subjects, absent authored section, omitted seed, repeated assembly and actual event order.
 - [ ] Existing loader data/resolution/configuration regression filters and real CLI golden.
 - [ ] Independent logic review verifies install precedes check_references and no partial pack escapes.
@@ -410,3 +410,31 @@ No new dependencies, event types, kernel or registry changes. Public migration d
 cover typed and erased source breaks. Independent review PENDING coordinator assignment.
 C1 scope inspection: nine source/doc files plus owned plan only; YieldedFile export and
 WorldGenesis filter preserved. C1 is not final acceptance; loader installation awaits C2.
+
+C2 implementation discovery: the installed Capability is closed, and old load.rs probes
+intentionally rank `r-probe` as unrelated capabilities. Those legacy `with_resolved` tests
+remain low-level ordering tests, not finalization evidence. New final_context_tests.rs
+uses probes with matching capability owner/section identities and the production private
+`finalize_with` dispatch boundary. It receives only each owner's context, configuration
+and collected subjects; production `finalize` selects the actual resolving capabilities.
+This avoids test-pack registry expansion while exercising later resolver failure before
+publication. `final_contexts` validates the complete temporary result; `install_resolutions`
+publishes contexts and seeds only after it succeeds. The read path calls finalization after
+check_sections and before configure::check_references. Resolving dispatch returning None
+now refuses explicitly rather than permitting initial section fallback. No context values
+are printed by the new refusal. New tests claim this adapter boundary, not public loading.
+
+C2 validation: initial final_context compile FAIL (Contexts imported from data's private import);
+corrected to owning content module. Focused retry PASS: 3 final_context tests, 7.86s build.
+Planned regression filters: resolution 6 PASS (0.12s), context 7 PASS (0.08s), all nonzero.
+C2 self logic review: no mutation until complete collection and validation succeed; the new
+installation method is six lines and preserves nonresolver contexts. final_contexts is 29
+lines; resolution.rs grows from 125 to 181 lines. New coherent tests 369 lines; no load.rs
+production growth. Tool accessor, context facts and seed emissions share typed Arc identity;
+actual assembled sequence includes configuration, both contexts and both owners' seeds;
+omitted authored section panics if wrongly used, and repeated assembly is equal.
+Late owner refusal, missing result and three owner/section/context mismatch cases preserve
+all original context Arcs and empty original resolutions. No newly introduced domain
+knowledge, cross-owner context access, mutable cache or registry expansion.
+Independent C2 review pending. Real CLI golden is consolidated with C3's planned CLI target
+to avoid duplicating that process evidence. C3 tests in progress, unstaged at C2 checkpoint.
