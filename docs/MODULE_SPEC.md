@@ -397,13 +397,25 @@ data directory, read, load and run exactly as before.
    `AuthoredSection`; a pack owns one section either way (`ARC-31`), and its seeding obligations are
    unchanged.
 3. **An owner may resolve across subjects before seeding** (`resolves!()`). Once, after every section is
-   decoded and every reference checked and before any genesis fact is seeded, the owner receives every file of
+   decoded and its section references checked, before configuration reference checks and any genesis fact is seeded, the owner receives every file of
    the kinds its section is carried by — each subject's key, kind and tags, and its decoded section if the file
    carries one; never a display name, a `note` or a location — and returns at most one seed per subject. Each
    seed then becomes that subject's genesis facts, in the owner's own vocabulary, exactly where the owner's
    section facts would have been seeded: seeding order is unchanged (`ARC-31` item 4). Refused, naming the
    system: a resolution the owner refuses (`ResolveRefused`, naming the subject when there is one); a seed for
    a key that is not one of the subjects; a seeded fact outside the owner's vocabulary, as for a section.
+   Resolution returns `SubjectResolution<Context, Seed>`: an immutable `Arc<Context>` and a
+   `BTreeMap<EntityKey, Seed>`. The typed `resolve_subjects` takes `Arc<Self::Context>`; an unchanged
+   owner returns that Arc, while an enriching owner constructs a new context without changing declarations
+   already used for section validation. No `Clone` bound is imposed. Every owner resolves from its initial
+   context and own subjects only. All results and final context owners are checked before the loader installs
+   any of them; a refusal publishes neither contexts nor seeds. Nonresolving contexts remain unchanged.
+   `WorldPack::context`, context facts and resolved subject seeds use the same final context. Assembly emits
+   configuration, then final world-level context facts, then subject seeds in existing order. Omitted seeds
+   emit nothing: they never fall back to the initial-context section. Repeated assembly does not resolve again.
+   Public migration (2026-11-22, S30-j0): external `ResolvesSubjects` implementers adopt the Arc input and
+   named result. External erased `ResolvedSeeds` implementers must add `context() -> Arc<dyn OwnerContext>`.
+   Its `as_any` still exposes the seed map; SDK/installed erased dispatch signatures remain unchanged.
 4. **A pack may ship data files for an owner's directory** (`ships_data!("<directory>/<file>.yaml", …)`;
    step-30 Q-S30b-1, ruled 2026-10-15). The files are compiled into the shipping pack from its own crate
    directory and travel with its code and version. They are collected first (item 1) whenever the shipping

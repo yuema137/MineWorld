@@ -902,10 +902,13 @@ mod tests {
         type Seed = bool;
 
         fn resolve_subjects(
-            (): &(),
+            context: std::sync::Arc<()>,
             _: Option<&dyn std::any::Any>,
             subjects: &[mineworld_authoring::Subject<'_, ()>],
-        ) -> Result<BTreeMap<EntityKey, bool>, mineworld_authoring::ResolveRefusal> {
+        ) -> Result<
+            mineworld_authoring::SubjectResolution<Self::Context, Self::Seed>,
+            mineworld_authoring::ResolveRefusal,
+        > {
             let tagged = |subject: &mineworld_authoring::Subject<'_, ()>, tag: &str| {
                 subject
                     .tags
@@ -918,7 +921,7 @@ mod tests {
                     seeds.insert(key("nobody"), false);
                 }
             }
-            Ok(seeds)
+            Ok(mineworld_authoring::SubjectResolution { context, seeds })
         }
 
         fn seed_resolved(

@@ -52,6 +52,6 @@ pub use content::{AuthoredContent, Decode};
 pub use data::{
     DataDirectory, DataOrigin, DataRefusal, DataSource, DecodeIn, ErasedSubject, OwnerContext,
     OwnsData, ResolveRefusal, ResolvedSeeds, ResolvesSubjects, SectionInContext, ShippedData,
-    Subject, data_context, decode_data_file, resolve_erased,
+    Subject, SubjectResolution, data_context, decode_data_file, resolve_erased,
 };
 pub use section::{AuthoredSection, ContentKind, Reference, SectionName, Seeding};

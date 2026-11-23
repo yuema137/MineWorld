@@ -22,15 +22,16 @@
 use std::any::Any;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use mineworld_authoring::{
     ConfigurationContext, ContentKind, DataDirectory, DataOrigin, DataRefusal, DataSource,
     OwnsData, PackConfiguration, ResolveRefusal, ResolvesSubjects, SectionInContext, SectionName,
-    Seeding, Subject,
+    Seeding, Subject, SubjectResolution,
 };
 use mineworld_contracts::{
-    EntityId, EntityKey, Event, EventEnvelope, EventSchemaVersion, EventTypeId, Rejection,
-    SystemId, Visibility,
+    EntityId, Event, EventEnvelope, EventSchemaVersion, EventTypeId, Rejection, SystemId,
+    Visibility,
 };
 use mineworld_kernel::{
     Declarations, Emission, KernelError, System, SystemDeclaration, SystemIdentity, SystemVersion,
@@ -225,11 +226,11 @@ impl ResolvesSubjects for SchemaPack {
     type Seed = Values;
 
     fn resolve_subjects(
-        context: &Schemas,
+        context: Arc<Schemas>,
         _: Option<&dyn Any>,
         subjects: &[Subject<'_, Values>],
-    ) -> Result<BTreeMap<EntityKey, Values>, ResolveRefusal> {
-        Ok(subjects
+    ) -> Result<SubjectResolution<Self::Context, Self::Seed>, ResolveRefusal> {
+        let seeds = subjects
             .iter()
             .map(|subject| {
                 let mut values = subject.authored.cloned().unwrap_or_default();
@@ -238,7 +239,8 @@ impl ResolvesSubjects for SchemaPack {
                 }
                 (subject.key.clone(), values)
             })
-            .collect())
+            .collect();
+        Ok(SubjectResolution { context, seeds })
     }
 
     fn seed_resolved(

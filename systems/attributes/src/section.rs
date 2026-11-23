@@ -5,6 +5,7 @@
 
 use std::any::Any;
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 
 use mineworld_attributes_model::sample::{Member, Words, resolve};
 use mineworld_attributes_model::{
@@ -13,10 +14,9 @@ use mineworld_attributes_model::{
 };
 use mineworld_authoring::{
     ContentKind, ResolveRefusal, ResolvesSubjects, SectionInContext, SectionName, Seeding, Subject,
+    SubjectResolution,
 };
-use mineworld_contracts::{
-    EntityId, EntityKey, EntityType, PersonId, Rejection, SystemId, Visibility,
-};
+use mineworld_contracts::{EntityId, EntityType, PersonId, Rejection, SystemId, Visibility};
 use mineworld_kernel::Emission;
 use serde::de::{DeserializeSeed, Deserializer};
 
@@ -59,10 +59,10 @@ impl ResolvesSubjects for AttributesSystem {
 
     /// Every person, by the sampler's precedence.
     fn resolve_subjects(
-        context: &AttributesContext,
+        context: Arc<AttributesContext>,
         _: Option<&dyn Any>,
         subjects: &[Subject<'_, Authored>],
-    ) -> Result<BTreeMap<EntityKey, Resolved>, ResolveRefusal> {
+    ) -> Result<SubjectResolution<Self::Context, Self::Seed>, ResolveRefusal> {
         let people: Vec<&Subject<'_, Authored>> = subjects
             .iter()
             .filter(|subject| subject.kind == ContentKind::Person)
@@ -112,7 +112,7 @@ impl ResolvesSubjects for AttributesSystem {
             }
             seeds.insert(subject.key.clone(), resolved);
         }
-        Ok(seeds)
+        Ok(SubjectResolution { context, seeds })
     }
 
     /// `traits-stated` (when there is a plain trait), then one `attributes-handed` per owner.
