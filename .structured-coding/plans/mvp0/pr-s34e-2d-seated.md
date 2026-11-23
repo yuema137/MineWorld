@@ -902,3 +902,41 @@ Closeout documentation review: independent `recovery_review` PASS on the ledger-
 completion claims agree with the two preserved implementation reviews. Recovery heading scan
 PASS (254 numbered sections across 337 documents), and `git diff --check` PASS. No executable
 content changed in this reconciliation.
+
+### Packaged root correction — local playable recovery 2026-11-22
+
+Coordinator explicitly delegated the bounded existing-contract correction after auditing
+`/tmp/mineworld-playable-evidence/REVIEW.md`. No invariant or scope change: the
+2D PRESENTATION.md §1 and ARC-80 require exported resources to resolve against
+parsed `--root`; app.gd currently omits it only for Seating. Source mode must retain
+its existing empty-root fallback. Change precisely `repo_path(".")` to
+`repo_path(".", root)` in Seating construction. No world/vector/fixture/threshold,
+server, shared-rule or 3D change. Prior package reports477.133mm north and239.300mm
+height error against the pre-authoring fixture; it remains immutable evidence.
+
+Owner recover_s34e; isolated branch fix/playable-export-root based2157605b.
+Local-only endpoint, semantic commit permitted under existing execution contract;
+no publication/merge/full-MVP assertion. One standard shared heavy slot, <=10min
+per job, <=1hour initial work. Build exact-head server/launchers from copied cache;
+existing build measured282s, assembly54s. Export through existing package APIs.
+
+Acceptance: actual packaged root with spaces/nonASCII; independently measured
+pelvis/height within existing10mm tolerance; unchanged source mode exercised;
+real window sit/stand observed separately from harness; actual launcher smoke and
+persistence/restart. Gate1 N/A (no model semantics). Gate2 owns exported loading,
+window/input and persistence. Broad suites/remoteCI NOT RUN (local-only lane).
+Source assertions alone cannot validate this escaped integration defect.
+
+- [ ] Implementation: propagate parsed root to existing Seating constructor.
+- [ ] Validation: exported pose oracle and source-mode regression; preserve failures.
+- [ ] Independent review: concrete diff and final artifact/evidence review.
+
+Regression implementation: `scripts/check_packaged_seating.py` reuses the existing
+packager server lifecycle and client drive steps, with a fresh evidence directory
+that refuses overwrite. It compares two actual seated poses and the intervening
+stand against the immutable mesh fixture. `--source-client` omits `--root` to
+check checkout fallback with the same server/actions. Historical broken exported
+log is RED for both477.133mm/239.300mm cases; assertions/tolerances unchanged.
+Python parse check and client-rule scan PASS. Initial py_compile could not write
+the system cache; redirected only its bytecode cache into isolated evidence.
+Independent1line production review PASS; regression/final review pending.

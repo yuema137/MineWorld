@@ -156,7 +156,7 @@ func _ready() -> void:
 	people = People.new()
 	add_child(people)
 	people.setup(projection, presentation, town, world)
-	seating = Seating.new(repo_path("."), String(options.get("world-key", "")))
+	seating = Seating.new(repo_path(".", root), String(options.get("world-key", "")))
 	chain = MineWorldSitChain.new(Intents.SIT, Intents.STAND)
 	link = Link.new()
 	add_child(link)
