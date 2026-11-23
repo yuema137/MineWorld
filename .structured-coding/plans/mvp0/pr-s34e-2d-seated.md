@@ -8,7 +8,7 @@ Approved by / evidence: operator ruling 2026-10-27 (§13), recorded in legacy co
 Implementation base:    origin/main @ 0b2faf2f (after #301 S34-a, #363 S34-b, #368 S34-c1, #462 S33-f)
 Start condition:        met; recovery from reviewed local base listed in §12
 Execution contract:     §10
-Lifecycle:              DESIGN FROZEN; local recovery in progress (§12)
+Lifecycle:              LOCAL REVIEW READY; execution closed pending coordinator integration (recovery closeout below)
 ```
 
 **Dated note, 2026-10-27 (operator ruling Q-S34c3-3; SD-c3-5 in
@@ -317,39 +317,43 @@ No test asserts a getter, a constant or an enum.
 ## 9. Commit plan
 
 Each commit has **Implementation**, **Validation**, **Review**, each `[ ]` until done with evidence.
+Current completion marks are reconciled against
+the exact-head independent reviews and the evidence mapping in the recovery closeout below.
+They establish local completion only; publication, canonical CI and merge are not complete.
 
 ### C0 — Design (this file), docs only
 - [x] Implementation: this file.
-- [ ] Validation: `python3 -I scripts/check_doc_headings.py` (PASS; recovery ledger below).
-- [ ] Review: scope equals the step's S34-e row minus F-e-1, plus §13's answers.
+- [x] Validation: `python3 -I scripts/check_doc_headings.py` (PASS; recovery ledger below).
+- [x] Review: scope equals the step's S34-e row minus F-e-1, plus §13's answers and approved S34-B amendment.
 
 ### C1 — Shared: one pose function and the chain
 - **Files:** `clients/shared/sitting/sit_rule.gd` (`pose_of`, `pelvis`), new `sit_chain.gd` (+ `.uid`),
   new `clients/shared/checks/sit_chain_check.gd`, `clients/3d-spike/scripts/slice/seating.gd` (delegation),
   `clients/shared/README.md`.
 - [x] Implementation: §5.1, §5.2. 3D keeps `depicted == false` → unseat.
-- [ ] Validation: `godot --headless --path clients/shared --script res://checks/sit_chain_check.gd` PASS
+- [x] Validation: `godot --headless --path clients/shared --script res://checks/sit_chain_check.gd` PASS
   (cases: in reach, too far, other refusal, no offer, walk incomplete, place changed, seated → leave);
   `client_sit_rule.rs -- --ignored` still equal (3D unchanged). Through `with-slot.sh`.
-- [ ] Review: the chain names no action type, measures nothing, retries nothing.
+- [x] Review: the chain names no action type, measures nothing, retries nothing.
 
 ### C2 — 2D drawing
 - **Files:** `clients/2d/scripts/scene/people.gd` (`set_seated`, `_view_of`, seated sprite, fallback crop,
   captions), `scene/seating.gd` (pose per id), `app.gd` (wiring), `scripts/presentation.gd` (`<base>_seated`
   lookup in `directional`), `clients/2d/PRESENTATION.md` §3.
 - [x] Implementation: §5.3, §5.4.
-- [ ] Validation: `seat_check.gd` prints `DRAWN` lines on the new fixtures; the existing 2D drive scenarios
+- [x] Validation: `seat_check.gd` prints `DRAWN` lines on the new fixtures; the existing 2D drive scenarios
   (`walk`, `strides`, `idle`) unchanged; `python3 scripts/check_client_rules.py` PASS.
-- [ ] Review: no world, place, key or tag in code; the hip ratio cited; R4 respected.
+- [x] Review: no world, place, key or tag in code; the hip ratio cited; R4 respected.
 
 ### C3 — 2D input
 - **Files:** `app.gd` (click order, chain calls, leave-before-move), `scene/seating.gd` (`pick`),
   `walker.gd` (a `setting_off` signal for the first key move, if needed), `intents.gd` (`SIT`, `STAND`),
   `tests/acceptance/tests/client_rules.rs` (two admissions).
 - [x] Implementation: §5.5.
-- [ ] Validation: `check_client_rules.py` PASS (R1–R8); `cargo test -p mineworld-acceptance --test
-  client_rules` PASS; a hand run on Social Café: click a stool, walk, sit, click the floor, stand.
-- [ ] Review: verdict read only in the shared chain; nothing re-sent.
+- [x] Validation: `check_client_rules.py` PASS (R1–R8); `cargo test -p mineworld-acceptance --test
+  client_rules` PASS; real locally hosted automated client lifecycle on Social Café and Market Town:
+  click a disclosed seat, walk, sit, click the floor, stand. No separate manual playtest is claimed.
+- [x] Review: verdict read only in the shared chain; nothing re-sent.
 
 ### C4 — Scan, fixtures and tests
 - **Files:** `client_rules.rs` (new test §5.6), `tests/fixtures/observations/sitting/posture-cafe.json`
@@ -357,22 +361,25 @@ Each commit has **Implementation**, **Validation**, **Review**, each `[ ]` until
   client_sit_rule.rs` (posture fixture, seeded variant, `DRAWN` checks), new `tools/cli/tests/
   client_2d_sit.rs`, `clients/2d/scripts/harness/interact.gd` (a `{"click_sit": "nearest-far" | key}` step).
 - [x] Implementation: AC-e-1…e-7 tests (C4 continuation evidence below).
-- [ ] Validation: each new test green once locally (ignored ones with `-- --ignored`, through
+- [x] Validation: each new test green once locally (ignored ones with `-- --ignored`, through
   `with-slot.sh`); X-e-1…7 recorded as milestone items.
-- [ ] Review: tests choose points from disclosure, never from a world literal.
+- [x] Review: tests choose points from disclosure, never from a world literal.
 
 ### C5 — Café depictions (only if Q-S34e-3 is "yes")
 - **Files:** `presentation/mineworld-default/3D/sit_points/{social-cafe,market-town}.yaml`, new
   `tools/cli/tests/sit_point_depictions.rs`.
-- [ ] Implementation: §5.7.
-- [ ] Validation: `sit_point_depictions.rs` PASS over all three files; X-e-5 against it.
-- [ ] Review: every offset traced to two disclosed `at`s; every height to a source.
+- [x] Implementation: §5.7 as superseded by the approved S34-B amendment below.
+- [x] Validation: approved replacement oracle PASS over all 47 rows; four vector-axis mutations
+  fail actual placement. Original X-e-5 proves nonzero legacy scalar placement (AC-e-1/5),
+  as explicitly recorded in C4; it is not relabelled as a new AC-e-9 mutation.
+- [x] Review: vector offsets/heights trace to the independently measured anchors and source
+  triangles under approved S34-B; legacy scalar outputs remain exact.
 
 ### C6 — Records and ledger
-- [ ] Implementation: dated notes on `ARC-145` (2D draws seated; one pose function; the chain) and
-  `ARC-147` (S34-e landed); this file's ledger.
-- [ ] Validation: `python3 -I scripts/check_decision_ids.py --write-index`; `check_doc_headings.py`.
-- [ ] Review: no frozen text rewritten; notes are dated.
+- [x] Implementation: dated notes on `ARC-145` (2D draws seated; one pose function; the chain) and
+  `ARC-147` (local S34-e implementation, not merge); this file's ledger.
+- [x] Validation: `python3 -I scripts/check_decision_ids.py --write-index`; `check_doc_headings.py`.
+- [x] Review: no frozen text rewritten; notes are dated.
 
 ## 10. Execution contract
 
@@ -845,3 +852,53 @@ approval. No new live key/disconnect variants were added (shared cancellation ca
 existing reconnect baseline now passes). S34-f contact/armrest/foot validation and S34-e2 rendered
 sprite work remain excluded. F-RC-7 assertions/logger/helpers and all protected server/world paths
 are unchanged by this amendment. No public writes or merge were performed.
+
+
+### Recovery closeout and independent review reconciliation — 2026-11-22
+
+The previous paragraph's pending-review status is historical. Independent final review
+`/tmp/mineworld-s34e-B-final-red-team-review.md` reports **PASS for local PR readiness** at
+executable HEAD `bcee317356a9cc5535cbbaf5907232ec885a0200`, carrying forward the C1–C4
+review at `4ce72437c8206826a5d5b5eba9fc3471024032c6` in
+`/tmp/mineworld-s34e-checkpoint-red-team-review.md`. The lane base remains
+`003d35437d6b7f873db1a2c32a29f0b6f554cb58`; none of these local prerequisites is
+claimed merged. The final reviewer found no mandatory local acceptance blocker or material
+introduced maintainability debt. S34-f contact and S34-e2 rendered sprites remain excluded.
+
+A replacement recovery owner audited the original clean checkout and created the isolated
+shared clone `/tmp/mineworld-s34e-closeout-20261122`, branch `recover/s34e-closeout`,
+from that executable HEAD. The original `/tmp/mineworld-recover-s34e` was not edited.
+This closeout changes this ledger only. Current process inspection found no process naming
+the original S34-e checkout/target; no old process, cache or evidence was altered. No test,
+heavy job, paid call, publication, workflow dispatch or merge was launched during recovery.
+
+Completion evidence for the §9 checkboxes:
+
+| Milestone | Implementation, validation and review evidence |
+| --- | --- |
+| C0 | Frozen design and approval retained; recorded heading validation; both independent reviews assess the frozen/amended scope. |
+| C1 | `cd0613ad`; shared pose/chain checks and retained client comparator; independent C1–C4 review confirms offer fidelity, single consumption, cancellation and shared ownership. |
+| C2/C3 | `9c41ba69`; actual drawing nodes, sprite check and two-world input lifecycle; final walk/stride/reconnect baseline 3 PASS and client rules 13 PASS; independent C1–C4 review covers drawing, input and maintainability. |
+| C4 | `4ce72437`; recorded/generated comparator and live interaction evidence, seven expected-red mutations, protected-path inventory; independent C1–C4 review verifies the nine retained evidence hashes and accepted coverage. |
+| C5 | `bcee3173`; approved S34-B versioned representation, 18 Cafe/29 legacy rows, 58 exact legacy outputs, independent oracle 2 PASS, placement comparator 3 PASS and four expected-red axis mutations; final independent review closes amended AC-e-9. |
+| C6 | `bcee3173`; dated ARC-145/147 amendments and recorded headings/decision-index checks; final independent review confirms documentation and local scope closure. This recovery reconciles stale status/checkboxes without changing acceptance. |
+
+Recovery independently verified all **19/19** files in the retained final evidence manifest;
+manifest SHA256 remains `1b46114d79607c2d5893bedc548acaae18997b4247fe0844254bca359ca2c369`.
+Actual log summaries confirm oracle 2 PASS, placement 3 PASS, live interaction 2 PASS,
+walk/stride/reconnect 3 PASS and client rules 13 PASS. These are inspected prior execution
+results, not newly rerun tests. Final independent review additionally records verification
+of 23 source hashes and 12 measurement artifacts; recovery does not claim to repeat that
+source review. Extra live key/disconnect variants remain NOT RUN; the independent reviewer
+accepted the existing cancellation/source and reconnect coverage for the frozen boundary.
+
+Endpoint: **LOCAL REVIEW READY / CLOSED AWAITING COORDINATOR INTEGRATION**. Coordinator
+owns parent/dashboard synchronization and any later publication/integration decision. Public
+PR CI for this candidate, full-suite result, full MVP acceptance and merge remain unestablished.
+Any later executable change requires affected revalidation and independent review; this
+ledger-only closeout inherits the exact executable evidence without claiming new-head CI.
+
+Closeout documentation review: independent `recovery_review` PASS on the ledger-only diff;
+completion claims agree with the two preserved implementation reviews. Recovery heading scan
+PASS (254 numbered sections across 337 documents), and `git diff --check` PASS. No executable
+content changed in this reconciliation.
