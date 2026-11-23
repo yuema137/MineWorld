@@ -7,7 +7,8 @@
 Approved execution dispatch: primary bb9217c8-5c5f-4fde-b599-33442d8c3257, message
 e0737728-aae2-4d43-839e-2634983d0f9e (2026-11-22), reports independent plan PASS and
 explicitly orders this fresh implementation session. Scope/invariants/acceptance below are unchanged.
-Lifecycle: implementation active. The original prepared status was stale at dispatch.
+Lifecycle: LOCAL IMPLEMENTED; payload frozen for independent exact-commit review.
+The original prepared status was stale at dispatch.
 
 Execution contract: this PR only; base and ownership below. Implementation, bounded local tests and
 semantic commits authorized by that dispatch. Push/PR/merge/tag require primary approval of concrete
@@ -86,11 +87,11 @@ Scope: `clients/3d-spike/scripts/slice/slice_probe_world.gd` and this ledger.
 - [x] Fail explicitly on absent/unusable mapping; inspect route helpers for invalid door indexing.
 - [x] Preserve actual controller traversal and authoritative intent path, all verdict checks and stdout.
 - [x] Keep shared outward route adjustment only if required; document affected sibling modes.
-- [ ] Validate default visitor and wanderer in social-cafe, and documented valid nondefault seats in
+- [x] Validate default visitor and wanderer in social-cafe, and documented valid nondefault seats in
   market-town (`wanderer`) and lakeside (`bruno`, with `alba` as declared first/default seat).
   These are current `worlds/*/world.yaml` seats; inspect invite plumbing before invoking.
-- [ ] For shared doorway changes, run bounded direct outward/inward traversal coverage from room and street.
-- [ ] Record command, source/server hashes, terminal verdict, failed checks, exit status and wall time.
+- [x] Shared doorway changes: N/A; `_through_door`, `_cross`, `_route_to` and `_route_check` unchanged.
+- [x] Record command, source/server hashes, terminal verdict, failed checks, exit status and wall time.
 
 Acceptance: all requested positive cases terminate with exact `all link checks pass`, no check/script/
 parse/asset errors, actual place transition sequence and accepted movement; baseline wanderer failure
@@ -152,16 +153,16 @@ A single-seat probe does not close both-mode launcher, windowed, cross-platform,
 ## Ready-for-review and handoff gates
 
 - [x] Independent plan review and fresh implementation-session reading complete.
-- [ ] Each commit records staged files, exact diff summary, actual tests/count/time, deviations.
-- [ ] Explicit technical-debt review: modularity, maintainability, readability, robustness, extension
+- [x] Each commit records staged files, exact diff summary, actual tests/count/time, deviations.
+- [x] Explicit technical-debt review: modularity, maintainability, readability, robustness, extension
   cost, file/function size, inheritance/reference coupling; preserve stronger repository size triggers.
-- [ ] Existing oversized slice_probe files identified as inherited debt; introduced delta bounded,
+- [x] Existing oversized slice_probe files identified as inherited debt; introduced delta bounded,
   verdict helper cohesive, any new topology complexity justified by real route evidence.
 - [ ] Independent final red-team review of exact final executable SHA and actual logs complete.
 - [ ] Public push/PR permission resolved for concrete reviewed artifact; no assumption from #530 consent.
 - [ ] Coordinator receives exact head, dependency, evidence boundaries and remaining release gates.
 
-No implementation/test is claimed complete by this design. Local baseline #530 default-seat packaged
+The preceding checklist began as the design; implementation evidence and final disposition follow below. Local baseline #530 default-seat packaged
 link has independent PASS, but is not F-RC-7 evidence. Historical WIP tests are not adopted as ours.
 
 ## Execution checkpoint — 2026-11-22
@@ -302,14 +303,14 @@ Server invocation per fresh case (actual credentials/ephemeral port stay only in
 ```
 
 Use `package.runtime_executable` for the actual executable basename (do not assume the displayed
-example name on another export). The deliberate failure uses social-cafe with the same client flags,
-omitting server/invite/seat. Each subprocess has its own group and bounded timeout; finally stops the
+example name on another export). The clean deliberate failure uses social-cafe with the same client flags and a real server,
+selecting `--seat=carol`. The earlier no-server attempt remains INCONCLUSIVE as recorded below. Each subprocess has its own group and bounded timeout; finally stops the
 owned server and closes its log. `_street_watch` still exits to the street, enumerates doorway/person
 observations and reports start/end; only its final `while t < secs: await _hold(1.0)` diagnostic interval
 is 1 instead of 60 seconds. That interval has no assertion/counter, creates no worker, and changes no
 quit/logger lifecycle guarantee. All existing semantic checks precede it and remain unchanged.
 
-### Final-package results (live)
+### Final-package results (chronological evidence)
 
 Every row in this section uses PCK SHA-256
 `8b2613482d231cf33b0b5ad715f703b509f043573ed1a04ce6c7117da3fe2486`, source hashes in final
@@ -332,12 +333,12 @@ Final PCK inspection: 243,257,776 bytes, 931 entries, zero tools entries. Includ
 Market Town visitor final-package PASS 52.36s: same Café path, 2→8→2, 28/28 accepted moves, two jumps,
 position (1598,1257,0) exact, far rejected-too-far, near accepted and reply, terminal success / exit0.
 
-If budget remains after the final matrix, `/tmp/mineworld-any-seat-negative.py` (one slot) owns two
+Superseded optional plan (NOT RUN): `/tmp/mineworld-any-seat-negative.py` proposed two
 additional cheap discrimination checks: current exported social-cafe `carol` starts in apartments,
 which this depiction does not draw, and must produce diagnostic failure/nonzero without a crash;
 the preserved #530 diagnostic package (not old WIP) run without a server should reproduce historical
-FAIL text/exit0. Each <=30s and all elapsed time charged against the same900s. These are pending, not
-passes. No scene/server asset is mutated for either case.
+FAIL text/exit0. Each <=30s and all elapsed time charged against the same900s. The clean carol case instead ran in resume2; the historical baseline was not rerun.
+No scene/server asset was mutated for either case.
 
 Bounded harness discovery: `package.layout` copies only `WORLDS = (social-cafe, market-town,
 bodies-yard)`, not Lakeside. Contrary to the earlier shorthand "current tracked worlds", it copies
@@ -393,3 +394,93 @@ bypass. Both earlier attempts remain recorded. Remaining integration envelope327
 Commit2 staged paths: slice_probe.gd, slice_probe_verdict.gd + UID, tools/test_probe_verdict.gd + UID,
 scripts/ci_godot.py (module docstring only), and this ledger. Initial route commit c3df7a46.
 Final Lakeside route checks remain in progress. Independent exact-payload red review still pending.
+
+
+### Frozen final implementation and evidence
+
+Executable source commit: `6254f2a90ccfa2da8a3dc6db30a844b17e29ec72`, including route commit
+`c3df7a4604d333eab99cfe87041561421401c2d5`; base `4cd160bbbdc3f7244a0fd6b65bcf468138b198df`.
+The final evidence-only commit changes this ledger, not executable source. All final rows below are
+bound to that source SHA and PCK `8b2613482d231cf33b0b5ad715f703b509f043573ed1a04ce6c7117da3fe2486`.
+Committed source bytes were recomputed and match final export prepare.json. Runtime executable SHA256
+`044c79a1506fca40e932333eb69940c1f91aa2e6eb40ed773ad8684b9377819e`; boot PCK
+`ea99ee202e72aa8ffe84667d72e6a99a96520ad30268e30e098fbe5380a95acd`.
+Server SHA256 `14d32964f17b7ba63678ca70f929d39892871c44bc8576113f0086fb345a48e0` is cached:
+its exact-head build provenance remains UNPROVEN. Runtime/PCK were locally exported; matching imported
+assets were copied read-only from cache, not rebuilt from scratch. These are local diagnostic results,
+not release acceptance or a claim of arbitrary-world support.
+
+| World / seat | Actual branch / distribution scope | Seconds | Exact terminal marker / exit | Evidence |
+| --- | --- | --- | --- | --- |
+| social-cafe / visitor | Café `_link_check`, selected package world | 53.80 | `all link checks pass` / 0 | 28/28 moves; 2 jumps; 2→8→2; exact position; far reject, near accept/reply |
+| social-cafe / wanderer | Café `_link_check`, selected package world | 95.59 | `all link checks pass` / 0 | 214/214 moves; 2 jumps; 2→8→2; exact position; far reject, near accept/reply |
+| market-town / visitor | Café `_link_check`, selected package world | 52.36 | `all link checks pass` / 0 | 28/28 moves; 2 jumps; 2→8→2; exact position; far reject, near accept/reply |
+| market-town / wanderer | Café `_link_check`, selected package world | 94.77 | `all link checks pass` / 0 | 205/205 moves; 2 jumps; 2→8→2; exact position; far reject, near accept/reply |
+| lakeside / alba | `probe_route` → `_route_check`, augmented diagnostic ONLY | 119.86 | `all link checks pass` / 0 | 314/314 moves; route below; exact position |
+| lakeside / bruno | `probe_route` → `_route_check`, augmented diagnostic ONLY | 122.32 | `all link checks pass` / 0 | 322/322 moves; route below; exact position |
+| social-cafe / carol | Real-server undrawn-seat negative, Café guard | 16.35 | `1 LINK CHECKS FAILED` / 1 | undrawn place1 FAIL; zero success markers |
+
+Every positive had exactly one terminal success and no failed checks or unexpected errors. The clean
+negative had the expected failure and no unexpected errors. Screening only permits the two exact
+headless warnings documented above. No failed exit alone is counted as a positive semantic result.
+Lakeside does not run Café jumps/talk assertions: its unchanged tagged route crossed
+3→4→1→4→2→4→7→4→5→4→8→10→8→9→8→4 (street, bakery, boathouse, square, pier,
+station, ticket office, platform, street). Both ended at sent=observed (28530,3000,0), with cast and
+fixture checks retained. This is four selected-package seat checks plus two augmented route regressions,
+not six production-packaged seat successes. Neither `package.WORLDS` nor launcher seats changed.
+
+Lakeside diagnostic augmentation copied exactly tracked `worlds/lakeside` and `entities` using
+`package.copy_tracked` into `/tmp/mineworld-any-seat-final-evidence/MineWorld 世界/diagnostic/runtime`;
+BUNDLE.toml was regenerated and verified. It also supplied existing pack roots as root launcher
+`mineworld-slice:356` does:
+
+```text
+<runtime>/mineworld server <runtime>/worlds/lakeside --listen 127.0.0.1:0 --save <case>/save
+  --packs <runtime>/entities --packs <runtime>/presentation/mineworld-default
+```
+
+Client invocation is the full command above with `--world-key=lakeside --seat=alba` or `bruno`.
+The clean carol case uses social-cafe, `--agent alice`, the same two pack arguments and `--seat=carol`.
+There is no production packaging expansion. Copied-root digest algorithm: sorted relative file paths;
+concatenate `<file SHA256>  <relative path>\n` in UTF-8; SHA256 that stream. `final-provenance.json`
+contains every individual filename/hash for independent reproduction:
+
+- `worlds/lakeside`: 22 files, `cefe74500f0f0e2f30c8a03af64b91515d32250872145c490b3740db1cc4e195`.
+- `entities`: 31 files, `0edeb8fe8e599468b5195fb7b4e0bc3627382d85943236aef212bd0249d3d7a9`.
+
+Integration wall budget consumed 830.70s of 900s, including preliminary, failed setup and unclean
+negative attempts; remaining 69.30s is unused. No further integration runs. Initial interrupted
+Market startup, missing Lakeside world, missing Lakeside packs and no-server package-health negative
+remain INCONCLUSIVE; none is promoted to PASS. All actual clients stayed below180s. No full suites,
+GitHub wait or paid APIs; one shared heavy slot per batch.
+
+Evidence root: `/tmp/mineworld-any-seat-final-evidence`. `results.json` owns the four selected-world
+final rows; `resume2-results.json` owns clean negative and augmented Lakeside rows; `prepare.json`,
+`final-provenance.json` and `final-log-hashes.json` bind source/artifact/log bytes. Earlier raw attempts
+remain intact. Client-log SHA256 values:
+
+- `social-cafe-visitor/client.log`: `d23c33999b00aecfdba0c7bbcdbdcc4f5743915956bdfc4294c896768b85aaa2`.
+- `social-cafe-wanderer/client.log`: `e05b82ccd81d9f0659890932e856552375be4dccdb3498c23de8ad87d6ab962b`.
+- `market-town-visitor/client.log`: `81793c231bd22b13584e1c046cb765ac22bd14a2ee4051a8f16b98e1fba25354`.
+- `market-town-wanderer/client.log`: `fd35812737c887c0d67c6daded13d416ad902b69db6d08e24a18e1cdf2e3e157`.
+- `social-cafe-carol/client.log`: `f7923988a0b66ae48c018a7846f2d710eaf1a9616b94cb88c8e76635fb74d1a0`.
+- `lakeside-alba/client.log`: `4019c3dae8b01f1c5635a6df7f843e44a5167ea026273f6c56e9808eed593c79`.
+- `lakeside-bruno/client.log`: `42bd913763db4d4a47c3d4f3283783dd41932bb9e29a8f971d0788d7b73d9140`.
+
+Collector teardown evidence is the expanded real-Logger regression: mutex protects reads, writes and
+regex use; no logging inside callback; first means observed under mutex, not total chronological order.
+Four threads each emit12 failures and read the collector. A callback is deliberately held across
+unregister, released and joined before the final synchronized read. The probe retains its member
+through quit and unregisters idempotently on tree exit. No Thread/WorkerThread producer exists in these
+probe modes: their scene-tree coroutines finish before `_run` returns. Unregister does not claim to
+join arbitrary future producers. Subprocess checks cover observed failure1, verdict-row1, preserved3,
+success0 and no-summary0 without a fabricated semantic verdict. Final targeted test PASS4.14s;
+registration PASS2.08s and export PASS2.59s. Shared traversal helpers remain byte-identical to base.
+
+Final implementer review: no source changes after those checks; local scoped helpers and retained
+collector satisfy the stated invariants. Maintainability/debt assessment above remains current.
+Independent exact-payload review is PENDING with the primary; public push/PR/merge/tag is NOT authorized.
+Release gates (fresh server provenance, platform/windowed/both-mode/full release coverage) remain open.
+
+Evidence-only commit: staged this ledger alone; final `git diff --check` PASS and
+`python3 scripts/check_doc_headings.py` PASS (254 sections / 337 documents). No executable edits.
