@@ -269,9 +269,10 @@ func _target_check() -> void:
 
 ## C8, with S6's `move`: the slice against a real `mineworld server
 ## worlds/social-cafe`, walked on the real controller, never teleported.
-## Pass: seated; the body placed where the world says; out through the café door
-## onto the street, a jog along the pavement, two jumps, and back in -- with the
-## server's place changing cafe -> street -> cafe, no move refused, and the
+## Pass: seated, on whichever seat the server gave (no seat is assumed); the body placed where the
+## world says; out through the doorways from the seat's place onto the street, a jog along the
+## pavement, two jumps, and in through the door of the depiction's first room -- with the
+## server's place changing seat's place -> street -> room, no move refused, and the
 ## server's last view of the player equal to the last report, millimetre for
 ## millimetre; then a `talk` answered by the server.
 func _link_check() -> void:
@@ -299,29 +300,27 @@ func _link_check() -> void:
 		link.client.latest.place(), link.layout.drawn_as.get(link.here, "undrawn"), link.layout.drawn_as])
 	print("body     at %s -- placed where the world says" % player.global_position)
 	await _hold(0.5)
+	# The walk starts wherever the server seated this player, and names no seat (F-RC-7): out to the
+	# street from the seat's place, and back in to the room the depiction draws first (`_room(0)`),
+	# each by the world's own doorways and its planned route round the furniture.
+	var lay := link.layout
+	var room := _first_room_place(lay)
+	if not lay.is_drawn(link.here) or room == "":
+		print("FAIL: the seat's place %s is not drawn, or no drawn room is bound (misses %s)"
+			% [_where(link), JSON.stringify(lay.misses)])
+		print("\n1 LINK CHECKS FAILED")
+		link.client.disconnect_from_world("probe done")
+		return
 
-	# perceived people, drawn where the world says. Inside the slice's room or
-	# not is reported, not failed: the binding aligns the pack's doorway with the
-	# slice's, and the pack's café is authored with its people west of where the
-	# slice's room begins (slice_link.gd, design sec.7b).
-	for id in link.figures:
-		var fp: Vector3 = (link.figures[id] as Node3D).global_position
-		var inside := _inside_room(fp + Vector3(0, 0.5, 0))
-		print("person   %s at %s  %s" % [id, fp, "inside the room" if inside
-			else "outside the slice's room (recorded binding discrepancy)"])
-	if link.figures.size() < 2:
-		fails += 1
-		print("FAIL: expected at least two other people perceived, got %d" % link.figures.size())
-
-	# OUT: to the door's centre line, then south through it onto the pavement
-	var door_x := _anchor_sill().x
-	await _walk_to_x(door_x)
-	player.rotation.y = PI
-	await _walk_dist(3.2, 6.0)
+	# OUT: through the doorways from the seat's place onto the pavement
+	if link.here != lay.street and not await _link_to_street(link):
+		print("\n1 LINK CHECKS FAILED")
+		link.client.disconnect_from_world("probe done")
+		return
 	await _hold(0.8)
 	print("out      body at %s, slice place %s, server place %s" % [player.global_position,
 		SliceWorld.place_at(slice.world, player.global_position), _where(link)])
-	if link.here != link.layout.street:
+	if link.here != lay.street:
 		fails += 1
 		print("FAIL: the server did not move the player onto the street")
 
@@ -352,10 +351,8 @@ func _link_check() -> void:
 		fails += 1
 		print("FAIL: the jumps did not happen")
 
-	# IN: back to the door's centre line on the pavement, then north through it
-	await _walk_to_x(door_x)
-	player.rotation.y = 0.0
-	await _walk_dist(4.2, 6.0)
+	# IN: through the room's door, from wherever the jog ended on the pavement
+	await _cross(link, room)
 	await _hold(0.8)
 	var tok := link.report_position()
 	var sent: Dictionary = link.last_sent_local.duplicate()
@@ -365,9 +362,21 @@ func _link_check() -> void:
 		t += get_process_delta_time()
 	await _hold(0.6)   # the next observation after the answer
 	print("in       body at %s, server place %s" % [player.global_position, _where(link)])
-	if link.here != link.layout.anchor:
+	if link.here != room:
 		fails += 1
-		print("FAIL: the server did not move the player back into the café")
+		print("FAIL: the server did not move the player into %s" % room)
+
+	# perceived people in the room, drawn where the world says. Inside the slice's room or not is
+	# reported, not failed: the binding aligns the pack's doorway with the slice's, and the pack's café
+	# is authored with its people west of where the slice's room begins (slice_link.gd, design sec.7b).
+	for id in link.figures:
+		var fp: Vector3 = (link.figures[id] as Node3D).global_position
+		var inside := _inside_room(fp + Vector3(0, 0.5, 0))
+		print("person   %s at %s  %s" % [id, fp, "inside the room" if inside
+			else "outside the slice's room (recorded binding discrepancy)"])
+	if link.figures.size() < 2:
+		fails += 1
+		print("FAIL: expected at least two other people perceived, got %d" % link.figures.size())
 
 	print("places   the server's place, as observed: %s" % [link.place_changes])
 	var moves := link.answers.filter(func(a): return a["action"] == SliceLink.MOVE_ACTION)
@@ -1606,6 +1615,54 @@ func _cross(link: SliceLink, target: String) -> bool:
 		if not await _through_door(link, chain[k], true):
 			return false
 	return link.here == target
+
+
+## The first enterable room, matching `_room(0)`, with indexing checked before traversal.
+func _first_room_place(lay: SliceLayout) -> String:
+	for e in lay.depiction.depictions():
+		var door := int(e["door"])
+		if e["drawn_as"] != SliceLayout.ROOM or door < 0:
+			continue
+		if door >= lay.depiction.doors().size():
+			return ""
+		if float(lay.depiction.doors()[door][4]) > 0.0:
+			var room := _place_of_entry(lay, e["tags"])
+			var parent := room
+			var visited := []
+			while parent != lay.street:
+				var index := int(lay.doors.get(parent, -1))
+				if parent in visited or visited.size() >= 7 or index < 0 \
+						or index >= lay.depiction.doors().size():
+					return ""
+				visited.append(parent)
+				parent = _opens_off(lay, parent)
+			return room
+	return ""
+
+
+## Only the Cafe link scenario needs to leave an arbitrary initial seat around furniture.
+## Keep sibling route probes' doorway behavior unchanged. Cycles/missing doors fail explicitly.
+func _link_to_street(link: SliceLink) -> bool:
+	var lay := link.layout
+	var visited := []
+	while link.here != lay.street:
+		var here := link.here
+		var door := int(lay.doors.get(here, -1))
+		if here in visited or door < 0 or door >= lay.depiction.doors().size():
+			print("FAIL: no usable outward doorway from %s" % here)
+			return false
+		visited.append(here)
+		var inp := SliceLayout.in_point(lay.depiction.doors()[door])
+		var before := link.answers.size()
+		await _route_to(link, link.to_world(here, inp), 12.0, true)
+		for answer in link.answers.slice(before):
+			if answer["result"] != "accepted":
+				print("FAIL: departure intent was refused: %s" % JSON.stringify(answer))
+				return false
+		if not await _through_door(link, _opens_off(lay, here), false):
+			print("FAIL: could not leave %s through its doorway" % here)
+			return false
+	return true
 
 
 ## The place a room's bound door opens from: the drawn place whose volume holds the door's out-point,
