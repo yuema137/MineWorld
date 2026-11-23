@@ -9,8 +9,9 @@ layer runs are reviewed as policy in one list, the same entry point runs on a la
 
 Before the first command it prints the toolchain and how the checkout was made (shallow or not,
 partial-clone filter), because a green layer is only evidence about the toolchain and history it ran
-with. Every command is printed before it runs and timed after; the first failure stops the layer with
-that command's exit status. Nothing is retried and nothing is allowed to fail (ARC-48).
+with. Every command is printed before it runs and timed after. Failed Cargo test runs are reported and
+the layer continues; other failures, including test builds, stop it. The layer returns the first failing
+command's exit status. Nothing is retried and no failure is ignored (ARC-48).
 
     python3 scripts/ci_layer.py fast | core | parity
                                                    run a layer (on Linux in the toolchain container;
