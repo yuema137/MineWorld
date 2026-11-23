@@ -106,19 +106,19 @@ this ledger. Change Python prose only if needed for accurate exit-versus-verdict
 identical classifiers or expand CI behavior without separate rationale/review.
 
 - [x] Inventory current failure output in all slice probe modes and record the vocabulary/failure owners.
-- [ ] Use a small Logger collector for distributed prints, explicitly preload its runtime script; keep
+- [x] Use a small Logger collector for distributed prints, explicitly preload its runtime script; keep
   it exportable under existing presets. Preserve mode-owned nonzero codes.
-- [ ] Guard callback writes AND reads with a per-instance Mutex; avoid shared mutable static RegEx;
+- [x] Guard callback writes AND reads with a per-instance Mutex; avoid shared mutable static RegEx;
   do not print/log from callbacks. Use a synchronized final snapshot after unregistering the logger.
-- [ ] Collect FAIL/[FAIL] prefixes, numbered failure/out-of-range summaries, and singular conversation
+- [x] Collect FAIL/[FAIL] prefixes, numbered failure/out-of-range summaries, and singular conversation
   failure; handle whitespace and multiline callbacks. Do not classify explanatory/pass lines as failures.
-- [ ] Set status directly in the central row-style `_verdict` where FAIL is a suffix; keep stdout unchanged.
-- [ ] Register before probe execution; unregister before diagnostic/quit and ensure cleanup on exit.
-- [ ] Negative regression executes real Logger callbacks with each inventoried failure shape, multiline,
+- [x] Set status directly in the central row-style `_verdict` where FAIL is a suffix; keep stdout unchanged.
+- [x] Register before probe execution; unregister before diagnostic/quit and ensure cleanup on exit.
+- [x] Negative regression executes real Logger callbacks with each inventoried failure shape, multiline,
   success-only controls, repeated/concurrent failures and stable first-failure capture. Assert child
   process nonzero for an intentional probe failure and zero for completed success.
-- [ ] Verify existing nonzero mode status is preserved and absence of a success verdict never becomes PASS.
-- [ ] Export and run the fixed 3D PCK outside checkout with clean class registration, wanderer seat,
+- [x] Verify existing nonzero mode status is preserved and absence of a success verdict never becomes PASS.
+- [x] Export and run the fixed 3D PCK outside checkout with clean class registration, wanderer seat,
   terminal verdict plus exit and error screening. Also execute a deliberate failure from that package.
 
 Acceptance: focused regression controls prove correct exit propagation, thread-safe collection, no
@@ -364,3 +364,32 @@ Staged payload for commit1: `slice_probe_world.gd` plus this live ledger only. O
 Logger/test/prose changes are intentionally separate commit2. Tested source is explicitly the combined
 working tree identified by final prepare.json; commit1 alone is not claimed to have new failure-exit
 behavior. Local final payload/independent review is still pending, not READY.
+
+Second diagnostic harness finding (5.65s charged): Lakeside declares data-pack requirements; unlike
+Café/Market, its server needs explicit `--packs <runtime>/entities --packs
+<runtime>/presentation/mineworld-default`, exactly as root mineworld-slice:356 supplies. Layout does not
+copy entities. Resume2 copies tracked entities, refreshes the local manifest and supplies those roots;
+no production packaging changes. Previous startup log preserved separately, INCONCLUSIVE.
+
+The no-server packaged invocation did prove printed `FAIL: no --server= given` plus exit1 and no
+success, but also exposed the existing offline furnishings reader's absent repository test-fixture
+ERROR. Do not waive that ERROR or call the package-health negative clean. Resume2 uses real server +
+valid `carol` seat in undrawn apartments instead: this exercises the invalid-place guard and failure
+propagation without offline fixture loading. This is a bounded fixture correction, not a global ERROR
+bypass. Both earlier attempts remain recorded. Remaining integration envelope327.89s.
+
+### Semantic commit 2 preparation
+
+- [x] Implementation: per-run mutex collector/preload, base exit handling and idempotent teardown,
+  row verdict status, focused real-Logger/subprocess regression and UID files; Python prose only.
+- [x] Validation: final registration/export and expanded regression PASS; final Cafe/Market default
+  and wanderer terminal successes/exit0; clean real exported carol negative PASS16.35s:
+  `FAIL: the seat's place 1 (undrawn) is not drawn, or no drawn room is bound (misses {})`,
+  `1 LINK CHECKS FAILED`, exit1, zero success markers, no unexpected errors. All same final PCK.
+- [x] LLM logic self-review: failure vocabulary/row ownership inventoried, no global ERROR bypass,
+  producer completion before unregister documented, reads/writes/regex locked, collector retained
+  through quit. Held-callback removal regression proves lifetime; first observed is not timestamp order.
+
+Commit2 staged paths: slice_probe.gd, slice_probe_verdict.gd + UID, tools/test_probe_verdict.gd + UID,
+scripts/ci_godot.py (module docstring only), and this ledger. Initial route commit c3df7a46.
+Final Lakeside route checks remain in progress. Independent exact-payload red review still pending.
