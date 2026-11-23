@@ -742,6 +742,123 @@ fn write_mode_leaves_a_mirror_block_that_differed_and_the_mirror_guard_names_it(
     assert!(!written.contains("a line it no longer prints"), "{written}");
 }
 
+/// Real `validate` output can contain syntax-looking lines through a multiline World Pack name.
+/// The YAML quotes keep those lines out of the fixture's own Markdown grammar until the command prints them.
+fn assert_unrepresentable_output_is_not_written(
+    label: &str,
+    output: &str,
+    english_fence: &str,
+    mirror_fence: &str,
+) {
+    let templates = [
+        (
+            "world.yaml",
+            include_str!("../templates/new-world/world.yaml"),
+        ),
+        (
+            "places/home.yaml",
+            include_str!("../templates/new-world/places/home.yaml"),
+        ),
+        (
+            "people/first.yaml",
+            include_str!("../templates/new-world/people/first.yaml"),
+        ),
+        (
+            "people/second.yaml",
+            include_str!("../templates/new-world/people/second.yaml"),
+        ),
+    ];
+    let mut source = "Prose before.\n\n".to_owned();
+    for (path, template) in templates {
+        let text = template.replace("{id}", "seaside").replace(
+            "  name: seaside\n",
+            &format!("  name: \"before\\n{output}\\nafter\"\n"),
+        );
+        source.push_str(&format!("```yaml file=seaside/{path}\n{text}```\n\n"));
+    }
+    let console = |fence: &str| {
+        format!("{fence}console\n$ mineworld validate seaside\nstale\n{fence}\n\nProse after.\n")
+    };
+    let mirror = format!(
+        "{}{}",
+        source.replace("Prose before.", "前文。"),
+        console(mirror_fence)
+    )
+    .replace("Prose after.", "后文。");
+    source.push_str(&console(english_fence));
+    let repo = repo_with(
+        label,
+        vec![
+            ("docs/guide/a.md".to_owned(), source.clone()),
+            ("docs/guide/a.zh-CN.md".to_owned(), mirror.clone()),
+        ],
+    );
+    let summary = write_repo(&format!("{label}-run"), &repo);
+    let found = failures(&summary);
+    let written = std::fs::read_to_string(repo.join("docs/guide/a.md")).expect("page read");
+    assert!(
+        found.contains("unrepresentable recorded output"),
+        "{found}\n{}",
+        summary.render()
+    );
+    assert!(summary.rewritten.is_empty(), "{}", summary.render());
+    assert_eq!(
+        written, source,
+        "the English source must remain byte for byte"
+    );
+    assert_eq!(
+        std::fs::read_to_string(repo.join("docs/guide/a.zh-CN.md")).expect("mirror read"),
+        mirror,
+        "the mirror must remain byte for byte"
+    );
+}
+
+#[test]
+fn write_mode_rejects_output_that_would_add_a_command_before_writing_either_page() {
+    assert_unrepresentable_output_is_not_written(
+        "guide-write-command-output",
+        "$ mineworld --version",
+        "```",
+        "```",
+    );
+}
+
+#[test]
+fn write_mode_rejects_output_that_would_close_a_fence_before_writing_either_page() {
+    assert_unrepresentable_output_is_not_written("guide-write-fence-output", "```", "```", "```");
+}
+
+#[test]
+fn write_mode_rejects_output_that_only_closes_the_mirrors_shorter_fence() {
+    assert_unrepresentable_output_is_not_written("guide-write-mirror-fence", "```", "````", "```");
+}
+
+#[test]
+fn write_mode_keeps_a_shorter_backtick_line_inside_longer_fences() {
+    let source =
+        "Prose before.\n\n````console\n$ mineworld --version\nstale\n````\n\nProse after.\n";
+    let actual = "before\n```\nafter\n";
+    let output = rewrite::recorded("stale\n", actual);
+    let lines: Vec<String> = std::iter::once("$ mineworld --version")
+        .chain(output.lines())
+        .map(str::to_owned)
+        .collect();
+    let rewritten = rewrite::apply(
+        source,
+        Some(source),
+        &[rewrite::Rewrite {
+            line: 3,
+            lines: lines.clone(),
+        }],
+    )
+    .unwrap_or_else(|reason| panic!("representable output must be accepted: {reason}"));
+    assert_eq!(rewritten.page, source.replace("stale\n", &output));
+    assert_eq!(rewritten.mirror.as_deref(), Some(rewritten.page.as_str()));
+    let parsed = parse(&rewritten.page).expect("rewritten page parses");
+    assert_eq!(parsed.blocks[0].body, Body::Console { exit: 0, lines });
+    assert!(command::matches(&output, actual).is_ok());
+}
+
 #[test]
 fn a_mirror_whose_code_block_differs_by_one_byte_turns_the_run_red() {
     let english = "```text\nshown\n```\n";

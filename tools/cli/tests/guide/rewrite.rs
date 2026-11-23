@@ -233,6 +233,55 @@ fn replaced(text: &str, fences: &[Fence], by_index: &[(usize, Vec<String>)]) -> 
     out
 }
 
+/// Refuses output whose spelling would change commands or Markdown structure on the next read.
+/// The mirror needs its own check: identical content can sit inside a shorter fence there.
+fn validated_replacement(
+    text: &str,
+    original: &[Fence],
+    by_index: &[(usize, Vec<String>)],
+) -> Result<String, String> {
+    let Some((first, _)) = by_index.first() else {
+        return Ok(text.to_owned());
+    };
+    let refused = |line: usize, reason: &str| {
+        format!("line {line}: unrepresentable recorded output: {reason}")
+    };
+    for (index, lines) in by_index {
+        let commands = original[*index]
+            .content
+            .lines()
+            .filter(|line| line.starts_with("$ "));
+        let proposed = lines
+            .iter()
+            .map(String::as_str)
+            .filter(|line| line.starts_with("$ "));
+        if !commands.eq(proposed) {
+            return Err(refused(original[*index].line, "command lines would change"));
+        }
+    }
+    let proposed = replaced(text, original, by_index);
+    let parsed = fences(&proposed).map_err(|reason| refused(original[*first].line, &reason))?;
+    if parsed.len() != original.len() {
+        return Err(refused(
+            original[*first].line,
+            "the number of fenced blocks would change",
+        ));
+    }
+    for (index, (before, after)) in original.iter().zip(&parsed).enumerate() {
+        let expected = by_index
+            .iter()
+            .find(|(at, _)| *at == index)
+            .map_or_else(|| before.content.clone(), |(_, lines)| content("", lines));
+        if before.info != after.info || expected != after.content {
+            return Err(refused(
+                before.line,
+                "fenced content would change when parsed",
+            ));
+        }
+    }
+    Ok(proposed)
+}
+
 /// A page's source with its line endings kept: rewritten as `\n`, written back as the file had them.
 fn with_endings(original: &str, text: String) -> String {
     if original.contains("\r\n") {
@@ -268,7 +317,7 @@ pub fn apply(
             .ok_or_else(|| format!("line {}: no fenced block opens there", rewrite.line))?;
         by_index.push((index, rewrite.lines.clone()));
     }
-    let page = with_endings(source, replaced(&text, &english, &by_index));
+    let page = with_endings(source, validated_replacement(&text, &english, &by_index)?);
     let Some(mirror_source) = mirror else {
         return Ok(Rewritten {
             page,
@@ -288,8 +337,14 @@ pub fn apply(
             _ => skipped.push(ours.line),
         }
     }
-    let mirror = (!copied.is_empty())
-        .then(|| with_endings(mirror_source, replaced(&mirror_text, &translated, &copied)));
+    let mirror = if copied.is_empty() {
+        None
+    } else {
+        Some(with_endings(
+            mirror_source,
+            validated_replacement(&mirror_text, &translated, &copied)?,
+        ))
+    };
     Ok(Rewritten {
         page,
         mirror,

@@ -453,6 +453,11 @@ MINEWORLD_WRITE_GUIDE=1 cargo test -p mineworld-cli --test guide the_guide_in_th
    and prose, headings, directives, file blocks, shell blocks, shown-only blocks and the info string are never
    touched. A block whose exit code differs from its `exit=` still fails (§4.3); write mode never edits an info
    string. Pending, operator-only and other-system blocks are not run, so they are not re-recorded.
+   Before either the page or its mirror is written, the proposed content must preserve the original command
+   lines exactly and parse as the intended fenced blocks (the same info strings and the intended contents).
+   Output that would introduce a `$ ` command line or close a fence is refused as `unrepresentable recorded
+   output`, naming the original block line. Neither file is written on this refusal. A matching wildcard that
+   already represents such output may remain; write mode does not invent escaping or widen wildcards to hide it.
 5. The page's mirror (§7) receives the new block at the same position only where the mirror's block was the English
    block byte for byte before the rewrite (info string and content). Where it was not, the mirror is left as it was,
    the summary marks the block `not mirrored`, and the mirror guard fails for a person to fix. The mirror's prose is
