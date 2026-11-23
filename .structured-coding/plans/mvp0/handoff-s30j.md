@@ -1,5 +1,41 @@
 # Handoff — PR S30-j runtime sampling
 
+## Active recovery checkpoint — approved A, 2026-11-22
+
+This section supersedes the historical identity/next-actions below. New sole-owner
+clone `/tmp/mineworld-s30j-fidelity-a-recovery`, branch `recover/s30j-fidelity-a`,
+base `61b7d629054c4bc30cd0c7620993c16ae4fdb62b`; old runtime and recovery trees unchanged.
+Primary relayed operator **“采用 A，按推荐修改并审查验收契约”**. Concrete §16 amendment
+was reviewed PASS before test implementation by recovery_review; artifact
+`/tmp/mineworld-s30j-A-design-review.md`. Prior runtime implementation review PASS:
+`/tmp/mineworld-s30j-61b7d629-independent-review.md` (not final acceptance).
+
+Only test and evidence/contract changes in this recovery. Production sampler bytes,
+profiles, seeds, order, and historical failing counterexample are unchanged. Balance
+bounds apply to eligible stratify:true attributes-owned distributions; every fixed-corpus
+diagnostic is retained. Independent categorical/numeric external-owner paths now have
+direct known-vector mapping, integer boundary, population invariance and fixed/support
+checks. No foreign Traits are fabricated. Known-vector derivation is retained in
+`s30j-a-evidence/vectors.py`, not called to derive expectations during tests.
+
+Local revision A: fidelity4/4, independent4/4, existing newcomers6/6 PASS. M-j-6,
+cumulative-boundary, resident-dependence and bypassed weight-rule mutations all yield
+named behavioral failures, then exact sampler restoration and affected tests PASS.
+San Diego serialized bytes: profile8288, context28340, arrived17001, Process45364;
+profile alone is below R-j-1's64KiB trigger. Fixed-corpus digests unchanged.
+Evidence logs and command timings: `s30j-a-evidence/`; initial test import compilation
+failure retained as INCONCLUSIVE. Static checks and final independent review are
+recorded in the live ledger as they finish; do not infer final readiness here.
+
+Next: finish scoped static checks, commit the test/evidence packet, independent
+exact-head review, repair bounded findings. AC-j-3 cross-OS digest consumer/execution
+remains OPEN; primary owns that integration. A real external owner consuming a
+newcomer handoff is still unproven by this sampler test. No remote CI/full suite,
+public push, workflow dispatch, paid API, merge or root/dashboard writes authorized.
+One shared heavy slot maximum; all jobs serial. No acceptance waiver implied.
+
+## Historical runtime checkpoint (preserved)
+
 Continuation aid; authority: [PR ledger](pr-s30j-runtime-sampling.md), frozen §§1–15
 with dated coordinator/operator overrides and current live §16.
 

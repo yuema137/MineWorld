@@ -30,6 +30,8 @@ pub(super) fn check(
 ) {
     let at = WorldTime::from_seconds(999 * 60);
     for (id, distribution) in &profile.distributions {
+        let eligible = distribution.stratify
+            && catalogue.get(id).unwrap().owner == mineworld_attributes_model::ATTRIBUTES;
         if matches!(distribution.shape, Shape::Prior { .. }) {
             continue;
         }
@@ -53,9 +55,6 @@ pub(super) fn check(
             groups.entry(parents).or_default().push(position);
         }
         for (parents, values) in groups {
-            if values.len() < 50 {
-                continue;
-            }
             // Standard-normal inverse CDF at 0.1,...,0.9, rounded to micro-units.
             const Z: [i128; 9] = [
                 -1_281_552, -841_621, -524_401, -253_347, 0, 253_347, 524_401, 841_621, 1_281_552,
@@ -110,7 +109,15 @@ pub(super) fn check(
                 bins[edges.iter().filter(|edge| v >= edge).count()] += 1;
             }
             for (bin, count) in bins.into_iter().enumerate() {
-                if (count * 100).abs_diff(values.len() * 10) > values.len() * 2 {
+                println!(
+                    "newcomer decile {} {id} eligible={eligible} {parents:?} bin{bin} count{count} N{} expected=10%",
+                    profile.id,
+                    values.len()
+                );
+                if eligible
+                    && values.len() >= 50
+                    && (count * 100).abs_diff(values.len() * 10) > values.len() * 2
+                {
                     failures.push(format!("{} {id} {parents:?} decile{bin} count{count} N{} expected=10% threshold=2pp", profile.id, values.len()));
                 }
             }

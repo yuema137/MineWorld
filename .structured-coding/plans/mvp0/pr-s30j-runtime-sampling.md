@@ -694,6 +694,141 @@ Bounded decisions recorded here rather than asked:
 
 ## 16. Ledger (live during implementation)
 
+### Approved A acceptance amendment — 2026-11-22 recovery
+
+Operator instruction relayed by primary: **“采用 A，按推荐修改并审查验收契约”**.
+This approves option A of F-S30j-10, not a change to the sampling algorithm.
+This dated section supersedes the unconditional EVERY-distribution wording in
+§0 AC-S30-5, §8 AC-j-2 and C5 for this PR. The primary owns corresponding parent
+step/overall synchronization. The original failed measurement and counterexample
+remain historical FAIL; the approved contract below is a new acceptance revision.
+
+Owned replacement clone: `/tmp/mineworld-s30j-fidelity-a-recovery`, branch
+`recover/s30j-fidelity-a`, clean source base `61b7d629054c4bc30cd0c7620993c16ae4fdb62b`.
+The previous runtime clone and older WIP remain unchanged. Endpoint: local design,
+tests, targeted validation and semantic commits only; no publication, remote dispatch,
+merge, paid API, production algorithm change, seed/profile/order change or new
+statistical-quality claim. One heavy job through the shared slot wrapper at a time.
+
+**AC-j-2 revision A, concrete acceptance:**
+
+1. Keep the exact existing two profiles, seeds, salt, genesis people, 1000 ordered
+   arrivals, arrival times and repeated-run population comparison. A distribution is
+   balance-eligible iff `stratify == true` AND its declaration owner is `attributes`.
+   Only eligible distributions must satisfy the unchanged 0.5 pp marginal, 2 pp
+   conditional (groups >=50), and 2 pp numeric-decile (strata >=50) limits.
+2. Compute and print discrepancy diagnostics for ALL categorical rows and numeric
+   strata, explicitly labeling eligibility. Ineligible rows are diagnostic, not a
+   population-balance assertion. Preserve `s30j-fidelity-counterexample.txt` byte for
+   byte; keep the earlier complete FAIL distinct from revision A results. No favorable
+   seed search, larger tolerance, discarded failing observations or sampled subset.
+3. Add independent-draw contract tests through public `sample_newcomer`, with a
+   test-owned small catalogue/profile, for both `stratify:false` attributes-owned and
+   `stratify:true` external-owner declarations. Verify conditional row selection,
+   adjustment, mask and allowed-support composition using hand-derived cumulative
+   integer shares and expected categories; never call production choice, weights,
+   largest-remainder or quantile helpers to compute expectations. Pin seed/key/word
+   vectors independently of the production sampler. Include integer boundary points
+   immediately below, at and above a cumulative threshold by choosing test-only row
+   weights around a predetermined key's point, with unchanged production corpus.
+4. For the same key, seed, time, fixed values, tags and fixed resolved parent inputs,
+   replace resident counts/values and reverse their order. Independent categorical
+   AND numeric outputs, including external-owner draws, must remain identical.
+   Check numeric support and hand-computed uniform mapping, not only equality.
+   Masks, restrictions, authored/locked values and explicit empty support refusals
+   remain hard constraints; existing admission/replay/privacy tests remain binding.
+5. M-j-6 must disable deficit balancing only in a temporary isolated mutation, make
+   the eligible fixed-corpus balance test fail, then restore bytes and observe PASS.
+   Additional temporary mutations must demonstrate the new oracle detects a wrong
+   independent choice boundary and unintended resident dependence. Record each
+   mutation and restoration. No temporary mutation enters a semantic commit.
+
+**Ownership and review sequence.** First independent review this exact amendment;
+then implement tests in `authoring/attributes/tests/fidelity/` and a dedicated
+`authoring/attributes/tests/newcomer_independent.rs`. No production seam is needed.
+Run the model's fidelity and independent test binaries, existing newcomer tests,
+scoped clippy/fmt and document guards. Record source fingerprints and local outcomes
+separately from independent logic review. Prior runtime review PASS at61b7d629 is
+retained; changed test/contract semantics require a fresh review.
+
+**Dispositions of prior review limitations.** AC-j-3 three-OS digest comparison stays
+OPEN: this local dispatch cannot supply cross-platform execution or its absent CI
+consumer. Primary/integration owner must arrange explicit same-head collection and
+comparison before full readiness; local repeatability is not its substitute.
+Measure serialized San Diego `NewcomerContext` with the same profile/seed/salt and
+1000 explicit empty Fixed entries used for the synthetic arrivals; report context
+and arrived-set size separately, including the profile alone. R-j-1's64KB trigger
+applies to the profile, not the combined deferred map or Process. If the profile
+exceeds that threshold, report the evidence rather than expanding this test-only lane
+into a production state redesign. External-owner sampler tests demonstrate draw
+semantics only; a real external System consuming `attributes-handed` remains a
+separate integration-coverage limitation, not PASS from these tests.
+
+Amendment checklist: [x] concrete design; [x] independent design review;
+[x] implementation; [x] deterministic validation/mutations; [ ] independent final review.
+
+Independent design review: recovery_review inspected this exact amendment before test
+implementation and returned PASS, explicitly preserving all-row diagnostics, foreign
+ownership boundaries and the historical FAIL. Primary separately confirmed scope and
+recorded the runtime-only parent amendment. No additional approval was inferred.
+
+Initial revision A validation: independent contract tests PASS4/4; complete fidelity
+binary PASS4/4,1.18s execution. The first fidelity compilation failed because the new
+measurement test imported EntityKey from authoring instead of contracts; corrected
+only that import and retained `s30j-a-evidence/fidelity.log` as INCONCLUSIVE. The
+successful full output is `s30j-a-evidence/fidelity-final.log`, including every
+conditional/marginal/decile diagnostic and unchanged corpus digests0804352e9dfaeec4
+and6298ea3e916c652f. R-j-1 actual serialized sizes: San Diego profile8288bytes,
+context with1000 empty Fixed entries28340bytes, complete arrived-set17001bytes,
+full Process45364bytes. The profile is below65536bytes; no state redesign triggered.
+This is JSON serialization measurement for the specified synthetic data, not a
+general memory bound for arbitrary authored Fixed content or unbounded populations.
+
+Known vectors are independently derived in `s30j-a-evidence/vectors.py` and retained
+in `vectors.jsonl`; no Rust sampling helper supplies test expectations. Mutation
+plan before execution: M-j-6 disables both deficit branches; boundary mutation uses
+inclusive cumulative comparison; resident mutation flips the high word bit only
+for nonempty populations. Each must fail its named behavioral test, restore exact
+sampler bytes, then pass all affected binaries. One shared slot and180s per command.
+Production/profile/seed/order changes remain forbidden in the resulting diff.
+
+Final local behavior evidence: complete revised fidelity4/4 PASS and independent4/4
+PASS; existing newcomers6/6 PASS. M-j-6 makes the fixed-corpus eligible-distribution
+test fail (13s including rebuild), then restored fidelity passes. Exact unchanged
+sampler SHA2568b467845a77f1acfad69f81816df5d338db0fc7c3eef2eac515296711e259827.
+The independent-row fixture was strengthened before final review: adjusted/masked
+row `[0.1,0.6,0.3]` with a*4 and c masked produces exact `[0.4,0.6,0]` shares.
+Known alpha changes category if adjustment is omitted; known beta changes if the
+mask is omitted. Only this additional test-owned fixture changed; original two
+fidelity corpora remain identical. Re-ran affected independent boundary/resident
+mutations after this strengthening and added bypassed weight-rule mutation. All
+three fail named tests, restore exact bytes, then independent4/4 passes. Timings
+and commands: `mutations-initial.json` (M-j-6 and original checks), `mutations.json`
+(final independent counterfactuals), with complete per-case logs. Total heavy work
+remains bounded and serialized. No lifecycle tests were rerun: production and their
+source bytes are unchanged; previous runtime evidence retains its stated limits.
+
+Maintainability self-review: no production module, public API, dependency or world
+changed. New332-line independent test has one cohesive sampler contract responsibility;
+helpers build typed test-owned catalogue/profile and exercise the public API. Foreign
+ownership is covered without injecting forbidden resident state. Existing fidelity
+oracles retain their mathematics, with eligibility governing assertion only and
+all diagnostics emitted. The full historical FAIL is retained, not relabeled PASS.
+No new statistical-confidence claim, quota on independent rows, or giant framework.
+Remaining AC-j-3 and owner-consumer limitations above are explicit review items.
+
+Final static checks PASS: model crate clippy `--all-targets -- -D warnings` after
+removing one needless test-only EntityKey borrow (`clippy.log` retains the first
+FAIL; `clippy-final.log` is PASS); fmt, diff-check, headings254/338documents and
+decisionids258. No executable semantics changed in that borrow correction, so the
+prior measurement and fidelity evidence applies. Final tested files/source and old
+counterexample are pinned by `s30j-a-evidence/payload-sha256.txt`. The older
+`s30j-source-fingerprints.txt` remains the original61b7d629 manifest, not a claim that
+the two amended fidelity-test files still match the old checkpoint. No heavy job
+remains owned. Final independent exact-head test/contract review is next.
+Only surplus terminal blank lines at EOF were trimmed from four successful logs
+for diff-check; all diagnostics, command output and measurements are retained.
+
 ### Resume on reviewed foundation — 2026-11-22
 
 Coordinator dispatch authorizes resuming this PR on reviewed LOCAL (not merged) foundation

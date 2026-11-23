@@ -216,6 +216,8 @@ fn categorical_fidelity(
 ) {
     let at = WorldTime::from_seconds(999 * 60);
     for (id, distribution) in &profile.distributions {
+        let eligible = distribution.stratify
+            && catalogue.get(id).unwrap().owner == mineworld_attributes_model::ATTRIBUTES;
         let Shape::Prior { rows, adjust, mask } = &distribution.shape else {
             continue;
         };
@@ -278,7 +280,11 @@ fn categorical_fidelity(
             for i in 0..counts.len() {
                 let target = n * weights[i] * 1_000_000 / sum;
                 let count = i128::from(counts[i]) * 1_000_000;
-                if n >= 50 && (count - target).abs() * 100 > n * 2 * 1_000_000 {
+                println!(
+                    "newcomer conditional {} {id} eligible={eligible} {parents:?} {} actual_micropersons{count} expected_micropersons{target} N{n}",
+                    profile.id, domain[i]
+                );
+                if eligible && n >= 50 && (count - target).abs() * 100 > n * 2 * 1_000_000 {
                     failures.push(format!(
                         "{} {id} stratify={} {parents:?} {} count{} N{n} expected_micropersons{target} threshold=2pp",
                         profile.id,
@@ -292,7 +298,11 @@ fn categorical_fidelity(
             }
         }
         for i in 0..domain.len() {
-            if (actual[i] - expected[i]).abs() * 200 > total * 1_000_000 {
+            println!(
+                "newcomer marginal {} {id} eligible={eligible} {} actual_micropersons{} expected_micropersons{} N{total}",
+                profile.id, domain[i], actual[i], expected[i]
+            );
+            if eligible && (actual[i] - expected[i]).abs() * 200 > total * 1_000_000 {
                 failures.push(format!(
                 "{} {id} stratify={} {} marginal actual_micropersons{} expected_micropersons{} N{total} threshold=0.5pp",
                 profile.id,
@@ -304,6 +314,39 @@ fn categorical_fidelity(
             }
         }
     }
+}
+
+#[test]
+fn san_diego_runtime_state_sizes_are_reported_separately() {
+    use mineworld_attributes_model::newcomer::{NewcomerContext, Newcomers};
+    use mineworld_contracts::EntityKey;
+    let (_, profile) = builtin();
+    let profile_bytes = serde_json::to_vec(&profile).unwrap().len();
+    let context = NewcomerContext {
+        profile: Some(profile),
+        seed: "fidelity".into(),
+        salt: 0,
+        deferred: (0..1000)
+            .map(|n| {
+                (
+                    EntityKey::new(format!("newcomer-{n:05}")).unwrap(),
+                    Fixed::default(),
+                )
+            })
+            .collect(),
+    };
+    let context_bytes = serde_json::to_vec(&context).unwrap().len();
+    let mut process = Newcomers::new(context);
+    process.arrived = process.context.deferred.keys().cloned().collect();
+    println!(
+        "San Diego bytes profile={profile_bytes} context={context_bytes} arrived={} process={}",
+        serde_json::to_vec(&process.arrived).unwrap().len(),
+        serde_json::to_vec(&process).unwrap().len()
+    );
+    assert!(
+        profile_bytes <= 65_536,
+        "R-j-1 profile exceeds 64 KiB: {profile_bytes}"
+    );
 }
 
 #[test]

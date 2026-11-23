@@ -1,0 +1,72 @@
+{
+  "restored_source_sha256": "8b467845a77f1acfad69f81816df5d338db0fc7c3eef2eac515296711e259827",
+  "results": [
+    {
+      "label": "independent-boundary",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "mineworld-attributes-model",
+        "--test",
+        "newcomer_independent",
+        "cumulative_boundary_is_exclusive_at_the_integer_point",
+        "--",
+        "--nocapture"
+      ],
+      "returncode": 101,
+      "seconds": 1.801,
+      "outcome": "DISCRIMINATING FAIL"
+    },
+    {
+      "label": "independent-residents",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "mineworld-attributes-model",
+        "--test",
+        "newcomer_independent",
+        "changing_or_reordering_residents_cannot_change_independent_draws",
+        "--",
+        "--nocapture"
+      ],
+      "returncode": 101,
+      "seconds": 1.924,
+      "outcome": "DISCRIMINATING FAIL"
+    },
+    {
+      "label": "independent-weights",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "mineworld-attributes-model",
+        "--test",
+        "newcomer_independent",
+        "independent_rows_masks_adjustments_and_uniforms_match_known_vectors",
+        "--",
+        "--nocapture"
+      ],
+      "returncode": 101,
+      "seconds": 3.763,
+      "outcome": "DISCRIMINATING FAIL"
+    },
+    {
+      "label": "restored-newcomer_independent",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "mineworld-attributes-model",
+        "--test",
+        "newcomer_independent",
+        "--",
+        "--nocapture"
+      ],
+      "returncode": 0,
+      "seconds": 3.232,
+      "outcome": "PASS"
+    }
+  ]
+}
