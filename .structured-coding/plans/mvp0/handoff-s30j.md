@@ -27,8 +27,13 @@ Evidence logs and command timings: `s30j-a-evidence/`; initial test import compi
 failure retained as INCONCLUSIVE. Static checks and final independent review are
 recorded in the live ledger as they finish; do not infer final readiness here.
 
-Next: finish scoped static checks, commit the test/evidence packet, independent
-exact-head review, repair bounded findings. AC-j-3 cross-OS digest consumer/execution
+Completed local amendment executable/test HEAD `7628805feed9879c2c7712883122ef32814d3bd9`:
+scoped model all-targets clippy, fmt, document guards and diff-check PASS. Independent
+final review PASS, no required corrections; retained `s30j-a-evidence/final-review.md`.
+Reviewer independently verified hashes/vectors and inspected producer logs, without
+repeating Cargo. This documentation closeout changes no executable/test bytes.
+Next: primary integrates the reviewed packet and retains outstanding gates.
+AC-j-3 cross-OS digest consumer/execution
 remains OPEN; primary owns that integration. A real external owner consuming a
 newcomer handoff is still unproven by this sampler test. No remote CI/full suite,
 public push, workflow dispatch, paid API, merge or root/dashboard writes authorized.

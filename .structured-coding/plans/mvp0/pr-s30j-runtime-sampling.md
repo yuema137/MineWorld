@@ -765,7 +765,7 @@ semantics only; a real external System consuming `attributes-handed` remains a
 separate integration-coverage limitation, not PASS from these tests.
 
 Amendment checklist: [x] concrete design; [x] independent design review;
-[x] implementation; [x] deterministic validation/mutations; [ ] independent final review.
+[x] implementation; [x] deterministic validation/mutations; [x] independent final review.
 
 Independent design review: recovery_review inspected this exact amendment before test
 implementation and returned PASS, explicitly preserving all-row diagnostics, foreign
@@ -828,6 +828,18 @@ the two amended fidelity-test files still match the old checkpoint. No heavy job
 remains owned. Final independent exact-head test/contract review is next.
 Only surplus terminal blank lines at EOF were trimmed from four successful logs
 for diff-check; all diagnostics, command output and measurements are retained.
+
+**Local amendment closed / integration obligations remain open.** Independent final
+review PASS at `7628805feed9879c2c7712883122ef32814d3bd9`, exact base61b7d629;
+[retained review](s30j-a-evidence/final-review.md). Reviewer verified all five
+payload hashes, independently recomputed all eight word vectors, inspected the
+actual positive/mutation/restoration logs, and found no required correction or
+blocking new maintainability debt. Reviewer did not rerun Cargo. This doc-only
+closeout inherits unchanged executable/test evidence; no new remote CI is claimed.
+AC-j-2 revision A and M-j-6 now have local PASS; old unconditional AC-j-2 remains
+historical FAIL. AC-j-3 three-OS comparison, canonical remote checks and the real
+external-owner consumer integration limitation remain OPEN under primary ownership.
+This lane's authorized local amendment is complete; full S30-j readiness is not.
 
 ### Resume on reviewed foundation — 2026-11-22
 
