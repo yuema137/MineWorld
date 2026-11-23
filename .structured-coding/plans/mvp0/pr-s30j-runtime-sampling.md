@@ -811,16 +811,90 @@ persistence change; rerun pending.
 
 ### Commit ledger
 
+### Local implementation checkpoint — 2026-11-22 (not ready)
+
+Owned diff remains based on reviewed local foundation6059812e. Coordinator explicitly
+confirmed specification ownership: only MODULE_SPEC §4.1, new ARC-128, ARC-123 dated note,
+decision index and frozen generated reference, all inside this isolated clone. Root/shared
+documents and old WIP are untouched. No acceptance amendment is inferred from that grant.
+
+Checkpoint implementation combines the recovered C1–C4 production chain with its C6
+integration evidence and C7 specification sync as one coherent runtime-admission change.
+This consolidation avoids manufacturing an intermediate broken public struct/caller state
+from recovered intertwined work. C5's original failing oracle is retained in the same
+reviewable payload, expressly FAIL; C8 readiness remains blocked by F-S30j-10 and review.
+The commit is preservation and review input, not an assertion of completed acceptance.
+
+Latest bounded validation (all cargo jobs serial, shared slot; macOS only):
+
+- Model library PASS31/31 (0.00s execution,9.93s build); structure PASS2/2 (0.15s).
+  Unchanged genesis fidelity cases PASS2/2 (0.13s; --test fidelity -- --skip newcomers).
+  The one filtered newcomer case retains its separately measured FAIL, not a pass.
+  Existing proposal acceptance caller PASS2/2 (0.00s). Actual CLI PASS6/6 (1.10s),
+  including unchanged golden and real save/resume/verify.
+- Admission PASS1/1 (0.04s) after introducing a shared scenario completeness check.
+  The same check returns Err(Nadia) on X-j-5's missing request; it is not a separate
+  weakened expectation. Refusals PASS5/5 (0.02s), now including attributes-uncomposed,
+  no-newcomers and owner unknown-cause, alongside ordinary/unchecked/duplicate/privacy.
+- Source-authored variants PASS2/2 (0.02s): no-profile admissions preserve authored and
+  locked values and emit an empty traits-stated for Quin; a female/beard restriction is
+  ordinary newcomer-unsatisfiable naming Nadia with no events. No post-genesis repair.
+- Independent unmodified loader PASS3/3 (0.02s): profile edits now join authored, lock,
+  restriction, seed, salt and deferred-list drift; disk facts/head unchanged after refusal.
+- Latest killed-process run PASS140.68ms, before/between/after revisions1/3/5, actual
+  snapshot/replay reports and all saved bytes equal. This preceded test-only FutureCause
+  mode and variant additions; Checked producer and lifecycle code remain unchanged.
+- Reference Social Cafe seed7/day1: deterministic output and **all4351 fact records**
+  exactly equal retained pre-j baseline;4101209bytes SHA256
+  09af4594486407f3d6b5f3191a44488e62304dc7278051ff7a1bfc9f6fc597a7.
+  Executed current CLI after its rebuild; report /tmp/mineworld-s30j-parity/result.txt.
+  No reference-world file or golden changed.
+- Four touched crates clippy --all-targets -D warnings PASS5.51s; final acceptance-only
+  follow-up after new tests PASS9.23s. Owner --lib compiled successfully but contains
+  zero tests; behavioral evidence is the acceptance tests, not that empty run.
+  fmt --all --check and git diff --check PASS. Docs layer PASS all3commands0.3s:
+  headings254/338documents, decisionids258, classifier44cases. No remote/full-workspace run.
+
+**Technical-debt and logic review (implementer; independent review still required).**
+Ownership remains attributes-only: creator emits requests, plain resident Traits are read
+in Person/entity-ID order, owner-held state is never copied, arrived changes before emitted
+traits are reduced. Typed final context completes every deferred key before seeding and
+host disk-genesis comparison covers edits; no fallback or new persisted event exists.
+Public additions and admit_proposal's Person argument intentionally require consumer
+migration; only the two coordinator-approved test literals and existing acceptance caller
+cross System boundaries. No shared authoring API changes are present in j.
+
+Size review: existing resolve.rs shrinks by shared-value extraction; the new sampler file
+is561lines including fixed-context serialization and the pure numeric/categorical algorithm.
+The approximately120-line orchestration directly follows fixed/profile/roles/defaults/covers
+phases; numeric and categorical arithmetic already have separate named methods. Retained
+for conceptual locality, not because thresholds were ignored. Runtime draw is approximately
+100lines for ordered checks and population construction; owner reaction94lines is isolated
+from the existing react dispatcher. No giant shared module gains the sampling algorithm,
+new abstraction layer, inheritance or dependency. Errors identify person/code, checked
+rejection precedes dispatch mutation, and owner rechecks protect unchecked requests.
+Process reads follow the existing RunningCatalogue optional-decoding convention; malformed
+state does not supply a fallback draw. Independent review should specifically audit this
+convention, numeric edge handling and public trait/struct consumer completeness.
+
+Final source/spec/fixture inventory is [s30j-source-fingerprints.txt](s30j-source-fingerprints.txt),
+60files, SHA2568ba73d7247dbbba90f5ec58da04ce95e0b45133ffed12f85266414b98040a316.
+It excludes live ledgers to avoid a self-referential hash. Original AC-j-2 test and sampler
+fingerprints remain the counterexample's authority; no seed, threshold or algorithm edits
+were made. Outstanding gates: operator F-S30j-10 decision, discriminating M-j-6 baseline,
+cross-platform digest/remote checks when publication is authorized, and independent exact-head
+implementation/maintainability review. This is not READY FOR OPERATOR REVIEW or merge-ready.
+
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
 | C0 base and recovery ledger | this checkpoint | [x] | [x] | [x] |
-| C1 the draw | — | [ ] | [ ] | [ ] |
-| C2 configuration, context, admission check | — | [ ] | [ ] | [ ] |
-| C3 the pack | — | [ ] | [ ] | [ ] |
-| C4 `resolve` | — | [ ] | [ ] | [ ] |
-| C5 1,000 arrivals | — | [ ] | [ ] | [ ] |
-| C6 replay, resume, plants | — | [ ] | [ ] | [ ] |
-| C7 specification sync | — | [ ] | [ ] | [ ] |
+| C1 the draw | source checkpoint | [x] | [x] targeted + M1–3 | [x] self-review above |
+| C2 configuration, context, admission check | source checkpoint | [x] | [x] loader/runtime + M4 | [x] self-review above |
+| C3 the pack | source checkpoint | [x] | [x] acceptance-owned behavior + M5 | [x] self-review above |
+| C4 `resolve` | source checkpoint | [x] | [x] CLI6 | [x] golden/deferred review |
+| C5 1,000 arrivals | source checkpoint | [x] oracle | [ ] FAIL; M6 pending | [ ] independent math/contract audit |
+| C6 replay, resume, plants | source checkpoint | [x] | [x] local lifecycle/X1/X4/X5 | [x] self-review; independent pending |
+| C7 specification sync | source checkpoint | [x] | [x] docs layer | [x] scope/contract diff |
 | C8 close-out | — | [ ] | [ ] | [ ] |
 
 ### C0 — base and rulings (2026-10-27)
@@ -1142,7 +1216,42 @@ not yet operator approval.
 
 ### Mutations
 
-(none yet; M-j-1 … M-j-6 and X-j-1, X-j-4, X-j-5 as §9 lists them)
+2026-11-22 working-tree evidence; each temporary mutation restored before continuing:
+
+| Plant | Observed discriminating failure |
+| --- | --- |
+| M-j-1 deficit ignores counts | the_value_the_population_lacks_is_the_one_drawn failed for n-0 |
+| M-j-2 birth relative to epoch | a_birth_is_relative_to_the_instant_of_arrival failed |
+| M-j-3 cause mixed into word | the_cause_is_never_mixed_into_the_draw equality failed |
+| M-j-4 optional field always serialized | absent_newcomers_preserves_reviewed_foundation_composed_bytes failed exact bytes |
+| M-j-5 arrived-set update omitted | same-generation duplicate admitted twice; owner-refusal assertion failed |
+| X-j-1 process-local sampler counter | verify and resume both ReplayDiverged revision3 fact39; restored test green |
+| X-j-4 unchecked creator raw request | owner FactRefusedByOwner/not-a-newcomer, attributes named |
+| X-j-5 arrived with no request | scenario sequence lacks traits-stated, no Traits or arrived-set entry |
+
+M-j-1…5 run serially through one slot by `/tmp/mineworld-s30j-mutations.py`, with per-file
+byte restoration in finally. Logs `/tmp/mineworld-s30j-M-j-N.log`; aggregate
+`/tmp/mineworld-s30j-mutations.log`. All five failures occurred in the named running tests,
+not compilation. Restored checks PASS sampler6/6, loader3/3, refusals4/4. Restored SHA256s:
+sample/newcomer.rs8b467845a77f1acfad69f81816df5d338db0fc7c3eef2eac515296711e259827;
+facts.rs7b8876e1c73053f17a7b232182d395b06b7f6dc978f7a12798e855db557288cc;
+systems/attributes/src/newcomers.rsc20507e4d4d172087b1a6806e777e04ac1780a8d235465f0f39e11cbfde14219.
+M-j-6 pending: the complete fixed-threshold fidelity test already fails, so a weight-only
+mutation against it would not be discriminating evidence. Do not claim it until the
+acceptance conflict has a reviewed decision and a valid baseline.
+
+No-newcomers reference capture: reviewed foundation6059812e binary
+`/tmp/mineworld-s30j0-head-target/debug/mineworld run tools/cli/tests/fixtures/attributes-sampled
+--headless --seed7 --days1 --save /tmp/mineworld-s30j-baseline-attributes-save` (actual flags
+were separated: `--seed 7 --days 1`), cwd foundation checkout.37facts, zero faults.
+Exact attributes-composed payload2380bytes, SHA256
+72eaa6d7834a9d0223824ef367d5ebe4eea67b1e59b57f7117e742ee703ffb1f, captured via read-only
+SQLite and stored in tests/acceptance/tests/newcomers/attributes-sampled-composed.json.
+Current unmodified loader equals those bytes; M-j-4 proves omission is load-bearing.
+Existing CLI golden is separately unchanged. Consumer migrations: employment occupation
+PASS3/3; notices attributes PASS6/6. CLI+acceptance clippy --tests -D warnings PASS14.58s
+before latest focused test additions. Generated reference changed only configure.md and
+configure-attributes.schema.json. No public writes or shared-root edits.
 
 ### Deviations and findings
 

@@ -12,6 +12,25 @@ const WORLD: &str = concat!(
     "/tests/fixtures/attributes-sampled"
 );
 
+#[test]
+fn deferred_people_are_listed_without_values() {
+    let world = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/fixtures/attributes-newcomers"
+    );
+    let output = mineworld(&["attributes", "resolve", world, "--json"]);
+    assert!(output.status.success(), "{}", stderr(&output));
+    let document: Value = serde_json::from_str(&stdout(&output)).expect("JSON");
+    for name in ["nadia", "omar", "pia", "quin"] {
+        assert_eq!(
+            document["people"][name],
+            serde_json::json!({"deferred": true})
+        );
+    }
+    assert_eq!(document["people"].as_object().unwrap().len(), 12);
+    assert!(document["people"]["dev"]["values"].is_object());
+}
+
 fn resolved(extra: &[&str]) -> (String, Value) {
     let mut arguments = vec!["attributes", "resolve", WORLD, "--json"];
     arguments.extend_from_slice(extra);

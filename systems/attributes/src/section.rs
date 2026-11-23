@@ -7,10 +7,10 @@ use std::any::Any;
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
-use mineworld_attributes_model::sample::{Member, Words, resolve};
+use mineworld_attributes_model::sample::{Fixed, Member, Words, resolve};
 use mineworld_attributes_model::{
-    ATTRIBUTES, AttributeValue, AttributesContext, AttributesHanded, Authored, QualifiedId,
-    SectionIn, TraitsStated,
+    ATTRIBUTES, AttributeValue, AttributesContext, AttributesHanded, Authored, NewcomerContext,
+    QualifiedId, SectionIn, TraitsStated,
 };
 use mineworld_authoring::{
     ContentKind, ResolveRefusal, ResolvesSubjects, SectionInContext, SectionName, Seeding, Subject,
@@ -67,6 +67,16 @@ impl ResolvesSubjects for AttributesSystem {
             .iter()
             .filter(|subject| subject.kind == ContentKind::Person)
             .collect();
+        let context = finalize(context, &people)?;
+        let people: Vec<_> = people
+            .into_iter()
+            .filter(|subject| {
+                !context
+                    .newcomers
+                    .as_ref()
+                    .is_some_and(|newcomers| newcomers.deferred.contains_key(subject.key))
+            })
+            .collect();
         let members: Vec<Member<'_>> = people
             .iter()
             .map(|subject| Member {
@@ -80,10 +90,20 @@ impl ResolvesSubjects for AttributesSystem {
             population.map_or("", |population| population.seed.as_str()),
             population.map_or(0, |population| population.salt),
         );
+        // Deferred locks are already preserved in the finalized context. The genesis sampler
+        // checks lock keys against its own members, so give it only the present people's entries.
+        let lock = population
+            .and_then(|population| population.lock.as_ref())
+            .map(|lock| {
+                let mut lock = lock.clone();
+                lock.people
+                    .retain(|key, _| people.iter().any(|person| person.key.as_str() == key));
+                lock
+            });
         let resolution = resolve(
             &context.catalogue,
             population.and_then(|population| population.profile.as_ref()),
-            population.and_then(|population| population.lock.as_ref()),
+            lock.as_ref(),
             words,
             &members,
         )
@@ -158,4 +178,50 @@ impl ResolvesSubjects for AttributesSystem {
         }
         Ok(facts)
     }
+}
+
+/// Complete the map before any context fact is emitted; no per-subject initialization protocol.
+fn finalize(
+    context: Arc<AttributesContext>,
+    people: &[&Subject<'_, Authored>],
+) -> Result<Arc<AttributesContext>, ResolveRefusal> {
+    let Some(population) = &context.population else {
+        return Ok(context);
+    };
+    // Validate every lock key before filtering deferred entries out of genesis resolution.
+    for key in population.lock.iter().flat_map(|lock| lock.people.keys()) {
+        if !people.iter().any(|subject| subject.key.as_str() == key) {
+            return Err(ResolveRefusal {
+                subject: None,
+                reason: format!("UnknownPerson: the lock names '{key}'"),
+            });
+        }
+    }
+    let Some(later) = &population.later else {
+        return Ok(context);
+    };
+    let mut deferred = BTreeMap::new();
+    for key in later {
+        let subject = people
+            .iter()
+            .find(|subject| subject.key == key)
+            .ok_or_else(|| ResolveRefusal {
+                subject: Some(key.clone()),
+                reason: format!("UnknownPerson: newcomers.later names '{key}'"),
+            })?;
+        let locked = population
+            .lock
+            .as_ref()
+            .and_then(|lock| lock.people.get(key.as_str()));
+        deferred.insert(key.clone(), Fixed::of(subject.authored, locked));
+    }
+    let newcomers = NewcomerContext {
+        profile: population.profile.clone(),
+        seed: population.seed.clone(),
+        salt: population.salt,
+        deferred,
+    };
+    let mut finalized = (*context).clone();
+    finalized.newcomers = Some(newcomers);
+    Ok(Arc::new(finalized))
 }

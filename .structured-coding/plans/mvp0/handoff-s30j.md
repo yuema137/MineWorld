@@ -7,7 +7,8 @@ with dated coordinator/operator overrides and current live §16.
 
 - Owned isolated clone `/tmp/mineworld-s30j-runtime`, branch `mvp0/s30j-runtime`.
 - Base `6059812efa51023981a7bd6d1dc47de4ec5def5f`, independently reviewed LOCAL foundation,
-  not merged. Current recovery ledger checkpoint is being committed; source remains uncommitted.
+  not merged. Recovery ledger checkpoint15ba6725; a concrete source/spec checkpoint is being
+  committed for independent review, without claiming acceptance readiness.
 - Coordinator bb9217c8-5c5f-4fde-b599-33442d8c3257 on srv_kDvOkOCjWQGA authorized this
   local stack and implementation/validation/commits. No public writes, subagents, paid API,
   root/shared dashboard edits. Old impl/recovery trees remain read-only; snapshots in §16.
@@ -26,8 +27,8 @@ adapter. `tests/acceptance/tests/newcomers/mod.rs` checks exactly one composed p
 overwritten Uses, complete payload/envelope restoration after removing only injected Uses,
 and all other facts unchanged. Separate test-owned arrivals.yaml is decoded with explicit
 synthetic SystemPack provenance. Test host compares disk genesis before resume. This does
-not claim public custom-pack discovery. Non-SystemPack rejection/missing-admits and full
-adversarial/privacy requirements still need completing.
+not claim public custom-pack discovery. Non-SystemPack rejection/missing-admits and focused
+adversarial/privacy checks now pass; see the live ledger for exact limits.
 
 ## Evidence and material gap
 
@@ -46,16 +47,23 @@ adversarial/privacy requirements still need completing.
   suite PASS4/4. X-j-1 sampler counter makes verify fail ReplayDiverged revision3 fact39;
   sampler restored byte-identically and explicit verify/restart test PASS1/1 (0.03s).
   No owned heavy job remains running.
-- No final clippy, mutation, full privacy/adversarial, reference-world parity, specification
-  sync or exact-head independent review yet. No readiness claim.
+- Latest: admission1, loader3 (seven drift edits), refusals5, source-authored variants2,
+  model library31, structure2, proposal seam2, CLI6 all PASS. Four-crate clippy and
+  final acceptance-only follow-up PASS; fmt/diff checks PASS. Owner --lib has zero tests
+  (compilation only). No heavy process will be left running at checkpoint.
+- M-j-1…5 all fail discriminating tests then restore byte-identically; X-j-1 verify
+  divergence preserved. X-j-5 now uses the same completeness checker as positive admission.
+  M-j-6 remains pending the fidelity decision; no baseline can honestly be claimed green.
+- Reference Social Cafe4351facts/4101209bytes plus deterministic output match preserved
+  baseline exactly. Spec sync is limited to authorized isolated paths; docs layer PASS.
+  Technical-debt self-review and final60-file source manifest are in the live ledger.
+- No exact-head independent review, cross-platform or remote CI yet. No readiness claim.
 
 ## Next actions
 
-1. Complete remaining refusal/config/proposal/privacy and sampler mutation checks.
-2. Send primary §16 F-S30j-10 packet path; preserve fixed-threshold failure while awaiting
+1. Commit the concrete local payload and send its exact SHA to primary for independent
+   review. Do not publish it.
+2. Primary has §16 F-S30j-10 packet; preserve fixed-threshold failure while awaiting
    scope decision. Do not silently skip independent distributions or select a passing seed.
-3. Complete sampler/config/owner reviews, meaningful targeted affected consumer checks,
-   docs/schema sync and no-newcomers evidence. Production resident scan now explicitly
-   filters Person type; review error/invariant behavior and function sizes.
-4. Make semantic local commits with reviewed evidence; notify primary exact head for
-   independent implementation and technical-debt review. Preserve parent docs for primary.
+3. Resolve review findings within scope, and M-j-6 after an operator ruling establishes
+   the approved acceptance contract. Preserve parent/shared docs for primary.
