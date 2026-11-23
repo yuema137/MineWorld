@@ -42,6 +42,7 @@ const STRIDE_HOLD_S := 0.4
 ## A walk-sheet figure keeps its facing while its travel stays within this angle of the facing's own
 ## direction: half a 45° sector plus a dead band, so travel along a sector's edge does not flicker.
 const FACING8_KEEP_DEG := 30.0
+const SeatedSprite := preload("res://scripts/scene/seated_sprite.gd")
 
 var projection
 var presentation
@@ -127,6 +128,11 @@ func _process(delta: float) -> void:
 	var dt := minf(delta, 1.0 / 30.0)
 	for id in _people:
 		var person: Dictionary = _people[id]
+		if person["seat"] != null:
+			# Seated: drawn at the pelvis point of the seat, not where the server stands the person; the gait
+			# is off (S34-e §5.3), so nothing else moves them.
+			person["node"].position = projection.to_screen(person["seat"]["plan"])
+			continue
 		var from: Vector2 = person["plan"]
 		var to: Vector2 = person["target"]
 		var next := to
@@ -229,7 +235,7 @@ func pick(at: Vector2) -> String:
 	for id in _people:
 		var person: Dictionary = _people[id]
 		var foot: Vector2 = person["node"].position
-		var top: float = person.get("top", 34.0)
+		var top: float = person.get("drawn_top", person["top"])
 		if absf(at.x - foot.x) <= PICK_HALF_WIDTH_PX and at.y >= foot.y - top - 6.0 and at.y <= foot.y + 8.0 \
 				and foot.y > front:
 			picked = id
@@ -242,7 +248,7 @@ func figure_at(id: String) -> Variant:
 	if not _people.has(id):
 		return null
 	var person: Dictionary = _people[id]
-	return person["node"].position - Vector2(0, float(person.get("top", 34.0)) * 0.5)
+	return person["node"].position - Vector2(0, float(person.get("drawn_top", person.get("top", 34.0))) * 0.5)
 
 
 ## The real height a person's sprite was normalized to, or null (plain drawing, or not recorded).
@@ -376,16 +382,102 @@ func _make(id: String, plan: Vector2, look: String) -> Dictionary:
 	node.add_child(tag)
 	world.add_child(node)
 	var height_m: Variant = null if views.is_empty() else views["front"].get("height_m")
+	# The sprite a seated figure is cropped from: its walk sheet, else the picture of its front view.
+	var loaded: Dictionary = sheet if not sheet.is_empty() else views.get("front", {})
 	return {"node": node, "body": body, "label": label, "marker": marker, "zz": zz, "tag": tag, "plan": plan, "target": plan,
 		"phase": float(posmod(id.hash(), 628)) / 100.0, "away": false, "snap": true,
 		"height_m": height_m, "top": top, "activity": null, "drift": Vector2.ZERO, "walked": 0.0,
 		"turns": [], "shown": {"away": false, "side": 1.0, "view": 1}, "still_s": 0.0, "asleep": false,
 		"sheet": sheet.get("sheet", {}) if body.has_node("walk") else {}, "view": 1, "column": 0,
-		"columns_seen": {}}
+		"columns_seen": {}, "views": views, "loaded": loaded, "seat": null}
 
 
 func _plain_colour(id: String) -> Color:
 	return Color.from_hsv(float(posmod(id.hash(), 360)) / 360.0, 0.35, 0.75)
+
+
+## Seats a drawn person at the pelvis point the shared decision gives them, or stands them up (`pose` null).
+## `pose` is `{point, plan, direction, seat_height_m, pelvis}` from `scene/seating.gd`: `plan` the pelvis's floor
+## point (plan metres), `direction` the point's facing as a plan direction, `seat_height_m` the seat's surface,
+## `pelvis` the pelvis in the place's frame (mm) (S34-e §5.3). A seat already drawn at the same point is kept.
+func set_seated(id: String, pose: Variant) -> void:
+	if not _people.has(id):
+		return
+	var person: Dictionary = _people[id]
+	var before: Variant = person["seat"]
+	if typeof(pose) != TYPE_DICTIONARY:
+		if before != null:
+			_stand(person)
+		return
+	if before != null and before["pose"] == pose:
+		return
+	if before != null:
+		_stand(person)
+	_sit(person, pose)
+
+
+## The seat a drawn person is shown on (`{point, plan, pelvis, view}`), or null when they are standing.
+func seated_of(id: String) -> Variant:
+	return _people[id]["seat"] if _people.has(id) else null
+
+
+func _sit(person: Dictionary, pose: Dictionary) -> void:
+	var body: Node2D = person["body"]
+	person["standing"] = {"view": person["view"], "away": person["away"], "side": body.scale.x}
+	body.position = Vector2.ZERO
+	body.rotation = 0.0
+	var found := _view_of(pose["direction"])
+	var view := int(found.x)
+	if view != 0 and view != 4:
+		body.scale.x = -1.0 if found.y > 0.0 else 1.0
+	person["view"] = view
+	person["away"] = view >= 3
+	var top_now := float(person["top"])
+	var seat := SeatedSprite.make(sprites, projection, person, pose, view)
+	if not seat.is_empty():
+		for child in body.get_children():
+			child.visible = false
+		body.add_child(seat["node"])
+		seat["node"].name = "seat"
+		top_now = float(seat["top"])
+	person["seat"] = {"point": String(pose["point"]), "plan": pose["plan"], "pelvis": pose["pelvis"],
+		"view": view, "drawn": not seat.is_empty(), "pose": pose.duplicate(true)}
+	person["node"].position = projection.to_screen(pose["plan"])
+	person["plan"] = pose["plan"]
+	person["drawn_top"] = top_now
+	_place_captions(person, top_now)
+
+
+func _stand(person: Dictionary) -> void:
+	var body: Node2D = person["body"]
+	if body.has_node("seat"):
+		var seat := body.get_node("seat")
+		body.remove_child(seat)
+		seat.free()
+	var standing: Dictionary = person["standing"]
+	person["view"] = standing["view"]
+	person["away"] = standing["away"]
+	body.scale.x = standing["side"]
+	person["still_s"] = STRIDE_HOLD_S
+	person["seat"] = null
+	person["drawn_top"] = person["top"]
+	if body.has_node("walk"):
+		body.get_node("walk").visible = true
+	_animate(person, Vector2.ZERO, 0.0)
+	person["plan"] = person["target"]
+	person["snap"] = true
+	_place_captions(person, float(person["top"]))
+
+
+## Every caption of a drawn person sits over a figure `top_now` px tall (the head's top above the node's origin):
+## the name, marker and Zz stack above it, the price tag moves down by the height the figure lost (S34-e §5.3).
+func _place_captions(person: Dictionary, top_now: float) -> void:
+	var lost := float(person["top"]) - top_now
+	var spots := {"label": -top_now - 22.0, "marker": -top_now - 38.0, "zz": -top_now - 56.0, "tag": 6.0 + lost}
+	for key in spots:
+		var l: Label = person[key]
+		l.position.y = spots[key]
+		l.set_meta("base_y", spots[key])
 
 
 ## Walk cycle, driven by distance travelled (the spike's `_animate`).
@@ -459,9 +551,16 @@ func _animate_sheet(person: Dictionary, striding: bool) -> void:
 ## The row of `view` (0 down … 4 up, the renderer's order) in a walk sheet; rows are named by the
 ## sheet's `views`, so a sheet with fewer views falls back to the nearest it has.
 static func _sheet_row(names: Array, view: int) -> int:
-	var wanted: String = ["down", "down_right", "right", "up_right", "up"][clampi(view, 0, 4)]
-	var at := names.find(wanted)
-	return at if at >= 0 else clampi(view, 0, names.size() - 1)
+	return SeatedSprite.row_of(names, view)
+
+
+## The view a plan direction is drawn in, and the angle it makes: `Vector2(view, phi)`, `view` 0 (toward the
+## viewer) … 4 (away), `phi` the signed angle in degrees from "toward the viewer" (positive: to the screen's
+## left). One rule for a walking figure and a seated one (S34-e §5.3), so both turn alike.
+func _view_of(direction: Vector2) -> Vector2:
+	var toward: Vector2 = projection.to_plan(Vector2(0, 1)).normalized()
+	var phi := rad_to_deg(atan2(toward.cross(direction), toward.dot(direction)))
+	return Vector2(clampi(roundi(absf(phi) / 45.0), 0, 4), phi)
 
 
 ## Eight facings from travel (a walk-sheet figure). The angle is measured in plan from "toward the
@@ -471,8 +570,7 @@ static func _sheet_row(names: Array, view: int) -> int:
 ## one, and a straight up or down walk keeps the side it had; a turn of up to 90° waits until the
 ## travel has held it for one pace.
 func _turn8(person: Dictionary, drift: Vector2) -> void:
-	var toward: Vector2 = projection.to_plan(Vector2(0, 1)).normalized()
-	var phi := rad_to_deg(atan2(toward.cross(drift), toward.dot(drift)))
+	var phi := _view_of(drift).y
 	var body: Node2D = person["body"]
 	var view := int(person["view"])
 	var current := float(view) * 45.0 * (-1.0 if body.scale.x > 0.0 else 1.0)

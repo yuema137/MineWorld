@@ -4,11 +4,11 @@
 
 ```text
 Design revision:        revision 1 (2026-10-26), DESIGN FROZEN 2026-10-27 (operator approved in the primary session: every question answered as recommended)
-Approved by / evidence: none yet — awaiting the operator's freeze (questions in §13)
+Approved by / evidence: operator ruling 2026-10-27 (§13), recorded in legacy commit 6736d63e; recovery dispatch 2026-11-22
 Implementation base:    origin/main @ 0b2faf2f (after #301 S34-a, #363 S34-b, #368 S34-c1, #462 S33-f)
-Start condition:        this design frozen by the operator
+Start condition:        met; recovery from reviewed local base listed in §12
 Execution contract:     §10
-Lifecycle:              DRAFT — never frozen by its author
+Lifecycle:              DESIGN FROZEN; local recovery in progress (§12)
 ```
 
 **Dated note, 2026-10-27 (operator ruling Q-S34c3-3; SD-c3-5 in
@@ -319,15 +319,15 @@ No test asserts a getter, a constant or an enum.
 Each commit has **Implementation**, **Validation**, **Review**, each `[ ]` until done with evidence.
 
 ### C0 — Design (this file), docs only
-- [ ] Implementation: this file.
-- [ ] Validation: `python3 -I scripts/check_doc_headings.py`.
+- [x] Implementation: this file.
+- [ ] Validation: `python3 -I scripts/check_doc_headings.py` (PASS; recovery ledger below).
 - [ ] Review: scope equals the step's S34-e row minus F-e-1, plus §13's answers.
 
 ### C1 — Shared: one pose function and the chain
 - **Files:** `clients/shared/sitting/sit_rule.gd` (`pose_of`, `pelvis`), new `sit_chain.gd` (+ `.uid`),
   new `clients/shared/checks/sit_chain_check.gd`, `clients/3d-spike/scripts/slice/seating.gd` (delegation),
   `clients/shared/README.md`.
-- [ ] Implementation: §5.1, §5.2. 3D keeps `depicted == false` → unseat.
+- [x] Implementation: §5.1, §5.2. 3D keeps `depicted == false` → unseat.
 - [ ] Validation: `godot --headless --path clients/shared --script res://checks/sit_chain_check.gd` PASS
   (cases: in reach, too far, other refusal, no offer, walk incomplete, place changed, seated → leave);
   `client_sit_rule.rs -- --ignored` still equal (3D unchanged). Through `with-slot.sh`.
@@ -337,7 +337,7 @@ Each commit has **Implementation**, **Validation**, **Review**, each `[ ]` until
 - **Files:** `clients/2d/scripts/scene/people.gd` (`set_seated`, `_view_of`, seated sprite, fallback crop,
   captions), `scene/seating.gd` (pose per id), `app.gd` (wiring), `scripts/presentation.gd` (`<base>_seated`
   lookup in `directional`), `clients/2d/PRESENTATION.md` §3.
-- [ ] Implementation: §5.3, §5.4.
+- [x] Implementation: §5.3, §5.4.
 - [ ] Validation: `seat_check.gd` prints `DRAWN` lines on the new fixtures; the existing 2D drive scenarios
   (`walk`, `strides`, `idle`) unchanged; `python3 scripts/check_client_rules.py` PASS.
 - [ ] Review: no world, place, key or tag in code; the hip ratio cited; R4 respected.
@@ -346,7 +346,7 @@ Each commit has **Implementation**, **Validation**, **Review**, each `[ ]` until
 - **Files:** `app.gd` (click order, chain calls, leave-before-move), `scene/seating.gd` (`pick`),
   `walker.gd` (a `setting_off` signal for the first key move, if needed), `intents.gd` (`SIT`, `STAND`),
   `tests/acceptance/tests/client_rules.rs` (two admissions).
-- [ ] Implementation: §5.5.
+- [x] Implementation: §5.5.
 - [ ] Validation: `check_client_rules.py` PASS (R1–R8); `cargo test -p mineworld-acceptance --test
   client_rules` PASS; a hand run on Social Café: click a stool, walk, sit, click the floor, stand.
 - [ ] Review: verdict read only in the shared chain; nothing re-sent.
@@ -356,7 +356,7 @@ Each commit has **Implementation**, **Validation**, **Review**, each `[ ]` until
   (+ Market Town frames), `clients/2d/scripts/harness/seat_check.gd` (`DRAWN`), `tools/cli/tests/
   client_sit_rule.rs` (posture fixture, seeded variant, `DRAWN` checks), new `tools/cli/tests/
   client_2d_sit.rs`, `clients/2d/scripts/harness/interact.gd` (a `{"click_sit": "nearest-far" | key}` step).
-- [ ] Implementation: AC-e-1…e-7 tests.
+- [x] Implementation: AC-e-1…e-7 tests (C4 continuation evidence below).
 - [ ] Validation: each new test green once locally (ignored ones with `-- --ignored`, through
   `with-slot.sh`); X-e-1…7 recorded as milestone items.
 - [ ] Review: tests choose points from disclosure, never from a world literal.
@@ -410,7 +410,322 @@ Escalate:               any server, world or contract change; a change to 3D beh
 
 ## 12. Evidence ledger
 
-(empty until implementation)
+### Recovery — 2026-11-22
+
+This session owns `/tmp/mineworld-recover-s34e`, branch `recover/s34e-2d-seated`, based on
+`003d35437d6b7f873db1a2c32a29f0b6f554cb58`, the independently reviewed local F-RC-7 stack
+(base `4cd160bb`). This prerequisite is **not claimed merged**. The coordinator explicitly
+assigned this base and implementation ownership on 2026-11-22. A separate local clone shares
+read-only objects because sandbox permissions deny writing the main checkout's Git metadata.
+The legacy checkout remains read-only at `6736d63e07b57d75cd703d1e9abe11232b94ff33`.
+Its committed patch, staged/dirty patches, tracked tree and all 14 changed/untracked files are
+preserved at `/tmp/mineworld-s34e-legacy-snapshot`; SHA256 of `snapshot.sha256.json`:
+`8fa5745ca7f30b67f5f7ecfd253cbe014bd63d07d0fee8ae9e3470c01e39f665`.
+
+Endpoint authority: implementation, targeted local validation and semantic commits authorized
+by the recovery dispatch; no public writes, merge, subagents, dashboard or shared-root plan
+edits. The primary coordinator owns decisions, parallel lanes and independent red-team review.
+This supersedes the historical implementer, publication and review assignments below, not the
+frozen scope, invariants or acceptance. S34-e2 sprites remain separate; no spend, new content
+or CMU usage. Live evidence is maintained here in the isolated checkout, not the shared root.
+
+Current checkpoint: C1 shared chain/pose check PASS; cross-client recorded check pending C4. The legacy chain
+omitted the October 27 disclosed-but-unoffered walk row; restored it and added checks for that
+row, newest refused offer and one-shot consumption. The shared pose preserves 3D's depicted-only
+behavior. The probe edit only replaces a direct disclosure read with the equivalent shared
+accessor; F-RC-7 assertions, logger and helpers are unchanged. Later legacy drawing/input needs
+repair for unknown stature, updated poses, restoration and key-cancellation ordering.
+
+Validation envelope: smallest focused checks, Godot/cargo through the existing machine-wide
+`cast-slots/with-slot.sh`; no priority override; no full suite or asset import. Each real client
+run targets <=10 minutes, total real runtime <=1 hour; no paid/API calls. Gate 1 not required
+(no LLM-facing behavior). Next: run C1 headless checks, review and commit, then C2/C3 drawing/input,
+C4 recorded/live evidence and mutations, C5 depictions, C6 documentation. Stop dependent work
+for any frozen-contract/ownership conflict; otherwise continue to an exact local review SHA.
+
+Legacy C0 commit `6736d63e` records the same October 27 freeze. Its patch did not apply
+verbatim to the recovery base, so only the lifecycle correction is integrated above.
+C1 local evidence: Godot 4.7.2, `with-slot.sh godot --headless --path clients/shared
+--script res://checks/sit_chain_check.gd`: PASS (exit 0, 0.03 s after import).
+Checks exercise exact offers, refused/newest offer, undisclosed/disclosed missing offers,
+cancel/place change/incomplete walk, one-shot consumption, stand, signed pelvis and disclosure
+precedence. Logic review: no action literals, no distance/retry, remembered state consumed before
+submission; 3D return fields and depicted-only behavior preserved. Independent review pending.
+
+Initial headless chain invocation exposed a legacy GDScript inference error in `leave`;
+explicit `Array` typing fixes the boundary. No acceptance PASS claimed from that invocation.
+
+
+
+### Independent recovery checkpoint — C2/C3/C4
+
+C2/C3 implemented in the isolated checkout. The legacy patch is integrated selectively and
+corrected: `seated_sprite.gd` owns image construction (67 lines), while `people.gd` keeps
+reconciliation and gait (660 lines, existing size review trigger). Updated poses at the same
+point rebuild their drawing; immediate node placement precedes frame animation; seating clears
+bob/rock; standing restores exactly one view and its travel facing. Missing stature uses opaque
+height as approved. Caption picking and `figure_at` follow the new height; the fixture verifies seated picking. Both walk and seated images use the
+same row selection. The app remains the composition root (756 lines); no new gameplay ownership.
+
+Cancellation is synchronous before key-driven walk completion, preventing an old chain from
+submitting sit when a key takes over. Place changes cancel before walker reconciliation.
+Menu opening, floor clicks and disconnects cancel as well. The rule scan admits only the two
+submitter action constants and confines posture component names to the shared module.
+
+Validation so far:
+- `check_client_rules.py`: PASS, zero findings.
+- Real Godot 4.7.2 app composition-root parse: PASS after correcting a legacy inferred String.
+- `seated_sprite_check.gd`: PASS through actual people/sprite nodes, four drawing modes
+  (known/unknown stature crop, seated atlas, four views), position/facing updates, gait suppression,
+  standing restoration. In-memory image is a test fixture, not shipped content or generated art.
+- `seat_check.gd` on preserved Lakeside frames: PASS output, person 7 alone seated at times 102/103,
+  actual node pelvis (1090,3000) mm, view 3; 20 DRAWN rows. Full Rust comparison pending.
+- Targeted `client_rules` first run: 12 PASS, 1 FAIL because the legacy check fixture's tag
+  literal `cafe` violated the world-name scan. Renamed the fixture tag to `fixture-room`;
+  production behavior unchanged. Rerun PASS: all 13 tests, 0.05 s.
+- `client_2d_sit`: real lifecycle run declared before launch: exact-source server, two worlds,
+  real 2D input path, one far click, seated disclosure/drawing, floor click, explicit requested
+  stand preceding movement, persistent facts. <=150 s per client; no LM/API. Building in isolated
+  `/tmp/mineworld-s34e-target`, shared slot. PASS: both worlds, one Rust test, 11.94 s runtime
+  after 91 s compilation. Godot headless emitted existing unsupported keyboard-label display-server
+  diagnostics; no script parse/runtime failure or lifecycle failure observed.
+
+The 2D import unexpectedly included existing `shots/` images (46 local fixture/reference images),
+not just scripts; no 3D/full repository texture import ran. Future checks use the existing cache.
+No renderer-ready claim is inferred from a zero exit when Godot prints a script error.
+
+Checkpoint limitations: this is **not full S34-e acceptance**. C4 still needs the frozen
+cross-client Rust comparator, within-reach second sit, occupied-seat offer fidelity, self-menu/key
+and cancellation real-client cases, and the specified mutations. C5 is blocked below; C6 final
+acceptance documentation awaits that decision. No ignored test outside this focused lifecycle
+case, full suite, public CI, or 3D contact acceptance is claimed. Independent red-team is pending.
+The exact review commit is supplied in the coordinator handoff (avoids a self-referential SHA).
+
+### PROPOSED C5 decision packet — not approved, no implementation
+
+**Frozen requirements in conflict.** §5.7 requires `seat_offset_m` from furnishing minus point,
+projected against facing, and a corpus test with <=10 mm longitudinal disagreement and <50 mm
+sideways error for every depiction row. §4 I-e-2 and §5.1 fix the shared scalar pose; §4 I-e-6
+forbids world changes. Existing F-RC-7 behavior/assertions remain frozen. No proposed option below
+has been implemented or treated as approved.
+
+**Evidence and conventions.** `contracts/src/spatial.rs` defines integer mm and millidegrees;
+`worlds/social-cafe/places/cafe.yaml:45` states clockwise from north. Let point A=(x,y), furnishing
+origin F=(fx,fy), yaw θ=facing/1000 degrees, forward U=(sinθ,cosθ), right V=(cosθ,−sinθ).
+The scalar pose is P=A−1000×offset_m×U. The requested center-derived value is
+`offset_m=−dot(F−A,U)/1000`; irreducible lateral error is `dot(F−A,V)` mm. No scalar value can
+remove a nonzero lateral error. These are drawing coordinates, not new server reach calculations.
+
+**Café measurements, identical in Social Café and Market Town.** Sources are each world's
+`places/cafe.yaml:51–63` furnishings and `:130–138` sit points. Signed values in mm:
+
+| Point | Furnishing | Against-facing offset | Lateral error |
+| --- | --- | ---: | ---: |
+| window-stools.1 | stool.1 | -484.00 | 0.00 |
+| window-stools.2 | stool.2 | -505.00 | 0.00 |
+| window-stools.3 | stool.3 | -523.00 | 0.00 |
+| table-1.1 | table.east.chair-w | -545.80 | 82.49 |
+| table-1.2 | table.east.chair-e | -545.80 | 82.49 |
+| table-2.1 | table.north.chair-w | -532.84 | -119.15 |
+| table-2.2 | table.north.chair-e | 110.86 | -495.76 |
+| table-3.1 | table.back.chair-w | -38.36 | -478.46 |
+| table-3.2 | table.back.chair-e | -538.27 | 43.16 |
+
+Thus 5/9 café points per world (10/18 total) cannot meet the frozen lateral bound using a scalar
+and the furnishing origin. Two chairs per world miss by approximately half a metre. User-visible
+result: the torso floats beside the chair, even with a perfectly computed longitudinal offset.
+This is not rounding; rounding to 3 decimal metres contributes at most 0.5 mm longitudinally.
+
+**The content is not proven defective.** `pr-s34c-world-sit-points.md:220–227` records BC-c-1:
+table-3.1 was moved south to (1600,7980) because the prior point (1060,8460) violated the plant's
+260 mm body clearance. BC-c-2 intentionally uses the chair's actual facing. These are valid
+semantic free-floor positions; forcing their line through the chair can reintroduce collisions.
+Therefore the old S34-e assumption “every point lies behind its chair along its facing” is false.
+
+**Furnishing origin is not a seat-center oracle.** Lakeside's multi-person benches intentionally
+have several pelvis positions along one furnishing. A single furnishing origin cannot be the
+center of all of them. `sit_points/lakeside.yaml` documents longitudinal seat-middle calibration:
+long-table chair points at x=1660, furnishing centers x=1150 (`worlds/lakeside/places/bakery.yaml:34–38`),
+face west, declared offset -570 mm, versus origin-derived -510 mm. The 60 mm difference is deliberate,
+not evidence of drift. Bakery 5/5 rows fail the proposed 10 mm center-based oracle despite their
+recorded calibration. Pier 5 rows: origin-derived 485 vs declared 450 mm, lateral 0/±600/±1200 mm;
+square 6 rows: 460 vs 400 mm, lateral up to 700 mm; station wall 7 rows: 485 vs 450 mm, lateral
+0/±600/±1200/±1800 mm; platform 6 rows: 485 vs 450 mm, lateral 0/±600 mm. All 29 existing Lakeside
+rows exceed the proposed 10 mm longitudinal center comparison. Their correct seat targets need
+per-seat surface/calibration evidence, not equality to the furnishing origin. No existing depiction
+or probe assertion has been changed.
+
+**Options, all requiring a decision.**
+
+| Option | Concrete deliverable and tests | Files/API/dependencies | Consequence |
+| --- | --- | --- | --- |
+| A: corrected oracle with explicit gaps | Define per-seat calibrated targets and keep lateral failures visible; longitudinal-only café check cannot count as AC-e-9 PASS | Revise this design's AC-e-9/§5.7; new `sit_point_depictions.rs`, café JSON rows; no shared API change | Can document center-oracle error but does not solve 10 café lateral failures. Not recommended as completion |
+| B: vector depiction contract | Add explicit place-local pelvis displacement while retaining scalar fallback; pin old scalar outputs byte-for-byte, vector outputs, generated renamed/mirrored points, both-client placement and real seat-contact | Re-freeze shared `pose_of`/loader contract, 3D presentation spec, two café depiction files, pose and depiction tests; coordinated S34-f/contact validation dependency | Correct semantic point and chair-facing remain intact; resolves lateral geometry. Material presentation API/3D change, outside current authority |
+| C: split/defer C5 | Deliver independently reviewed C1–C4 drawing/input with disclosed-at fallback; keep C5 and AC-e-9 explicitly outstanding in a separately frozen correction | Explicit scope/acceptance revision here; coordinator owns new design and downstream dependency updates | Smallest safe independent checkpoint; fallback may draw beside chairs and cannot claim full S34-e ready |
+| D: existing-contract content correction | Propose revised semantic sit points lying on chair-facing rays, revalidate clearance, spacing, reach, all-world loads, interaction tests and deterministic baselines | World Pack edits in both café copies, S34-c contract and baseline ownership; preserve scalar API | Not bounded under I-e-6; prior plant-clearance correction demonstrates risk. No feasible all-seat solution established; do not move worlds merely to satisfy a rendering oracle |
+
+**Recommendation:** C for a clearly partial local handoff, followed by a separately reviewed B
+presentation correction with a seat-surface oracle that respects multi-seat benches and intentional
+calibration. A alone hides a user-visible gap; D crosses world ownership and can invalidate correct
+body clearance. Primary/operator must choose; dependent C5 remains stopped. Independent C2/C3/C4
+validation proceeds only within its already approved narrow scope. No broad validation campaign.
+
+### C4 continuation after checkpoint 9c41ba69 — 2026-11-22
+
+Coordinator authorized independent C4 continuation; the C5 packet above stays frozen for review.
+Planned bounded lifecycle rerun: same two exact-source worlds, plus seated self-menu, nearby floor
+walk and within-reach second click, current-offer semantic comparison and observation recording.
+Expected <=30 s runtime plus incremental build, through shared slot; no API/LM or asset generation.
+This rerun also exercises `figure_at` through the real self-click path; the previous live run did
+not cover the final figure helper change. Results pending. Recording goes to an isolated temporary
+directory; subsequent comparator fixtures will identify any projection or counterfactual explicitly.
+
+C4 bounded results so far:
+- Existing `client_sit_rule` comparator PASS, 1.17 s: both real client decision paths agree;
+  added exact actual-node DRAWN rows for all 20 Lakeside people/frames, including seated view 3
+  and (1090,3000) mm. Reused reviewed-base 3D class-name cache only (no texture import);
+  each script still parses from current source, and script errors fail the comparator.
+- X-e-6 and X-e-7 planted in `people.gd`: both expected RED, naming the file and line;
+  original bytes restored in `finally`. No production mutation retained.
+- First extended live run failed after 98.09 s: the intended floor destination was inside the
+  drawn seated person's pick area and correctly opened self-menu. Test destination changed to
+  sideways 350 mm. The new evidence logger also assumed a flat request payload; corrected it
+  to the existing action-record envelope and required one evidence record per sent sit.
+  This run is FAIL, not product/acceptance PASS. Retry stays within the existing one-hour budget.
+
+C4 additional evidence:
+- Extended two-world lifecycle PASS (19.94 s): seated self-menu, requested stand then nearby walk,
+  within-reach second sit without walk, two complete-offer semantic comparisons through server
+  `differing_fields`, point-keyed `SIT_TRANSCRIPT` records retaining AC-13 request envelopes.
+  Later rerun after exposed-seat click selection also passed the added exact journal sequence
+  `[walk-to, sit, stand, walk-to, sit]` (walk-step records omitted only for this sequence check).
+- Captured real server observations, projected only to identity/location/tags/posture disclosures,
+  into `posture-social-cafe.json` and `posture-market-town.json`; each records raw SHA256 provenance.
+  No counterfactual is labelled a recording. Seeded renaming/mirroring and five-second stillness
+  overlays are generated by Rust. Restored comparator: 3 PASS, 7.14 s, both real clients.
+- X-e-4 (kept travel view), X-e-5 (reversed scalar sign) and X-e-1 (removed 2D disclosure) each
+  expected RED through actual drawing/decision mismatches. The first X-e-1 attempt was inconclusive
+  due to a test-generated null components field; fixed the fixture generator and reran X-e-1 only.
+  All mutated production bytes restored; X-e-5 proves AC-e-1/AC-e-5 here, not blocked AC-e-9.
+- The second 350 mm sideways live destination still intersected the plain-mode 15 px half-width
+  at 24 px/m; run failed after 97.91 s. Corrected test destination to 700 mm, beyond picking and
+  within server-reported reach; added immediate wrong-pick failure. No production picking changed.
+- Occupied-seat setup initially retained the preparation player's reserved connection seat. The
+  existing harness takeover flag only operates via its seatless join-screen path; both setup runs
+  were stopped after diagnosing this, not counted as acceptance. Corrected test uses
+  `Drive::start_seatless` plus explicit `--pick-seat=visitor --take-over`. Narrow rerun PASS: both worlds, 11.51 s.
+
+Remaining frozen lifecycle mutations completed: X-e-2 forces the shared chain to walk regardless
+of offer verdict; within-reach test RED (12.40 s). X-e-3 plants a delayed resend at the app's chain
+answer submission boundary for `target_unavailable`; occupied-seat test RED for two requests
+(6.57 s). This practical integration mutation represents the forbidden retry without inventing a
+second-answer API in the shared chain. Both production files restored byte-for-byte. Final restored
+live rerun PASS: both tests (both worlds each), 27.99 s. No script errors. Unchanged headless
+keyboard-label display-server diagnostics remain unrelated to these assertions.
+
+C4 checkpoint status: AC-e-1…e-7 now have targeted local evidence and X-e-1…e-7 have
+expected-red evidence. AC-e-8 source inventory PASS: no server/system/kernel/contract/world or
+baseline edits. Restored Rust client-rule gate 13 PASS (0.06 s); Python rules/headings and diff
+whitespace PASS. Independent implementation red-team remains pending; no full S34-e acceptance,
+partial shipping permission, public CI or merge readiness claimed. Existing C2 walk/strides/idle
+baseline scenarios and extra key/disconnect integration paths were not run in this bounded C4
+continuation; chain cancellation is covered by the shared deterministic check. C5 and final C6
+remain outstanding. No production behavior changed after checkpoint 9c41ba69; changes here are
+harnesses, fixtures, assertions and appended design/evidence. Rust formatting only followed the
+final runs. Changed harness click selection was revalidated by both restored live cases.
+
+Durable local evidence: `/tmp/mineworld-s34e-c4-live-restored.log`,
+`/tmp/mineworld-s34e-c4-replay-restored.log`, and `/tmp/mineworld-s34e-X-e-{1..7}.log`.
+SHA256 manifest `/tmp/mineworld-s34e-c4-evidence-sha256.json`:
+`bdf8658f267ae4956deb7b691ee50cd37dc2302b902ac2a58553e2716d77f738`.
+Reviewed C5 packet content remains byte-identical, SHA256
+`24f09b891e218118d61e0fd13d637bd91faa98eaf258619d4c6b91a22f95cd1f` (section text, trailing whitespace stripped).
+
+### PROPOSED B amendment contract — design only, not frozen
+
+Source: independent C5 review `/tmp/mineworld-s34e-c5-red-team-review.md`, bound to
+`9c41ba69c174f9b51735d3f490730608f5bdd6f1`, and coordinator's 2026-11-22 direction to refine B.
+This append does not revise §5.7/AC-e-9, approve B, or alter the reviewed C5 packet. Correction to
+its interpretation: 10/18 lateral failures measure **furnishing-origin error**, not independently
+measured seat-surface contact failure. Actual chair/stool support regions remain to be measured.
+
+**One representation.** Propose optional format-2 `seat_displacement_m: {east: number, north: number}`,
+place-local horizontal metres, independent of point facing. For a vector row:
+`pelvis_mm = selected_at_mm + 1000 * (east, north)`. Neither world coordinates nor model axes are
+accepted in this field. Facing still controls body yaw/view only. Reflection across place x transforms
+`east -> -east`, `north` unchanged, and `facing -> (360000-facing) mod 360000`.
+
+**Versioning.** Keep all existing files format 1. New vector-bearing café files use format 2;
+new loader accepts both, and vector fields in format 1 are an error. Old loaders already reject
+unknown formats, avoiding a silent legacy 0.45 m default when they see a vector-only row. A format-2
+file may contain scalar rows, but their arithmetic remains unchanged. No bulk migration.
+
+**Precedence and validity.** Presence of `seat_displacement_m` selects the vector path; a row containing
+both it and `seat_offset_m` is invalid, not silently prioritized. Require a dictionary with exactly
+`east` and `north`, finite numeric non-boolean values; reject null, missing/extra axes, strings,
+nonfinite/out-of-range parser values, mixed fields. Report file and point; reject the depiction file
+atomically with no partially loaded rows (new-vector validation only). Do not tighten unrelated legacy
+scalar validation in this amendment. Disclosed `at`/facing continue to override fallback exactly as
+current `pose_of`; without disclosure use fallback; without either position return empty. Vector
+rows do not alter `decide`, inference ownership, sit reach, or chaining.
+
+**Exact legacy compatibility.** When the new field is absent, execute today's scalar path unchanged:
+loader defaults (`seat_offset_m` 0.45, height 0.45), `pelvis(at,facing,offset)` signature/formula,
+depiction matching and fallback behavior. No migration of the 29 Lakeside rows. Before editing,
+freeze all existing row outputs at the executable baseline for disclosed and fallback inputs;
+compare coordinates/fields exactly at the same precision, not by calling a relocated alias as the
+oracle. Preserve the 3D wrapper's undepicted -> empty behavior and all F-RC-7 files/assertions.
+
+**Independent target oracle, prerequisite to writing café offsets.** Read-only measurement of the
+existing three model bindings, not furnishing origins: `furniture/furnishings.yaml:24–28` names
+`dining_chair_02`, `painted_wooden_chair_01`, `bar_chair_round_01`, front_md 180000. The rendered
+transform comes from `clients/3d-spike/scripts/slice/furnishings.gd:169–218` and `SliceProps.put`;
+`assets/models/contact.json` declares floor mounting only and supplies no seat surface. Thus this
+source audit does **not** establish any numeric target or stool height.
+
+Proposed independent evidence artifact `tools/cli/tests/fixtures/seat-surfaces.json`:
+model/source SHA, actual import scale/origin/front correction, model-local support polygon and seat
+top height, measured per-seat pelvis target/calibration with rationale, furnishing key/pose, and
+transformed place-local target. Measure model meshes or existing authored primitive dimensions
+without reading proposed displacement values; save provenance and images/mesh samples sufficient
+for independent review. Multi-seat benches have individual target stations/regions, not one origin.
+Retain the bakery's intentional 60 mm calibration as historical evidence and verify against its
+actual surface; do not erase it to satisfy a center test. Existing rows whose surfaces cannot be
+established are explicitly unresolved, never silently excluded from an all-row PASS.
+
+Proposed amended AC-e-9: every depicted row resolves to a furnishing and independently evidenced
+seat target/region; computed horizontal pelvis is within 10 mm of the calibrated target in **both**
+axes, and the target lies on the measured support region (boundary margin derived from the source,
+not chosen after results). Height agrees with independently measured seat top within 10 mm.
+These are proposed numerical authoring tolerances, not proven human contact tolerances; freeze only
+after the measurement precision and all legacy rows have been audited. No universal origin test,
+no longitudinal-only waiver, no claim of full rig/foot/contact correctness. S34-f retains its real
+3D contact, support, approach and traversal acceptance with unchanged probe assertions.
+
+**Bounded implementation if approved.** Shared `sit_rule.gd` loader/pose only; shared README and
+`clients/3d-spike/PRESENTATION.md` schema; two café depiction files; focused shared pose/loader check,
+new `tools/cli/tests/sit_point_depictions.rs` and the independent surface fixture; extend existing
+cross-client drawing check for approved vector cases. Public `pose_of` return shape and scalar
+`pelvis` signature stay unchanged. No new world/server/kernel/contracts files, baseline updates,
+model generation, avatar sheets, physics, settings, input redesign, or S34-f probe changes. Primary
+owns parent/dependency reconciliation; implementer owns this PR ledger and named files after freeze.
+
+**Required tests.** Frozen scalar corpus parity; new vector east/north/non-cardinal cases; disclosure
+over fallback and missing-position case; malformed/mixed field rejection; renamed/mirrored pose
+fixtures; actual 2D and 3D placement (not decision-only equivalence); independent all-row surface
+oracle. Drop/reverse each displacement axis must fail its target/placement test. Keep C4's currently
+undepicted café oracle explicitly dependent on the approved new data and revise it only with B.
+S34-f real contact remains separately owned and is not replaced by these assertions.
+
+**Feasibility / freeze gaps.** The additive representation and bounded API are feasible by source
+inspection. No target measurements have yet been obtained, so exact café values, support margins,
+legacy-surface compatibility and measurement runtime are unknown. First bounded measurement pass:
+existing three café model sources and one representative of each legacy seat form, no render/import
+campaign; report missing assets or conflicts before expanding. If all-row surface audit disproves a
+legacy target, propose a separately owned content correction; do not change legacy outputs under
+this compatibility promise. B cannot honestly be marked freeze-ready until that evidence fixes
+or rejects the proposed tolerances and target artifact. This is one concrete amendment candidate
+with explicit closure work, not an implementation request or a request to approve unknown geometry.
 
 ## 13. Operator questions (each with a recommended answer)
 
@@ -423,3 +738,110 @@ Escalate:               any server, world or contract change; a change to 3D beh
 | **Q-S34e-3** | Café chair points sit 0.55 m behind the chair, and no café depiction exists, so 2D would draw the sitter behind the chair. Write `sit_points/social-cafe.yaml` and `market-town.yaml` here (offsets computed from the world's own furnishing and point positions, checked by a test)? 3D will then also draw café sitters seated | **Yes**, chairs and stools only. Park and street benches stay undepicted until S34-f |
 | **Q-S34e-4** | Move the 3D client's `pose_of` / `pelvis` into the shared sit rule, with a one-line delegation in `slice/seating.gd`, so both clients place the pelvis by one function? | **Yes.** No 3D behaviour changes; S34-f builds on it |
 | **Q-S34e-5** | Fallback crop line: hip at 0.530 × stature (Drillis and Contini, via Winter Fig. 4.1)? | **Yes**, used only until a body has a seated sheet |
+
+### S34-B approved freeze amendment — 2026-11-22
+
+Operator explicitly approved: “也同意 S34-B，继续实施”, relayed by primary coordinator in
+message `f9d1f61b-da8a-4141-aac7-a4a3863f389e`, after clarification of presentation-only 2D
+horizontal displacement preserving semantic world coordinates and old behavior. This authorizes
+C5/C6 continuation from clean `4ce72437c8206826a5d5b5eba9fc3471024032c6`; it does not approve
+body-fit/contact changes, public writes, merge, or S34-f scope.
+
+Binding concrete amendment: `/tmp/mineworld-s34e-seat-measure/ENGINE-B-PACKET.md`, SHA256
+`c7727ba68ff0207ae7553414656196ba4fecc4bc27f9240cb6445eb713387634`, with measured numbers in
+`engine-targets.json`, source/engine provenance, geometry review PASS and engine closeout PASS
+(`/tmp/mineworld-s34e-engine-closeout-review.md`). The two source Café files are byte-identical;
+the packet's solids-difference wording concerned the older recorded fixture, not the two worlds.
+
+This supersedes §5.7's format-1/scalar-only Café requirement and furnishing-origin oracle, and
+AC-e-9's corresponding acceptance rule: the two Café depiction files use format 2, optional
+`seat_displacement_m: {east, north}` in place-local metres, mutually exclusive with scalar offset.
+Validate finite numeric non-boolean exact axes, reject malformed/mixed vector files atomically,
+and reject vectors in format 1. Disclosed position/facing precedence and pose return shape remain
+unchanged. Scalar absence/default/formula, all 29 Lakeside scalar outputs, world semantic points,
+and 3D undepicted-empty behavior remain exact. No world/production asset changes are authorized.
+
+The accepted central seat drawing anchors are mesh-derived and engine-verified; 10 mm per-axis
+horizontal and height tolerance measures coordinate/height reproducibility only. Require selected
+visual triangle support; do not derive expected anchors from authored offsets or equate a
+furnishing origin with a seat. Legacy calibrated anchors stay fixed, including bakery's 60 mm
+calibration. Armrest/body/foot/contact correctness remains S34-f. Existing C4 undepicted Café
+expectations may now change for the approved depicted Café points; genuinely undepicted cases
+remain covered. Scope/files/validation follow the concrete packet and existing affected-test budget.
+The original 9c41 C5 packet and 4ce72437 review payload remain historical immutable evidence.
+
+### S34-B implementation and C5/C6 local closeout — 2026-11-22
+
+Implemented the approved amendment in the same isolated branch. Only production logic change is
+shared `sitting/sit_rule.gd`: formats 1/2, a pre-load validation pass that atomically rejects invalid
+vectors, and a place-local vector drawing branch. The two Café depiction files contain nine rows
+each with the reviewed engine-measured values. No point fallback was invented. Every legacy scalar
+calculation and world semantic position stays unchanged; existing source/mesh hashes are checked.
+
+Independent oracle: `tools/cli/tests/fixtures/seat-surfaces.json` contains pre-authoring measured
+anchors, selected source triangles, engine/source provenance, all 29 legacy surface samples and
+58 pre-edit executable legacy outputs. It contains no proposed displacement fields from which to
+reconstruct expected targets. The scalar corpus was captured before editing production code;
+its helper and original JSON are retained in `/tmp/mineworld-s34e-seat-measure/`. Compact triangle
+formatting keeps the fixture inspectable without removing mesh samples. Existing legacy primitive
+source provenance is included. `sit_point_depictions.rs` checks all 18 Café and 29 legacy rows;
+`checks/sit_pose_check.gd` checks exact engine scalar outputs, finite/range/shape validation,
+format/exclusivity, atomic rejection, fallback/disclosed precedence and renamed/mirrored vectors.
+
+The client comparator now checks actual 2D drawn nodes and actual 3D figure-node positions/seat
+height inputs, through `SliceSeating.observe` and `SliceFigures.seat`; it deliberately loads no body
+rig (contact remains S34-f). Recorded fixtures, a labelled all-nine-point counterfactual, seeded
+renaming/mirroring with a temporary depiction pack, standing still on disclosed points, and the
+Lakeside fallback fixture pass. The independent measured targets are transformed for the generated
+mirror; authored displacement values never supply expected coordinates. `DRAWN3` horizontal values
+are millimetres; height is micrometres. The 2D `Town.local_in` observation truncates to integer mm,
+so its rounded independent target comparison permits 1 mm (AC-e-1 and below B's 10 mm authoring
+threshold). Production arithmetic was not altered to satisfy the comparison.
+
+Final local evidence:
+
+| Check | Result / evidence |
+| --- | --- |
+| Independent depiction oracle | 2 PASS; all 47 rows; `/tmp/mineworld-s34e-B-oracle-final.log` |
+| Shared pose/schema/source provenance | PASS; 29 fallback + 29 disclosed exact outputs; `/tmp/mineworld-s34e-B-final-pose.log` |
+| Shared chain | PASS; `/tmp/mineworld-s34e-B-final-chain.log` |
+| Restored-source real placement comparator | 3 PASS, 21.26 s; `/tmp/mineworld-s34e-B-final-restored-clients.log` |
+| Live hosted interaction after drawing/picking moved | 2 PASS, 20.08 s, both worlds: exact offers/transcripts, floor requested-stand, near click, occupied refusal/no retry; `/tmp/mineworld-s34e-B-live.log` |
+| Required remaining walk/strides/idle baselines | 3 PASS, 36.55 s: `walks_from_the_apartments_into_the_cafe`, `a_walk_is_one_walk_to_paced_by_walk_steps`, `reconnects_to_a_restarted_world_and_to_a_replaced_one` (includes existing idle drive); `/tmp/mineworld-s34e-B-final-baseline-walk-strides-idle.log` |
+| Client rules | 13 PASS, 0.08 s; `/tmp/mineworld-s34e-B-final-rules.log`; Python R1–R8 scan PASS |
+| New axis mutations | Drop/reverse east and drop/reverse north each make actual 3D-placement comparator RED; source restored byte-for-byte, then comparator GREEN; `/tmp/mineworld-s34e-B-mutations.json` and four mutation logs |
+| Documentation/static | decision IDs/index PASS (257 distinct, no index diff); headings PASS; scoped Rust formatting and `git diff --check` PASS |
+
+Failures were not hidden: the first legacy comparator compared JSON float facing to engine integer
+facing; normalizing only that test type restored exact equality. The first Rust comparator build
+had a missing local `place` in the generated-frame helper and was fixed before runtime. The first
+new drawing comparison exposed the existing integer-mm truncation above; its 1 mm observation
+accounting is explicit and approved by coordinator message `8c177d03-ebf6-4241-b2dc-6bceddb3d399`.
+Expected malformed-input warnings and the existing headless display-server key-label diagnostics
+remain in logs; test assertions/summaries passed. A provenance-formatting helper rejected malformed
+JSON before writing; the prior fixture remained intact and final provenance checks passed.
+
+Evidence hash manifest `/tmp/mineworld-s34e-B-evidence-sha256.json` SHA256
+`1b46114d79607c2d5893bedc548acaae18997b4247fe0844254bca359ca2c369`.
+The original 9c41 C5 packet remains byte-identical (trimmed section SHA256
+`24f09b891e218118d61e0fd13d637bd91faa98eaf258619d4c6b91a22f95cd1f`).
+Earlier C4 X-e-1…7 evidence remains recorded; no additional broad mutation/body/asset campaign ran.
+
+C6 ownership clarified explicitly by the coordinator: dated amendments are now in the isolated
+branch's `docs/decisions/ARC-145.md` and `ARC-147.md`. Historical decisions remain; they record
+implementation and approval, not merge/full acceptance. The decision index is unchanged. No root
+checkout, shared overall plan/dashboard or unrelated decision record was edited.
+
+Readability/debt review: one shared loader/pose owns the new representation; validation is isolated
+in a small helper and runs before any rows are appended. Numeric ranges are constrained only by
+finite drawable coordinates. No new world names, point keys, action decisions, clock reads or
+renderer access entered production shared logic. Test-only pack injection stays in the two check
+harnesses. The fixture is independent measured evidence, with explicit body-clearance exclusions;
+no extra production abstraction, duplicate pose formula, baseline update or TODO was introduced.
+
+C5 implementation/local validation and C6 records are complete for independent review. Mandatory
+independent final red-team review is still pending; this is not full S34-e acceptance or shipping
+approval. No new live key/disconnect variants were added (shared cancellation cases are covered;
+existing reconnect baseline now passes). S34-f contact/armrest/foot validation and S34-e2 rendered
+sprite work remain excluded. F-RC-7 assertions/logger/helpers and all protected server/world paths
+are unchanged by this amendment. No public writes or merge were performed.

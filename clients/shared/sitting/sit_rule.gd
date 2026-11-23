@@ -13,7 +13,8 @@
 ##
 ## The depiction file (`presentation/mineworld-default/3D/sit_points/<world>.yaml`) binds a point by its
 ## place's tags (every one of `tags`, none of `unless`, ARC-179) and its key, and gives the drawn seat (`seat_height_m`, `seat_offset_m`, `prop`) and,
-## until S34-c writes the points into world data, the fallback `at` / `facing` (Q-S33f-1 (A)).
+## until S34-c writes the points into world data, the fallback `at` / `facing` (Q-S33f-1 (A)). A format-2
+## file may give a point `seat_displacement_m: {east, north}` instead of `seat_offset_m` (S34-e AC-e-9).
 ##
 ## Both clients call [method decide] with what they were told: it reads no clock, no scene and no
 ## renderer state, so the 2D and the 3D client draw the same people seated at the same points. Neither
@@ -33,7 +34,8 @@ const DIR := "sit_points"
 const STILL_MM := 1
 
 ## Every point of the file: { tags: PackedStringArray, point, group, prop, seat_height_m,
-## seat_offset_m, at: Vector2 (mm) or null, facing: int (millidegrees) }.
+## seat_offset_m, at: Vector2 (mm) or null, facing: int (millidegrees) }, plus seat_displacement_m:
+## Vector2 (metres east, north) when the file gives one.
 var points: Array = []
 var path := ""
 var problem := ""
@@ -51,15 +53,22 @@ static func load_for(pack_dir: String, world_key: String) -> MineWorldSitRule:
 	if not FileAccess.file_exists(rule.path):
 		return rule
 	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(rule.path))
-	if typeof(parsed) != TYPE_DICTIONARY or int(parsed.get("format", 0)) != 1 \
+	if typeof(parsed) != TYPE_DICTIONARY or int(parsed.get("format", 0)) not in [1, 2] \
 			or typeof(parsed.get("points")) != TYPE_ARRAY:
-		rule.problem = "%s is not a format-1 sit-point depiction file" % rule.path
+		rule.problem = "%s is not a format-1/2 sit-point depiction file" % rule.path
 		push_warning("sitting: " + rule.problem)
 		return rule
 	if String(parsed.get("scope", {}).get("world", "")) != world_key:
 		rule.problem = "%s: scope.world is not %s" % [rule.path, world_key]
 		push_warning("sitting: " + rule.problem)
 		return rule
+	# Every point is checked before any is kept: a faulty file gives no points at all.
+	for p in parsed["points"]:
+		var issue := _vector_problem(p, int(parsed["format"]))
+		if issue != "":
+			rule.problem = "%s: point %s: %s" % [rule.path, p.get("point", "?"), issue]
+			push_warning("sitting: " + rule.problem)
+			return rule
 	for p in parsed["points"]:
 		var at: Variant = null
 		var facing := 0
@@ -72,7 +81,29 @@ static func load_for(pack_dir: String, world_key: String) -> MineWorldSitRule:
 			"group": String(p.get("group", "")), "prop": String(p.get("prop", "")),
 			"seat_height_m": float(p.get("seat_height_m", 0.45)),
 			"seat_offset_m": float(p.get("seat_offset_m", 0.45)), "at": at, "facing": facing})
+		if p.has("seat_displacement_m"):
+			var v: Dictionary = p["seat_displacement_m"]
+			rule.points[-1]["seat_displacement_m"] = Vector2(float(v.east), float(v.north))
 	return rule
+
+
+## Why a point's `seat_displacement_m` is unusable, or "" when it is absent or valid.
+static func _vector_problem(p: Dictionary, format: int) -> String:
+	if not p.has("seat_displacement_m"):
+		return ""
+	if format != 2:
+		return "seat_displacement_m requires format 2"
+	if p.has("seat_offset_m"):
+		return "seat_displacement_m and seat_offset_m are mutually exclusive"
+	var v: Variant = p["seat_displacement_m"]
+	if typeof(v) != TYPE_DICTIONARY or v.size() != 2 or not v.has("east") or not v.has("north"):
+		return "seat_displacement_m requires exactly east and north"
+	for axis in ["east", "north"]:
+		if typeof(v[axis]) not in [TYPE_INT, TYPE_FLOAT] or not is_finite(float(v[axis])):
+			return "seat_displacement_m.%s must be a finite number" % axis
+	if not (Vector2(float(v.east), float(v.north)) * 1000.0).is_finite():
+		return "seat_displacement_m exceeds drawable millimetre coordinates"
+	return ""
 
 
 ## The depiction of `point` in a place carrying `place_tags`, or {}.
@@ -81,6 +112,40 @@ func depiction(place_tags: PackedStringArray, point: String) -> Dictionary:
 		if p["point"] == point and binds(p, place_tags):
 			return p
 	return {}
+
+
+## Where a person seated at `point` is drawn, in the place's frame, by both clients (I-e-2; the 3D client's
+## `SliceSeating.pose_of` before S34-e). { pelvis: Vector2 (mm), at: Vector2 (mm), facing: int (mdeg),
+## seat_height_m: float, prop: String, depicted: bool }, or {} when the point has no position at all.
+##   at, facing     the disclosed point's, when the place discloses sit-points; else the depiction's fallback
+##   seat_*, prop   the depiction's when one binds the point; else seat height 0.45 m (VISUAL_SLICE sec.3.4),
+##                  offset 0.0 (the pelvis drawn at `at`), prop "", and depicted false
+func pose_of(place_tags: PackedStringArray, disclosed: Variant, point: String) -> Dictionary:
+	var dep := depiction(place_tags, point)
+	var depicted := not dep.is_empty()
+	var at: Variant = dep.get("at")
+	var facing := int(dep.get("facing", 0))
+	if typeof(disclosed) == TYPE_ARRAY:
+		for p in disclosed:
+			if typeof(p) == TYPE_DICTIONARY and String(p.get("key", "")) == point:
+				at = Vector2(float(p["at"]["x"]), float(p["at"]["y"]))
+				facing = int(p.get("facing", 0))
+	if at == null:
+		return {}
+	var offset_m := float(dep["seat_offset_m"]) if depicted else 0.0
+	var drawn := pelvis(at, facing, offset_m)
+	if dep.has("seat_displacement_m"):
+		drawn = at + dep["seat_displacement_m"] * 1000.0
+	return {"pelvis": drawn, "at": at, "facing": facing,
+		"seat_height_m": float(dep["seat_height_m"]) if depicted else 0.45,
+		"prop": String(dep["prop"]) if depicted else "", "depicted": depicted}
+
+
+## `at` (mm) moved by `offset_m` against `facing_md` (millidegrees from north toward east): where the pelvis
+## of a person seated facing `facing_md` sits, given the point's `at` and the seat's offset.
+static func pelvis(at: Vector2, facing_md: int, offset_m: float) -> Vector2:
+	var yaw := deg_to_rad(float(facing_md) / 1000.0)
+	return at - Vector2(sin(yaw), cos(yaw)) * offset_m * 1000.0
 
 
 ## The decision for one observation of one place.
@@ -157,6 +222,12 @@ static func people_of(observation) -> Array:
 	return out
 
 
+## The observer's place's disclosed sit points (`[{key, at, facing, group?}]`), or null when it discloses none.
+## Read here so that no client script outside this module names the posture component (I-e-4).
+static func disclosed_of(observation) -> Variant:
+	return observation.component_value(observation.place(), "sit-points")
+
+
 ## The observer's place's disclosed tags.
 static func tags_of(observation) -> PackedStringArray:
 	var tags: Variant = observation.entity(observation.place()).get("tags", [])
@@ -169,8 +240,7 @@ func decide_observed(observation) -> Dictionary:
 	if here == "":
 		_still.clear()
 		return {}
-	return decide(tags_of(observation), observation.component_value(here, "sit-points"),
-		people_of(observation), float(observation.at()))
+	return decide(tags_of(observation), disclosed_of(observation), people_of(observation), float(observation.at()))
 
 
 ## Whether point `p` (of [member points]) binds to a place carrying `place_tags`: every one of its `tags`
