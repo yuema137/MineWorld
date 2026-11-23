@@ -584,6 +584,13 @@ the implementation under review. Initial stdout is in the snapshot directory's
 
 ### Historical implementation evidence
 
+Recovery commit mapping: `b2a4408e` completes the October 27 comparison extension,
+repairs its regression, and strengthens AC-b2-7's disclosure oracle. The following
+`fix(notices): preserve scalar topic ids and pin pre-adoption event parity` commit
+completes the bounded vocabulary correction and adds the frozen AC-b2-1 evidence.
+Both implementation, deterministic validation, and implementer logic review are complete
+for these recovery milestones; independent red-team review remains the primary's next step.
+
 The following October ledger is preserved as history. Its C4 failure and material stop
 were resolved by the approved recovery above. C5's old public-push/remote-CI endpoint is
 withheld under the current dispatch; local completion is recorded separately and is not

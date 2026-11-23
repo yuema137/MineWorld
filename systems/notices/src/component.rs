@@ -1,6 +1,6 @@
-//! The state this pack keeps on a person, and the two records it discloses.
+//! The state this pack keeps on a person, and the records it discloses.
 //!
-//! `subscriptions` is a person's component and is disclosed as itself, to that person only.
+//! `subscriptions` is a person's component, disclosed only to that person with optional attributes.
 //! `notice-board` is a declared component type that no entity carries, like calendar's records: the
 //! notices live in the board Process, and this is how the current ones are shown to one person.
 

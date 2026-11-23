@@ -131,7 +131,8 @@ fn subscribers(read: &WorldRead<'_>, topic: &crate::TopicId) -> BTreeSet<EntityI
 impl System for NoticesSystem {
     const VERSION: SystemVersion = SystemVersion::new(1);
 
-    /// No dependency: `notices` reads no other System's state. The audience of a notice is honoured by
+    /// No required System dependency: attribute disclosure uses the optional running catalogue.
+    /// The audience of a notice is honoured by
     /// presence's audience rule (`ARC-43`), which every perceived stream already runs.
     fn declaration(&self) -> SystemDeclaration {
         SystemDeclaration::of::<Self>()

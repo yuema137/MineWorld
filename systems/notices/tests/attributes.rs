@@ -221,6 +221,29 @@ fn the_vocabulary_is_the_worlds_topics() {
     assert!(refusal_code(refused).contains("unknown-topic"));
 }
 
+/// Topic ids may also be YAML scalar spellings: yielding them must preserve their string identity.
+#[test]
+fn yielded_topics_preserve_yaml_scalar_spellings() {
+    let configuration = W1_TOPICS
+        .replace("prices.ingredients:", "\"null\":")
+        .replace("news.daily:", "\"true\":");
+    let decoded: NoticesConfiguration =
+        serde_saphyr::from_str(&configuration).expect("quoted topic keys decode");
+    let built = catalogue(&NoticesSystem::yields(&decoded)).expect("topic ids remain strings");
+    let vocabulary = built
+        .vocabularies()
+        .iter()
+        .find(|(id, _)| id.as_str() == "notices.topics")
+        .map(|(_, values)| {
+            values
+                .iter()
+                .map(|value| value.as_str())
+                .collect::<Vec<_>>()
+        })
+        .expect("notices.topics");
+    assert_eq!(vocabulary, ["null", "true"]);
+}
+
 /// AC-b2-4 and M-b2-1: with `attributes`, `defaults.by_tag` and a `notices:` section are each refused
 /// `subscriptions-are-attributes`; without `attributes`, both still load.
 #[test]

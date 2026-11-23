@@ -124,13 +124,12 @@ impl PackConfiguration for NoticesSystem {
     /// `vocabularies/`; elsewhere it is skipped and nothing changes.
     fn yields(configuration: &NoticesConfiguration) -> Vec<YieldedFile> {
         let topics: Vec<&str> = configuration.topics.keys().map(TopicId::as_str).collect();
+        // JSON's quoted string list is valid YAML, including ids such as `null` and `true`.
+        let topics = serde_json::to_string(&topics).expect("topic ids are strings");
         vec![YieldedFile {
             directory: VOCABULARIES,
             name: "topics.yaml".to_owned(),
-            text: format!(
-                "format: 1\nvocabularies:\n  topics: [{}]\n",
-                topics.join(", ")
-            ),
+            text: format!("format: 1\nvocabularies:\n  topics: {topics}\n"),
         }]
     }
 
