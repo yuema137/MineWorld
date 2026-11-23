@@ -5,17 +5,17 @@
 **Ruled 2026-10-26 (operator, primary session):** every question below is answered as recommended.
 
 ```text
-Design revision:        revision 1 (2026-10-20), DRAFT
+Design revision:        revision 1 (2026-10-20), frozen 2026-10-26; scope extension 2026-10-27
 Author:                 S31-b2 PR-design sub-agent (Opus), worktree
                         /Users/yuema137/mineworld-worktrees/impl-notices-attr, branch
                         docs/pr-design-notices-attributes, planning base origin/main @ fec906f2
                         (S31-b #349 and S30-c merged; S30-f merged: employment is an owner)
-Approved by / evidence: none yet. §14 lists the freeze questions, each with a recommended answer
-Implementation base:    main at C0
+Approved by / evidence: operator rulings recorded in the freeze header and §14.1
+Implementation base:    original C0 0b2faf2f; recovery 2b4d36fa (2026-11-22)
 Start condition:        this design frozen by the operator; the coordinator's dispatch
 Execution contract:     §12
 Implementer:            Opus-class for C1 (a loader seam); Haiku may take C3 (the topics record)
-Lifecycle:              DRAFT
+Lifecycle:              IMPLEMENTING — local recovery, publication withheld by current dispatch
 ```
 
 **Effort:** `mvp0` · **Step:** [`step-31-wealth-prices.md`](step-31-wealth-prices.md) §8.5 ("Order");
@@ -458,7 +458,136 @@ reads the `topics` record) and **R-S31e-b2-1** (the board panel lists topics; wo
 as merged. If S31-e or S31-g goldens or tests move because of the new `topics` record, updating them is a bounded
 correction under R-b2-3's logic and is recorded in §15.
 
+**Approved scope extension (operator, 2026-10-27, relayed by the coordinator).** The C4 material stop (§15) is
+ruled as proposed: `compare` in `worldpack/src/configure.rs` checks only saved facts caused by
+`Causation::WorldGenesis`, with one test in `worldpack/src/configure/tests.rs`. Both files join §2.1 for this PR.
+
 ## 15. Ledger (live during implementation)
+
+### Recovery on 2026-11-22
+
+The coordinator delegated local completion on base `2b4d36fa`, branch
+`recover/s31b2-notices-attributes`, worktree `/tmp/mineworld-recover-s31b2`. The old
+`/Users/yuema137/mineworld-worktrees/impl-s31b2` remains read-only. Its five commits
+`18c9c2cd`, `c90abc88`, `93d30dda`, `7d93acb5`, `5b533593` were recovered as
+`29bec581`, `b7a501cb`, `2136b97c`, `6a2baa03`, `b3450fd1`, respectively, without conflicts.
+The three dirty files (this ledger and `worldpack/src/configure{,/tests}.rs`) were recovered
+from `/tmp/mineworld-s31b2-snapshot/dirty.patch`, SHA256
+`e6b5f5f0fcfb61acf0981cb1599d4942f179dfe22b6a7ac40b31cf028302fd54`.
+There were no untracked files. Root and old-worktree content were not edited.
+
+The October 26 freeze supersedes the historical DRAFT metadata above. The October 27
+14:16 operator ruling in `/Users/yuema137/mineworld-demos/progress/pending-decisions.md`
+explicitly approves the WorldGenesis-only comparison and regression: the historical C4
+material stop below is resolved, not a pending approval. The latest root `CLAUDE.md`
+standing rules apply even though they are uncommitted.
+
+Endpoint authority for this recovery is the coordinator's 2026-11-22 dispatch: implement,
+validate locally, review, and make local semantic commits and a PR body; no push, PR
+publication, merge, tag, paid API, subagents, or shared-plan/dashboard writes. Independent
+red-team review is coordinated by the primary as soon as local evidence is ready. Remote
+CI remains NOT RUN and is not a prerequisite to starting that review.
+
+Validation plan: slot-guarded comparator tests establish that direct genesis configuration
+still detects drift while reaction facts do not. The existing real-binary
+`notices_attributes_disclosed_and_resumed` test owns actual subscription → SIGKILL →
+restart → projected disclosure → replay behavior. Run that test, the bounded notices
+integration files and loader data tests, then formatting, scoped clippy, documentation
+checks and reference verification. No workspace suite. Gate 1 is NOT REQUIRED: no
+model-facing semantics change or paid model use. Gate 2 is the real-binary restart test,
+target under ten minutes per run after compilation. Preserve failed attempts and exact
+commands below; old October evidence is historical, not evidence for this recovery head.
+
+Recovery findings: the preserved comparator regression selected genesis index zero, which is
+`arrived`, not `probe-configured`. The first focused run FAILED (1 pass, 1 failure): its
+direct-genesis negative arm correctly exposed that the test was outside the comparator's
+owned types. Select the event by its declared type and assert the named owner and payload.
+The comparator implementation itself retains the approved single causation filter.
+
+The configured vocabulary also emitted bare YAML scalars. A new catalogue integration
+regression with valid topic ids `null` and `true` FAILED because `null` could not decode as
+a string. Encode the list through the existing JSON serializer (valid YAML), preserving
+all topic ids without expanding the public vocabulary or adding a dependency. This is a
+bounded correction to AC-b2-3, not a new feature.
+
+### Recovery validation and review
+
+All commands below run from `/tmp/mineworld-recover-s31b2`; every Cargo test/clippy
+command uses `/Users/yuema137/mineworld-worktrees/cast-slots/with-slot.sh`.
+Tested content is recovery HEAD `b3450fd1` plus the reviewed recovery diff; final commit
+mapping is recorded in the handoff after committing without changing executable content.
+
+| Claim | Command / observation | Result |
+| --- | --- | --- |
+| Configuration drift distinguishes direct input from reaction output | `cargo test -p mineworld-worldpack --lib configure::tests::the_comparator` | PASS, 2 tests; initial repaired run 2.51 s including compilation |
+| Comparator regression is discriminative | Remove only the WorldGenesis filter, run the same target; restore source automatically and rerun | Expected FAIL in reaction regression; restored PASS, 2 tests. Mutation and restored logs in `/tmp/mineworld-s31b2-snapshot/comparator-{mutant,restored}.log` |
+| Pack ownership, role-equivalent initialization, vocabulary, privacy, legacy behavior, topics | `cargo test -p mineworld-notices` | PASS, 30 tests across seven integration targets, 8.74 s build; no unit/doc tests counted as evidence |
+| Loader seam ordering and errors | `cargo test -p mineworld-worldpack --lib data` | PASS, 9 tests, 1.71 s build |
+| Actual binary validation, privacy, dynamic subscriptions, kill/restart/replay | `cargo test -p mineworld-cli --test notices -- --skip no_random_subscription` | PASS, 7 tests, 1.65 s execution after 1m41s initial build; excludes only the existing 30-day scenario |
+| Complete disclosure equality after restart (final strengthened test) | `cargo test -p mineworld-cli --test notices notices_attributes_disclosed_and_resumed` | PASS, 1 test, 1.30 s execution after 14.80 s rebuild |
+| Scoped compilation and lint | `cargo clippy -p mineworld-authoring -p mineworld-worldpack -p mineworld-notices -p mineworld-cli --all-targets -- -D warnings` | PASS, 15.53 s, no warnings |
+| Generated reference | `target/debug/mineworld reference --check docs/reference` | PASS, 46 files match; no regeneration needed |
+| Static documentation and hygiene | `cargo fmt --all --check`, `git diff --check`, `python3 scripts/check_doc_headings.py`, `python3 scripts/check_decision_ids.py`, `python3 scripts/check_scratch.py scan` | PASS after formatting the new regression; 254 headings, 257 decision ids, 386 test sources |
+
+AC-b2-1 now has independent complete event-envelope byte evidence, beyond the historical
+component comparison. A detached baseline worktree `/tmp/mineworld-s31b2-parity` at
+`2b4d36fa` ran the same `tests/parity.rs` scenario with its original support and production
+sources. W1 and W2 each initialize tag defaults and an authored empty override, subscribe,
+publish text and prices, then unsubscribe. W2 renames the price topic and tag and adds a
+third topic. Captured immutable files, including terminal newline:
+
+- `systems/notices/tests/fixtures/pre-attributes-w1.json`, SHA256
+  `372ade1bebf5154c29c52cdebc19712e97d00e85d137c5404690f278255aa9b1`.
+- `systems/notices/tests/fixtures/pre-attributes-w2.json`, SHA256
+  `496d1efdca38eee5cb923dcaa38a8e168a1c1d06f5aaa8b1fa398ed7285b3102`.
+
+The baseline capture passed before these files were copied into the recovery tree;
+`tests/parity.rs` then passed against their bytes. Expected values are never derived from
+the implementation under review. Initial stdout is in the snapshot directory's
+`parity-baseline.log`; the tracked fixtures and scenario are the durable evidence.
+
+**Implementer logic and maintainability review (2026-11-22).**
+
+- Ownership and modularity: only notices writes `Subscriptions`. The optional model-crate
+  interface projects current component state and returns disclosure through the shared
+  renderer. No duplicate attribute store, required System dependency, kernel concept,
+  localization type, UI, or resolution-context API is introduced. The loader seam is generic
+  and defaults to no files; files retain configuring-pack provenance and owner decoding.
+- Robustness: malformed handed values fail explicitly, unknown topics are refused by the
+  existing reducer, authored initialization is refused when the catalogue declares the
+  attribute, and by-tag initialization is detected before context reduction completes.
+  As §5.4 specifies, this detects defaults that actually seed a person; an unmatched tag
+  default creates no second state source. Private records return early for other subjects.
+  Topics use the live component, not a cached flag. Restart compares only assembly inputs;
+  persisted reaction output remains checked by replay, not silently discarded.
+- Newly introduced defects fixed: ambiguous YAML scalars are quoted, the comparator test
+  selects the intended event, and stale component/dependency comments now describe optional
+  attribute disclosure. Complete disclosure equality strengthens the real restart oracle.
+- Size/readability: `notices/src/system.rs` grows from 345 to 481 lines and
+  `worldpack/src/data.rs` from 456 to 534. The former remains the install/dispatch/disclosure
+  implementation; its existing long reaction dispatcher grows by two explicit event cases,
+  with handed-value conversion in a separate helper. The latter remains data collection and
+  owner decoding; yielded-name checks and provenance formatting are separate small helpers.
+  Both were reviewed at the size triggers: no new mixed domain responsibility, deep nesting,
+  inheritance, or hidden mutable coupling was found. Extracting arbitrary fragments solely
+  to meet a line count would reduce conceptual locality. Existing dispatch/loader size is
+  retained debt, explicitly distinguished from the bounded new branches.
+- Extensibility and reuse: subsequent configured vocabularies use the same optional yield
+  hook, without adding a dependency or teaching the loader their domain. JSON serialization
+  reuses the existing library and avoids hand-escaped YAML. No speculative abstraction was
+  added beyond the frozen seam.
+- Scope scan: no changes under the forbidden directories in I-b2-1, no event-schema change,
+  no reference-world source/golden changes, no shared plans or dashboard edits. AC-b2-8's
+  reference-world milestone/remote CI is NOT RUN locally under the coordinator's cost and
+  publication limits. It is not represented as a local pass. The primary owns independent
+  red-team review and later integration/remote validation.
+
+### Historical implementation evidence
+
+The following October ledger is preserved as history. Its C4 failure and material stop
+were resolved by the approved recovery above. C5's old public-push/remote-CI endpoint is
+withheld under the current dispatch; local completion is recorded separately and is not
+a claim of merge readiness or remote validation.
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |

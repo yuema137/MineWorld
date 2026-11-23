@@ -599,6 +599,7 @@ async fn notices_attributes_disclosed_and_resumed() {
         own["attributes"].to_string().contains("news.daily"),
         "the projection follows the subscription: {own}"
     );
+    let before_restart = own;
     let died = first.kill();
     assert!(died.killed(), "the server died of SIGKILL: {died:?}");
     drop(window);
@@ -608,6 +609,10 @@ async fn notices_attributes_disclosed_and_resumed() {
     window.join("bob").await;
     let seen = window.observation().await;
     let own = record_about(&seen, bob, "subscriptions").expect("bob's record after the kill");
+    assert_eq!(
+        own, before_restart,
+        "the full subscription and attribute disclosure survives"
+    );
     assert_eq!(own["topics"], json!(["news.daily", "prices.ingredients"]));
     assert!(
         own["attributes"].to_string().contains("news.daily"),
