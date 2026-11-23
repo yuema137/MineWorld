@@ -15,7 +15,7 @@ Implementation base:    original C0 0b2faf2f; recovery 2b4d36fa (2026-11-22)
 Start condition:        this design frozen by the operator; the coordinator's dispatch
 Execution contract:     §12
 Implementer:            Opus-class for C1 (a loader seam); Haiku may take C3 (the topics record)
-Lifecycle:              IMPLEMENTING — local recovery, publication withheld by current dispatch
+Lifecycle:              LOCAL REVIEW READY — independent review pending; publication withheld
 ```
 
 **Effort:** `mvp0` · **Step:** [`step-31-wealth-prices.md`](step-31-wealth-prices.md) §8.5 ("Order");
@@ -590,6 +590,10 @@ repairs its regression, and strengthens AC-b2-7's disclosure oracle. The followi
 completes the bounded vocabulary correction and adds the frozen AC-b2-1 evidence.
 Both implementation, deterministic validation, and implementer logic review are complete
 for these recovery milestones; independent red-team review remains the primary's next step.
+
+The executable recovery endpoint is `19e30172bc57775d4b1369df7ccdee8226745955`.
+The subsequent documentation commit freezes the review packet; its exact SHA is sent to
+the coordinator with the PR body and evidence paths. No remote/public action is performed.
 
 The following October ledger is preserved as history. Its C4 failure and material stop
 were resolved by the approved recovery above. C5's old public-push/remote-CI endpoint is
