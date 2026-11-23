@@ -300,6 +300,7 @@ struct InvalidResult {
     inner: Arc<dyn ResolvedSeeds>,
     wrong_owner: bool,
     wrong_section: bool,
+    wrong_context: bool,
 }
 impl ResolvedSeeds for InvalidResult {
     fn owner(&self) -> SystemId {
@@ -317,7 +318,11 @@ impl ResolvedSeeds for InvalidResult {
         }
     }
     fn context(&self) -> Arc<dyn OwnerContext> {
-        data_context::<First>(vec![], None).expect("wrong final context")
+        if self.wrong_context {
+            data_context::<First>(vec![], None).expect("wrong final context")
+        } else {
+            self.inner.context()
+        }
     }
     fn as_any(&self) -> &dyn Any {
         self.inner.as_any()
@@ -353,6 +358,7 @@ fn final_context_later_refusal_or_invalid_result_publishes_neither_owner() {
                     inner: resolve(owner, context, config, subjects)?.expect("result"),
                     wrong_owner: failure == 2,
                     wrong_section: failure == 3,
+                    wrong_context: failure == 4,
                 }))),
             }
         })

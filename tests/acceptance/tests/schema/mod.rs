@@ -72,6 +72,8 @@ pub struct SchemaFile {
 pub struct Schemas {
     pub fields: BTreeMap<String, Range>,
     pub default: i64,
+    /// Sum of all resolved subject values; zero before resolution.
+    pub resolved_total: i64,
     pub origins: Vec<(String, DataSource, PathBuf)>,
 }
 
@@ -114,6 +116,7 @@ impl OwnsData for SchemaPack {
         let mut schemas = Schemas {
             fields: BTreeMap::new(),
             default,
+            resolved_total: 0,
             origins: Vec::new(),
         };
         for (origin, file) in files {
@@ -130,6 +133,18 @@ impl OwnsData for SchemaPack {
                 .push((origin.pack, origin.source, origin.path));
         }
         Ok(schemas)
+    }
+
+    const CONTEXT_FACTS: &'static [EventTypeId] = &[SchemaComposed::EVENT_TYPE];
+
+    fn seed_context(_: &Seeding<'_, '_>, context: &Schemas) -> Result<Vec<Emission>, Rejection> {
+        Ok(vec![Emission::new::<SchemaComposed>(
+            serde_json::to_vec(&SchemaComposed {
+                total: context.resolved_total,
+            })
+            .expect("encodes"),
+            Visibility::SystemInternal,
+        )])
     }
 }
 
@@ -230,7 +245,7 @@ impl ResolvesSubjects for SchemaPack {
         _: Option<&dyn Any>,
         subjects: &[Subject<'_, Values>],
     ) -> Result<SubjectResolution<Self::Context, Self::Seed>, ResolveRefusal> {
-        let seeds = subjects
+        let seeds: BTreeMap<_, Values> = subjects
             .iter()
             .map(|subject| {
                 let mut values = subject.authored.cloned().unwrap_or_default();
@@ -240,6 +255,12 @@ impl ResolvesSubjects for SchemaPack {
                 (subject.key.clone(), values)
             })
             .collect();
+        let context = Arc::new(Schemas {
+            fields: context.fields.clone(),
+            default: context.default,
+            origins: context.origins.clone(),
+            resolved_total: seeds.values().flat_map(BTreeMap::values).sum(),
+        });
         Ok(SubjectResolution { context, seeds })
     }
 
@@ -251,6 +272,25 @@ impl ResolvesSubjects for SchemaPack {
     ) -> Result<Vec<Emission>, Rejection> {
         Ok(vec![stated(subject, values)])
     }
+}
+
+/// Test-only world-level final context fact, about no subject.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SchemaComposed {
+    pub total: i64,
+}
+impl Event for SchemaComposed {
+    const EVENT_TYPE: EventTypeId = EventTypeId::from_static("schema-composed");
+    const OWNER: SystemId = SchemaPack::ID;
+    const SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(1);
+}
+
+/// Holds the summary as world-level state; wakes make the persistence test advance real revisions.
+pub struct SummaryProcess;
+impl mineworld_kernel::ProcessKind for SummaryProcess {
+    const PROCESS_TYPE: mineworld_contracts::ProcessTypeId =
+        mineworld_contracts::ProcessTypeId::from_static("schema-summary");
+    type Owner = SchemaPack;
 }
 
 /// `schema-stated`: a subject's resolved values.
@@ -297,6 +337,8 @@ impl System for SchemaPack {
     fn declaration(&self) -> SystemDeclaration {
         SystemDeclaration::of::<Self>()
             .owning::<SchemaValues>()
+            .emitting::<SchemaComposed>()
+            .subscribing_to::<SchemaComposed>()
             .emitting::<SchemaStated>()
             .subscribing_to::<SchemaStated>()
     }
@@ -310,6 +352,20 @@ impl System for SchemaPack {
         world: &mut WorldView<'_, Self>,
         event: &EventEnvelope,
     ) -> Result<Vec<Emission>, KernelError> {
+        if *event.event_type() == SchemaComposed::EVENT_TYPE {
+            let bytes = event.payload().payload_for::<SchemaComposed>()?;
+            let _: SchemaComposed = serde_json::from_slice(bytes).map_err(|_| {
+                KernelError::Contract(mineworld_contracts::ContractError::EventTypeMismatch {
+                    expected: SchemaComposed::EVENT_TYPE,
+                    actual: event.event_type().clone(),
+                })
+            })?;
+            world.start_process(
+                mineworld_kernel::ProcessStart::<SummaryProcess>::new(bytes.to_vec())
+                    .ending_at(mineworld_contracts::WorldTime::from_seconds(10))
+                    .uninterruptible(),
+            )?;
+        }
         if *event.event_type() == SchemaStated::EVENT_TYPE {
             let bytes = event.payload().payload_for::<SchemaStated>()?;
             let fact: SchemaStated = serde_json::from_slice(bytes).map_err(|_| {
@@ -325,6 +381,20 @@ impl System for SchemaPack {
                 },
             )?;
         }
+        Ok(Vec::new())
+    }
+
+    fn wake(
+        &self,
+        world: &mut WorldView<'_, Self>,
+        process: &mineworld_kernel::Process,
+    ) -> Result<Vec<Emission>, KernelError> {
+        world.reschedule_process::<SummaryProcess>(
+            process.id(),
+            Some(mineworld_contracts::WorldTime::from_seconds(
+                world.at().seconds() + 10,
+            )),
+        )?;
         Ok(Vec::new())
     }
 }

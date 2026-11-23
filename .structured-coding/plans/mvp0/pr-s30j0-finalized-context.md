@@ -232,8 +232,8 @@ Depends on C1; no configure comparison rewrite, capability additions or runtime 
 **Validation:**
 - [x] Deterministic F2–F6: changed derived context, two owners, owner mismatch, later refusal,
   zero subjects, absent authored section, omitted seed, repeated assembly and actual event order.
-- [ ] Existing loader data/resolution/configuration regression filters and real CLI golden.
-- [ ] Independent logic review verifies install precedes check_references and no partial pack escapes.
+- [x] Existing loader data/resolution/configuration regression filters and real CLI golden.
+- [x] Independent logic review verifies install precedes check_references and no partial pack escapes.
 **Acceptance:** F2–F6 observable, including tool-facing WorldPack::context and same Arc data.
 **Failures/edges:** any resolution/owner mismatch aborts load; earlier successful result is
 not installed on failure; nonresolver unchanged; missing seed intentionally emits nothing.
@@ -251,16 +251,16 @@ load.rs cleanup. Stage inspection and evidence update precede local commit.
 `tools/cli/tests/attributes_resolve.rs` or adjacent new `attributes_context_restart.rs`.
 Depends on C1/C2. Reuse existing scratch guards, persistence APIs, CLI process helpers.
 **Implementation:**
-- [ ] Extend SchemaPack test context with immutable subject-derived summary and internal
+- [x] Extend SchemaPack test context with immutable subject-derived summary and internal
   world-level fact; use its codec/reducer to verify replayed state.
-- [ ] Add real PersistentWorld create/advance/drop/open/replay/verify flow following the
+- [x] Add real PersistentWorld create/advance/drop/open/replay/verify flow following the
   configuration_seam.rs SQLite pattern; saved genesis comparison uses reopened disk facts.
-- [ ] Reject changed derived source before resume append; compare stored rows unchanged.
-- [ ] Run real CLI on existing sampled world: resolve golden, create/continue/verify saved
+- [x] Reject changed derived source before resume append; compare stored rows unchanged.
+- [x] Run real CLI on existing sampled world: resolve golden, create/continue/verify saved
   world using supported binary commands; inspect facts and resume report, not exit alone.
-- [ ] Compare baseline/head reference event bytes; archive commands and digests.
+- [x] Compare baseline/head reference event bytes; archive commands and digests.
 **Validation:**
-- [ ] F7–F9 deterministic evidence with explicit separation: SchemaPack exercises SDK +
+- [x] F7–F9 deterministic evidence with explicit separation: SchemaPack exercises SDK +
   kernel + persistence seam, because closed Capability prevents public loader installation;
   C2 proves generic loader wiring, real attributes CLI proves installed-loader compatibility.
 - [ ] Targeted fmt/check/clippy, documentation and scratch checks, plus independent F10 review.
@@ -382,9 +382,8 @@ Endpoint authority: dispatch and §8 authorize local implementation, validation,
 prohibit public writes, merge, paid APIs, subagents and shared root documentation/dashboard edits.
 Sequence C1 → C2 → C3; budget §7, one heavy job through shared slots, 60 minutes active soft limit.
 Binding contracts: CLAUDE.md, MODULE_SPEC §3.1, ARC-121; invariants §§2–5 above.
-Current checkpoint: C1 implementation in progress; validation NOT RUN, review NOT RUN.
-Next: complete C1 migration/docs/seam regressions, capture unchanged base CLI parity, then targeted
-checks and independent review through primary. Material scope/dependency/byte changes stop for review.
+Current checkpoint: C3 implementation and affected validation complete; final independent review PENDING. Historical per-checkpoint entries
+below retain their original status; the final receipt supersedes them. Material scope changes stop for review.
 Gate 1 NOT REQUIRED: no model-facing semantics. Gate 2 owns actual SQLite and CLI lifecycle.
 
 C1 deterministic evidence (precommit, executable content staged with checkpoint):
@@ -438,3 +437,71 @@ all original context Arcs and empty original resolutions. No newly introduced do
 knowledge, cross-owner context access, mutable cache or registry expansion.
 Independent C2 review pending. Real CLI golden is consolidated with C3's planned CLI target
 to avoid duplicating that process evidence. C3 tests in progress, unstaged at C2 checkpoint.
+
+Independent checkpoint review: C1 PASS at aa17bace, report
+`/tmp/mineworld-s30j0-c1-red-team-review.md`. C2 source logic PASS at 39349ace but
+review found overlapping invalid-result cases: the wrong-owner and wrong-section cases
+also returned a wrong context. Corrected with a separate wrong_context flag; owner and
+section cases now retain inner.context. Focused guard-removal proof requested by primary,
+limited to the corrected exact test and restoring source in finally; results pending.
+SDK source doc audit also found old 'every reference checked' wording in pack.rs; corrected
+without changing erased dispatch signatures.
+
+C3 first SQLite acceptance run: 5 PASS, 25.93s compile, 0.01s tests. Real create/advance/drop,
+reopen with one journal revision replayed, advance again and verify: 3 revisions and 2 facts.
+Changed authored source refuses named ConfigurationDrift against disk genesis before resume;
+11 saved rows remain identical, digest ae5de701e19f6019. The adapter invokes production compare,
+not installed custom-pack loading. Advanced must-use warnings fixed by asserting instants == 1.
+
+CLI first attempt: 5 FAIL at pre-load package identity, INCONCLUSIVE for feature claims.
+Source audit packages/src/declared.rs: bundled = compiled_under(manifest_dir, PACKAGES_DIR),
+with the latter compiled into packages. Reusing the baseline target across checkout roots
+retained the baseline root in that dependency while head packs had the new root. This is
+validation environment contamination, not a reason to modify package rules/world fixtures.
+Corrective run uses fresh head-only `/tmp/mineworld-s30j0-head-target`; baseline target/save
+remain preserved. All final CLI/static checks will use head-only target. Earlier pure seam
+checks exercised their claims and do not depend on bundled package classification.
+
+
+C3 final receipt (source staged for the C3 checkpoint; final independent review pending):
+- Fresh head-only CLI `attributes_resolve`: 5 PASS, 99s build, 1.08s tests. Includes
+  unchanged golden and actual create/reopen/continue/replay verification.
+- Final six-package all-target `cargo clippy --offline --locked ... -- -D warnings`:
+  PASS, 19.90s. Covers all five migrated implementers, SDK source, and last warning fixes.
+- Final acceptance `data_seam -- --nocapture`: 5 PASS, 64s build, 0.01s tests;
+  11 unchanged rows, digest ae5de701e19f6019, replay verifies 3 revisions/2 facts.
+- Corrected C2 exact test: 1 PASS (5.11s). Owner-guard removal: expected RED (1.33s);
+  section-guard removal: expected RED (1.28s). Both ran exactly one test and failed at
+  the expected refusal assertion. Production source restored in finally and git diff
+  confirms no change; SHA256 44fbc7b7b5c11308abfb5ef00884c678990a91341dbe702b8f198844effa6933.
+  Script and three logs: `/tmp/mineworld-s30j0-evidence/check-guards.py`,
+  `corrected.log`, `owner-guard-removed.log`, `section-guard-removed.log`.
+- Head social-cafe run matches preserved base exactly: 4351 facts, 4101209 bytes,
+  SHA256 09af4594486407f3d6b5f3191a44488e62304dc7278051ff7a1bfc9f6fc597a7.
+  Deterministic stdout also equal (only existing header/wall exclusions). Canonical
+  byte framing, saved artifacts and stdout provenance are in
+  `/tmp/mineworld-s30j0-evidence/{compare-head.py,parity-result.txt,baseline-provenance.txt}`;
+  baseline/head facts and stdout retained there. No world/golden/baseline edits.
+- Final fmt and diff whitespace PASS; headings PASS (254 sections/337 docs), decision
+  IDs PASS (257), scratch static PASS (387 sources, 2 established exemptions).
+  Scratch-left reports one unowned system-temp entry `mineworld-full-link-honaky1m`
+  (863.2 MiB), not created by this PR; left untouched. Owned head target/tmp is empty.
+  Global scratch hygiene is not claimed PASS. Baseline/head saves are intentional
+  retained review evidence outside test scratch. No broad workspace or remote CI run.
+
+C3 self review: test fixture SchemaPack is 409 lines, coherent persistence adapter 197,
+loader fixture 375. Production runtime changes remain confined to C1/C2; C3 adds tests,
+corrects independently identified test overlap and public SDK lifecycle wording.
+The schema context is non-Clone, derives from resolved values, emits a subjectless
+SystemInternal fact and replays actual process state. Its adapter boundary is documented;
+it does not claim installation into the closed catalog. Existing attributes supplies real
+CLI compatibility evidence. No new registry/kernel/domain facts or runtime newcomers.
+No material debt found: no catch-all state bag, mutation cache, duplicate assembly pipeline
+or production test hooks. Review packet retains source-level API break documentation,
+YieldedFile export and unchanged WorldGenesis filter. Final independent F10 remains pending.
+
+Final loader filters: data::tests 9 PASS (3.73s); configure::tests 16 PASS (0.11s),
+including YieldedFile collection/refusals and reaction-during-genesis filtering. Logs:
+`/tmp/mineworld-s30j0-evidence/data-regression.log` and `configure-regression.log`.
+All heavy work serialized through shared slots; total active time below 10 minutes,
+within the 60-minute budget. No broader rerun after these passing checks.
