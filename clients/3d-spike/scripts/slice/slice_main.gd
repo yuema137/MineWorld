@@ -22,6 +22,10 @@
 class_name SliceMain
 extends Node3D
 
+const Loading = preload("res://mineworld_loading/loading.gd")
+var _loading: CanvasLayer
+var _initialized := false
+
 enum GI { NONE, SSIL, VOXEL, SDFGI }
 
 const SUN_ELEVATION := -19.3
@@ -64,6 +68,9 @@ var clock: SliceClock
 
 
 func _ready() -> void:
+	_loading = await Loading.open(get_tree())
+	_loading.show_stage("Preparing world settings...")
+	await _loading.drawn()
 	var low := _low_render_cost()
 	if low:
 		MineWorldDisplay.render_scale_factor = LOW_RENDER_SCALE
@@ -72,6 +79,8 @@ func _ready() -> void:
 		_refuse(SlicePack.current.refusal_line())
 		return
 	_settings()
+	_loading.quit_text(MineWorldText.text("loading.quit"))
+	await _loading_stage("loading.layout")
 	# the depiction before the far field, so a missing depiction is named as such (ARC-146)
 	if not _open_depiction():
 		return
@@ -81,13 +90,16 @@ func _ready() -> void:
 	_environment()
 	_sun()
 	# connected or not is known from the arguments before anything is built
+	await _loading_stage("loading.world")
 	world = depiction.build(self, far_field, SliceLink.address_from_args() != "")
 	if depiction.refusal != "":
 		_refuse(depiction.refusal)   # a station kit or site refused by name (ARC-192)
 		world.queue_free()
 		world = null                 # nothing is played on a refused world (`_process`)
 		return
+	await _loading_stage("loading.people")
 	_decor()
+	await _loading_stage("loading.light")
 	_gi()
 	if not SliceTrial.apply(self):
 		get_tree().quit(2)
@@ -95,7 +107,10 @@ func _ready() -> void:
 	_reflections()
 	if low:
 		_cost_effects_off()
+	await _loading_stage("loading.player")
 	_spawn_player()
+	var mouse_before_loading := Input.mouse_mode
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	clock = SliceClock.new()
 	add_child(clock)
 	clock.setup(settings_store, self, _env, _scripted() or SliceSun.fixed_requested())
@@ -103,7 +118,20 @@ func _ready() -> void:
 	if not _wording():
 		MineWorldText.load_layers(SlicePack.current.dir, PackedStringArray(), false)  # the HUD loads catalogs if none are
 	_link()
+	_initialized = true
+	_hold_input(true)
+	await _loading_stage("loading.connecting" if link != null else "loading.ready")
+	while link != null and not link.has_first_view():
+		await get_tree().process_frame
+	await _loading.finish()
+	_hold_input(false)
+	Input.mouse_mode = mouse_before_loading
+	_loading = null
 
+	_start_probe()
+
+
+func _start_probe() -> void:
 	if _scripted():
 		if SliceProbeMarket.requested():
 			probe = SliceProbeMarket.new()
@@ -124,6 +152,11 @@ func _ready() -> void:
 		probe.player = player
 		probe.slice = self
 		add_child(probe)
+
+
+func _loading_stage(key: String) -> void:
+	_loading.show_stage(MineWorldText.text(key))
+	await _loading.drawn()
 
 
 ## The world this scene presents, by its key (`SliceWorlds.key()`), and the depiction that draws it
@@ -159,6 +192,8 @@ func _open_depiction() -> bool:
 
 ## A refusal by name: printed, shown full-screen, and in a scripted or harness run the process exits 3.
 func _refuse(line: String) -> void:
+	if is_instance_valid(_loading):
+		_loading.show_stage(line)
 	printerr(line)
 	print(line)
 	var layer := CanvasLayer.new()
@@ -348,6 +383,8 @@ static func key_rows() -> Array[MineWorldKeyRow]:
 ## open interaction menu is closed first (PR 16d, D-16d-9; 12e's throw aim goes before it, A16d-18).
 ## The order: throw aim → the talk line (PR 16g1, sending nothing) → interaction menu → settings menu.
 func _input(event: InputEvent) -> void:
+	if not _initialized or is_instance_valid(_loading):
+		return
 	if not event.is_action_pressed("ui_cancel"):
 		return
 	# Esc during a throw's aim drops the aim (step-11 §22 SD-E6) and opens nothing.
@@ -636,7 +673,7 @@ func _spawn_player() -> void:
 ## The HUD's composed lines are rendered every frame from their keys, so a language change shows at
 ## once; the world line keeps its last key and arguments and renders again on a change.
 func _process(_d: float) -> void:
-	if world == null:
+	if not _initialized or world == null:
 		return   # the far field was refused: nothing was built (_load_far_field)
 	if first_frame.is_empty():
 		var window := get_window()
@@ -783,6 +820,8 @@ func _link() -> void:
 		_world_key = key
 		_world_args = args
 		_render_world()
+		if is_instance_valid(_loading):
+			_loading.show_stage(MineWorldText.text(key, args))
 		if hud != null and notice:
 			hud.toast(MineWorldText.text(key, args)))
 	link.spoke.connect(func(line: String) -> void:

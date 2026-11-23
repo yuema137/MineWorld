@@ -1319,3 +1319,35 @@ msgstr ""
 #. Enter sends  ·  Esc cancels
 msgid "ui.input.hint"
 msgstr ""
+
+#. Quit (Esc)
+msgid "loading.quit"
+msgstr ""
+
+#. Reading world layout...
+msgid "loading.layout"
+msgstr ""
+
+#. Building the world...
+msgid "loading.world"
+msgstr ""
+
+#. Preparing people...
+msgid "loading.people"
+msgstr ""
+
+#. Preparing lighting...
+msgid "loading.light"
+msgstr ""
+
+#. Preparing your character...
+msgid "loading.player"
+msgstr ""
+
+#. Joining the world...
+msgid "loading.connecting"
+msgstr ""
+
+#. Drawing the world...
+msgid "loading.ready"
+msgstr ""

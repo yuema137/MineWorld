@@ -1,0 +1,33 @@
+# Startup loading correction — 2026-11-23
+
+Bounded correction authorized by operator's slow 3D startup/no progress report and coordinator dispatch. This is a new isolated execution context, not a change to simulation or MVP acceptance. Base 703aa8dce66c3fa150942315e74bffd346fcfa8a from reviewed playable source; clone /tmp/mineworld-startup-20261123-source. Independent reviewer /root/delivery_review. Parent owns progress/shared plans. No public writes/merge, no paid calls. Local implementation, targeted validation, semantic commit and immutable local artifact authorized by dispatch. User saves, existing source/caches/bundle are read-only.
+
+## Audit and invariants
+Read root CLAUDE, Structured Coding skill/workflow/adaptation/implementation/test/design rules, engineering rules/standards, vision/architecture, 3D PRESENTATION, S23-RT and launcher contract. boot.gd synchronously mounts PCK then deferred synchronous scene load; no UI. SliceMain._ready performs all setup synchronously; _process assumes player exists once world exists. SliceLink.has_first_view is existing arrival authority, said gives translated connection status. No timings inferred from previous smoke/movie total duration.
+Preserve settings, rendering quality, setup order, selected packs/worlds, server authority, save schemas, launcher supervision and existing exit statuses. Headless must not await an absent draw. Source launch remains valid. Runtime error status2 preserved; errors in main displayed persistently, scripted refusals status3 unchanged.
+
+## C1: truthful loading UI and staged initialization
+Goal: present before blocking resource work, retain meaningful current stage until usable world, keep existing result/quality. Scope shared small CanvasLayer adopted by runtime+3D using existing symlink pattern; boot loader and SliceMain setup gating only. No dependencies or world/server changes.
+- [ ] Baseline default packaged startup with timestamped stdout and isolated server/save; preserve existing baseline. Process inventory first; concurrency recorded.
+- [ ] Built-in-font screen independent of client resources; actual rendered frame before pack mount. Root ownership survives scene transition, bounded cleanup for 2D and3D.
+- [ ] Engine threaded scene resource request/status; stage-specific fraction only; failures remain named and status2.
+- [ ] 3D yields actual draws between original setup stages, gates process/input until initialized; retain loading through existing first-view predicate, show existing connection failure notices; quit remains available. Source creates own UI.
+- [ ] Log stage monotonic timestamps for actual phase measurement; no fake progress or sleeps.
+- [ ] Independent source/diff review including async hazards, headless,2D lifetime, localized wait status.
+Validation owners: engine parser/static plus real Gate2 source/export startup,2D and both launcher smoke, failure and no-server waiting. Gate1 N/A; full workspace N/A no Rust/world logic changed. Per run <=600s, initial aggregate <=3600s, one shared heavy slot, no paid API.
+Acceptance: actual default packaged frame visible before heavy scene work; stages truthful; first world view actually arrived/rendered before dismissal; no input into half-built world; 2D and both modes finish current smoke; failure visible/status preserved; unchanged quality, user state untouched. Speed improvement claimed only measured at comparable path and load. Synchronous indivisible engine/world phase stalls remain explicitly disclosed if present.
+Edge cases: missing pack/invalid scene; resource load fails; headless; source launch; disconnected/refused join; early user exit; no network/offline scene. No new retry policy.
+Commands: baseline.py first; existing package.py assemble/export helpers, Godot --headless --editor --quit import/parser, existing package smoke; concrete exact commands and identity in live evidence before runs. Coherent single correction commit with code/tests/contract; inspect exact diff, no unrelated cleanup. Reviewed local handoff endpoint only.
+
+## Initial Gate specification
+Baseline.py launches unchanged exported runtime with default graphics and selected social-cafe via existing start_server, own scratch only; timestamp stdout until first-view log, then owned shutdown. <=180s. This identifies pre-world/first-observation latency but stdout alone cannot prove first drawn frame. Existing user process may affect measurement; inventory recorded. Evidence baseline/timed.log and result.json. Next default run will use same path. Visual frame proof is separate; no baseline pass claim without it.
+
+## Live evidence / decisions
+- Independent PLAN review PASS by delivery_review. Original S23-RT evidence untouched.
+- Baseline first attempt INCONCLUSIVE: stdout reader dropped buffered remaining lines when process ended. Recovered engine log confirms cafe arrival, no crash conclusion. Retry default pack first-view log observed by10.919s, file buffered all early stages together; upper bound only, not cold/warm or engine-phase timing. Own server/save. Initial user client had already exited naturally.
+- Source visual initial FAIL: adding root child during ready caused busy-parent and nil controls. Deferred attachment + await ready fixes the actual failure. Historical failed logs retained.
+- Corrected source visual PASS100frames35.552s; first UI draw0.739s, construction6.511s, light3.433s, first joined frame11.976s. Default render settings, movie capture overhead explicitly not production-speed proof. Frames1/40 visually inspected loading/world. Source root/catalogs used.
+- Reviewer mouse/input findings repaired: visible mouse while waiting, held until final draw; root layer consumes gameplay keys and offers Esc/GUI quit. Sibling offer-menu shortcuts otherwise ignore the main entry handler's initialization gate. Runtime2D finish connected to persistent layer directly before scene transition; boot continuation would not survive.
+- Scope: synchronous world/glTF and GI baking identified bottlenecks. These remain unchanged to preserve current depiction contracts/quality. Stage feedback repairs blank splash; no total startup speedup claimed.
+- API verification: https://docs.godotengine.org/en/stable/tutorials/io/background_loading.html (request/status/get; get blocks unless LOADED); RenderingServer reference (headless disables rendering; frame_post_draw for draw barrier).
+- Local parser/import runtime+3D PASS, no script errors. 42 LFS binary hashes verified against committed oid before hydration; git diff has no asset changes. 3D cache copied; import checked66 presentation reference images, no new art or texture campaign.
