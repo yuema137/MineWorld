@@ -23,6 +23,8 @@ that command's exit status. Nothing is retried and nothing is allowed to fail (A
     python3 scripts/ci_layer.py python-smoke      the same without the binary or the real_server tests
     python3 scripts/ci_layer.py core --shard K/N  shard K of N of `core` (ARC-110; scripts/ci_shard.py
                                                    says which tests): the shards of `test`, `test-macos`, `test-windows`
+    python3 scripts/ci_layer.py python --shard K/N  shard K of N of `python` (scripts/ci_pyshard.py says which
+                                                   groups and LM controller test files): the `python` job's shards
     python3 scripts/ci_layer.py <layer> <layer>...  several layers in order; the first failure stops them
                                                    (macOS's two jobs, ARC-110)
     python3 scripts/ci_layer.py --list <layer> [--shard K/N]
@@ -47,6 +49,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
+import ci_pyshard  # noqa: E402  (beside this script; the shards of `python`, ARC-110 note of 2026-10-27)
 import ci_shard  # noqa: E402  (beside this script; the shards of `core`, ARC-110)
 
 # The declared checks of `.structured-coding/standards.md`, split by layer (ARC-48). Order matters
@@ -79,6 +82,8 @@ LAYERS: dict[str, list[list[str]]] = {
         ["python3", "scripts/ci_stability.py", "--self-test"],
         # The partition of `core` into the test jobs' shards (ARC-110): complete and deterministic.
         ["python3", "scripts/ci_shard.py", "--self-test"],
+        # The same for the `python` layer's shards (ARC-110 note of 2026-10-27).
+        ["python3", "scripts/ci_pyshard.py", "--self-test"],
         ["cargo", "check", "--workspace", "--all-targets"],
         ["cargo", "clippy", "--workspace", "--all-targets", "--all-features", "--", "-D", "warnings"],
         # The code graph's licences, sources and bans (DEP-22, deny.toml); never advisories (ARC-48).
@@ -346,34 +351,60 @@ CAST_DIRECTOR_CHECK = [
 # lint or type error blocks a merge like a Rust one. The `python` layers keep them too, so that they are
 # also judged on Windows and macOS, where `fast` does not run (D-P3-11, AP-12).
 LAYERS["fast"] += PYTHON_STATIC
-LAYERS["python"] = [
-    *PYTHON_STATIC,
-    # The real_server tests start the real binary; they fail, never skip, without it (D-P3-10).
-    ["cargo", "build", "-p", "mineworld-cli"],
-    ["uv", "run", "--locked", "pytest", "sdk/python"],
-    ["uv", "run", "--locked", "pytest", "cognition/lm-controller"],
-    ["uv", "run", "--locked", "pytest", "clients/agent"],
-    ["uv", "run", "--locked", "pytest", "tools/onboarding"],
-    ["uv", "run", "--locked", "pytest", "tools/worldgen"],
-    ["uv", "run", "--locked", "pytest", f"{PIPELINE}/tests"],
-    [sys.executable, f"{PIPELINE}/cast.py", "check-characters"],
-    # S36-P1: C-3 and C-4 over every prop of the model library (needs numpy and the mesh libraries, so it runs
-    # from the uv environment); a prop without a mount entry fails.
-    ["uv", "run", "--locked", "python", f"{PIPELINE}/cast.py", "contact-items"],
-    CAST_DIRECTOR_CHECK,
-    ["uv", "run", "--locked", "pytest", f"{ASSET_GENERATION}/tests"],
+# Every run of the `python` layer, whole or a shard, starts with the static checks and the binary: the
+# real_server tests start the real binary; they fail, never skip, without it (D-P3-10).
+PYTHON_PREPARE: list[list[str]] = [*PYTHON_STATIC, ["cargo", "build", "-p", "mineworld-cli"]]
+# The layer's test commands as named groups, in the order the whole layer runs them. A shard runs whole groups
+# and a share of the LM controller's test files (scripts/ci_pyshard.py, ARC-110 note of 2026-10-27); the LM
+# controller's tests run where `LM_CONTROLLER` stands.
+LM_CONTROLLER = "cognition/lm-controller"
+PYTHON_GROUPS: dict[str, list[list[str]]] = {
+    "sdk/python": [["uv", "run", "--locked", "pytest", "sdk/python"]],
+    "clients/agent": [["uv", "run", "--locked", "pytest", "clients/agent"]],
+    "tools/onboarding": [["uv", "run", "--locked", "pytest", "tools/onboarding"]],
+    "tools/worldgen": [["uv", "run", "--locked", "pytest", "tools/worldgen"]],
+    PIPELINE: [
+        ["uv", "run", "--locked", "pytest", f"{PIPELINE}/tests"],
+        [sys.executable, f"{PIPELINE}/cast.py", "check-characters"],
+        # S36-P1: C-3 and C-4 over every prop of the model library (needs numpy and the mesh libraries, so it
+        # runs from the uv environment); a prop without a mount entry fails.
+        ["uv", "run", "--locked", "python", f"{PIPELINE}/cast.py", "contact-items"],
+        CAST_DIRECTOR_CHECK,
+    ],
+    ASSET_GENERATION: [["uv", "run", "--locked", "pytest", f"{ASSET_GENERATION}/tests"]],
     # Milestone D (S10 P7, D-P7-4): the real server and the real cognition process, started with the
     # workspace's interpreter, so it runs here, where both toolchains are, and is ignored in `core`. Its
     # unplugged half is an ordinary test and runs in `core`.
-    [
+    "milestone_d": [[
         "cargo", "test", "-p", "mineworld-cli", "--test", "milestone_d", "--",
         "--ignored", "--exact", "she_remembers_across_the_two_views",
-    ],
+    ]],
     # S31-d AC-d-11: the price clerk on a scripted LM (the real cognition process) and on `price-reporter`
     # post the same kind of notice, in two worlds; ignored in `core` for the same reason as Milestone D.
-    ["cargo", "test", "-p", "mineworld-cli", "--test", "price_reporter_lm", "--", "--ignored"],
-    [sys.executable, "scripts/check_scratch.py", "left", "--target-dir", "target"],
+    "price_reporter_lm": [["cargo", "test", "-p", "mineworld-cli", "--test", "price_reporter_lm", "--", "--ignored"]],
+}
+PYTHON_CLOSE: list[list[str]] = [[sys.executable, "scripts/check_scratch.py", "left", "--target-dir", "target"]]
+LAYERS["python"] = [
+    *PYTHON_PREPARE,
+    *PYTHON_GROUPS["sdk/python"],
+    ["uv", "run", "--locked", "pytest", LM_CONTROLLER],
+    *(command for name, group in PYTHON_GROUPS.items() if name != "sdk/python" for command in group),
+    *PYTHON_CLOSE,
 ]
+
+
+def python_shard(shard: str) -> list[list[str]]:
+    """Shard K/N of the `python` layer: the preparation, the shard's groups in the layer's order, one pytest
+    over the shard's LM controller test files (from the member's folder, so pytest reads its configuration),
+    and the scratch check."""
+    units, account = ci_pyshard.shard_units(shard, list(PYTHON_GROUPS))
+    print(f"[ci] shard {shard} of python; {account}", flush=True)
+    commands = [*PYTHON_PREPARE]
+    commands += [command for unit in units if unit in PYTHON_GROUPS for command in PYTHON_GROUPS[unit]]
+    files = [unit for unit in units if unit not in PYTHON_GROUPS]
+    if files:
+        commands.append(["uv", "run", "--locked", "pytest", *files])
+    return [*commands, *PYTHON_CLOSE]
 # IC-7 (S10 P7): a copy of the checkout without `cognition/lm-controller/` and its workspace line still
 # syncs, builds and passes — the SDK, the agent library, and the whole Rust workspace, Milestone D's
 # unplugged run among it (`scripts/ci_removability.py`, `pr-s10-p7-milestone-d.md` D-P7-3). And ARC-347
@@ -536,7 +567,9 @@ def result(layer: str, line: str) -> None:
 # (ARC-149): shard K builds its targets, then samples its tests twice through ci_repeat.py.
 # `clients` shards its Godot test targets by ci_godot.py's GODOT_WEIGHTS (the nightly's Linux jobs, which
 # outran 75 minutes unsharded beside the probes); its build, coverage and scratch checks run in every shard.
-SHARDABLE = {"core", "core-repeat", "clients"}
+# `python` shards its test groups and the LM controller's test files by ci_pyshard.py's weights (its job outran
+# 75 minutes on Windows); its static checks, build and scratch check run in every shard.
+SHARDABLE = {"core", "core-repeat", "clients", "python"}
 GODOT_TESTS_COMMAND = ["python3", "scripts/ci_godot.py", "tests"]
 
 
@@ -563,6 +596,8 @@ def commands_of(layer: str, shard: str | None) -> list[list[str]]:
     if layer == "clients":
         return [[*command, "--shard", shard] if command == GODOT_TESTS_COMMAND else command
                 for command in LAYERS[layer]]
+    if layer == "python":
+        return python_shard(shard)
     cargo, account = ci_shard.shard_commands(shard)
     print(f"[ci] shard {shard} of {layer}; {account}", flush=True)
     if layer == "core-repeat":
