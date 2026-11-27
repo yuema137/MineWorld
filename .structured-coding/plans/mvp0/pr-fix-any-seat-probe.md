@@ -484,3 +484,27 @@ Release gates (fresh server provenance, platform/windowed/both-mode/full release
 
 Evidence-only commit: staged this ledger alone; final `git diff --check` PASS and
 `python3 scripts/check_doc_headings.py` PASS (254 sections / 337 documents). No executable edits.
+
+### Publication checkpoint — 2026-11-27
+
+Primary coordinator dispatch (operator: push everything reviewable forward) authorizes push, PR
+open/update and CI repair for this branch; merge, tag and release dispatch remain NOT authorized.
+Independent exact-head review PASS on `003d3543` was recorded by the coordinator
+(`handoff-coordinator.md` §F-RC-7); its `/tmp` review file and all `/tmp` evidence above
+(`/tmp/mineworld-any-seat-probe`, `/tmp/mineworld-any-seat-final-evidence`) were lost on reboot, so the
+packaged rows above are historical evidence for PCK `8b261348…` built from `6254f2a9`, not re-run here.
+
+Merge, not rebase (S34-e stacks on this branch): merge commit `506e5be1` brings origin/main `02b17504`
+into `003d3543`; no conflicts. Main changed none of this PR's paths since base `4cd160bb`
+(only `.github/actions/layer/action.yml` among client/CI paths).
+
+Local checks on merged executable head `506e5be1` (worktree `mineworld-worktrees/pub-frc7`,
+Godot 4.7.2, one cast slot): `git diff --check origin/main HEAD` PASS;
+`python3 scripts/check_doc_headings.py` PASS (255 sections / 337 documents);
+`python3 scripts/ci_godot.py --self-test` PASS; `godot --headless --path clients/3d-spike --editor --quit`
+rc 0, no script/parse errors (PASS); `godot --headless --path clients/3d-spike --script
+res://tools/test_probe_verdict.gd` rc 0, `all verdict regression checks pass` (its `FAIL:` lines are
+the regression's deliberate injected failures) PASS. Packaged link runs NOT re-run (not cheap; no PCK
+/server change since `6254f2a9`). Remote CI on the exact final head is recorded in the PR.
+Open limitations unchanged: cached-server exact-head provenance unproven; Lakeside cases are augmented
+diagnostics, not shipped-world proof; release gates remain open.
