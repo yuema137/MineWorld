@@ -151,3 +151,4 @@ fn no_masked_value_is_drawn_in_ten_thousand() {
     assert!(males > 4000);
     let _ = ValueSlug::new("none");
 }
+// impact-selection probe (PR #540 evidence; never merged)
