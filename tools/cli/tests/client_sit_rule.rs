@@ -1,8 +1,10 @@
-//! Two clients agree on a contested seat (S33-f AC-f-4; `ARC-145`): the 2D and the 3D client, each
-//! through its own wiring of the shared sit decision (`clients/shared/sitting/sit_rule.gd`), are fed the
-//! same recorded observations of Lakeside's bakery, two people still at one chair, and print who they
-//! draw seated where. The two lists must be equal, and equal to the fixture's expectation: the lower
-//! entity id takes the seat; a person still but 0.45 m away, and one walking past, are not seated.
+//! Two clients agree on a contested seat (S33-f AC-f-4; `ARC-145`), in the posture branch since S34-c2
+//! (R-S34c-f-1, `ARC-172`): the 2D and the 3D client, each through its own wiring of the shared sit
+//! decision (`clients/shared/sitting/sit_rule.gd`), are fed the same recorded observations of Lakeside's
+//! bakery, which discloses its `sit-points`, two people at one chair, and print who they draw seated
+//! where. The two lists must be equal, and equal to the fixture's expectation: the person whose
+//! disclosed `posture-state` names the seat is drawn there; the one the server left standing, a person
+//! beside another chair, and one walking past are not seated.
 //!
 //! It starts Godot, so it is `#[ignore]`d — reported as ignored, never as passed, without it:
 //!
@@ -92,11 +94,11 @@ fn both_clients_draw_the_same_person_on_a_contested_seat() {
         .collect();
     assert_eq!(
         finally, expected,
-        "the lower id takes the contested seat; nobody else is drawn seated"
+        "the server's seated person holds the contested seat; nobody else is drawn seated"
     );
     assert!(
         !two.iter()
             .any(|line| line.starts_with("SEATED 100 ") || line.starts_with("SEATED 101 ")),
-        "nobody is drawn seated before standing still for 2 s of world time: {two:?}"
+        "nobody is drawn seated before the server seats them: {two:?}"
     );
 }
