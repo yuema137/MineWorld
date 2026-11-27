@@ -1764,6 +1764,10 @@ Existing hunger units and template replies do not satisfy those new requirements
 by relabeling. Social Cafe remains a removal witness; Market Town's richer actual
 packaged play must be validated. Shop hours, personal residence semantics and
 single-player sleep advance have explicit design gaps in the reconciliation.
+Update 2026-11-27: shop hours (PR N1) and single-player `sleep-until` advance
+(PR N2) are DESIGN FROZEN in [`pr-nightlife.md`](pr-nightlife.md) (operator ruling
+Q-L1 … Q-L5 as recommended; private residences deferred). N1 can start on main;
+N2 follows N1, and its packaged client commit waits for launcher prerequisites P1–P3.
 
 Operator also requests a future scalability/hosting plan for hundreds/thousands
 of residents while retaining clean code and measured performance. Section7 of
@@ -1787,3 +1791,17 @@ living-world trial, and the proposed nutrition/dialogue/nightlife work remain
 open at their documented boundaries. Next ready delivery work is startup
 measurement/packaging validation followed by the existing integration trial;
 nutrition engine design is independently reviewed before operator freeze.
+
+## Dialogue + memory design frozen — 2026-11-27
+
+Operator ruling 2026-11-27 ("同意三个都按推荐冻结"): Q-D1…Q-D5 of
+[`pr-playable-dialogue-memory.md`](pr-playable-dialogue-memory.md) answered as recommended; design
+DM-20261127-3 is DESIGN FROZEN with its contract
+[`pr-playable-dialogue-memory-contract.md`](pr-playable-dialogue-memory-contract.md). R1 local runtime
+(installed Python + local `qwen3.5:4b`, rule-only fallback); Market Town profile (LM Alice, human Vera, 3D
+Wes); bounded local live gate (≤ 8 calls, ≤ 180 s inference, $0). Delivery is two PRs: PR-A (C1, absolute
+consult deadline and gateway accounting, `ARC-57` dated note) on `main` @ `8c971f0f`; PR-B (C2–C5: profile,
+supervised cognition child, corrected-recall acceptance, package and live gate) after the recovered client
+integration stack (`e37ce9fd`) and PR-A merge. Bounded resolutions B1–B3 (`--fresh` deletes the world's
+cognition store; per-user cognition profile; cross-platform CI with a Mac-only live gate) are recorded in the
+design §0 and may be overruled by the operator. Operator check 2 stays open until PR-B's live gate passes.
