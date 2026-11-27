@@ -26,7 +26,7 @@ use mineworld_authoring::{
     ConfigurationRefusal, EntityClasses, Seeding,
 };
 use mineworld_contracts::{
-    EntityId, EntityKey, EventEnvelope, EventRecord, EventTypeId, SystemId, Visibility,
+    Causation, EntityId, EntityKey, EventEnvelope, EventRecord, EventTypeId, SystemId, Visibility,
 };
 use mineworld_kernel::{Emission, WorldRead};
 use mineworld_packages::LicencePolicy;
@@ -509,8 +509,8 @@ fn describe(record: &EventRecord, visibility: &Visibility) -> String {
 }
 
 /// Compares, in order, the configuration facts of a save's genesis with the ones a pack seeds: every
-/// fact whose type `owners` names, by event type, record and visibility. Configuration added and
-/// configuration removed are both drift. Pure.
+/// directly `WorldGenesis`-caused fact whose type `owners` names, by event type, record and visibility.
+/// Configuration added and configuration removed are both drift. Pure.
 ///
 /// # Errors
 ///
@@ -520,8 +520,11 @@ pub fn compare(
     here: &[Emission],
     owners: &BTreeMap<EventTypeId, SystemId>,
 ) -> Result<(), Drift> {
+    // Assembly restates direct genesis inputs, not facts emitted by reactions to those inputs.
+    // Replay verifies the derived facts; including them here would falsely report configuration drift.
     let mut saved = saved
         .iter()
+        .filter(|fact| *fact.caused_by() == Causation::WorldGenesis)
         .filter(|fact| owners.contains_key(fact.event_type()))
         .map(|fact| (fact.payload(), fact.visibility()));
     let mut here = here
