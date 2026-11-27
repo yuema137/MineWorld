@@ -4,12 +4,16 @@
 
 ```text
 Design revision:        revision 1 (2026-10-27)
-Approved by / evidence: none yet — awaiting the operator's rulings (questions in §14)
+Approved by / evidence: recorded by the primary session on 2026-10-27 as "operator: all as recommended, incl. Q7
+                        widening S34-c2": freeze commit e950e49b (#527) and dated notes fe99fa3d (#528).
+                        Caveat (2026-11-27 audit): the transcript has no explicit operator answer to §14. The
+                        operator's nearest message ("咖啡馆那边我接受你的推荐", 21:29:40 UTC) refers to the café.
+                        Operator confirmation recommended
 Implementation base:    origin/main @ 315a50a9 (#513) for the audit; C0 records the exact base
 Start condition:        this design frozen, with Q-S34c3-1 and Q-S34c3-2 ruled (they amend frozen
                         step-34 §5.1 and §6.3 and ARC-147). S34-b and S34-c1 are merged (#363, #368)
 Execution contract:     §12
-Lifecycle:              DESIGN FROZEN 2026-10-27 (operator approved in the primary session: every question answered as recommended)
+Lifecycle:              FROZEN 2026-10-27 (e950e49b, #527; header reconciled 2026-11-27); not yet implemented
 ```
 
 **Effort:** `mvp0`, release-blocking · **Step:** [`step-34-posture.md`](step-34-posture.md) §§5.1, 6.3,
