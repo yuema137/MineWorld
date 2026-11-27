@@ -1033,6 +1033,7 @@ dependencies = [
  "mineworld-needs",
  "mineworld-packages",
  "mineworld-persistence",
+ "mineworld-posture",
  "mineworld-presence",
  "mineworld-relationships",
  "mineworld-rule-controller",

@@ -1,0 +1,88 @@
+day 1  revision 3130  facts 4384
+day 2  revision 6451  facts 8833
+day 3  revision 10061  facts 13636
+consults   11113
+requests   accept-invitation accepted 50
+requests   buy accepted 166
+requests   decline-invitation accepted 21
+requests   drink accepted 23
+requests   eat accepted 153
+requests   give accepted 83
+requests   invite accepted 74
+requests   join-group-activity accepted 7
+requests   leave-group-activity accepted 12
+requests   put-down accepted 1
+requests   shove accepted 20
+requests   sleep accepted 44
+requests   talk accepted 379
+requests   wake accepted 3
+requests   walk-step accepted 8019
+requests   walk-to accepted 849
+requests   walk-to rejected System { code: RejectionCode("no-route"), detail: Some("no way leads there inside the place") } 4
+facts      agenda-changed 129
+facts      alarm-set 44
+facts      appeared 12
+facts      arrived 8482
+facts      became-acquainted 88
+facts      body-formed 4
+facts      calendar-configured 1
+facts      conversation-started 242
+facts      currency-declared 1
+facts      day-began 4
+facts      daylight-changed 18
+facts      economy-configured 1
+facts      fell-asleep 44
+facts      funded 15
+facts      gave-way 465
+facts      group-activity-ended 50
+facts      group-activity-started 50
+facts      happening-announced 1
+facts      happening-began 1
+facts      happening-ended 1
+facts      happening-withheld 1
+facts      happenings-configured 1
+facts      hired 3
+facts      invitation-accepted 50
+facts      invitation-declined 21
+facts      invited 74
+facts      item-kind-declared 20
+facts      items-consumed 176
+facts      items-produced 33
+facts      items-transferred 250
+facts      joined-group-activity 7
+facts      left-group-activity 36
+facts      listed 11
+facts      money-transferred 175
+facts      named 12
+facts      needs-assigned 12
+facts      needs-interactions-configured 1
+facts      nourishment-assigned 10
+facts      object-moved 1
+facts      object-placed 4
+facts      passage-opened 8
+facts      person-entered-place 469
+facts      person-shoved 20
+facts      persona-authored 9
+facts      place-shaped 9
+facts      prices-adjusted 1
+facts      prices-restored 1
+facts      relationship-changed 18
+facts      routine-assigned 12
+facts      shift-ended 9
+facts      shift-started 9
+facts      shop-opened 3
+facts      sleep-interactions-configured 1
+facts      sold 166
+facts      spoke 379
+facts      stocked 39
+facts      stopped-short 182
+facts      wage-due 9
+facts      walk-ended 849
+facts      walk-started 849
+facts      weather-changed 5
+facts      weather-configured 1
+facts      weather-day 4
+facts      woke 33
+activity   days 1-3  alice move 620 talk 40  bob move 783 talk 36  carol move 453 talk 43  dev move 1032 talk 22  erin move 935 talk 20  felix move 572 talk 42  grace move 794 talk 46  hana move 808 talk 39  ivan move 770 talk 24  visitor move 685 talk 39  wanderer move 567 talk 28
+faults     0
+history    13636 facts, fingerprint 40f26d60a37e3557 (FNV-1a 64, for reading; not evidence)

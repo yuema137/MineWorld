@@ -9,7 +9,9 @@ Implementation base:    origin/main @ 0b2faf2f (#382)
 Start condition:        this design frozen. S34-c1 is merged (#368). S34-c2 (Lakeside) is not required to
                         start: Lakeside joins every test of this PR by discovery when it lands (Q-S34d-3)
 Execution contract:     §12
-Lifecycle:              DRAFT — not frozen
+Lifecycle:              DESIGN FROZEN 2026-10-27 (banner above). S34-d1: IN IMPLEMENTATION on mvp0/pr-s34d1
+                        (worktree /Users/yuema137/mineworld-worktrees/impl-s34d1, base origin/main @ 7718d952, 2026-11-27).
+                        S34-d2: not started
 ```
 
 **Dated note, 2026-10-27 (operator ruling Q-S34c3-3; SD-c3-5 in
@@ -433,7 +435,83 @@ POST-MERGE SYNC OWNER:  the implementation session owns this file's ledger; the 
 
 ## 13. Evidence ledger
 
-(empty until implementation)
+### S34-d1 (branch `mvp0/pr-s34d1`, base `origin/main @ 7718d952` #531, 2026-11-27)
+
+Execution contract as §12, with these sourced updates: implementer is a Claude Opus 5.5 subagent (operator
+ruling 2026-11-27, CLAUDE.md §3.4), worktree `impl-s34d1` (not `s34d1`); per-PR CI runs `fast` only and the
+relevant tests run locally (operator CI policy 2026-11-27; ARC-154), so §8's "CI on the commit's head" items
+are local runs, each through `cast-slots/with-slot.sh` with this worktree's own `CARGO_TARGET_DIR`.
+
+**Audit against main @ 7718d952 (the design audited 0b2faf2f).** Every row of §2 still holds, with these
+changes: posture still offers one `sit` per point (S34-c3 not merged), so the dated note's "not offered" row
+is reachable only through a hand-built observation, and is covered there (C2, C3 unit tests); Lakeside still
+does not install posture (S34-c2 not merged), so the discovered posture worlds are Social Café and Market Town.
+
+**Bounded deviation D-d1-1 — posture is read by slug, not through its crate.**
+- Previous assumption (SD-d-3 last bullet): "the crate gains a dependency on `mineworld-posture`, as it has on
+  `mineworld-sleep`".
+- Audit evidence: `systems/posture/Cargo.toml` depends on `mineworld-bodies`, which depends on `mineworld-item`
+  (`systems/bodies/Cargo.toml`), a market pack (`ARC-35` note 2026-10-07: item, inventory, item-transfer,
+  economy, employment, consumption). `ARC-35` check 2 forbids any normal dependency path from `rule-controller`
+  to a market pack. `needs` is read by slug for the same reason (`needs.rs` module docs).
+- Corrected implementation: `rest.rs` reads `sit-points` (component slug) and the `sit`/`stand` offers by slug
+  and JSON, as `needs.rs` reads `needs` and `place-shape`. No new dependency in either controller crate.
+- Validation: the C2/C3 unit tests build those records by slug; no `mineworld-posture` edge from
+  `cognition/*` (`cargo metadata` unchanged for both crates).
+
+**Bounded deviation D-d1-2 — the no-posture comparison is a recorded base fixture.** AC-d-6 asks the
+no-posture variant's summary to equal "the same world's run on this PR's base". A test cannot run the base
+binary, so C1 recorded each posture world's no-posture summary (seed 7, 3 days, pace 900) on the base, before
+any controller change, as `tools/cli/tests/fixtures/posture_life/<world>-seed-7-3-days.txt`
+(`MINEWORLD_WRITE_NO_POSTURE=1`), and `a_world_without_posture_decides_as_before` compares against it (rules
+§25: expected values captured before the change). A later PR that moves a world's posture-free behaviour
+re-records it with its reason, like any golden.
+
+**Bounded deviation D-d1-3 — I-S34-2's facing is checked at the sit.** pr-s34a BC-2: I-S34-2 binds place and
+position, and facing may change while seated (a turn does not stand a person up). The checker holds facing
+equal to the point's facing at every `sat-down`, and place and position after every request. X-d-7's planted
+journal sits facing away from the point and is named (`posture::tests::a_sit_facing_away_from_the_point_is_named`).
+
+#### C0 — Design
+- [x] Implementation: merged as #501 (`c5cab206`), frozen by the 2026-10-27 banner (#527 freeze, #528 dated notes).
+- [x] Validation: N/A here — the merged design's checks ran on #501/#528.
+- [x] Review: the scope matches step §14.2's S34-d row (reviewed at freeze).
+
+#### C1 — The measurement, before any controller change
+- [x] Implementation: `tools/cli/tests/posture_life.rs` (world discovery by `systems:`; the runs of SD-d-6;
+  `posture_life_short` 3 days + 1 at pace 60, default; `posture_life_long` 30 days + 5 at pace 60,
+  `#[ignore]`d per Q-S34d-6; AC-d-1/AC-d-2 asserted; measures printed); `tools/cli/tests/posture/mod.rs` (the
+  journal reader and checker, with five planted-journal unit tests); `tools/cli/tests/variants/mod.rs`
+  (`renamed_seats`, `one_seat`, `no_posture`); `a_world_without_posture_decides_as_before` and its two base
+  fixtures (D-d1-2); `mineworld-posture` as a dev-dependency of `mineworld-cli` (decode posture's facts with
+  its own types). No production code.
+- [x] Validation (local, base binary of 7718d952 + test-only files, Darwin/arm64):
+  `cargo test -p mineworld-cli --test posture_life` 7 passed, 1 ignored (116 s);
+  `-- --ignored posture_life_long` 1 passed (641 s). **PASS** for AC-d-1 and AC-d-2 on every base run. The
+  baseline, recorded before any controller change (Q-S34-11, SD-d-2):
+
+  | Run (30 days at pace 900; 5 days at pace 60) | seed 7: samples showing seating; spells (by `stand`); median consults; bobbing | seed 11 |
+  | --- | --- | --- |
+  | social-cafe, default, 900 | 27/300 (9 %); 50 (9); 2.00; 4 | 22/300 (7 %); 52 (7); 1.00; 5 |
+  | social-cafe, motivated, 900 | 0/300; 0 spells | 0/300; 0 spells |
+  | social-cafe, default, 60 | 7/50 (14 %); 147 (45); 2.00; 21 | 7/50 (14 %); 151 (37); 2.00; 19 |
+  | market-town, default, 900 | 7/300 (2 %); 11 (2); 2.00; 1 | 6/300 (2 %); 13 (3); 1.00; 0 |
+  | market-town, motivated, 900 | 0/300; 0 spells | 0/300; 0 spells |
+  | market-town, default, 60 | 5/50 (10 %); 67 (13); 2.00; 8 | 2/50 (4 %); 81 (20); 2.00; 10 |
+  | renamed-seats (of market-town), default, 900 | 7/300 (2 %); 11 (2); 2.00; 1 | 6/300 (2 %); 13 (3); 1.00; 0 |
+  | renamed-seats, motivated, 900 | 0/300; 0 spells | 0/300; 0 spells |
+  | renamed-seats, default, 60 | 4/50 (8 %); 57 (12); 2.00; 6 | 3/50 (6 %); 72 (15); 2.00; 6 |
+  | one-seat (of market-town), default, 900 | 1/300 (0 %); 8 (1); 1.00; 1 | 7/300 (2 %); 8 (1); 3.00; 0 |
+  | one-seat, motivated, 900 | 0/300; 0 spells | 0/300; 0 spells |
+  | one-seat, default, 60 | 1/50 (2 %); 32 (8); 2.00; 4 | 2/50 (4 %); 41 (14); 2.00; 5 |
+
+  It confirms F-d-1 (seen seated in 2-9 % of daytime hours; the motivated model never sits) and F-d-2
+  (bobbing in every world, worst at the hosted pace: 19-21 spells per 5 days in Social Café). Social Café seed
+  7 at pace 900 reproduces audit 15 (50 spells, 9 ended by `stand`).
+- [x] Review: no world, place or key in the test or the variants (worlds found by `systems:`, seats by
+  `seats:`, sit points by their section); the checker's expected positions and facings come from the run's
+  own `place-sit-points` facts, never from posture's code; the reader decodes with the owners' published
+  types, as `social::decoded` does.
 
 ## 14. Operator questions (each with a recommended answer)
 
