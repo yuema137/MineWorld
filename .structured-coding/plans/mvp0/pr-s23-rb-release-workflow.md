@@ -760,3 +760,30 @@ subsequent steps retain their previous working directory. Both extraction comman
 The fixture's native seam checks argv/cwd and actual local ZIP extraction, not Windows codec support.
 Independent reviewer remains pending. The original name-only `fast`/`test` limitation, supersession
 adoption, F-RC-7, R-d integration and full release acceptance remain open as §13.2 states.
+
+### 13.5 Recovery after the `/tmp` loss and refresh on `main` — 2026-11-27
+
+The correction commit `3e1cb1e0` (branch `fix/pr529-closeout`) was lost when `/tmp` was wiped before it was
+pushed. It was reconstructed by replaying the producer commands recorded in the Codex rollout, as
+`e60110a4` (merge of `main` `b457a94d` into public head `3c2acbe7`, carrying the §13 pre-code record) and
+`46de4241` (the correction). `e9733bde` then merged `main` `7718d952`, conflict-free.
+
+Provenance limits, stated so a reviewer does not over-read them:
+
+- Merge commit `e60110a4` carries **101 lines of new ledger text** (this file's §13.1–§13.3) as
+  merge-resolution content. Review tools that hide merge diffs do not show it; read it with
+  `git show --remerge-diff e60110a4` or in this file.
+- No file hashes were recorded for this lane. Only `release.yml` lines 360–415 and 500–550 were
+  byte-compared against the independent reviewer's capture of `3e1cb1e0`; the rest of the correction rests on
+  replay fidelity (diffstat identical: 5 files, 192+/11-). This is a partial byte check, not a full fingerprint.
+
+| Check on `e9733bde` (macOS, repo `.venv` Python 3.14) | Result |
+| --- | --- |
+| `pr529-evidence/check_unpack.py` | PASS (POSIX seam only) |
+| `scripts/ci_release.py --self-test` (INCONCLUSIVE on 2026-11-23 because of the host pyexpat) | PASS |
+| `check_ci_pins.py`, `check_decision_ids.py`, `ci_parity.py --self-test`, YAML parse of all workflows | PASS |
+| Remote `fast`, `test`, `test-macos`, `test-windows`, `removability`, `changes` (run 46072502399) | PASS |
+| actionlint; Windows native `tar`; release dispatch; attestation | NOT RUN |
+
+Red-team review 2026-11-27: PASS-WITH-FOLLOWUPS. Its follow-ups are the step-23 §13.6 checklist (merge order;
+R-d before any real tag; an authorized Windows dry-run dispatch and real A-R9 before the next tag).
