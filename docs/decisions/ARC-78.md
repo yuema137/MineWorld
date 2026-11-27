@@ -52,7 +52,7 @@ controller, and the existing clock controls had no local host capability. Played
 use the existing `--town` policy (ARC-345), leaving the explicit Alice fixture for smoke.
 This corrects launch integration without changing worlds, controllers or saved composition.
 
-The operator explicitly approved “同意复用现有 getrandom 库”. Item 2's standard-library-only
+On 2026-11-23 the operator explicitly approved, in the Codex coordination session (relayed by the coordinator; recorded in `.structured-coding/plans/mvp0/handoff-coordinator.md` "November 23 continued execution"), “同意复用现有 getrandom 库” ("agree to reuse the existing getrandom library"). Item 2's standard-library-only
 restriction is amended solely to reuse workspace `getrandom` for a per-run 128-bit OS-random
 admin capability. Existing server code already uses that dependency for secrets. Handwritten
 platform randomness, subprocess-generated secrets and a new server secret-output handshake
