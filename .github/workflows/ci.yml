@@ -221,7 +221,7 @@ jobs:
 
   test:
     name: test
-    needs: [changes, test-shard]
+    needs: [changes, test-archive, test-shard]
     if: >-
       always() && !cancelled() && (
       github.event_name == 'workflow_dispatch' ||
@@ -240,13 +240,14 @@ jobs:
           MODE: ${{ needs.changes.outputs.mode }}
           NOTE: ${{ needs.changes.outputs.note }}
           RESULT: ${{ needs.test-shard.result }}
+          ARCHIVE: ${{ needs.test-archive.result }}
         run: |
           if [ "$CHANGES" != success ]; then echo "changes: $CHANGES: nothing is known, so nothing passes"; exit 1; fi
           if [ "$CODE" != true ] || [ "$MODE" != full ]; then
             echo "test: $NOTE" | tee -a "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          echo "test shards: $RESULT" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "test archive: $ARCHIVE; shards: $RESULT" | tee -a "$GITHUB_STEP_SUMMARY"
           test "$RESULT" = success
 
   # Eight shards: windows-2025 is the slowest of the three (the suite's tests ~1.3x Linux's, ~1.7x
@@ -315,7 +316,7 @@ jobs:
 
   test-windows:
     name: test-windows
-    needs: [changes, test-windows-shard]
+    needs: [changes, test-windows-archive, test-windows-shard]
     if: >-
       always() && !cancelled() && (
       github.event_name == 'workflow_dispatch' ||
@@ -334,13 +335,14 @@ jobs:
           MODE: ${{ needs.changes.outputs.mode }}
           NOTE: ${{ needs.changes.outputs.note }}
           RESULT: ${{ needs.test-windows-shard.result }}
+          ARCHIVE: ${{ needs.test-windows-archive.result }}
         run: |
           if [ "$CHANGES" != success ]; then echo "changes: $CHANGES: nothing is known, so nothing passes"; exit 1; fi
           if [ "$CODE" != true ] || [ "$MODE" != full ]; then
             echo "test-windows: $NOTE" | tee -a "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          echo "test-windows shards: $RESULT" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "test-windows archive: $ARCHIVE; shards: $RESULT" | tee -a "$GITHUB_STEP_SUMMARY"
           test "$RESULT" = success
 
   # macOS: four `core` jobs per run (ARC-110 re-weigh note, 2026-10-21). GitHub-hosted macOS runs at most
@@ -420,7 +422,7 @@ jobs:
 
   test-macos:
     name: test-macos
-    needs: [changes, test-macos-shard]
+    needs: [changes, test-macos-archive, test-macos-shard]
     if: >-
       always() && !cancelled() && (
       github.event_name == 'workflow_dispatch' ||
@@ -439,13 +441,14 @@ jobs:
           MODE: ${{ needs.changes.outputs.mode }}
           NOTE: ${{ needs.changes.outputs.note }}
           RESULT: ${{ needs.test-macos-shard.result }}
+          ARCHIVE: ${{ needs.test-macos-archive.result }}
         run: |
           if [ "$CHANGES" != success ]; then echo "changes: $CHANGES: nothing is known, so nothing passes"; exit 1; fi
           if [ "$CODE" != true ] || [ "$MODE" != full ]; then
             echo "test-macos: $NOTE" | tee -a "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          echo "test-macos shards: $RESULT" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "test-macos archive: $ARCHIVE; shards: $RESULT" | tee -a "$GITHUB_STEP_SUMMARY"
           test "$RESULT" = success
 
   # S16's packages on Windows, natively (step-16 §16.12 PD-p1, §17.12 PD-q4): the `platforms` layer, on

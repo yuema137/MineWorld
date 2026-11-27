@@ -393,7 +393,23 @@ def self_test() -> int:
             encoding="utf-8",
         )
         weighed = weigh([junit])
-        check(weighed == {"slow": 42, LIB_BINS: 4}, f"weigh sums per unit over files: {weighed}")
+        check(weighed == {"slow": 42, LIB_BINS: 4}, f"weigh sums per unit within a file: {weighed}")
+        # Two shards' files hold disjoint tests: their times add up per unit across the files.
+        other = Path(directory) / "junit-2.xml"
+        other.write_text(
+            '<testsuites><testsuite name="mineworld-cli::slow"><testcase name="e" time="10.0"/></testsuite>'
+            '<testsuite name="mineworld-persistence"><testcase name="f" time="3.2"/></testsuite>'
+            "</testsuites>",
+            encoding="utf-8",
+        )
+        weighed = weigh([junit, other])
+        check(weighed == {"slow": 52, LIB_BINS: 7}, f"weigh sums per unit over disjoint files: {weighed}")
+        # The same test in two files is a double count (one OS's shards are disjoint): refused.
+        try:
+            weigh([junit, junit])
+            failures.append("weigh accepted the same test identity in two files")
+        except ValueError:
+            pass
     for bad in ("0/3", "4/3", "3", "a/b", "1/0", "1,1/3", "1,4/3", ",/3", "1,/3"):
         try:
             parse_shard(bad)
