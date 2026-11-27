@@ -22,7 +22,9 @@ FailureClass = Literal["transport", "budget", "content", "semantic", "frame", "s
 
 RETRYABLE_STATUS: frozenset[int] = frozenset({408, 409, 425, 429, 500, 502, 503, 504, 529})
 """The HTTP statuses that are transport failures worth a retry (§5.5.1)."""
-TRANSPORT_RETRYABLE: frozenset[str] = frozenset({"timeout", "unreachable", "malformed_response"})
+TRANSPORT_RETRYABLE: frozenset[str] = frozenset(
+    {"timeout", "queue_timeout", "unreachable", "malformed_response"}
+)
 
 
 RATE_LIMITED = "rate_limited"

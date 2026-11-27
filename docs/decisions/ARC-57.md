@@ -55,3 +55,26 @@ outside would skip the charge. `BackendFailure` gains `retry_after_s` (an intege
 set by both HTTP adapters from a delta-seconds `Retry-After` on any non-2xx response; an HTTP date is
 ignored. The gateway still never retries (`ARC-73`). Failures are never recorded, so cassette format and
 keys are unchanged. Ruled by QP6-6 (2026-10-14).
+
+**Dated note, 2026-11-27 (playable dialogue and memory, PR-A / C1): the gateway order and the cancellation
+charge.** Design `.structured-coding/plans/mvp0/pr-playable-dialogue-memory.md` revision DM-20261127-3 §4
+items 4 and 7 (frozen by the operator 2026-11-27). Authority: `docs/reference/cognition-toml.md` defines
+`consult_deadline_s` as "wall seconds from a trigger's receipt to the submit"; the code restarted the budget at
+the consult and let a call wait for its in-flight slot outside every bound, so it contradicted its
+specification (CLAUDE.md §2.1 rule 4: the code was wrong). Two changes to the **Order** above:
+
+- **Order** becomes: key-material check → budget pre-check → *the timeout starts* → in-flight slot → recorder →
+  backend → charge. The bound is the smaller of `call_timeout_s` and the caller's `timeout_s` (what is left of the
+  consult's absolute deadline) and covers the wait for the slot. A call still queued when the bound ends never
+  reaches the recorder or the backend, returns `Failed` with reason `queue_timeout` (a new, retryable transport
+  reason that the decision log does not count as a model call), and costs **no** call. The bound is checked
+  again once the slot is held, so no backend call begins at or after it.
+- **Charge.** A call that reached the backend costs exactly one call, with the reported tokens on success and no
+  tokens on a failure, a timeout or a **cancellation** from outside, dated when it reached the backend (not
+  when it was pre-checked). The cancellation is charged, then re-raised; `CassetteMiss` still propagates and is
+  never an outcome. This replaces the 2026-10-14 note's "cancelling from outside would skip the charge", in line
+  with that note's intent (QP6-6: a call cut for a deadline is paid for). Every exit releases the reservation and
+  the slot it took. The ledger is never reset on restart, as before.
+
+The controller side of the same correction (one absolute expiry from `Pending` receipt through the submit lock)
+is in `mineworld_cognition/controller/deadline.py` and is cross-referenced from `ARC-73`.

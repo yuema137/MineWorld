@@ -54,6 +54,7 @@ from mineworld_cognition.controller.consult import (
     NewestState,
     consult,
 )
+from mineworld_cognition.controller.deadline import Expiry
 from mineworld_cognition.controller.log import (
     DecisionInput,
     DecisionLog,
@@ -233,7 +234,7 @@ async def _one(
             clock=lambda: 0.0,
             sleep=no_sleep,
             policies=policies,
-            limits=ConsultLimits(deadline_s=20.0, max_calls=5),
+            limits=ConsultLimits(expiry=Expiry(20.0), max_calls=5),
         ),
     )
     return DecisionRecord(
