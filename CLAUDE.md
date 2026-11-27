@@ -62,7 +62,7 @@ enter world → move through space → explore → enter places → encounter pe
 → interact → participate in activities → travel elsewhere → keep living there
 ```
 
-It is therefore none of these, and a design that drifts toward one has failed:
+The playable reference experience must not be reduced to only one of these:
 
 ```text
 a social-science simulator      an agent benchmark
@@ -77,6 +77,17 @@ for the embodied experience the project exists to enable. Neither is a placehold
 ([`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md) §§2–3, §10;
 [`docs/MVP.md`](docs/MVP.md) §7).
 
+**Operator clarification, 2026-11-23:** game play and headless agent/social simulation
+are both supported uses of the same framework. The list above prohibits replacing
+the required playable delivery with an observer-only demonstration; it does not
+prohibit simulation or research applications. A world must run without either
+renderer or any LLM. Human, rule, LLM and other decision controllers remain
+replaceable independently of Person identity and world history. Simulation rules,
+authority, persistence and observations are shared across headless, 2D and 3D
+entry points. A research-only application need not attach a renderer; the framework
+must retain both playable reference clients. Do not fork game and research rules
+or put domain behavior into clients to satisfy one use. See `docs/VISION.md` §1.2.
+
 Current repository state: the contracts and kernel crates exist and are green
 (`mineworld-contracts`, `mineworld-kernel`). Audit the tree before describing it; do not invent
 structure, and do not assume this sentence is current either.
@@ -88,19 +99,23 @@ structure, and do not assume this sentence is current either.
 Documentation is not an afterthought in this project. It is the reviewable artifact that
 makes the architecture auditable, and it is written *before* the code it governs.
 
-### 2.1 Three kinds of Markdown, and only three
+### 2.1 Documentation audiences (operator ruling 2026-11-22)
+
+The basename match for `README.md` is **case-insensitive**, at every depth.
 
 | File | Audience | Requirement |
 | --- | --- | --- |
-| Any file named `README.md`, at any depth | **humans** | Short, clear, one obvious main line. Low reading burden. It orients a person and links onward; it does not carry the specification. |
-| Any file under `docs/guide/` | **humans creating worlds** | A tutorial. It may be long. Plain language; every step is "Do this → You should see this" and shows whole files; every command and file in it is executed by CI on all three platforms, so the guide can always be followed exactly. It teaches; it never becomes the authority for a design, and it links to the generated reference and the specifications for the rules. |
-| **Every other** `.md` file | **coding agents** | A specification. Complete, precise, unambiguous, terminologically exact, conceptually aligned with every other spec in the repository. Length is not a defect; vagueness is. |
+| Any case-insensitive `README.md` basename | Humans | Concise, clear orientation: purpose, mental model, one obvious starting path, links to detail. Minimize reading burden. |
+| Every other Markdown file | Coding agents | Complete, detailed, precise, unambiguous specifications and operational instructions. Preserve required contracts, reasoning, evidence and constraints; do not shorten by omitting requirements. |
 
-The guide class was added by operator ruling QS25-1 (2026-10-14, step 25).
+This ruling supersedes QS25-1's separate human-tutorial exception for `docs/guide/`.
+Existing guide execution contracts and required examples remain binding; changing their
+presentation must not discard executable steps or validation obligations. English remains
+authoritative and Chinese mirrors remain mirrors.
 
 Rules that follow from that split:
 
-1. A `README.md` never becomes the authority for a design. If a reader must know a rule to
+1. A case-insensitive `README.md` never becomes the authority for a design. If a reader must know a rule to
    implement correctly, the rule lives in a specification document, and the README links to
    it.
 2. A specification document never sacrifices completeness for brevity. Do not trim, do not
@@ -259,7 +274,52 @@ No host hooks are registered. Do not register or enable the `continuity`, `check
 document and bind the session explicitly. Without hooks these obligations remain procedural,
 and missing hooks never block authorized work. Report actual enforcement status accurately.
 
-### 3.4 Scope of the workflow
+### 3.4 Standing coordination and review rules (operator, 2026-11-22)
+
+These are durable project instructions for subsequent sessions. They supersede older session
+notes that remove independent review or require waiting for automatic GitHub CI before review.
+They do not waive frozen scope, spending authority, or required repository merge protections.
+
+- The primary agent coordinates delivery, integration, shared planning documents, operator
+  decisions and progress reporting. Delegate each execution lane to an owning subagent; keep
+  an independent red-team lead to review plans and completed work and discuss findings with
+  the primary. Reserve capacity for review instead of filling every slot with implementers.
+- Optimize reviewed, delivered capability, not agent count or PR volume. Maintain a ready queue
+  ordered by dependencies. Each dispatch identifies the base revision, one PR/worktree owner,
+  affected paths, contract, acceptance evidence, and resource/spending limits.
+- Parallelize independent ready work within machine and reviewer capacity. Bound work in
+  progress. Do not duplicate a worker on a blocked task; resolve its dependency or assign a
+  different ready task. Preserve unfinished work before transferring ownership.
+- Operator configuration ruling, 2026-11-23: delegated agents use **GPT-6.1 Sol,
+  medium reasoning**, unless the operator subsequently changes that choice. The
+  configured capacity is ten concurrent subagents, excluding the primary; this
+  is a capacity ceiling, not a requirement to manufacture ten tasks or run ten
+  heavy builds. Preserve the shared heavy-job limits and isolated checkout
+  ownership. Existing workers transfer at a durable checkpoint when a live model
+  change is unavailable. This ruling supersedes older per-lane model suggestions.
+- Validate locally first with the smallest sufficient checks for the change. Follow existing
+  shared heavy-job limits. Review ready work promptly once dependencies are satisfied; do
+  not wait for GitHub automatic CI to begin review or let ready PRs and issues accumulate.
+  Record local and remote results separately. A required remote check is not a local pass.
+- Every ready-PR review explicitly evaluates technical debt, module boundaries, readability,
+  robustness, extensibility, oversized functions/files, deep inheritance and excessive coupling.
+  Existing size thresholds in §4 remain review triggers, not permission to split code into
+  meaningless fragments. Record material findings and their disposition in the PR evidence.
+  Robustness means explicit errors, boundaries, invariants and restart behavior; extension
+  belongs in owning modules and contracts, not speculative abstractions. Distinguish existing
+  debt from newly introduced debt; do not conceal growth in giant modules. An issue that
+  undermines the approved contract is fixed or escalated before completion. Material new
+  maintainability debt is corrected before the PR is declared ready, or brought to the
+  operator as an explicit, evidenced contract deviation.
+- Report progress and surface concrete operator decisions; visual decisions include evidence
+  on the HTML progress page. Keep page state, milestones and active lanes consistent.
+
+The following references informed these adaptations; repository rules and operator rulings
+remain authoritative: [Cursor, Scaling long-running autonomous coding](https://cursor.com/blog/scaling-agents),
+[Anthropic, Building a C compiler](https://www.anthropic.com/research/building-c-compiler),
+and [Google, Speed of code reviews](https://google.github.io/eng-practices/review/reviewer/speed.html).
+
+### 3.5 Scope of the workflow
 
 The full workflow is for substantial work: a change spanning several commits, PRs, or
 sessions. Do not impose overall/step/PR documents on a typo fix, a one-line correction, or a
