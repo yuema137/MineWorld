@@ -252,6 +252,25 @@ fn closed_comes_after_the_seller_and_price_and_before_funds_and_stock() {
 fn a_person_still_sells_and_a_keeper_still_reprices_in_a_closed_shop() {
     let mut town = town(DAYTIME, STOCK, 23 * HOUR);
     let at = u64::try_from(23 * HOUR).expect("positive");
+    // Closed comes before self-trade (N1-I3): the keeper's own offers say `shop-closed` now, and the
+    // keeper's refusal (`PreconditionFailed`) once the shop is open.
+    assert_eq!(
+        offer_verdict(&town, "felix", "propose-price", None),
+        Err(code(SHOP_CLOSED))
+    );
+    assert_eq!(
+        offer_verdict(&town, "felix", "buy", Some("bread")),
+        Err(code(SHOP_CLOSED))
+    );
+    let open = self::town(DAYTIME, STOCK, 9 * HOUR);
+    assert_eq!(
+        offer_verdict(&open, "felix", "propose-price", None),
+        Err(Rejection::PreconditionFailed)
+    );
+    assert_eq!(
+        offer_verdict(&open, "felix", "buy", Some("bread")),
+        Err(Rejection::PreconditionFailed)
+    );
     let from_grace = town
         .buy_at("alice", Some("grace"), "bread", 260, at)
         .expect("answers");

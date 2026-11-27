@@ -189,6 +189,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-350](ARC-350.md) | Offers are ordered by the category each pack declares for its actions |
 | [ARC-360](ARC-360.md) | Putting things down, seeing shelves, keeping shifts |
 | [ARC-361](ARC-361.md) | Nobody trapped in a pocket or a doorway, and chance purchases within a budget |
+| [ARC-364](ARC-364.md) | A shop sells only inside its authored daily hours |
 
 ## DEP — Dependencies, and building our own instead
 

@@ -51,7 +51,7 @@ export `e3f207186ea76d562800dbd6c53cb40daf9dacc1`. Evidence and source paths in
 | Food energy | Current needs use 0–1000 hunger and authored restoration values, not kcal | New typed nutrition/energy design required; relabelling old hunger as kcal is incorrect |
 | Realistic prices | Current content has authored US-sized prices; this audit establishes no current retail provenance | Collect dated retailer/menu references and serving sizes before claiming realism |
 | Homes/sleep | Routines name shared apartments; Market Town sleep exists, not private homes or beds for every resident | Verify night/morning behavior; design personal residence assignment separately if required |
-| Shop hours | Current economy purchase resolution has no time/staff-presence check | Genuine owning-system contract gap; lights/doors alone cannot implement business hours |
+| Shop hours | Current economy purchase resolution has no time/staff-presence check | Genuine owning-system contract gap; lights/doors alone cannot implement business hours. **Designed and frozen 2026-11-27 (Q-L1): `pr-nightlife.md` N1; implemented by PR N1 (`ARC-364`): optional economy-owned daily hours, `shop-closed` on every sale path; Market Town café 05:30–22:00, store 06:00–23:00, newsstand 06:00–18:00** |
 | Sleep skip | S35 Q-S35-9 excludes shared-world skipping and defers single-player; host allows high scales only when solo | New single-player proposal required; do not equate clock rescaling with simulated overnight life |
 
 S35 Q-S35-7 explicitly keeps Social Cafe and Bodies Yard as removal witnesses.

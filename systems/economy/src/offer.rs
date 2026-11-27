@@ -86,6 +86,9 @@ pub(crate) fn wealth(world: &WorldRead<'_>, holder: EntityId) -> Wealth {
 /// them now (S35 N-h R5; `ARC-364` N1-I6): none at a shop the observer keeps, where a keeper may not
 /// buy, and none at a shop outside its hours at the read's instant — still listed, so a passer-by sees
 /// the sign and does not walk in. The `shop-stock` view, in place order. Computed, never stored.
+///
+/// "Now" is the read's instant, `world.at()`: perception reads at the world's now, which every host
+/// keeps equal to the observation's instant (it advances the world before it observes), as the offers do.
 pub(crate) fn shop_stock(world: &WorldRead<'_>, observer: EntityId) -> ShopStock {
     let now = world.at();
     ShopStock::new(

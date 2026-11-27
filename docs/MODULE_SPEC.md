@@ -1054,10 +1054,11 @@ economy   economy    people,  One section, three carriers (`ARC-38`, `ARC-112`, 
                               re-price and withdraw them while standing in the shop. Optional `hours: [
                               { from: "HH:MM", until: "HH:MM" } ]` (`ARC-364`): 0–8 daily intervals,
                               half-open, wrapping midnight when `until` < `from`; absent = always open,
-                              `[]` = closed all day; an empty interval, an overlap or a ninth is refused
-                              at its line, naming the interval's index. Outside its hours every way of
-                              buying from the shop is refused `shop-closed` and its `shop-stock` entry
-                              lists nothing; unattended, keepers may still re-price. Item — { reference:
+                              `[]` = closed all day; an empty interval or an overlap (naming the
+                              intervals' indices) or a ninth is refused as the file loads, naming the
+                              file. Outside its hours every way of buying from the shop is refused
+                              `shop-closed` and its `shop-stock` entry lists nothing; unattended,
+                              keepers may still re-price. Item — { reference:
                               <amount ≥ 1> }: the kind's typical worth, never charged. A price or
                               reference is 1 … 10^12. Refused at genesis by code: a person or
                               organization without `wallet` (`economy-wallet-unresolved`), `shop` on a
