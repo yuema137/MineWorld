@@ -15,7 +15,7 @@ Start condition (N2):   N1 merged; N2-C1 … N2-C3 then start on main; N2-C4 add
 Execution contract:     .structured-coding/plans/mvp0/pr-nightlife-contract.md (contracts N1 and N2)
 Parent:                 operator-playable-mvp-20261123.md §§2–5 (requirements); overall.md
 Supersedes as authority: the recovered Codex drafts listed in §1.5 (evidence only, not ledgers)
-Lifecycle:              FROZEN (2026-11-27); implementation not yet started
+Lifecycle:              FROZEN (2026-11-27); N1 implementation in progress (mvp0/pr-nightlife-n1, §11); N2 not started
 ```
 
 ## 0. Operator rulings (2026-11-27)
@@ -305,26 +305,62 @@ residents eat across a night/morning, and save/restart reproduces the hours.
    (type-only `mineworld-schedule`), economy pack documentation, regenerated
    `docs/reference/schema/section-economy.schema.json`. Non-goals: sale semantics (C2), content (C3), staffing.
 3. **Implementation.**
-   - [ ] `Hours` type: 0…8 `[from, until)` intervals of `TimeOfDay`, normalised across midnight; `open_at(WorldTime)`.
-   - [ ] `AuthoredShop.hours: Option<Vec<…>>`; refusals naming the source file and interval index.
-   - [ ] Thread through `ShopOpened` → `Shop` reducer; decide additive-optional vs version bump (N1-I4) and record.
-   - [ ] Determine whether hours reach a resume-compared configuration fact and record the N1-I8 branch.
-   - [ ] Regenerate the schema; document defaults and refusals in the pack's module docs.
-4. **Validation.** [ ] authoring+seeding integration for absent, `[]`, ordinary, overnight (22:00–06:00), equal
-   endpoints, overlap after midnight, ninth interval, malformed `"7:00"`; [ ] save → reopen → equal `Shop` terms;
-   [ ] a pre-N1 save fixture (existing economy persistence fixtures) decodes as always-open; [ ] a pre-N1 Market Town
+   - [x] `Hours` type: 0…8 `[from, until)` intervals of `TimeOfDay`, normalised across midnight; `open_at(WorldTime)`.
+         → `systems/economy/src/hours.rs` (`Hours`, `Opening`, `HoursError`, `MAX_OPENINGS`); `Hours::new` refuses a
+         ninth, an empty interval and an overlap after splitting a wrapping interval into `[from, 86 400) ∪ [0, until)`;
+         valid on every decode (`Deserialize` re-runs `new`), the `Segments` pattern of schedule.
+   - [x] `AuthoredShop.hours: Option<Vec<…>>`; refusals naming the source file and interval index.
+         → `AuthoredShop.hours: Option<Hours>`; refused at decode (serde custom error: "hours interval 1 opens and
+         closes at 09:00", "hours intervals 0 and 1 overlap", "at most 8 intervals, but these have 9", schedule's
+         `"7:00"` message); the loader names the file (asserted: `day-co.yaml`).
+   - [x] Thread through `ShopOpened` → `Shop` reducer; decide additive-optional vs version bump (N1-I4) and record.
+         → **Additive-optional, no bump** (decision D-N1-1 in §11). `ShopOpened` (schema 2) and `Shop` (schema 2) gain
+         `#[serde(default, skip_serializing_if = "Option::is_none")] hours`, the `adjustments` precedent (added by WE-a
+         C4 `4dca8647` without a bump). Economy `SystemVersion` stays 5. A shop without hours encodes byte-identically
+         to the pre-N1 encoding, so worlds without hours keep their digests.
+   - [x] Determine whether hours reach a resume-compared configuration fact and record the N1-I8 branch.
+         → They do **not**: hours are an organization's `economy:` **section** (content), seeded as `shop-opened`;
+         economy's `configuration_facts` are `currency-declared` and `economy-configured` only (`system.rs` `FACTS`).
+         `ARC-61` item 7 compares configuration facts only, and its "Accepted limitations" state content drift is
+         not checked. **N1-I8 branch: the save keeps exactly its genesis terms (always open).**
+   - [x] Regenerate the schema; document defaults and refusals in the pack's module docs.
+         → `mineworld reference --out docs/reference` (section-economy.schema.json +62, sections.md +28: `hours`,
+         `Hours`, `Opening`, `TimeOfDay`); `section.rs`/`lib.rs` docs, `systems/economy/README.md`,
+         `docs/MODULE_SPEC.md` economy row.
+4. **Validation.** [x] authoring+seeding integration for absent, `[]`, ordinary, overnight (22:00–06:00), equal
+   endpoints, overlap after midnight, ninth interval, malformed `"7:00"`; [x] save → reopen → equal `Shop` terms;
+   [x] a pre-N1 save fixture (existing economy persistence fixtures) decodes as always-open; [x] a pre-N1 Market Town
    save resumed with the N1 binary and pack: the N1-I8 outcome (named drift refusal, or old terms kept) asserted;
-   [ ] a test-fixture world authoring *different* hours (e.g. a 24 h shop and a split 08:00–12:00/14:00–18:00 shop)
+   [x] a test-fixture world authoring *different* hours (e.g. a 24 h shop and a split 08:00–12:00/14:00–18:00 shop)
    loads and judges correctly with no code change (operator acceptance 8, F14).
+   Evidence: `systems/economy/tests/hours.rs` (4 tests, real loader + real SQLite):
+   `authored_hours_reach_every_shop_and_judge_its_day` (always/[]/06–23/22–06/split, 9 hand-computed instants on
+   day 0 and day 7); `malformed_hours_stop_the_load_naming_the_file_and_the_interval` (equal, overlap after
+   midnight, ninth, `"7:00"`, unknown key); `hours_are_the_same_after_save_and_reopen`;
+   `a_save_from_before_hours_resumes_with_its_shops_always_open` (a save created from the pack without hours —
+   byte-identical to a pre-N1 save, since an hours-less shop encodes as before — passes `check_configuration`
+   against the pack *with* hours, resumes, and sells at 23:30 in the shop the pack now closes at 23:00). No economy
+   persistence fixture existed (bounded deviation D-N1-2): the pre-N1 save is produced in-test. The Market Town
+   variant of the N1-I8 check runs in N1-C3 (`tools/cli`). Unit: `hours::tests` (boundaries 05:59:59 / 06:00:00 /
+   23:59:59 / 00:00:00; overlap after wrap; touching intervals allowed).
 5. **Acceptance.** 22:00–06:00 is open at 23:59:59 and 00:00:00, closed at 06:00:00; every malformed form fails load
-   naming file and index; absent hours change no existing economy test outcome.
+   naming file and index; absent hours change no existing economy test outcome. **Met** (unit + integration above;
+   all 16 pre-existing economy test targets unchanged and passing).
 6. **Failure/edges.** Invalid hours stop world load (never silently always-open); an unsupported old payload is a
    named version refusal; no runtime System dependency on schedule (type-only, checked in `declaration`).
+   **Met**: `EconomySystem::declaration` unchanged (`depending_on([Inventory, Presence])`); `mineworld-schedule` is a
+   type-only Cargo dependency, as employment's.
 7. **Commands/evidence.** `cargo test -p mineworld-economy` (owning crate only; `R-LOAD-1`: no local full workspace),
    `cargo fmt --all --check`, `cargo clippy -p mineworld-economy -- -D warnings`, `mineworld reference --check
-   docs/reference`. NOT RUN (design). Record counts, wall time, schema diff.
-8. **Boundary.** Typed configuration and persistence only. [ ] independent logic review of normalisation and
-   migration; [ ] staged diff and ledger recorded before commit.
+   docs/reference`. **Run 2026-11-27 on the C1 tree (local, macOS arm64, debug-optimized test profile)**: economy
+   17 targets PASS (5 lib + 64 integration tests incl. 4 new); clippy `--all-targets -D warnings` PASS; fmt PASS;
+   `reference --check` PASS (46 files). Mutation: removing the overlap check fails
+   `overlap_is_judged_after_wrapping…` (caught).
+8. **Boundary.** Typed configuration and persistence only. [x] logic review of normalisation and migration
+   (author self-review at commit: adjacent-pair overlap after sorting is complete because any overlap of span *i*
+   with a later *j* implies *i*'s successor starts before *i* ends; a wrap's two pieces are disjoint; no version
+   bump is safe because decode re-validates and absent hours skip serialization. The independent review of the
+   whole PR is recorded in §11); [x] staged diff and ledger recorded before commit.
 
 ### N1-C2 — one availability judgement and disclosure
 
@@ -565,3 +601,32 @@ None of the corrections changes an operator ruling; each is a bounded design cor
 | F13 — stale claims | Fixed: HostClock location (§2.2), all twelve routines (§2.3), full refusal precedence (N1-I3), `ARC-28` value-type extension stated |
 | F14 — speed bound, references, variant world, restamp | Fixed: N2-C3 speed acceptance; citations as evidence in N1-C3/N2-C1; N1-C1 variant-hours fixture; N2 `unknown-adapter` test; header restamped to `8c971f0f` |
 | F15 — confirmed sound | No action |
+
+## 11. N1 execution ledger (implementation session, 2026-11-27)
+
+```text
+Branch / worktree:   mvp0/pr-nightlife-n1 @ /Users/yuema137/mineworld-worktrees/impl-nightlife-n1
+                     (the contract names feat/nightlife-n1-shop-hours; the primary's dispatch named
+                     mvp0/pr-nightlife-n1 — bounded deviation D-N1-0, name only)
+Implementation base: origin/main 8c971f0f7b469f05d1bf6f21fc933501eb22c404 (= the freeze base; §2.2 seams unchanged)
+Ledger carriage:     PR #537 (this design, docs-only) was not merged at the start; this PR carries the frozen
+                     design and contract byte-identical to 86e65cf6 plus the N1 evidence, so the ledger lives
+                     with the code it records. Whichever of #537 / N1 merges second takes the other's text.
+Scope:               N1-C1, N1-C2, N1-C3 (N1-C3's packaged launcher check waits for P1). N2 not started.
+```
+
+### Decisions and bounded deviations
+
+| ID | Question | Evidence | Decision |
+| --- | --- | --- | --- |
+| D-N1-0 | Branch name | dispatch from the primary | `mvp0/pr-nightlife-n1`, one worktree, one session |
+| D-N1-1 | N1-I4: additive-optional or a version bump | `component.rs` `Shop.adjustments` added by WE-a C4 (`4dca8647`) with `serde(default, skip_serializing_if)` and no schema bump; `codec` decodes the payload with serde | Additive-optional; `ShopOpened` stays schema 2, `Shop` schema 2, economy `SystemVersion` 5. Hours are re-validated on every decode, so a stored invalid value is refused, never read as always-open |
+| D-N1-2 | "Existing economy persistence fixtures" for a pre-N1 save | none exist (`persistence/tests/fixtures` holds format-2/3 only; economy tests build saves in-test) | The pre-N1 save is created in-test from the same pack without hours; it is byte-identical to a pre-N1 binary's save of that pack because an hours-less shop encodes exactly as before |
+| D-N1-3 | N1-I8 branch | §5 N1-C1 item 4 above (hours are content; `ARC-61` compares configuration facts only) | "the save keeps exactly its genesis terms (always open)", asserted |
+
+### Progress
+
+| Checkpoint | Commit | State |
+| --- | --- | --- |
+| Frozen design + contract carried | `953f3331` | done |
+| N1-C1 typed, persistent shop hours | (this commit) | implementation, validation, logic review done; next: N1-C2 |
