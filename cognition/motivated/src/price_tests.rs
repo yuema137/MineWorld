@@ -61,7 +61,7 @@ fn store(at: i64) -> Observation<Value> {
         "valid_until": at + 20_000,
     }]});
     let currency = json!({
-        "name": "US dollar", "symbol": "$", "exponent": 2, "symbol_at": "before",
+        "name": "dollar", "symbol": "$", "exponent": 2, "symbol_at": "before",
         "references": [{ "item": item(10), "value": 100 }, { "item": item(BREAD), "value": 300 }],
     });
     let me = PerceivedEntity::new(id(ME), EntityType::Person)
