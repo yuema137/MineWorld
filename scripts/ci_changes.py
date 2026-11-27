@@ -14,17 +14,21 @@ base that is the null id (a new branch), missing from the clone, or not an ances
 and any `git` failure. A push to `main` and a dispatch are code without diffing, so `main` is always
 fully verified.
 
-Since the operator's policy of 2026-10-18 (`docs/DECISIONS.md` ARC-154, speed first) it also decides
-whether a code change runs its tests now or at the milestone, as one `mode`:
+Since the operator's policy of 2026-10-18 (`docs/DECISIONS.md` ARC-154, speed first), revised by the
+operator's ruling of 2026-11-27 (ARC-154's dated note: every PR runs the tests its change can reach), it
+also decides which tests a code change runs, as one `mode`:
 
     docs      documentation only: the `docs` layer, as above.
-    deferred  every pull request and every push to `main`: `fast` only. The test layers run at the
-              milestone; the required gates pass with a note saying so.
-    full      a dispatch with `milestone=true`, a PR labelled `milestone`, or a scratch branch: every
-              layer on every operating system.
+    impact    a pull request: `fast`, plus the tests `scripts/ci_impact.py` selects from the change set
+              (Linux; macOS and Windows only for platform-specific changes). The required gates judge the
+              selected jobs, and say what was selected and why.
+    deferred  a push to `main` and a plain dispatch: `fast` only. `main` is covered by the nightly.
+    full      a dispatch with `milestone=true`, a PR labelled `milestone`, a scratch branch, or a pull
+              request whose change set or selection cannot be computed, or that touches a build root or
+              the CI definition (ci_impact.py GLOBAL_*): every layer on every operating system.
 
-A deferred run is the default, and it fails closed in the direction that matters: a change set this
-script cannot compute is still code, so `fast` (never the `docs` layer) runs on it.
+It fails closed in the direction that matters: a change set this script cannot compute is code, and on a
+pull request it is `full`.
 
     python3 scripts/ci_changes.py --event E --ref R --base SHA --head SHA [--labels a,b]
                                   [--milestone true|false] [--github-output FILE]
@@ -36,6 +40,7 @@ Standard library only: it runs on the bare runner, before any toolchain exists.
 from __future__ import annotations
 
 import argparse
+import json
 import posixpath
 import re
 import subprocess
@@ -44,6 +49,9 @@ from collections.abc import Callable
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "scripts"))
+import ci_impact  # noqa: E402  (beside this script: the per-PR selection)
+
 NULL = "0" * 40
 
 # The audited docs set (step-14 §16.3). Widening it is a change to that table, after the same audit.
@@ -168,11 +176,13 @@ def decide(event: str, ref: str, base: str, head: str, diff: Diff = git_diff) ->
 
 MILESTONE_LABEL = "milestone"
 DEFERRED_NOTE = "deferred to milestone (operator policy 2026-10-18, docs/DECISIONS.md ARC-154)"
+IMPACT_NOTE = "impact-selected tests only (operator ruling 2026-11-27, docs/DECISIONS.md ARC-154)"
 DOCS_NOTE = "documentation only: no test layer runs (ARC-48's note of 2026-10-09)"
 
 
 def mode_of(event: str, ref: str, code: bool, labels: tuple[str, ...] = (), milestone: bool = False) -> str:
-    """`docs`, `deferred` or `full` for one run."""
+    """`docs`, `impact`, `deferred` or `full` for one run, before the selection is known (`resolve`
+    turns an `impact` whose selection cannot be made into `full`)."""
     if not code:
         return "docs"
     if event == "workflow_dispatch" and milestone:
@@ -182,11 +192,43 @@ def mode_of(event: str, ref: str, code: bool, labels: tuple[str, ...] = (), mile
     # A scratch branch exists to show a mutation turning CI red (step-14 §9.0 R-4): it runs everything.
     if event == "push" and ref.startswith("refs/heads/scratch/"):
         return "full"
+    if event == "pull_request":
+        return "impact"
     return "deferred"
 
 
 def note_of(mode: str) -> str:
-    return {"docs": DOCS_NOTE, "deferred": DEFERRED_NOTE}.get(mode, "")
+    return {"docs": DOCS_NOTE, "deferred": DEFERRED_NOTE, "impact": IMPACT_NOTE}.get(mode, "")
+
+
+def resolve(mode: str, paths: list[str], workspace: Callable[[], ci_impact.Workspace],
+            readers: ci_impact.Readers, lines: Callable[[], list[str]]) -> tuple[str, list[str], dict]:
+    """The final mode, why, and the impact outputs. An `impact` run whose change set is unknown, whose
+    selection fails, or that touches a global path becomes `full` (fail closed)."""
+    empty = {"core": "false", "select": "{}", "shards": "[]", "python": "", "godot": "false",
+             "removability": "false", "platforms": "false"}
+    if mode != "impact":
+        return mode, [], empty
+    if not paths:
+        return "full", ["change set unknown: the whole run"], empty
+    try:
+        built = workspace()
+        selection = ci_impact.select(paths, built, readers, lines(), is_docs)
+    except (ci_impact.Unknown, OSError) as error:
+        return "full", [f"selection failed: {error}"], empty
+    if selection.full:
+        return "full", selection.full, empty
+    core = selection.core(built)
+    outputs = {
+        "core": "true" if core["units"] else "false",
+        "select": json.dumps(core, separators=(",", ":")),
+        "shards": json.dumps(selection.shards(built)),
+        "python": ",".join(sorted(selection.python)),
+        "godot": str(selection.godot).lower(),
+        "removability": str(selection.removability).lower(),
+        "platforms": str(selection.platforms).lower(),
+    }
+    return "impact", selection.reasons, outputs
 
 
 # ------------------------------------------------------------------------------------------ self-test
@@ -264,9 +306,13 @@ def self_test() -> int:
         failed += not good
         print(f"[self-test] {'ok  ' if good else 'FAIL'} {name}: clients={str(runs).lower()}")
     cases += far
-    # The mode (ARC-154): tests run at the milestone, never per PR or per merge.
+    # The mode (ARC-154 and its note of 2026-11-27): a PR runs its impact selection; the milestone runs everything.
     modes: list[tuple[str, tuple[str, str, str, str], Diff, tuple[str, ...], bool, str]] = [
-        ("a code PR is deferred", pr, fixed(["kernel/src/lib.rs"]), (), False, "deferred"),
+        ("a code PR runs its impact selection", pr, fixed(["kernel/src/lib.rs"]), (), False, "impact"),
+        ("a Godot-only PR runs its impact selection", pr, fixed(["clients/2d/scripts/app.gd"]), (), False, "impact"),
+        ("a PR changing the workflow runs everything", pr, fixed([".github/workflows/ci.yml"]), (), False, "full"),
+        ("a PR changing Cargo.lock runs everything", pr, fixed(["Cargo.lock", "kernel/src/lib.rs"]), (), False,
+         "full"),
         ("a docs-only PR is docs", pr, fixed(["docs/MVP.md"]), (), False, "docs"),
         ("a PR labelled milestone runs everything", pr, fixed(["kernel/src/lib.rs"]), ("bug", "milestone"), False,
          "full"),
@@ -277,21 +323,36 @@ def self_test() -> int:
          "deferred"),
         ("a milestone dispatch runs everything", ("workflow_dispatch", "refs/heads/main", "", ""), fixed([]), (),
          True, "full"),
-        ("milestone=true outside a dispatch is ignored", pr, fixed(["kernel/src/lib.rs"]), (), True, "deferred"),
+        ("milestone=true outside a dispatch is ignored", pr, fixed(["kernel/src/lib.rs"]), (), True, "impact"),
         ("a scratch push runs everything", ("push", "refs/heads/scratch/x", "a" * 40, "b" * 40),
          fixed(["kernel/src/lib.rs"]), (), False, "full"),
-        ("an unknown change set is code, so deferred (fast runs, not docs)",
-         ("pull_request", "refs/pull/1/merge", "", "b" * 40), git_diff, (), False, "deferred"),
+        ("an unknown change set on a PR runs everything",
+         ("pull_request", "refs/pull/1/merge", "", "b" * 40), git_diff, (), False, "full"),
+        ("an unknown change set on a push is code, so deferred (fast runs, not docs)",
+         ("push", "refs/heads/feature", "", "b" * 40), git_diff, (), False, "deferred"),
     ]
+    def no_lines() -> list[str]:
+        return []
+
     for name, (event, ref, base, head), diff, labels, milestone, expected in modes:
-        code, _, _ = decide(event, ref, base, head, diff)
-        mode = mode_of(event, ref, code, labels, milestone)
+        code, _, paths = decide(event, ref, base, head, diff)
+        mode, _, _ = resolve(mode_of(event, ref, code, labels, milestone), paths, ci_impact.synthetic,
+                             lambda prefix: [], no_lines)
         good = mode == expected and (note_of(mode) != "") == (mode != "full")
         failed += not good
         print(f"[self-test] {'ok  ' if good else 'FAIL'} mode: {name}: mode={mode}")
+    # A selection that cannot be computed (no cargo, a broken manifest) is a full run, never a silent pass.
+    def broken() -> ci_impact.Workspace:
+        raise ci_impact.Unknown("cargo metadata failed")
+
+    mode, why, _ = resolve("impact", ["kernel/src/lib.rs"], broken, lambda prefix: [], no_lines)
+    good = mode == "full" and "selection failed" in why[0]
+    failed += not good
+    print(f"[self-test] {'ok  ' if good else 'FAIL'} mode: a failed selection runs everything: mode={mode}")
     cases += modes  # type: ignore[arg-type]
-    print(f"[self-test] {'passed' if not failed else f'FAILED: {failed} case(s)'}: {len(cases)} case(s)")
-    return 1 if failed else 0
+    print(f"[self-test] {'passed' if not failed else f'FAILED: {failed} case(s)'}: {len(cases) + 1} case(s)")
+    # The selection's own cases: single crate, kernel, Python-only, Godot-only, docs-only, workflow (ci_impact.py).
+    return 1 if failed or ci_impact.self_test(is_docs) else 0
 
 
 def main(arguments: list[str]) -> int:
@@ -308,7 +369,9 @@ def main(arguments: list[str]) -> int:
     options = parser.parse_args(arguments)
     code, reason, paths = decide(options.event, options.ref, options.base, options.head)
     labels = tuple(label.strip() for label in options.labels.split(",") if label.strip())
-    mode = mode_of(options.event, options.ref, code, labels, options.milestone == "true")
+    mode, why, impact = resolve(mode_of(options.event, options.ref, code, labels, options.milestone == "true"),
+                                paths, ci_impact.workspace_of, ci_impact.git_readers,
+                                lambda: ci_impact.changed_lines(options.base, options.head))
     for path in paths:
         print(f"[changes] {'docs' if is_docs(path) else 'code'}  {path}")
     verdict = "true" if code else "false"
@@ -316,12 +379,20 @@ def main(arguments: list[str]) -> int:
     print(f"[changes] code={verdict}: {reason}")
     print(f"[changes] clients={far}: the far-field job {'runs' if far == 'true' and mode == 'full' else 'is skipped'}")
     print(f"[changes] mode={mode}{': ' + note_of(mode) if note_of(mode) else ': every layer on every OS'}")
+    for line in why:
+        print(f"[changes]   {line}")
+    if mode == "impact":
+        print(f"[changes] impact: core={impact['core']} shards={impact['shards']} python={impact['python'] or '-'} "
+              f"godot={impact['godot']} removability={impact['removability']} platforms={impact['platforms']}")
+        print(f"[changes] impact: test targets {', '.join(json.loads(impact['select']).get('units', [])) or '-'}")
     if options.github_output:
         with options.github_output.open("a", encoding="utf-8") as output:
             output.write(f"code={verdict}\n")
             output.write(f"clients={far}\n")
             output.write(f"mode={mode}\n")
             output.write(f"note={note_of(mode)}\n")
+            for key, value in impact.items():
+                output.write(f"impact_{key}={value}\n")
     return 0
 
 
