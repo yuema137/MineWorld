@@ -1,0 +1,28 @@
+From 2adf50427e920dad2284c7e484ae310146bee529 Mon Sep 17 00:00:00 2001
+From: Yue Ma <yuema9810@gmail.com>
+Date: Sun, 22 Nov 2026 17:44:44 -0800
+Subject: [PATCH] docs(ci): clarify layer failure continuation
+
+---
+ scripts/ci_layer.py | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/scripts/ci_layer.py b/scripts/ci_layer.py
+index 8fc42f31..6a0809f0 100644
+--- a/scripts/ci_layer.py
++++ b/scripts/ci_layer.py
+@@ -9,8 +9,9 @@ layer runs are reviewed as policy in one list, the same entry point runs on a la
+ 
+ Before the first command it prints the toolchain and how the checkout was made (shallow or not,
+ partial-clone filter), because a green layer is only evidence about the toolchain and history it ran
+-with. Every command is printed before it runs and timed after; the first failure stops the layer with
+-that command's exit status. Nothing is retried and nothing is allowed to fail (ARC-48).
++with. Every command is printed before it runs and timed after. Failed Cargo test runs are reported and
++the layer continues; other failures, including test builds, stop it. The layer returns the first failing
++command's exit status. Nothing is retried and no failure is ignored (ARC-48).
+ 
+     python3 scripts/ci_layer.py fast | core | parity
+                                                    run a layer (on Linux in the toolchain container;
+-- 
+2.50.1 (Apple Git-155)
+

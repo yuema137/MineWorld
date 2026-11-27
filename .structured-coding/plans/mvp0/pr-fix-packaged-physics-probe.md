@@ -1,5 +1,27 @@
 # PR repair — Packaged 3D physics diagnostic dependency
 
+## MERGED — 2026-11-22 Pacific
+
+PR #530 merged at 2026-11-23T05:01:29Z (November 22, 21:01:29 PST).
+Reviewed head `4cd160bbbdc3f7244a0fd6b65bcf468138b198df`; executable commit
+`67cedbeadaa23f40ad0b4472be8f19996da07075`; actual merge commit
+`b457a94d9a1ace6a39005de683cc393886e19288`.
+Operator explicitly authorized the prepared public description and this exact-head
+merge: “授权更新说明并合并 #530（推荐）”. The coordinator updated the approved
+body, rechecked OPEN/non-draft/MERGEABLE/CLEAN, merged with a head-match guard,
+and confirmed GitHub's MERGED state. Local main fast-forwarded while preserving
+all pre-existing uncommitted coordination work.
+
+Independent final review passed. Exact-head CI run 45086966233 fast/removability
+passed; actual test/platform matrices were skipped, not executed full-suite passes.
+Supplemental exported default-seat link completed in 104.1 seconds with its cached
+server provenance explicitly recorded. Full integrated playable/cross-platform
+release acceptance remains separate. No tag or release was created.
+
+This dated closure supersedes the historical blocked publication/next-action text
+below. The coordinator owns and records step-23 and overall synchronization locally;
+publication of those later documentation edits is not claimed by this merge.
+
 ## Authority and scope
 
 Bounded correction to the existing frozen S23 release contract, not a new design freeze.
