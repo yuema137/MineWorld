@@ -109,6 +109,18 @@ claims that checks ran or a newly approved design freeze.
 
 ## 5. Single-player sleep advance proposal and unresolved decisions
 
+**Resolved 2026-11-27 (operator ruling, Q-L1 … Q-L5 as recommended):** shop hours, homes and
+single-player sleep advance are designed and frozen in
+[`pr-nightlife.md`](pr-nightlife.md) (contracts: [`pr-nightlife-contract.md`](pr-nightlife-contract.md)).
+Rulings: optional economy-owned shop hours with Market Town café 05:30–22:00, store
+06:00–23:00, newsstand 06:00–18:00, unattended (Q-L1); sleep-owned `sleep-until`
+with a configurable morning, default 07:00, a world rule in every world (Q-L2);
+solo-only exact-due advance, interrupted on restart, no controller-trace parity
+(Q-L3); advance refused while another decision session is attached (Q-L4 option A);
+N1 shop hours first, N2 sleep advance right after, private homes deferred (Q-L5).
+Rows "Homes/sleep", "Shop hours" and "Sleep skip" of §3 and the residences /
+staffed hours / sleep advance item below are governed by that design.
+
 Proposed behavior: a permitted sleep action in a solo world presents a sleeping
 screen while the authoritative host processes the intervening night, stopping at
 the requested morning or an earlier wake/interruption. Save the resulting world
