@@ -396,9 +396,19 @@ Departures (the ruling governs; each is bounded and recorded rather than escalat
   gates (`test`, `test-windows`, `test-macos`, `removability`) judge the selected jobs, so branch protection
   does not change and E5 is moot unless the operator wants a separate check.
 - D-E4-2. No recorded test -> pack map yet (design §2.3 "Build (small)", rule 2's CLI narrowing, rule 3).
-  The operator brief asked for changed crates plus reverse dependents via `cargo metadata`; a System Pack
-  change therefore reaches nearly the whole CLI suite (226 of ~250 units on 0599b2b5). Data paths use the
-  Rust files that name their directory (`git grep`) instead of a recorded map. Follow-up: the pack map.
+  After red-team B-2 the replacement is conservative, not clever: content roots select every package naming
+  the root plus Godot and Python; package sources that name a path are kept; a crate reaching the binary runs
+  Godot and Python. It fails closed on breadth rather than on a missing map.
+  **Decision packet for the operator.** Question: build the frozen design's recorded test -> pack map (a CLI
+  opt-in that records each test's world and System Packs; the milestone run uploads it; `impact` reads it,
+  and a missing or stale map means full), or accept the conservative rule above as the standing rule 3?
+  Cost today: a single System Pack or kernel change runs ~226-247 of ~250 Rust units on six Linux shards
+  plus the Godot tests (three shards) and the Python areas, about the full Linux matrix; Godot-, Python-,
+  test- and docs-only PRs are already narrow (1-2 shards). The map would cut a pack change to the tests of
+  the worlds that install that pack, at the price of a small CLI hook, an artifact, and a staleness rule.
+  **Recommendation:** accept the conservative rule now (it is safe and already removes macOS/Windows and
+  most of the matrix from typical PRs), and schedule the pack map as P4b after P2 (the long tier) lands,
+  since P2 cuts the same pack-change PRs' wall time by ~40 % first.
 - D-E4-3. Hub paths (`kernel`, `contracts`, ...) are not a special "gate tier" rule; rule 2's reverse
   dependents reach the same set. `Cargo.lock`, the root manifest and the toolchain pin are `full`, not
   "gate tier", per the operator brief ("unknown/global changes fall back to full"). The long tier (P2) is
@@ -408,8 +418,11 @@ Departures (the ruling governs; each is bounded and recorded rather than escalat
 - D-E4-5. Python and Godot selection (design rule 5 left Python to another lane): Python areas run the
   `python` layer subset; Godot paths and direct `server/` changes run the Godot client tests (the nightly
   `clients` layer, three Linux shards). The 3D rendered far-field check (`farfield`, 50 min) stays full-only.
-- D-E4-6. macOS and Windows run the selection only for platform-specific changes (operator brief); the
-  design kept all three OSes on the gate tier at milestones, which is unchanged.
+- D-E4-6. macOS and Windows run the selection only for platform-specific changes. Source: operator ruling
+  2026-11-27, "ci不要总是跑全套，每次跑相关的，只有到大里程碑才走全套ci" (each run runs what is relevant; the
+  full CI only at major milestones), relayed in the coordinator's dispatch. The design ran no tests per PR on
+  macOS/Windows either; all three OSes run everything at milestones, unchanged. Unmarked platform bugs and
+  native Python are nightly/milestone-only (ARC-154 note).
 
 Local evidence (macOS, this worktree):
 
@@ -440,3 +453,31 @@ FAILS on main's content (`clients/shared/TRADE.md`, `clients/shared/checks/money
 `cognition/{motivated,rule-controller}/src/price_tests.rs` name 'US dollar'). This is pre-existing debt the
 deferred mode hid, not an E4 regression; since the scan suite joins every Rust selection, every impact PR's
 `test` gate is red until its owner fixes it. Escalated to the coordinator.
+
+### 3.6 E4 red-team review (2026-11-27, BLOCK) — disposition
+
+Review `/Users/yuema137/mineworld-worktrees/_reviews/e4-impact.md` at `44537cf8`. Fixed in the next commit:
+
+- B-1: `cover_selected` derives coverage from the layers (`ci_godot.GODOT_TESTS`, the `python` layer's
+  ignored commands, every other layer's ignored commands = nightly). Godot targets set `godot`;
+  `milestone_d`/`price_reporter_lm` add `cognition/lm-controller`; a changed nightly-only test file is
+  `full`. All-ignored targets no layer runs are listed in the ARC-154 note as run by no CI (pre-existing).
+- B-2: package-source readers are always kept; content roots search the root's own name and run Godot and
+  the binary-driving Python areas (+ the character pipeline for presentation/). D-E4-2 decision packet above.
+- M-1: a selection reaching `tools/cli` runs Godot and the binary-driving Python areas.
+- M-2: wider platform detector (nested `cfg`, `std::os::*`, `consts::OS`, `MAIN_SEPARATOR`, GDScript
+  `OS.get_name`/`OS.has_feature`; `.gd` lines scanned). Native Python stays a recorded gap.
+- M-3: a changed line naming `clients/3d-spike`, `lm-controller`, `mineworld-slice` or `mineworld-3d` runs
+  removability.
+- M-4: the `currency_names` debt is fixed separately in #546; E4 must not merge before it.
+- M-5: a script is fast-covered only when a `fast` command names it; others fall through to readers/full.
+- m-1: Python areas and Godot targets are imported from `ci_layer`/`ci_godot`. m-2: named flag constants
+  replace slice indices in `ci_shard`; `ci_layer.py` size debt (828 lines) and the lazy `ci_changes` import
+  in `ci_impact.self_test` remain, recorded. m-3: feature-unification difference recorded in ARC-154.
+  m-4: D-E4-6 quote recorded. m-5: 11 new regression cases (38 selection cases in all).
+
+Evidence after the fix: `ci_changes.py --self-test` 49 + 38 PASS; `ci_shard.py --self-test` PASS;
+`test_ci_execution.py` 6 PASS; `--list fast` and `--list python` byte-identical to E1. Real replays: weather
+0599b2b5 and kernel 92aa9723 -> 6 shards + Godot + 5 Python areas; SDK a5c1ef95 -> 1 shard, sdk/python;
+2D client c86304e9 -> 1 shard + Godot; 3D client 884fe65a -> 2 shards + Godot + lm-controller area +
+removability; guide-linked spec c9ba481a and one CLI test file 563f517b -> 1 shard; workflow d5d10362 -> full.

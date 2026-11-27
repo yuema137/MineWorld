@@ -39,8 +39,10 @@ DOC = "<doc>"
 # The runners a shard's tests can run under (DEP-163): nextest for `core`, cargo for the nightly's
 # `core-repeat`. `--profile ci` is .config/nextest.toml's: JUnit, no fail-fast.
 RUNNERS = {"nextest", "cargo"}
-NEXTEST = ["cargo", "nextest", "run", "--workspace", "--profile", "ci", "--no-fail-fast"]
-CARGO_TEST = ["test", "--workspace", "--no-fail-fast"]
+NEXTEST_FLAGS = ["--profile", "ci", "--no-fail-fast"]
+CARGO_TEST_FLAGS = ["--no-fail-fast"]
+NEXTEST = ["cargo", "nextest", "run", "--workspace", *NEXTEST_FLAGS]
+CARGO_TEST = ["test", "--workspace", *CARGO_TEST_FLAGS]
 
 # The `harness = false` test targets (DEP-163): their own `main` does not answer nextest's `--list`, so they
 # run under `cargo test`. The self-test fails when the workspace's manifests name a different set.
@@ -208,13 +210,13 @@ def commands(shard: list[str], runner: str = "nextest", archive: Path | None = N
         else:
             regular = [unit for unit in tested if unit not in CUSTOM_HARNESS or runner != "nextest"]
             within = scope_flags(shard, scope, regular)
-            result.append(["cargo", "nextest", "run", *within, *NEXTEST[4:], *targets] if runner == "nextest"
-                          else ["cargo", "test", *within, *CARGO_TEST[2:], *targets])
+            result.append(["cargo", "nextest", "run", *within, *NEXTEST_FLAGS, *targets] if runner == "nextest"
+                          else ["cargo", "test", *within, *CARGO_TEST_FLAGS, *targets])
     if custom:
         result.append(["cargo", "test", *scope_flags(shard, scope, [u for u in shard if u in CUSTOM_HARNESS]),
-                       *CARGO_TEST[2:], *custom])
+                       *CARGO_TEST_FLAGS, *custom])
     if DOC in shard:
-        result.append(["cargo", "test", *scope_flags(shard, scope, [DOC]), *CARGO_TEST[2:], "--doc"])
+        result.append(["cargo", "test", *scope_flags(shard, scope, [DOC]), *CARGO_TEST_FLAGS, "--doc"])
     return result
 
 

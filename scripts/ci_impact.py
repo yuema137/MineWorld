@@ -12,22 +12,26 @@ Rules, applied to every changed path (the first that names a path decides its ki
 
     docs          the audited docs set (ci_changes.is_docs): nothing.
     global        the build's roots, the CI definition and its scripts (GLOBAL_*): the whole run is `full`.
-    fast-covered  other scripts and packaging inputs: their self-tests already run in `fast`.
+    fast-covered  a file a `fast` command names (a script and its self-test), and packaging inputs.
     package file  a path inside a Cargo package:
                     tests/<t>.rs or tests/<t>/...  -> that test target only (a stale expectation is caught);
                     a shared test module           -> every test target of the package;
                     anything else (src, manifest)  -> the package and every package that depends on it,
                                                       by any dependency kind, transitively (all targets).
     data          any other path: the Rust files that name its directory (`git grep`) select their test
-                  target, or their whole package; Python members, Godot clients, the removability inputs
-                  and platform-specific paths set their own flags. A data path that nothing names and no
-                  flag claims is unknown: `full` (fail closed).
+                  target, and their whole package when a crate's source names it (an `include_str!`
+                  fixture). Under a content root (CONTENT_ROOTS: worlds/, presentation/, ...) the search is
+                  for the root's own name, and the Godot client tests and the binary-driving Python areas
+                  run too. Python members, Godot clients, the removability inputs and platform-specific paths
+                  set their own flags. A data path that nothing names and no flag claims is `full`.
 
-Beyond the Rust selection: `python` lists the Python areas to test (a member that changed, or every member
-that drives the real binary when `server/` or `tools/cli/src` changed); `godot` runs the Godot client tests
-on Linux; `removability` runs IC-7 and ARC-347; `platforms` runs the same Rust selection natively on macOS
-and Windows, which otherwise stay on `fast` (Linux only, design §2.4). The repository-scan suite
-(`tests/acceptance`) joins every non-empty Rust selection: it is cheap and reads the whole tree.
+Then every selected test must run somewhere (frozen I-1; `cover_selected`): a target whose tests need
+`--ignored` adds the layer that runs them (the Godot client tests, a Python area); a changed test file whose
+tests only a nightly layer runs makes the run `full`. A selection that reaches the binary's package
+(`tools/cli`, which links every crate) also runs the Godot client tests and the binary-driving Python areas.
+`removability` also runs when a changed line names the LM controller or the 3D client; `platforms` runs the
+Rust selection natively on macOS and Windows for a platform path or a changed line that branches on the
+platform. The repository-scan suite (`tests/acceptance`) joins every non-empty Rust selection.
 
     python3 scripts/ci_impact.py --base SHA --head SHA     print the selection of a real diff
     python3 scripts/ci_impact.py --self-test               synthetic cases (also run by ci_changes.py)
@@ -49,6 +53,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
+import ci_godot  # noqa: E402  (the Godot client test targets)
+import ci_layer  # noqa: E402  (the layers: fast's commands, the Python areas, the ignored-test commands)
 import ci_shard  # noqa: E402  (the partition units and their weights, ARC-110)
 
 # The build's roots and the CI definition: a change here can reach any test, so the run is full.
@@ -57,20 +63,25 @@ GLOBAL_FILES = frozenset({
     ".gitattributes", ".dockerignore",
 })
 GLOBAL_PREFIXES = (".github/", ".cargo/", ".config/", "scripts/ci_", "scripts/test_ci_")
-# Inputs whose own checks run in `fast` (the scripts' self-tests, the packaging self-test).
-FAST_COVERED_PREFIXES = ("scripts/", "packaging/")
+# Packaging inputs, whose self-test (`package.py --self-test`) runs in `fast`. A script is covered by `fast`
+# only when a `fast` command names it (`fast_covered`); any other script falls through to the readers rule.
+FAST_COVERED_PREFIXES = ("packaging/",)
 
-# The Python workspace's members and tools (ci_layer.py PYTHON_MEMBERS, PYTHON_TOOLS, PIPELINE,
-# ASSET_GENERATION): a change under one tests that area.
-PYTHON_AREAS = (
-    "sdk/python", "cognition/lm-controller", "clients/agent", "tools/onboarding", "tools/worldgen",
-    "tools/character_pipeline", "tools/asset_generation",
-)
+# The Python areas (ci_layer.py PYTHON_AREA_COMMANDS, not restated here): a change under one tests that area.
+PYTHON_AREAS = tuple(dict.fromkeys(area for area, _ in ci_layer.PYTHON_AREA_COMMANDS))
 # The areas whose tests start the real `mineworld` binary (real_server / real_binary markers).
-BINARY_AREAS = ("sdk/python", "cognition/lm-controller", "clients/agent", "tools/onboarding", "tools/worldgen")
+BINARY_AREAS = tuple(area for area in PYTHON_AREAS if area not in ci_layer.PYTHON_NO_BINARY)
 PYTHON_ROOT_FILES = frozenset({"pyproject.toml", "uv.lock", ".python-version"})
-# Directories of the packages the Python tests drive through the binary: a direct change runs BINARY_AREAS.
-PYTHON_DRIVEN_DIRS = ("server/", "tools/cli/src/")
+# The package that builds the `mineworld` binary. Every Godot client test and every Python real_server test
+# drives it, so a selection that reaches this package (any crate it links, by reverse dependency) also runs
+# the Godot client tests and the binary-driving Python areas (red-team M-1).
+BINARY_PACKAGE_DIR = "tools/cli"
+
+# Content roots: data that the binary, the clients and the Python tools read by listing directories,
+# `include_str!` and subprocess as well as by name. A change under one is not mapped by name (red-team B-2):
+# it selects every Rust package that names the root, the Godot client tests and the binary-driving Python
+# areas (and the character pipeline for presentation/).
+CONTENT_ROOTS = ("worlds", "entities", "presentation", "spike", "tests/fixtures")
 
 # The Godot clients, their launchers and what they draw (scripts/ci_godot.py GODOT_TESTS).
 GODOT_PREFIXES = (
@@ -78,19 +89,20 @@ GODOT_PREFIXES = (
     "presentation/", "tools/presentation/", "tools/far-field/",
 )
 GODOT_FILES = frozenset({"mineworld-2d", "mineworld-3d", "mineworld-slice"})
-# The server the clients talk to: a direct change runs the Godot tests too.
-GODOT_DRIVEN_DIRS = ("server/",)
 
-# IC-7 and ARC-347 (ci_removability.py): what deleting the LM controller or the 3D client touches.
+# IC-7 and ARC-347 (ci_removability.py): what deleting the LM controller or the 3D client touches, by path,
+# and by a changed line that names them (a new reader breaks removability too; red-team M-3).
 REMOVABILITY_PREFIXES = ("cognition/lm-controller/", "clients/3d-spike/", "sdk/python/", "clients/agent/")
+REMOVABILITY_NAMES = ("clients/3d-spike", "lm-controller", "mineworld-slice", "mineworld-3d")
 
 # Platform-specific: a path segment, a script kind, or a changed line that branches on the platform.
 PLATFORM_SEGMENT = re.compile(r"(^|/)[^/]*(windows|macos|darwin|win32)[^/]*(/|$)", re.IGNORECASE)
 PLATFORM_SUFFIXES = (".ps1", ".bat", ".cmd", ".command")
 PLATFORM_PREFIXES = ("tools/launch/",)
 PLATFORM_LINE = re.compile(
-    r"cfg!?\(\s*(?:not\(\s*)?(?:windows|unix|target_os|target_family|target_vendor)"
-    r"|sys\.platform|os\.name\s*==|platform\.system\(\)"
+    r"cfg!?\([^\n]*\b(?:windows|unix|target_os|target_family|target_env|target_vendor)\b"
+    r"|std::os::(?:unix|windows)|consts::OS\b|MAIN_SEPARATOR"
+    r"|sys\.platform|os\.name\s*==|platform\.system\(\)|OS\.get_name\(|OS\.has_feature\("
 )
 
 # The repository-scan suite: joins every non-empty Rust selection.
@@ -181,6 +193,7 @@ class Selection:
     full: list[str] = field(default_factory=list)  # why the run must be full; empty when it need not be
     packages: set[str] = field(default_factory=set)  # every target of these
     tests: dict[str, set[str]] = field(default_factory=dict)  # test target -> owning packages
+    changed_tests: set[str] = field(default_factory=set)  # targets a changed test file selected (rule 1, I-1)
     python: set[str] = field(default_factory=set)
     godot: bool = False
     removability: bool = False
@@ -266,11 +279,13 @@ def select_in_package(selection: Selection, workspace: Workspace, package: Packa
         target = target_of(package, inner)
         if target is not None:
             selection.add_test(target, package.name)
+            selection.changed_tests.add(target)
             selection.reasons.append(f"{path}: test target {package.name}::{target}")
             return
         users = module_users(package, inner, readers)
         for target in users:
             selection.add_test(target, package.name)
+            selection.changed_tests.add(target)
         selection.reasons.append(f"{path}: a shared test module of {len(users)} test target(s) of {package.name}")
         return
     reached = workspace.dependents({package.name})
@@ -279,13 +294,16 @@ def select_in_package(selection: Selection, workspace: Workspace, package: Packa
 
 
 def select_readers(selection: Selection, workspace: Workspace, path: str, readers: Readers) -> bool:
-    """Selects the Rust readers of a data path; whether any was found. A test file that names the path is
-    the reader that exercises it; a package's source that names it (a default path, a launcher, a doc
-    comment) selects that whole package only when no test file names the path."""
-    prefix = data_prefix(path)
+    """Selects the Rust readers of a data path; whether any was found. A test file that names the path
+    selects its target; a package's source that names it (an `include_str!` fixture, a default path, a
+    launcher) selects that whole package. Under a content root, the readers are every Rust file that names
+    the root itself, since its readers also list directories (red-team B-2)."""
+    root = content_root(path)
+    prefixes = [f"{root}/", f'"{root}"'] if root else [data_prefix(path)]
+    prefix = " or ".join(prefixes)
     tests: list[tuple[str, str]] = []
     sources: set[str] = set()
-    for reader in readers(prefix):
+    for reader in sorted({reader for query in prefixes for reader in readers(query)}):
         package = workspace.owner(reader)
         if package is None:
             continue
@@ -299,12 +317,65 @@ def select_readers(selection: Selection, workspace: Workspace, path: str, reader
             sources.add(package.name)
     for target, package_name in tests:
         selection.add_test(target, package_name)
-    if not tests:
-        selection.packages |= sources
+    selection.packages |= sources
     if tests or sources:
-        kind = "test files" if tests else "package sources"
-        selection.reasons.append(f"{path}: the Rust {kind} that name {prefix}")
+        selection.reasons.append(f"{path}: {len(tests)} test target(s) and {len(sources)} package(s) whose Rust "
+                                 f"files name {prefix}")
     return bool(tests or sources)
+
+
+def content_root(path: str) -> str | None:
+    return next((root for root in CONTENT_ROOTS if path.startswith(root + "/")), None)
+
+
+def fast_covered(path: str) -> bool:
+    """Whether a `fast` command names this file (a script and its self-test), or it is a packaging input."""
+    if path.startswith(FAST_COVERED_PREFIXES):
+        return True
+    return any(path in command for command in ci_layer.LAYERS["fast"])
+
+
+def ignored_coverage() -> dict[str, str]:
+    """Test targets whose tests run only with `--ignored`, and where a pull request runs them: `godot` (the
+    Godot client tests, ci_godot.GODOT_TESTS), a Python area (the `python` layer's ignored commands), or
+    `nightly` (any other layer's; no per-PR job runs them). Read from the layers, not restated."""
+    def target(command: list[str]) -> str | None:
+        return command[command.index("--test") + 1] if "--ignored" in command and "--test" in command else None
+
+    coverage = {name: "godot" for name in ci_godot.GODOT_TESTS}
+    for area, command in ci_layer.PYTHON_AREA_COMMANDS:
+        if target(command):
+            coverage.setdefault(target(command), area)
+    for commands in ci_layer.LAYERS.values():
+        for command in commands:
+            if target(command):
+                coverage.setdefault(target(command), "nightly")
+    return coverage
+
+
+def cover_selected(selection: Selection, workspace: Workspace) -> None:
+    """Every selected test runs somewhere (frozen I-1): a target whose tests need `--ignored` adds the layer
+    that runs them; a changed test file whose layer no PR runs makes the run full. A selection that reaches
+    the binary's package also runs the Godot client tests and the binary-driving Python areas (M-1)."""
+    coverage = ignored_coverage()
+    for target in sorted(selection.tests):
+        where = coverage.get(target)
+        if where == "godot":
+            selection.godot = True
+            selection.reasons.append(f"{target}: its ignored tests run in impact-godot")
+        elif where == "nightly" and target in selection.changed_tests:
+            selection.full.append(f"{target}: a changed test file whose tests only a nightly layer runs")
+        elif where == "nightly":
+            selection.reasons.append(f"{target}: its ignored tests run nightly and at the milestone only")
+        elif where is not None:
+            selection.python.add(where)
+            selection.reasons.append(f"{target}: its ignored tests run in impact-python ({where})")
+    binary = next((p.name for p in workspace.packages.values() if p.directory == BINARY_PACKAGE_DIR), None)
+    if binary is not None and binary in selection.packages:
+        selection.godot = True
+        selection.python.update(BINARY_AREAS)
+        selection.reasons.append(f"{binary} is selected: the Godot client tests and the Python areas that "
+                                 "drive the binary run too")
 
 
 def flag_data(selection: Selection, path: str) -> bool:
@@ -319,6 +390,15 @@ def flag_data(selection: Selection, path: str) -> bool:
             selection.python.add(area)
             selection.reasons.append(f"{path}: Python area {area}")
             claimed = True
+    root = content_root(path)
+    if root is not None:
+        selection.godot = True
+        selection.python.update(BINARY_AREAS)
+        if root == "presentation":
+            selection.python.add(ci_layer.PIPELINE)
+        selection.reasons.append(f"{path}: content root {root}/: the Godot client tests and the Python areas "
+                                 "that drive the binary")
+        claimed = True
     if path.startswith(GODOT_PREFIXES) or path in GODOT_FILES:
         selection.godot = True
         selection.reasons.append(f"{path}: the Godot client tests")
@@ -343,7 +423,7 @@ def select(paths: list[str], workspace: Workspace, readers: Readers, changed_lin
         if path in GLOBAL_FILES or path.startswith(GLOBAL_PREFIXES):
             selection.full.append(f"{path}: a build root or the CI definition")
             continue
-        if path.startswith(FAST_COVERED_PREFIXES):
+        if fast_covered(path):
             selection.reasons.append(f"{path}: covered by fast")
             continue
         if is_platform_path(path):
@@ -355,11 +435,6 @@ def select(paths: list[str], workspace: Workspace, readers: Readers, changed_lin
         if package is not None:
             rust = True
             select_in_package(selection, workspace, package, path, readers)
-            if path.startswith(PYTHON_DRIVEN_DIRS):
-                selection.python.update(BINARY_AREAS)
-                selection.reasons.append(f"{path}: the Python areas that drive the binary")
-            if path.startswith(GODOT_DRIVEN_DIRS):
-                selection.godot = True
             flag_data(selection, path)
             continue
         claimed = flag_data(selection, path)
@@ -370,9 +445,13 @@ def select(paths: list[str], workspace: Workspace, readers: Readers, changed_lin
     if any(PLATFORM_LINE.search(line) for line in changed_lines):
         selection.platforms = True
         selection.reasons.append("a changed line branches on the platform: macOS and Windows run the selection")
+    if any(name in line for line in changed_lines for name in REMOVABILITY_NAMES):
+        selection.removability = True
+        selection.reasons.append("a changed line names the LM controller or the 3D client: removability runs")
     scan = workspace.scan_package()
     if rust and scan is not None:
         selection.packages.add(scan)
+    cover_selected(selection, workspace)
     return selection
 
 
@@ -396,7 +475,7 @@ def workspace_of(root: Path = ROOT) -> Workspace:
 
 def changed_lines(base: str, head: str) -> list[str]:
     """The added and removed lines of the diff's Rust and Python files."""
-    result = subprocess.run(["git", "diff", "-U0", "--no-renames", f"{base}...{head}", "--", "*.rs", "*.py"],
+    result = subprocess.run(["git", "diff", "-U0", "--no-renames", f"{base}...{head}", "--", "*.rs", "*.py", "*.gd"],
                             cwd=ROOT, capture_output=True, text=True)
     if result.returncode != 0:
         raise Unknown(f"git diff failed: {result.stderr.strip()}")
@@ -427,46 +506,62 @@ def synthetic() -> Workspace:
         package("mw-economy", "systems/economy", ["ledger"], [("mw-kernel", "kernel")]),
         package("mw-weather", "systems/weather", [], [("mw-kernel", "kernel")]),
         package("mw-installed", "systems/installed", [], [("mw-economy", "systems/economy"),
-                                                          ("mw-weather", "systems/weather")]),
+                                                          ("mw-weather", "systems/weather"),
+                                                          ("mw-posture", "systems/posture")]),
         package("mw-server", "server", ["handshake"], [("mw-kernel", "kernel")]),
-        package("mw-cli", "tools/cli", ["market_town", "guide", "client_2d"],
+        package("mw-cli", "tools/cli", ["market_town", "guide", "client_2d", "milestone_d", "speech_both_ways"],
                 [("mw-installed", "systems/installed"), ("mw-server", "server"), ("mw-support", "tests/support")],
                 lib=False, binary=True, homes={"guide": "tests/guide/main.rs"}),
         package("mw-support", "tests/support", ["scratch"]),
         package("mw-acceptance", "tests/acceptance", ["client_rules"], [("mw-kernel", "kernel")]),
+        package("mw-posture", "systems/posture", ["worlds"], [("mw-kernel", "kernel")]),
     ]})
 
 
 SYNTHETIC_READERS = {
-    "worlds/social-cafe": ["tools/cli/tests/market_town.rs", "tests/acceptance/tests/client_rules.rs"],
+    # Content roots are searched by the root's own name (B-2): an include_str! fixture in a crate's source,
+    # a directory-listing test, a CLI test.
+    "worlds/": ["systems/weather/src/fixture.rs", "tools/cli/tests/market_town.rs"],
+    '"worlds"': ["systems/posture/tests/worlds.rs"],
     "clients/2d": ["tools/cli/tests/client_2d.rs", "tools/cli/src/launch.rs", "tools/cli/tests/godot2d/mod.rs"],
+    "clients/shared": ["tests/acceptance/tests/client_rules.rs"],
     "mod godot2d;": ["tools/cli/tests/client_2d.rs"],
     "docs/guide": ["tools/cli/tests/guide/page_run.rs", "kernel/src/lib.rs"],
-    "spike/server": ["server/src/lib.rs"],
+    "scripts/depiction_variant.py": ["tools/cli/tests/guide.rs"],
     "sdk/python": [],
 }
 
-
 def cases() -> list[tuple[str, list[str], list[str], dict]]:
     """(name, paths, changed lines, expected facts). Facts: full (bool), packages (exact set), tests (subset
-    that must be selected), absent (packages that must not be), python, godot, removability, platforms,
-    shards (exact count)."""
-    cli = {"mw-cli"}
+    that must be selected), notests, absent (packages that must not be), python (exact set), python_has
+    (subset), godot, removability, platforms, shards (exact count)."""
+    binary = set(BINARY_AREAS)
     return [
-        ("single crate: a leaf System Pack's source", ["systems/weather/src/lib.rs"], [],
+        ("single crate: a leaf System Pack reaches the binary, so Godot and Python run (M-1)",
+         ["systems/weather/src/lib.rs"], [],
          {"full": False, "packages": {"mw-weather", "mw-installed", "mw-cli", "mw-acceptance"},
-          "absent": {"mw-kernel", "mw-economy", "mw-server"}, "python": set(), "godot": False, "platforms": False}),
+          "absent": {"mw-kernel", "mw-economy", "mw-server"}, "python": binary, "godot": True, "platforms": False}),
         ("kernel: every dependent, transitively", ["kernel/src/lib.rs"], [],
          {"full": False, "packages": {"mw-kernel", "mw-economy", "mw-weather", "mw-installed", "mw-server",
-                                      "mw-cli", "mw-acceptance"}, "absent": {"mw-contracts", "mw-support"}}),
+                                      "mw-cli", "mw-acceptance", "mw-posture"}, "absent": {"mw-contracts", "mw-support"},
+          "godot": True, "python": binary}),
+        ("contracts: the clients and the SDK run (M-1)", ["contracts/src/lib.rs"], [],
+         {"full": False, "godot": True, "python": binary}),
         ("one test file: that target only", ["tools/cli/tests/market_town.rs"], [],
-         {"full": False, "packages": {"mw-acceptance"}, "tests": {"market_town"}, "notests": {"guide", "client_2d"}}),
+         {"full": False, "packages": {"mw-acceptance"}, "tests": {"market_town"}, "notests": {"guide", "client_2d"},
+          "godot": False, "python": set()}),
+        ("B-1: a Godot test file runs the Godot client tests", ["tools/cli/tests/client_2d.rs"], [],
+         {"full": False, "tests": {"client_2d"}, "godot": True, "absent": {"mw-cli"}}),
+        ("B-1: an LM-only test file runs its Python area", ["tools/cli/tests/milestone_d.rs"], [],
+         {"full": False, "tests": {"milestone_d"}, "python": {"cognition/lm-controller"}, "godot": False}),
+        ("B-1: a test file only a nightly layer runs: full", ["tools/cli/tests/speech_both_ways.rs"], [],
+         {"full": True}),
         ("a test target's module directory", ["tools/cli/tests/guide/page_run.rs"], [],
          {"full": False, "tests": {"guide"}, "notests": {"market_town"}}),
-        ("a shared test module: the targets that declare it", ["tools/cli/tests/godot2d/mod.rs"], [],
-         {"full": False, "tests": {"client_2d"}, "notests": {"market_town", "guide"}}),
-        ("a shared test module nobody declares: every target", ["tools/cli/tests/common/mod.rs"], [],
-         {"full": False, "tests": {"client_2d", "market_town", "guide"}}),
+        ("a shared Godot test module: its targets and the Godot tests", ["tools/cli/tests/godot2d/mod.rs"], [],
+         {"full": False, "tests": {"client_2d"}, "notests": {"market_town", "guide"}, "godot": True}),
+        ("a shared test module nobody declares: every target, a nightly one among them: full",
+         ["tools/cli/tests/common/mod.rs"], [], {"full": True}),
         ("a dev-only helper reaches its users", ["tests/support/src/lib.rs"], [],
          {"full": False, "packages": {"mw-support", "mw-cli", "mw-acceptance"}, "absent": {"mw-kernel"}}),
         ("python-only: the SDK", ["sdk/python/mineworld/client.py"], [],
@@ -474,37 +569,50 @@ def cases() -> list[tuple[str, list[str], list[str], dict]]:
           "shards": 0}),
         ("python-only: the lock", ["uv.lock"], [],
          {"full": False, "packages": set(), "python": set(PYTHON_AREAS)}),
-        ("Godot-only: the 2D client", ["clients/2d/scripts/app.gd"], [],
-         {"full": False, "godot": True, "python": set(), "tests": {"client_2d"}, "absent": {"mw-kernel", "mw-cli"},
-          "platforms": False}),
+        ("Godot-only: the 2D client; the CLI source that launches it reaches the binary",
+         ["clients/2d/scripts/app.gd"], [],
+         {"full": False, "godot": True, "tests": {"client_2d"}, "absent": {"mw-kernel"}, "platforms": False}),
+        ("Godot-only: a shared client file", ["clients/shared/hud/hud.gd"], [],
+         {"full": False, "godot": True, "python": set(), "absent": {"mw-cli", "mw-kernel"}}),
         ("Godot-only: a launcher", ["mineworld-slice"], [], {"full": False, "godot": True}),
         ("docs-only", ["docs/MVP.md", "README.md"], [], {"full": False, "packages": set(), "shards": 0,
                                                         "godot": False, "python": set()}),
         ("workflow change: full", [".github/workflows/ci.yml"], [], {"full": True}),
         ("a CI script: full", ["scripts/ci_layer.py"], [], {"full": True}),
         ("the lock file: full", ["Cargo.lock"], [], {"full": True}),
-        ("another script: fast covers it", ["scripts/check_cast.py"], [],
+        ("a script fast self-tests: fast covers it", ["scripts/check_cast.py"], [],
          {"full": False, "packages": set(), "shards": 0}),
-        ("a world: its readers", ["worlds/social-cafe/world.yaml"], [],
-         {"full": False, "tests": {"market_town", "client_rules"}, "notests": {"guide"}}),
+        ("M-5: a script fast does not run: its Rust readers", ["scripts/depiction_variant.py"], [],
+         {"full": False, "tests": {"guide"}}),
+        ("M-5: a script nothing in fast or Rust names: full", ["scripts/far_field_variant.py"], [], {"full": True}),
+        ("B-2: a world file: include_str! fixtures, directory listers, Godot and Python",
+         ["worlds/market-town/configure/weather.yaml"], [],
+         {"full": False, "tests": {"market_town", "worlds"}, "godot": True, "python_has": binary,
+          "packages_has": {"mw-weather"}}),
+        ("B-2: presentation adds the character pipeline", ["presentation/mineworld-default/3D/x.yaml"], [],
+         {"full": False, "godot": True, "python_has": {"tools/character_pipeline"}}),
         ("unknown path: full", ["mystery/thing.bin"], [], {"full": True}),
         ("a specification a guide page links: the guide test", ["docs/MODULE_SPEC.md"], [],
-         {"full": False, "tests": {"guide"}, "notests": {"market_town"}, "absent": {"mw-kernel", "mw-cli"}}),
-        ("data only a package's source names: that package", ["spike/server/run.sh"], [],
-         {"full": False, "packages": {"mw-server", "mw-acceptance"}}),
+         {"full": False, "tests": {"guide"}, "notests": {"market_town"}, "absent": {"mw-cli"}}),
         ("the server: Rust, Python drivers and Godot", ["server/src/lib.rs"], [],
-         {"full": False, "packages": {"mw-server", "mw-cli", "mw-acceptance"}, "python": set(BINARY_AREAS),
-          "godot": True}),
+         {"full": False, "packages": {"mw-server", "mw-cli", "mw-acceptance"}, "python": binary, "godot": True}),
         ("platform path: macOS and Windows run", ["tools/launch/src/windows.rs"], [],
          {"full": False, "platforms": True}),
         ("platform line: a cfg(windows) branch", ["kernel/src/lib.rs"], ["#[cfg(windows)]"],
          {"full": False, "platforms": True}),
+        ("M-2: a nested cfg", ["kernel/src/lib.rs"], ['#[cfg(all(unix, not(target_os = "macos")))]'],
+         {"platforms": True}),
+        ("M-2: a platform module import", ["kernel/src/lib.rs"], ["use std::os::unix::fs::PermissionsExt;"],
+         {"platforms": True}),
+        ("M-2: a GDScript platform branch", ["clients/shared/hud/hud.gd"], ['if OS.get_name() == "Windows":'],
+         {"platforms": True}),
+        ("no platform marker: Linux only", ["kernel/src/lib.rs"], ["let x = 1;"], {"platforms": False}),
+        ("M-3: a new reader of the 3D client runs removability", ["tools/cli/tests/market_town.rs"],
+         ['let scene = root.join("clients/3d-spike/scenes/slice.tscn");'], {"removability": True}),
         ("a crate manifest: removability", ["systems/economy/Cargo.toml"], [],
          {"full": False, "removability": True, "packages": {"mw-economy", "mw-installed", "mw-cli",
                                                              "mw-acceptance"}}),
-        ("cli tests only stay narrow", ["tools/cli/tests/client_2d.rs"], [], {"absent": cli}),
     ]
-
 
 def self_test(is_docs: Callable[[str], bool] | None = None) -> int:
     if is_docs is None:
@@ -520,6 +628,10 @@ def self_test(is_docs: Callable[[str], bool] | None = None) -> int:
             problems.append(f"full={got.full}")
         if "packages" in expected and got.packages != expected["packages"]:
             problems.append(f"packages={sorted(got.packages)}")
+        if not expected.get("packages_has", set()) <= got.packages:
+            problems.append(f"packages={sorted(got.packages)}")
+        if not expected.get("python_has", set()) <= got.python:
+            problems.append(f"python={sorted(got.python)}")
         if not expected.get("absent", set()).isdisjoint(got.packages):
             problems.append(f"selected {sorted(expected['absent'] & got.packages)}")
         if not expected.get("tests", set()) <= set(core["owners"]):
