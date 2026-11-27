@@ -75,10 +75,17 @@ def _with_notices(world: Path, after: str, configuration: str) -> None:
     (world / "configure" / "notices.yaml").write_text(configuration, encoding="utf-8")
 
 
+def _copy_world(root: Path, variant: str, source: str) -> Path:
+    """A scratch copy of `worlds/<source>` under `<root>/<variant>/`. The copy keeps its source's directory name:
+    a pack's id is its directory name, and the manifest names the source's id."""
+    world = root / variant / source
+    shutil.copytree(REPOSITORY / "worlds" / source, world)
+    return world
+
+
 def market_g(root: Path, *, crowns: bool = False) -> Path:
     """W1 (or W2 with `crowns`), built from `worlds/market-town`."""
-    world = root / ("market-g-crown" if crowns else "market-g")
-    shutil.copytree(REPOSITORY / "worlds" / "market-town", world)
+    world = _copy_world(root, "market-g-crown" if crowns else "market-g", "market-town")
     grace = world / "people" / "grace.yaml"
     _edit(
         grace,
@@ -110,8 +117,7 @@ def market_g(root: Path, *, crowns: bool = False) -> Path:
 
 def cafe_notices(root: Path) -> Path:
     """W3, built from `worlds/social-cafe`: notices and nothing of economy."""
-    world = root / "cafe-notices"
-    shutil.copytree(REPOSITORY / "worlds" / "social-cafe", world)
+    world = _copy_world(root, "cafe-notices", "social-cafe")
     _with_notices(world, "appearance", NOTICES.format(news="visitor", prices="wanderer"))
     return world
 
