@@ -1,0 +1,861 @@
+{
+  "format": 1,
+  "frames": [
+    {
+      "observer": "20",
+      "at": 52.0,
+      "self_location": {
+        "facing": null,
+        "local": {
+          "x": 1610.0,
+          "y": 600.0,
+          "z": 0.0
+        },
+        "place": {
+          "entity": "2",
+          "entity_type": "place"
+        }
+      },
+      "entities": [
+        {
+          "id": "2",
+          "entity_type": "place",
+          "tags": [
+            "cafe",
+            "public"
+          ],
+          "location": null,
+          "components": [
+            {
+              "component_type": "sit-points",
+              "entity": "2",
+              "payload": [
+                {
+                  "at": {
+                    "x": 3648.0,
+                    "y": 3060.0
+                  },
+                  "facing": 81406.0,
+                  "group": "table-1",
+                  "key": "table-1.1"
+                },
+                {
+                  "at": {
+                    "x": 6092.0,
+                    "y": 3240.0
+                  },
+                  "facing": 261406.0,
+                  "group": "table-1",
+                  "key": "table-1.2"
+                },
+                {
+                  "at": {
+                    "x": 5904.0,
+                    "y": 4460.0
+                  },
+                  "facing": 102605.0,
+                  "group": "table-2",
+                  "key": "table-2.1"
+                },
+                {
+                  "at": {
+                    "x": 7790.0,
+                    "y": 5148.0
+                  },
+                  "facing": 282605.0,
+                  "group": "table-2",
+                  "key": "table-2.2"
+                },
+                {
+                  "at": {
+                    "x": 1600.0,
+                    "y": 7980.0
+                  },
+                  "facing": 85416.0,
+                  "group": "table-3",
+                  "key": "table-3.1"
+                },
+                {
+                  "at": {
+                    "x": 3480.0,
+                    "y": 8640.0
+                  },
+                  "facing": 265416.0,
+                  "group": "table-3",
+                  "key": "table-3.2"
+                },
+                {
+                  "at": {
+                    "x": 3160.0,
+                    "y": 2144.0
+                  },
+                  "facing": 180000.0,
+                  "group": "window-stools",
+                  "key": "window-stools.1"
+                },
+                {
+                  "at": {
+                    "x": 4760.0,
+                    "y": 2165.0
+                  },
+                  "facing": 180000.0,
+                  "group": "window-stools",
+                  "key": "window-stools.2"
+                },
+                {
+                  "at": {
+                    "x": 6360.0,
+                    "y": 2183.0
+                  },
+                  "facing": 180000.0,
+                  "group": "window-stools",
+                  "key": "window-stools.3"
+                }
+              ],
+              "schema_version": 1.0
+            }
+          ]
+        },
+        {
+          "id": "10",
+          "entity_type": "person",
+          "tags": [
+            "barista",
+            "staff"
+          ],
+          "location": {
+            "facing": {
+              "pitch": null,
+              "yaw": 180000.0
+            },
+            "local": {
+              "x": 6000.0,
+              "y": 8000.0,
+              "z": 0.0
+            },
+            "place": {
+              "entity": "2",
+              "entity_type": "place"
+            }
+          },
+          "components": []
+        },
+        {
+          "id": "11",
+          "entity_type": "person",
+          "tags": [
+            "regular"
+          ],
+          "location": {
+            "facing": null,
+            "local": {
+              "x": 4500.0,
+              "y": 6100.0,
+              "z": 0.0
+            },
+            "place": {
+              "entity": "2",
+              "entity_type": "place"
+            }
+          },
+          "components": []
+        },
+        {
+          "id": "20",
+          "entity_type": "person",
+          "tags": [
+            "visitor"
+          ],
+          "location": {
+            "facing": null,
+            "local": {
+              "x": 1610.0,
+              "y": 600.0,
+              "z": 0.0
+            },
+            "place": {
+              "entity": "2",
+              "entity_type": "place"
+            }
+          },
+          "components": []
+        },
+        {
+          "id": "21",
+          "entity_type": "person",
+          "tags": [
+            "visitor"
+          ],
+          "location": {
+            "facing": null,
+            "local": {
+              "x": 7110.0,
+              "y": 3900.0,
+              "z": 0.0
+            },
+            "place": {
+              "entity": "2",
+              "entity_type": "place"
+            }
+          },
+          "components": []
+        }
+      ]
+    },
+    {
+      "observer": "20",
+      "at": 92.0,
+      "self_location": {
+        "facing": {
+          "pitch": null,
+          "yaw": 180000.0
+        },
+        "local": {
+          "x": 3160.0,
+          "y": 2144.0,
+          "z": 0.0
+        },
+        "place": {
+          "entity": "2",
+          "entity_type": "place"
+        }
+      },
+      "entities": [
+        {
+          "id": "2",
+          "entity_type": "place",
+          "tags": [
+            "cafe",
+            "public"
+          ],
+          "location": null,
+          "components": [
+            {
+              "component_type": "sit-points",
+              "entity": "2",
+              "payload": [
+                {
+                  "at": {
+                    "x": 3648.0,
+                    "y": 3060.0
+                  },
+                  "facing": 81406.0,
+                  "group": "table-1",
+                  "key": "table-1.1"
+                },
+                {
+                  "at": {
+                    "x": 6092.0,
+                    "y": 3240.0
+                  },
+                  "facing": 261406.0,
+                  "group": "table-1",
+                  "key": "table-1.2"
+                },
+                {
+                  "at": {
+                    "x": 5904.0,
+                    "y": 4460.0
+                  },
+                  "facing": 102605.0,
+                  "group": "table-2",
+                  "key": "table-2.1"
+                },
+                {
+                  "at": {
+                    "x": 7790.0,
+                    "y": 5148.0
+                  },
+                  "facing": 282605.0,
+                  "group": "table-2",
+                  "key": "table-2.2"
+                },
+                {
+                  "at": {
+                    "x": 1600.0,
+                    "y": 7980.0
+                  },
+                  "facing": 85416.0,
+                  "group": "table-3",
+                  "key": "table-3.1"
+                },
+                {
+                  "at": {
+                    "x": 3480.0,
+                    "y": 8640.0
+                  },
+                  "facing": 265416.0,
+                  "group": "table-3",
+                  "key": "table-3.2"
+                },
+                {
+                  "at": {
+                    "x": 3160.0,
+                    "y": 2144.0
+                  },
+                  "facing": 180000.0,
+                  "group": "window-stools",
+                  "key": "window-stools.1"
+                },
+                {
+                  "at": {
+                    "x": 4760.0,
+                    "y": 2165.0
+                  },
+                  "facing": 180000.0,
+                  "group": "window-stools",
+                  "key": "window-stools.2"
+                },
+                {
+                  "at": {
+                    "x": 6360.0,
+                    "y": 2183.0
+                  },
+                  "facing": 180000.0,
+                  "group": "window-stools",
+                  "key": "window-stools.3"
+                }
+              ],
+              "schema_version": 1.0
+            }
+          ]
+        },
+        {
+          "id": "10",
+          "entity_type": "person",
+          "tags": [
+            "barista",
+            "staff"
+          ],
+          "location": {
+            "facing": {
+              "pitch": null,
+              "yaw": 180000.0
+            },
+            "local": {
+              "x": 6000.0,
+              "y": 8000.0,
+              "z": 0.0
+            },
+            "place": {
+              "entity": "2",
+              "entity_type": "place"
+            }
+          },
+          "components": []
+        },
+        {
+          "id": "11",
+          "entity_type": "person",
+          "tags": [
+            "regular"
+          ],
+          "location": {
+            "facing": null,
+            "local": {
+              "x": 4500.0,
+              "y": 6100.0,
+              "z": 0.0
+            },
+            "place": {
+              "entity": "2",
+              "entity_type": "place"
+            }
+          },
+          "components": []
+        },
+        {
+          "id": "20",
+          "entity_type": "person",
+          "tags": [
+            "visitor"
+          ],
+          "location": {
+            "facing": {
+              "pitch": null,
+              "yaw": 180000.0
+            },
+            "local": {
+              "x": 3160.0,
+              "y": 2144.0,
+              "z": 0.0
+            },
+            "place": {
+              "entity": "2",
+              "entity_type": "place"
+            }
+          },
+          "components": [
+            {
+              "component_type": "posture-state",
+              "entity": "20",
+              "payload": {
+                "seated": {
+                  "place": {
+                    "entity": "2",
+                    "entity_type": "place"
+                  },
+                  "point": "window-stools.1",
+                  "since": 89.0
+                }
+              },
+              "schema_version": 1.0
+            }
+          ]
+        },
+        {
+          "id": "21",
+          "entity_type": "person",
+          "tags": [
+            "visitor"
+          ],
+          "location": {
+            "facing": null,
+            "local": {
+              "x": 7110.0,
+              "y": 3900.0,
+              "z": 0.0
+            },
+            "place": {
+              "entity": "2",
+              "entity_type": "place"
+            }
+          },
+          "components": []
+        }
+      ]
+    },
+    {
+      "observer": "20",
+      "at": 134.0,
+      "self_location": {
+        "facing": {
+          "pitch": null,
+          "yaw": 180000.0
+        },
+        "local": {
+          "x": 2460.0,
+          "y": 2144.0,
+          "z": 0.0
+        },
+        "place": {
+          "entity": "2",
+          "entity_type": "place"
+        }
+      },
+      "entities": [
+        {
+          "id": "2",
+          "entity_type": "place",
+          "tags": [
+            "cafe",
+            "public"
+          ],
+          "location": null,
+          "components": [
+            {
+              "component_type": "sit-points",
+              "entity": "2",
+              "payload": [
+                {
+                  "at": {
+                    "x": 3648.0,
+                    "y": 3060.0
+                  },
+                  "facing": 81406.0,
+                  "group": "table-1",
+                  "key": "table-1.1"
+                },
+                {
+                  "at": {
+                    "x": 6092.0,
+                    "y": 3240.0
+                  },
+                  "facing": 261406.0,
+                  "group": "table-1",
+                  "key": "table-1.2"
+                },
+                {
+                  "at": {
+                    "x": 5904.0,
+                    "y": 4460.0
+                  },
+                  "facing": 102605.0,
+                  "group": "table-2",
+                  "key": "table-2.1"
+                },
+                {
+                  "at": {
+                    "x": 7790.0,
+                    "y": 5148.0
+                  },
+                  "facing": 282605.0,
+                  "group": "table-2",
+                  "key": "table-2.2"
+                },
+                {
+                  "at": {
+                    "x": 1600.0,
+                    "y": 7980.0
+                  },
+                  "facing": 85416.0,
+                  "group": "table-3",
+                  "key": "table-3.1"
+                },
+                {
+                  "at": {
+                    "x": 3480.0,
+                    "y": 8640.0
+                  },
+                  "facing": 265416.0,
+                  "group": "table-3",
+                  "key": "table-3.2"
+                },
+                {
+                  "at": {
+                    "x": 3160.0,
+                    "y": 2144.0
+                  },
+                  "facing": 180000.0,
+                  "group": "window-stools",
+                  "key": "window-stools.1"
+                },
+                {
+                  "at": {
+                    "x": 4760.0,
+                    "y": 2165.0
+                  },
+                  "facing": 180000.0,
+                  "group": "window-stools",
+                  "key": "window-stools.2"
+                },
+                {
+                  "at": {
+                    "x": 6360.0,
+                    "y": 2183.0
+                  },
+                  "facing": 180000.0,
+                  "group": "window-stools",
+                  "key": "window-stools.3"
+                }
+              ],
+              "schema_version": 1.0
+            }
+          ]
+        },
+        {
+          "id": "10",
+          "entity_type": "person",
+          "tags": [
+            "barista",
+            "staff"
+          ],
+          "location": {
+            "facing": {
+              "pitch": null,
+              "yaw": 180000.0
+            },
+            "local": {
+              "x": 6000.0,
+              "y": 8000.0,
+              "z": 0.0
+            },
+            "place": {
+              "entity": "2",
+              "entity_type": "place"
+            }
+          },
+          "components": []
+        },
+        {
+          "id": "11",
+          "entity_type": "person",
+          "tags": [
+            "regular"
+          ],
+          "location": {
+            "facing": null,
+            "local": {
+              "x": 4500.0,
+              "y": 6100.0,
+              "z": 0.0
+            },
+            "place": {
+              "entity": "2",
+              "entity_type": "place"
+            }
+          },
+          "components": []
+        },
+        {
+          "id": "20",
+          "entity_type": "person",
+          "tags": [
+            "visitor"
+          ],
+          "location": {
+            "facing": {
+              "pitch": null,
+              "yaw": 180000.0
+            },
+            "local": {
+              "x": 2460.0,
+              "y": 2144.0,
+              "z": 0.0
+            },
+            "place": {
+              "entity": "2",
+              "entity_type": "place"
+            }
+          },
+          "components": []
+        },
+        {
+          "id": "21",
+          "entity_type": "person",
+          "tags": [
+            "visitor"
+          ],
+          "location": {
+            "facing": null,
+            "local": {
+              "x": 7110.0,
+              "y": 3900.0,
+              "z": 0.0
+            },
+            "place": {
+              "entity": "2",
+              "entity_type": "place"
+            }
+          },
+          "components": []
+        }
+      ]
+    },
+    {
+      "observer": "20",
+      "at": 140.0,
+      "self_location": {
+        "facing": {
+          "pitch": null,
+          "yaw": 180000.0
+        },
+        "local": {
+          "x": 3160.0,
+          "y": 2144.0,
+          "z": 0.0
+        },
+        "place": {
+          "entity": "2",
+          "entity_type": "place"
+        }
+      },
+      "entities": [
+        {
+          "id": "2",
+          "entity_type": "place",
+          "tags": [
+            "cafe",
+            "public"
+          ],
+          "location": null,
+          "components": [
+            {
+              "component_type": "sit-points",
+              "entity": "2",
+              "payload": [
+                {
+                  "at": {
+                    "x": 3648.0,
+                    "y": 3060.0
+                  },
+                  "facing": 81406.0,
+                  "group": "table-1",
+                  "key": "table-1.1"
+                },
+                {
+                  "at": {
+                    "x": 6092.0,
+                    "y": 3240.0
+                  },
+                  "facing": 261406.0,
+                  "group": "table-1",
+                  "key": "table-1.2"
+                },
+                {
+                  "at": {
+                    "x": 5904.0,
+                    "y": 4460.0
+                  },
+                  "facing": 102605.0,
+                  "group": "table-2",
+                  "key": "table-2.1"
+                },
+                {
+                  "at": {
+                    "x": 7790.0,
+                    "y": 5148.0
+                  },
+                  "facing": 282605.0,
+                  "group": "table-2",
+                  "key": "table-2.2"
+                },
+                {
+                  "at": {
+                    "x": 1600.0,
+                    "y": 7980.0
+                  },
+                  "facing": 85416.0,
+                  "group": "table-3",
+                  "key": "table-3.1"
+                },
+                {
+                  "at": {
+                    "x": 3480.0,
+                    "y": 8640.0
+                  },
+                  "facing": 265416.0,
+                  "group": "table-3",
+                  "key": "table-3.2"
+                },
+                {
+                  "at": {
+                    "x": 3160.0,
+                    "y": 2144.0
+                  },
+                  "facing": 180000.0,
+                  "group": "window-stools",
+                  "key": "window-stools.1"
+                },
+                {
+                  "at": {
+                    "x": 4760.0,
+                    "y": 2165.0
+                  },
+                  "facing": 180000.0,
+                  "group": "window-stools",
+                  "key": "window-stools.2"
+                },
+                {
+                  "at": {
+                    "x": 6360.0,
+                    "y": 2183.0
+                  },
+                  "facing": 180000.0,
+                  "group": "window-stools",
+                  "key": "window-stools.3"
+                }
+              ],
+              "schema_version": 1.0
+            }
+          ]
+        },
+        {
+          "id": "10",
+          "entity_type": "person",
+          "tags": [
+            "barista",
+            "staff"
+          ],
+          "location": {
+            "facing": {
+              "pitch": null,
+              "yaw": 180000.0
+            },
+            "local": {
+              "x": 6000.0,
+              "y": 8000.0,
+              "z": 0.0
+            },
+            "place": {
+              "entity": "2",
+              "entity_type": "place"
+            }
+          },
+          "components": []
+        },
+        {
+          "id": "11",
+          "entity_type": "person",
+          "tags": [
+            "regular"
+          ],
+          "location": {
+            "facing": null,
+            "local": {
+              "x": 4500.0,
+              "y": 6100.0,
+              "z": 0.0
+            },
+            "place": {
+              "entity": "2",
+              "entity_type": "place"
+            }
+          },
+          "components": []
+        },
+        {
+          "id": "20",
+          "entity_type": "person",
+          "tags": [
+            "visitor"
+          ],
+          "location": {
+            "facing": {
+              "pitch": null,
+              "yaw": 180000.0
+            },
+            "local": {
+              "x": 3160.0,
+              "y": 2144.0,
+              "z": 0.0
+            },
+            "place": {
+              "entity": "2",
+              "entity_type": "place"
+            }
+          },
+          "components": [
+            {
+              "component_type": "posture-state",
+              "entity": "20",
+              "payload": {
+                "seated": {
+                  "place": {
+                    "entity": "2",
+                    "entity_type": "place"
+                  },
+                  "point": "window-stools.1",
+                  "since": 135.0
+                }
+              },
+              "schema_version": 1.0
+            }
+          ]
+        },
+        {
+          "id": "21",
+          "entity_type": "person",
+          "tags": [
+            "visitor"
+          ],
+          "location": {
+            "facing": null,
+            "local": {
+              "x": 7110.0,
+              "y": 3900.0,
+              "z": 0.0
+            },
+            "place": {
+              "entity": "2",
+              "entity_type": "place"
+            }
+          },
+          "components": []
+        }
+      ]
+    }
+  ],
+  "world": "social-cafe",
+  "about": "Projected real server observations from client_2d_sit (re-recorded 2026-11-27 with the original recorder and projection; the 2026-11-22 recording was lost): before sit, seated, after requested stand, second seated. Only identity/location/tags and posture disclosures retained. Raw recording SHA256 7ad04040b9209483f5f472c79efcfa640fd818db15faaf7c13dd6104bb9128b1. No fabricated posture or movement in these frames; counterfactual stillness/rename/mirror belong to test-generated variants."
+}
