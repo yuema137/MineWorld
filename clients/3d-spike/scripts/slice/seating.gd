@@ -6,8 +6,9 @@
 ## depiction's `seat_offset_m` against its facing (positive: back onto a bench; negative: forward onto
 ## a chair, Q-S34c-2), facing the way the point faces, the body's own seat on the depiction's
 ## `seat_height_m` (`Human.sit_on`). The point's `at` and facing are the world's where it discloses its
-## sit points, else the depiction's fallback. Nothing here decides who sits; it names no world, place or
-## point.
+## sit points, else a depiction's optional fallback (no shipped depiction file carries one since S34-c2,
+## `ARC-172`: every shipped world with sit points discloses them). Nothing here decides who sits; it
+## names no world, place or point.
 class_name SliceSeating
 extends RefCounted
 

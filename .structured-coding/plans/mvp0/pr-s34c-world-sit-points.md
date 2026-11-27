@@ -250,7 +250,7 @@ ruled with S34-c3's freeze) widen S34-c2. Every prerequisite is merged: S33-b #3
 | A-c2-3 | Square: trunk (11 800–12 200, 8 800–9 200); `bench.west` (10 900–12 500, 9 600–10 000) facing 180 000; `bench.east` (12 600–13 000, 8 100–9 900) facing 270 000 | `square.yaml:25-41` |
 | A-c2-4 | Bakery chairs `long-table.chair-1…5`, boxes x 900–1 400 centred y 1 800 … 4 200, facing 270 000 | `bakery.yaml:24-46` |
 | A-c2-5 | Halt bench row `bench.south` (1 500–6 500, 0–450) facing 0; platform benches (−3 950…−3 500, ±4 000…±6 000) facing 90 000 | `station.yaml:20-27`; `station-platform.yaml:21-31` |
-| A-c2-6 | `bench.pier` and `bench.park` are drawn by the generic backless `form: bench`, which ignores the furnishing's yaw | `presentation/mineworld-default/3D/furniture/furnishings.yaml:81-82`; `clients/3d-spike/scripts/slice/furnishings.gd:264-285` |
+| A-c2-6 | 3D: `bench.pier` and `bench.park` are drawn by the generic backless `form: bench`, which ignores the furnishing's yaw. **2D (corrected after red-team F1): the 2D client draws them with the `bench` sprite (prefix to `furnishing.bench`) and mirrors it by the furnishing's `facing`** | `presentation/mineworld-default/3D/furniture/furnishings.yaml:81-82`; `clients/3d-spike/scripts/slice/furnishings.gd:264-285`; `presentation/mineworld-default/2D/assets/asset_bindings.yaml:99`; `clients/2d/scripts/scene/furnishings.gd:113-116` |
 | A-c2-7 | `sit_points/lakeside.yaml` holds 29 depictions with `fallback` positions (S33-f's table; halt 7 + 6) | `presentation/mineworld-default/3D/sit_points/lakeside.yaml` |
 | A-c2-8 | Both clients take the posture branch when the place discloses `sit-points`; the 3D pose reads the disclosed `at`/`facing`; a depiction without `fallback` is tolerated (`at` null) | `clients/shared/sitting/sit_rule.gd:58-72, 96-106`; `clients/3d-spike/scripts/slice/seating.gd:47-60` |
 | A-c2-9 | `ARC-172` / R-S34c-f-1 require S34-c to delete the fallback positions and run the contested seat in the posture branch | `docs/decisions/ARC-172.md`; `pr-s33f-interiors-sit-points.md` §10 |
@@ -261,11 +261,18 @@ ruled with S34-c3's freeze) widen S34-c2. Every prerequisite is merged: S33-b #3
 - **BC-c2-1 (Q-S34c3-7, the wrong side).** The pier bench and both square benches were authored facing
   the side nobody can stand on: a south-facing pier point would stand at y 40 (needs ≥ 250 from the edge);
   a south-facing west-bench point at y 9 340 is 172 mm from the trunk, a west-facing east-bench point at
-  x 12 340 is 140 mm from it (needs 260). The drawn benches are backless and yaw-independent (A-c2-6), so
+  x 12 340 is 140 mm from it (needs 260). The 3D benches are backless and yaw-independent (A-c2-6), so
   the drawing does not pick a side; the geometry does. The furnishings' `facing` is the wrong side and is
   corrected: `bench.head` 180 000 → 0; `bench.west` 180 000 → 0; `bench.east` 270 000 → 90 000. The sit
   points keep S33-f's sides (north / north / east). Moving the pier bench 220 mm north instead
   (Q-S33f-2 (B)) was ruled out by Q-S33f-2 (A).
+  **Correction (red-team F1, `_reviews/pr553.md`): the claim "no drawing change" held for 3D only.** The 2D
+  client mirrors the bench sprite by `facing` (A-c2-6), so all three benches flip on screen in 2D. That flip
+  is the intended consequence: the sprite now faces the side people sit on. Evidence: before (base facings
+  on the head world) and after (head) stills, the same seat (Finn), the same walk (`steps-2d.json`, via
+  `--drive=steps --capture`, windowed Godot 4.7, `shoot2d.sh`), cropped round the benches, in
+  [`s34c2-evidence/`](s34c2-evidence/): `pier-before.png` / `pier-head.png`, `square-before.png` /
+  `square-head.png`. The pier bench's sprite visibly mirrors, and so do the square benches.
 - **BC-c2-2 (SD-c-2 on merged data).** S33-f's three points on the square's north bench assumed a 1.8 m
   bench; main's is 1.6 m (S33-f D-S33f-2 kept three). One person per 600 mm gives floor(1 600 / 600) = 2,
   centred: (11 400, 10 260), (12 000, 10 260). The depiction file loses `tree-bench-north.3`.
@@ -276,12 +283,31 @@ ruled with S34-c3's freeze) widen S34-c2. Every prerequisite is merged: S33-b #3
   `long-table.n` grouped by chair, …), numbered west-to-east then south-to-north (SD-c-3), because the
   depiction file binds by them. S34-c3's generator (`<furnishing>.<i>`) does not regenerate Lakeside's
   hand-authored sections (its §1 Out).
+- **BC-c2-4b (Q-S34c3-6's assignment, red-team F5).** Q-S34c3-6 (ruled) says "S34-c2 adds the chair
+  form for Lakeside's bakery and regenerates S34-c1's sections with the tool". The generator is not on
+  main, and the dated note runs S34-c3 after S34-c2, so S34-c2 cannot do either. Disposition: both items
+  move to S34-c3 (or the first PR after it that adds the chair form), and S34-c2 hand-authors the
+  bakery's five chair points by SD-c-1's "behind" case. A dated note in `pr-s34c3-station-sit-points.md`
+  records the reassignment.
 - **BC-c2-5 (ARC-172).** Fallback positions deleted from `sit_points/lakeside.yaml`; the contested-seat
   fixture now discloses the bakery's `sit-points` and 7's `posture-state` from at 102 (held on the point's
-  `at`); expectation unchanged (7 at `long-table.3`, nobody at 100/101). The 2D client's
-  `scripts/scene/seating.gd` header comment ("until the world discloses its sit points") is now stale;
-  `clients/` is held by the client-stack recovery lane, so it is left to S34-e (follow-up), not edited
-  here. No client code changes.
+  `at`); expectation unchanged (7 at `long-table.3`, nobody at 100/101). The comments that described the
+  removed fallback were brought up to date: `clients/2d/scripts/scene/seating.gd`,
+  `clients/3d-spike/scripts/slice/seating.gd`, `clients/shared/sitting/sit_rule.gd`. These are comment-only
+  edits, made at the coordinator's request; `clients/` belongs to S34-e. No client code changes. Follow-up
+  for S34-e (red-team F6): no shipped data reaches the fallback branch any more, so decide there whether
+  to keep it, for worlds that have seats drawn but no `posture`.
+- **BC-c2-7 (AC-c-3 / I-c-2 for Lakeside, red-team F2).** AC-c-3 says that removing `posture` and its
+  sections gives the base genesis. For Lakeside this holds against "base + BC-c2-1's three furnishing
+  facings", not against `7718d952` itself. `bodies` discloses furnishing `facing`
+  (`systems/bodies/src/furnishing.rs:136,156`), and Q-S34c3-7 assigned this facing correction to S34-c2
+  ("the bench's `facing` in the place file, or the sit points' `facing` and `at`"). The two options are
+  either a bodies-owned data change, or putting the points on the side nobody can reach, which I-c-1
+  forbids. The generic test (`systems/posture/tests/worlds.rs`) compares the stripped head with the full
+  head minus posture's facts. That is the removability property AC-c-3 is for (posture leaves nothing
+  behind), measured against the corrected base. Social Café and Market Town are unaffected. This is
+  recorded as a deviation within Q-S34c3-7's ruling; if the operator reads AC-c-3 literally, it is theirs
+  to rule.
 
 **Final table (29 points).** pier 5 (800 … 3 200, 1 010; 0); square north 2 (11 400, 12 000; 10 260;
 0), east 3 (13 260; 8 400, 9 000, 9 600; 90 000); bakery 5 (1 660; 1 800 … 4 200; 270 000); station 8
@@ -310,7 +336,30 @@ ruled with S34-c3's freeze) widen S34-c2. Every prerequisite is merged: S33-b #3
     · [x] Review: only Lakeside's section changed (`git diff scripts/baselines.txt`: 7+/6−); the reason line
     says that main's drift is folded in, as S33-b's did.
 
-**Validation log.** (filled below as runs complete)
+**Validation log.** (filled below as runs complete). Tree identities: C1 = `11c0bb27`; C2 = `8018d593`
+(the test runs below were made on the C1 tree plus C2's working changes, then re-run after `cargo fmt` on
+C2 itself); C3 = `f14f7649` (adds only `scripts/baselines.txt` and the ledger, nothing executable). The
+release binary used for the long record and the 300-day runs was built from `8018d593`. This PR changes no
+production Rust (`git diff 7718d952 HEAD -- '*.rs'` touches only `tools/cli/tests/*.rs`), so that binary is
+also the base's. Remote CI: under the operator's relevant-tests policy (2026-11-27), only `fast` (and its
+small companions) run per PR, and the other jobs report `skipping` by design (red-team F3). The local runs
+listed here are the relevant tests.
+
+- **F4: Lakeside's `facts-300s` / `journal-300s` drop (11 936 → 6 515, 7 979 → 4 214).** These keys count
+  the rows of the 300-day save's live, unsealed tail (ARC-89: `facts`/`journal` hold the tail and `sealed`
+  the rest; `scripts/ci_parity.py:103-107`). They do not count the facts. The same record against main's
+  committed sections shows the tail moving just as much in a world this PR does not touch: Social Café
+  10 422 → 6 104 facts-300s (−41 %) and 7 713 → 4 329 journal-300s; Market Town 6 135 → 8 717 (+42 %).
+  So it is where the seal boundary falls on main today, not sitting. The behaviour change, measured
+  directly with the same binary, seed 7, 300 days in memory (`s34c2-evidence/lakeside-300d-{base-7718d952,head}.txt`):
+  - total facts 827 823 → 829 270 (+0.17 %);
+  - new `sat-down` 507, `stood-up` 507 and `place-sit-points` 5;
+  - `walk-started` 97 233 → 97 188, `conversation-started` 57 538 → 57 299, `fishing-started`
+    4 360 → 4 310, `arrived` 320 180 → 321 544;
+  - others within ±1 %.
+
+  Residents sit about 1.7 times a day across the village and walk, talk and fish slightly less. No fact
+  kind disappears.
 
 - **BC-c2-6 (AC-b-7 in `lakeside_bodies.rs`).** `without_bodies_only_the_doorways_moved` FAILED on the C1
   tree (day-1 facts 2 507 vs the fixture's 2 502): removing `bodies` left `posture` and its sit points in,
