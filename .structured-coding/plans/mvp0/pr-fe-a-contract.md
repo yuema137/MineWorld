@@ -1,9 +1,8 @@
 # PR FE-a — execution contract (filled)
 
-**Lifecycle:** `DRAFT — FREEZE-READY` (2026-11-27). Not in force until the operator answers Q-FE-1 … Q-FE-5
-([`step-fe-food-energy.md`](step-fe-food-energy.md) §1) and the primary records `DESIGN FROZEN` on
-[`pr-fe-a-food-energy-engine.md`](pr-fe-a-food-energy-engine.md). Lines marked *pending Q-FE-n* take effect only with
-that answer. The generic body that this block specializes is
+**Lifecycle:** `DRAFT — AWAITING TWO OPERATOR CONFIRMATIONS` (revision 2, 2026-11-27). Not in force until
+`DESIGN FROZEN` is recorded on [`pr-fe-a-food-energy-engine.md`](pr-fe-a-food-energy-engine.md), which waits on
+C-FE-2 and Q-FE-6 ([`step-fe-food-energy.md`](step-fe-food-energy.md) §1). Q-FE-1 … Q-FE-5 are approved. The generic body that this block specializes is
 `.claude/skills/structured-coding/prompts/implementation-working-rules.md` §1 onward (read in full by the executor;
 not copied here).
 
@@ -24,8 +23,8 @@ RELATED / BINDING DOCS:
   History only: .structured-coding/plans/mvp0/fe-evidence/.
 
 IMPLEMENTATION BASE:
-  origin/main at the time of dispatch; audited design base 7718d952. C0 records the exact base. If any
-  mapped path (design §4) changed since 7718d952, re-audit those seams before C1 (bounded), or stop if a
+  origin/main at the time of dispatch; audited design base 8c971f0f. C0 records the exact base. If any
+  mapped path (design §4) changed since 8c971f0f, re-audit those seams before C1 (bounded), or stop if a
   contract in design §3 no longer fits (material).
 
 IMPLEMENTATION WORKTREE / BRANCH / SESSION:
@@ -53,6 +52,9 @@ FROZEN INVARIANTS:
   - Holder-only disclosure; no client/agent/LM kcal, threshold or rate arithmetic; malformed v2 never
     falls back to a deficit bar; scripts/check_client_rules.py unmodified.
   - Unitless default and absent-needs behaviour unchanged; Social Cafe / Bodies Yard untouched.
+  - Daily use per world and per actor class only; no per-person field (Q-FE-6).
+  - Public agent tool schema changes only by the optional NeedsLine.food_energy of design §3.8, via the
+    regenerated reference.
   - No new dependency, God object, generic resource framework, controller policy or optimizer change.
 
 APPROVED IMPLEMENTATION SEQUENCE:
@@ -86,15 +88,15 @@ PR CONTEXT INITIALIZATION / AUTHORITY ORDER / CONTINUITY / COMPACTION / RESUME /
   binding docs → handoff → emergency snapshot → conversation. No hooks enabled.
 
 ENDPOINT AUTHORITY:
-  - implementation + local validation:  authorized — pending Q-FE-5
-      source: operator answer to Q-FE-5 (to be quoted at freeze)
-  - semantic commits:                   authorized, no approval per commit — pending Q-FE-5
+  - implementation + local validation:  authorized (effective at DESIGN FROZEN)
+      source: operator, 2026-11-27, Q-FE-5 approved as recommended: "同意三个都按推荐冻结"
+  - semantic commits:                   authorized, no approval per commit
       source: same
-  - branch push:                        authorized — pending Q-FE-5
+  - branch push:                        authorized
       source: same
-  - PR creation / update:               authorized — pending Q-FE-5
+  - PR creation / update:               authorized
       source: same
-  - CI repair to review readiness:      authorized — pending Q-FE-5
+  - CI repair to review readiness:      authorized
       source: same
   - merge:                              explicit operator authorization only; section 22.
   If Q-FE-5 is answered differently, record the actual answer here verbatim before execution.

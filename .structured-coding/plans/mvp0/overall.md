@@ -1787,3 +1787,4 @@ living-world trial, and the proposed nutrition/dialogue/nightlife work remain
 open at their documented boundaries. Next ready delivery work is startup
 measurement/packaging validation followed by the existing integration trial;
 nutrition engine design is independently reviewed before operator freeze.
+Nutrition design: [`step-fe-food-energy.md`](step-fe-food-energy.md) (FE-a engine, FE-b content).

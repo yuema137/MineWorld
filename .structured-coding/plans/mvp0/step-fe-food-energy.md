@@ -9,34 +9,38 @@ rows "Initial USD 10,000", "Food energy", "Realistic prices", §4 items 3–5 an
 configurable"). **Builds on:** [`step-35-needs-and-sleep.md`](step-35-needs-and-sleep.md) (frozen) and
 [`pr-s35-nb-needs.md`](pr-s35-nb-needs.md).
 
-**Lifecycle:** `DRAFT — FREEZE-READY` (2026-11-27). **Not DESIGN FROZEN.** No implementation is authorized by
-this document. The operator answers the five questions in §1; the primary then records the freeze.
+**Lifecycle:** `DRAFT — AWAITING TWO OPERATOR CONFIRMATIONS` (revision 2, 2026-11-27). **Not DESIGN FROZEN.**
+Q-FE-1 … Q-FE-5 were approved as recommended on 2026-11-27 (ruling below). The red-team pre-freeze review
+(`/Users/yuema137/mineworld-worktrees/_reviews/design-fe.md`) found that Q-FE-2 understated its consequence and that
+per-person overrides were never asked; the freeze header is set once the operator confirms **C-FE-2** and answers
+**Q-FE-6** below. No implementation is authorized until then.
 
 **Design session:** lane L1, worktree `/Users/yuema137/mineworld-worktrees/design-nutrition`, branch
-`docs/pr-design-nutrition`, audit base `origin/main @ 7718d952`.
+`docs/pr-design-nutrition`, audit base `origin/main @ 8c971f0f` (first audit `7718d952`).
 
 ---
 
 ## 1. Decisions for the operator (plain language)
 
-Each answer below is **recommended, pending freeze**. Already-approved requirements are not reopened:
-**2000 kcal per world day, configurable** (operator, 2026-11-23) and **the new demo player starts with
-USD 10,000** (operator, 2026-11-23).
+**Operator ruling, 2026-11-27 (relayed by the coordinator), quoted:** "同意三个都按推荐冻结" — approve the three
+design PRs #535, #536, #537 as recommended. For this step that answers Q-FE-1 … Q-FE-5 **yes**. Already-approved
+requirements are not reopened: **2000 kcal per world day, configurable** (operator, 2026-11-23) and **the new demo
+player starts with USD 10,000** (operator, 2026-11-23).
 
-| # | Question | Recommendation |
-| --- | --- | --- |
-| Q-FE-1 | **What the bar shows.** The HUD shows a *food-energy reserve* in kcal. It is full at one day's use (2000 kcal by default) and drains continuously, asleep or awake, with no midnight reset. Eating adds the item's kcal, capped at full. The existing *hunger* word ("hungry", "starving") stays, computed by the server from the same reserve, and is what makes residents go and eat. An empty reserve has no medical effect: no collapse, illness, slowdown or death (S35's exclusion stays). Accept? | **Yes.** |
-| Q-FE-2 | **Old saves.** The kcal model changes the `needs` save format (version 2). New saves only: an existing save keeps working with the build that made it, and the new build refuses it with an explicit error naming the incompatibility. No migration, no reset, no silent conversion of old hunger points into kcal. Accept? | **Yes.** |
-| Q-FE-3 | **Three small framework changes outside `needs`.** (a) One domain-neutral kernel error, `InvalidGenesisContent`, for "this authored world is contradictory" (owner, entity, code, field). It knows nothing about food or money; it amends S35's "kernel unchanged" by one error type, with a dated note. (b) The save file is created only *after* the world has started successfully, so a bad world leaves no empty save behind (today it does, for any authoring error). (c) An SDK hook letting a System Pack declare its own schema version and reject contradictory configuration with the file and entry named. Accept? | **Yes.** |
-| Q-FE-4 | **Two checkpoints.** First the engine PR **FE-a** (this step's only frozen PR): the kcal model, the three framework changes, both clients and agent views, proven on *synthetic* test worlds. Then a separate content PR **FE-b** for Market Town: dated US retail prices (one inventory item = one whole serving), kcal per serving, wallets, wages and stock. FE-b gets its own design and freeze, and stays blocked until every price/portion row is sourced and a liquidity/stock proof holds under the residents' random spending. Accept? | **Yes.** |
-| Q-FE-5 | **Execution authority for FE-a once frozen.** A fresh Claude Opus 5.5 implementation session in its own worktree may implement, validate locally, make semantic commits, push, open the PR and repair CI up to READY FOR OPERATOR REVIEW. Merge stays with the operator. No paid calls, no models, no local full-workspace runs. Authorize? | **Yes.** |
+| # | Question | Recommendation | Ruling |
+| --- | --- | --- | --- |
+| Q-FE-1 | **What the bar shows.** The HUD shows a *food-energy reserve* in kcal. It is full at one day's use (2000 kcal by default — the FDA Daily Value reference intake on US Nutrition Facts labels, 21 CFR 101.9(c)(9)) and drains at one constant rate, asleep or awake, with no midnight reset. The constant rate is a deliberate game simplification (real sleep burns somewhat less), and unlike today's unitless hunger it does not slow at night. Eating adds the item's kcal, capped at full. The existing *hunger* word ("hungry", "starving") stays, computed by the server from the same reserve, and is what makes residents go and eat. An empty reserve has no medical effect: no collapse, illness, slowdown or death (S35's exclusion stays). Accept? | **Yes.** | Yes, 2026-11-27 |
+| Q-FE-2 | **Old saves.** The kcal model changes the `needs` save format (version 2). New saves only: an existing save keeps working with the build that made it, and the new build refuses it with an explicit error naming the incompatibility. No migration, no reset, no silent conversion of old hunger points into kcal. Accept? | **Yes.** | Yes, 2026-11-27 — see C-FE-2 |
+| Q-FE-3 | **Three small framework changes outside `needs`.** (a) One domain-neutral kernel error, `InvalidGenesisContent`, for "this authored world is contradictory" (owner, entity, code, field). It knows nothing about food or money; it amends S35's "kernel unchanged" by one error type, recorded in a new ARC record. (b) The save file is created only *after* the world has started successfully, so a bad world leaves no empty save behind (today it does, for any authoring error). (c) An SDK hook letting a System Pack declare its own schema version and reject contradictory configuration with the file and entry named. Accept? | **Yes.** | Yes, 2026-11-27 |
+| Q-FE-4 | **Two checkpoints.** First the engine PR **FE-a** (this step's only frozen PR): the kcal model, the three framework changes, both clients and agent views, proven on *synthetic* test worlds. Then a separate content PR **FE-b** for Market Town: dated US retail prices (one inventory item = one whole serving), kcal per serving, wallets, wages and stock. FE-b gets its own design and freeze, and stays blocked until every price/portion row is sourced and a liquidity/stock proof holds under the residents' random spending. Accept? | **Yes.** | Yes, 2026-11-27 |
+| Q-FE-5 | **Execution authority for FE-a once frozen.** A fresh Claude Opus 5.5 implementation session in its own worktree may implement, validate locally, make semantic commits, push, open the PR and repair CI up to READY FOR OPERATOR REVIEW. Merge stays with the operator. No paid calls, no models, no local full-workspace runs. Authorize? | **Yes.** | Yes, 2026-11-27 |
+| **C-FE-2** | **Confirm the full consequence of Q-FE-2.** *Every* existing save of a world that enables `needs` — Market Town today, even though it still uses the old unitless hunger — stops loading in the new build; play it with the previous build. A CHANGELOG entry says so. (Keeping unitless saves loadable would need a second hunger store or per-variant versions, which the design forbids.) Confirm? | **Yes.** | **pending** |
+| **Q-FE-6** | **Per-person daily use.** The operator's list (playable-MVP §5) included "optional per-person overrides". FE-a supports daily use per world and per actor class (e.g. a `high-energy` class at 2400); a value for one named person is not in this step (it would need a new per-person needs field). Defer per-person values? | **Yes, defer.** | **pending** |
 
-Answer form: "FE: yes to all" freezes FE-a's design and execution contract as written. Any "no" sends only that
-item back for revision.
+Answer form for the remainder: "FE: confirm C-FE-2, defer per-person" lets the primary set `DESIGN FROZEN` on FE-a.
 
-Deferred, not asked now (recommended defaults): per-person kcal overrides beyond actor classes wait (the
-engine supports actor-class overrides; content uses world-level 2000 only); thirst/hydration stays excluded;
-intake diary ("kcal eaten today") is not shown.
+Recorded defaults, not operator-listed: thirst/hydration stays excluded; intake diary ("kcal eaten today") is not
+shown.
 
 ## 2. Requirement and scope
 
@@ -105,7 +109,8 @@ Those files are history and evidence, not a second authority: where they differ 
 | R1 — one pytest command across two members drops guards | [`review-canonical-a`](fe-evidence/20261123-review-canonical-a.md), [`-b`](fe-evidence/20261123-review-canonical-b.md) | Resolved: separate invocations (FE-a C4). |
 | R2 — broken evidence filename | `review-canonical-b` | Resolved: the raw searches are [`fe-evidence/20261123-source-searches.md`](fe-evidence/20261123-source-searches.md). |
 | R3 — C2 cannot prove invalid *genesis* through the real CLI before C3 | `review-canonical-b` | Resolved: C2 proves the factory with stub owners plus a real-CLI *assemble* failure (an existing defect, §7 item 2); the real-CLI invalid-genesis tests live in C3. |
-| Re-review of the expanded draft against the current base | coordinator ready queue 2026-11-27 §3 item 1 (untracked, `/Users/yuema137/mineworld-worktrees/_planning/`) | Done in this lane: all 47 audited files hash-identical at `7718d952` (§7). An independent re-review of *this* FE-a text is still required before freeze (FE-a §8). |
+| Re-review of the expanded draft against the current base | coordinator ready queue 2026-11-27 §3 item 1 (untracked, `/Users/yuema137/mineworld-worktrees/_planning/`) | Done: all 47 audited files hash-identical at `7718d952`; re-audit at `8c971f0f` in FE-a §2. |
+| Red-team pre-freeze review of FE-a revision 1 (head `6105eea7`): FREEZE-AFTER-FIXES, 4 MAJOR, 6 MINOR | `/Users/yuema137/mineworld-worktrees/_reviews/design-fe.md` | Revision 2 applies #2, #5–#12 (FE-a §8 lists each). #3 → C-FE-2 and #4 → Q-FE-6, both returned to the operator (§1). |
 
 ## 6. FE-b blockers (content freeze), recorded so they are not lost
 
@@ -135,7 +140,8 @@ INDEPENDENT REVIEW; NOT CONTENT-FREEZE READY") and review N4:
 1. **Base.** Drafts audited `b457a94d` on a dirty root. `7718d952` is 18 commits later; none touches the mapped
    source (`git diff b457a94d 7718d952` over every mapped path is empty), and all 47 hashes in
    [`fe-evidence/20261123-source-manifest.json`](fe-evidence/20261123-source-manifest.json) verify against
-   `7718d952` (`shasum -a 256 -c`, 47 OK).
+   `7718d952` (`shasum -a 256 -c`, 47 OK). At `8c971f0f`, 45/47 match; `authoring/src/configuration.rs` and
+   `worldpack/src/configure.rs` changed in S31-b2 (#533) without affecting FE-a's contracts (FE-a §2).
 2. **Missed existing defect.** `tools/cli/src/serve.rs::persisted` (line ~516) and `tools/cli/src/run.rs::Begun::new`
    (line ~335) call `SqliteBackend::create` *before* `pack.assemble()`. Any assemble or genesis failure therefore
    leaves an empty `world.sqlite`; `SqliteBackend::exists` checks only the file, so the next launch takes the
