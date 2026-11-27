@@ -232,6 +232,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [DEP-36](DEP-36.md) | Noto Sans SC Regular bundled as the clients' CJK fallback font |
 | [DEP-37](DEP-37.md) | The memory store: standard-library `sqlite3`, with FTS5 as a match filter and integer ranking |
 | [DEP-38](DEP-38.md) | `cargo-about` generates the Rust third-party notices of a bundle |
+| [DEP-39](DEP-39.md) | `butler` pushes the release bundles to itch.io, pinned by version and SHA-256 |
 | [DEP-40](DEP-40.md) | SBOM: `anchore/sbom-action` (syft), SPDX JSON, attested with `actions/attest` |
 | [DEP-41](DEP-41.md) | Official Godot 4.7.2 export templates, checksum-pinned |
 | [DEP-42](DEP-42.md) | Provenance: GitHub artifact attestations through `actions/attest` |

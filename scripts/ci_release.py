@@ -39,8 +39,7 @@ calls these):
         file that differs or exists in one only (step-23 §5.3: a measurement, not a gate; exits 0).
 
 `citation` is also called by R-b's `verify-tag` on a tag run, so a tag cannot ship with a stale citation
-(design `pr-s23-rd-publish.md` sections 4.1 and 3). R-b's commands (`verify-tag`, `notes`, `sums`, `repro`)
-are added beside these by its own design (`pr-s23-rb-release-workflow.md` section 4.2).
+(design `pr-s23-rd-publish.md` sections 4.1 and 3).
 
 Exits non-zero and names every problem. The workflow parsers are line-based: this script reads only the
 shapes `publish.yml` is written in (section 3), and the self-test plants each shape it must catch.
