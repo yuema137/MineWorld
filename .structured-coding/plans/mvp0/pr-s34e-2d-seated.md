@@ -1052,3 +1052,8 @@ through `cast-slots/with-slot.sh`, own target dir):
 
 Coordination: no world golden was re-recorded; the two posture fixtures are this PR's own files. No file
 of S34-c2 or S34-d1 is touched. The stacked startup/launcher commits touch none of this PR's files.
+
+First PR CI (`fast`, head `4214f42d`) FAIL at `cargo fmt --all --check`: `client_rules.rs` (a recovered,
+replay-identical file) wrapped one `for` header differently under CI rustfmt 1.9.0. Fixed by `cargo fmt`
+(formatting only); local `cargo fmt --all --check` and `cargo clippy -p mineworld-cli -p
+mineworld-acceptance --all-targets --all-features -D warnings` PASS before the push.
