@@ -12,7 +12,7 @@
 
 use mineworld_contracts::{
     ActionTypeId, ComponentTypeId, ContractError, EntityId, EntityKey, EventTypeId, LifecycleState,
-    ProcessId, ProcessTypeId, Rejection, RelationTypeId, SystemId, WorldTime,
+    ProcessId, ProcessTypeId, Rejection, RejectionCode, RelationTypeId, SystemId, WorldTime,
 };
 
 use thiserror::Error;
@@ -347,6 +347,35 @@ pub enum KernelError {
         event_type: EventTypeId,
         /// Why the state may not take the value, in the contract's own vocabulary.
         reason: Rejection,
+    },
+
+    /// An owner reducing a fact its world was *begun* with (`Causation::WorldGenesis`) found the
+    /// authored content contradictory: a value its configuration and its content files each allow
+    /// alone, but not together (`DECISIONS.md` `ARC-370`).
+    ///
+    /// Unlike [`FactRefusedByOwner`](Self::FactRefusedByOwner) this is the world author's error, not a
+    /// stating system's: construction stops and the candidate world is to be discarded (reduction is
+    /// not transactional; nothing is rolled back). During replay it means the history cannot be
+    /// rebuilt. The typed identity is `system`, `subject` and `code`; `field` and `detail` are bounded
+    /// text for a person and are never matched by code. Nothing in dispatch checks that the fact was
+    /// caused by genesis: an owner returning this for any other fact is a reduction fault like any
+    /// other error here.
+    #[error(
+        "the world's authored content is contradictory: '{system}' refused {subject}'s '{field}' \
+         ({code}): {detail}"
+    )]
+    InvalidGenesisContent {
+        /// The owner that refused.
+        system: SystemId,
+        /// The entity whose authored content is contradictory, by key.
+        subject: EntityKey,
+        /// The owner's code.
+        code: RejectionCode,
+        /// The authored field, as its file writes it. Boxed text (as `detail`), so this variant does not
+        /// make every `KernelError` larger.
+        field: Box<str>,
+        /// What is wrong, for the author.
+        detail: Box<str>,
     },
 
     /// Reaction within one logical instant went deeper than the cascade limit: systems kept

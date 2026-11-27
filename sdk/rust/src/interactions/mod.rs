@@ -25,7 +25,8 @@ use mineworld_authoring::{
     AuthoredConfiguration, ConfigurationContext, ConfigurationRefusal, Reference, Seeding,
 };
 use mineworld_contracts::{
-    ComponentTypeId, EntityType, EventTypeId, Rejection, RejectionCode, SystemId, Visibility,
+    ComponentSchemaVersion, ComponentTypeId, EntityType, EventSchemaVersion, EventTypeId,
+    Rejection, RejectionCode, SystemId, Visibility,
 };
 use mineworld_kernel::{Emission, SystemIdentity};
 use serde::{Deserialize, Deserializer};
@@ -67,6 +68,14 @@ pub trait InteractionSection:
     /// Its per-Place component: `<pack id>-interactions`.
     const COMPONENT: ComponentTypeId;
 
+    /// The schema version its configured fact is recorded at: 1 unless the pack's encoding of
+    /// [`Resolved`] changed (`ARC-370`).
+    const CONFIGURED_SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(1);
+
+    /// The schema version of its per-Place component: 1 unless the pack's encoding of [`Resolved`]
+    /// changed (`ARC-370`).
+    const COMPONENT_SCHEMA_VERSION: ComponentSchemaVersion = ComponentSchemaVersion::new(1);
+
     /// Each action a rule may name.
     const ACTIONS: &'static [ActionDecl] = &[];
 
@@ -94,6 +103,23 @@ pub trait InteractionSection:
     fn requires(section: &Section<Self>) -> Vec<SystemId> {
         let _ = section;
         Vec::new()
+    }
+
+    /// The owner's own refusal of a section whose fields, each within its bound, contradict one another
+    /// (`ARC-370`): called exactly once by [`resolve`], after the class and ambiguity checks, with the
+    /// section as written — which fields each entry, region and `extends` list sets
+    /// ([`Fields::set_names`], [`Section::chain`]) — and what it resolved to, so the load check and the
+    /// seed cannot disagree. Accepts everything by default.
+    ///
+    /// # Errors
+    ///
+    /// [`ConfigurationRefusal::Owner`], naming the entry when one is to blame.
+    fn validate_authored(
+        section: &Section<Self>,
+        resolved: &Resolved<Self>,
+    ) -> Result<(), ConfigurationRefusal> {
+        let _ = (section, resolved);
+        Ok(())
     }
 
     /// Its configured fact's payload, with the pack's own codec.

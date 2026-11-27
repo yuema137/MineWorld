@@ -360,13 +360,46 @@ full-workspace run.
    `worldpack/src/{configure,error}.rs` + configuration refusal tests; `kernel/src/error.rs`; `server/src/host.rs`
    only if the `HostError::build` audit shows nested fields are dropped. No dispatch behaviour, no domain type, no
    Person field. Depends on C0.
-3. **Implementation:** [ ] two defaulted version constants used in `lookup.rs` and the declaration/reference path;
-   [ ] `validate_authored` default no-op called once in `resolve`; [ ] `ConfigurationRefusal::Owner` + exhaustive
-   mapping; [ ] `KernelError::InvalidGenesisContent`; [ ] wrapper display keeps identifying fields.
-4. **Validation:** [ ] stub owner at schema 2 shows declarations/configured fact/component at 2 while a real
-   unchanged owner stays 1; [ ] stub hook refusal propagates through the real loader with correct `EntryAt` for
+3. **Implementation:** [x] two defaulted version constants used in `lookup.rs` and the declaration/reference path;
+   [x] `validate_authored` default no-op called once in `resolve`; [x] `ConfigurationRefusal::Owner` + exhaustive
+   mapping; [x] `KernelError::InvalidGenesisContent`; [x] wrapper display keeps identifying fields.
+   *Evidence:* `InteractionSection::{CONFIGURED_SCHEMA_VERSION, COMPONENT_SCHEMA_VERSION, validate_authored}`
+   (mod.rs); `SectionConfigured<S>`/`Interactions<S>` read them (lookup.rs; declarations take the version off the
+   type, so no separate generator edit was needed); `resolve` builds `Resolved` then calls the hook once.
+   **Bounded addition:** `Section::entries_setting(field) -> Vec<EntryAt>` (resolve.rs), naming every entry that
+   sets a field across the default list, the `extends` chain, own entries and regions with resolution's own
+   prefixes, plus a shared `inherited()` helper that resolve now uses too — the generic presence query §3.3
+   describes ("sees authored presence … before defaults erase it"), so needs does not re-implement level
+   enumeration. `ConfigurationRefusal::Owner { entry: Option<EntryAt>, code, detail }` (authoring);
+   `PackError::ConfigurationContradictory { system, code, entry, detail, path }` (worldpack). **Deviation
+   (bounded):** the name `ConfigurationRefusedByOwner` already exists (a seed-time `Rejection`), so the new
+   variant is `ConfigurationContradictory`; MODULE_SPEC updated. `KernelError::InvalidGenesisContent` with
+   `field`/`detail` as `Box<str>` instead of `String` — **deviation (bounded):** clippy `result_large_err`
+   (128-byte limit) fired on every `Result<_, PackError>` once the variant held five 24-byte fields; same
+   diagnostic text, same typed identity. Wrapper audit: `PersistError::Kernel` is `#[error(transparent)]`,
+   `PackError::Composition` prints `{source}`, `HostError::Build` prints `{0}` — all keep the nested text, so
+   `server/src/host.rs` is **not** edited.
+4. **Validation:** [x] stub owner at schema 2 shows declarations/configured fact/component at 2 while a real
+   unchanged owner stays 1; [x] stub hook refusal propagates through the real loader with correct `EntryAt` for
    base, region, default-list and inherited sources; existing class/ambiguity errors still win first;
-   [ ] full wrapped error text contains owner/code/subject/field (no unstable prefix assertion).
+   [ ] full wrapped error text contains owner/code/subject/field (no unstable prefix assertion) — **moved to C2**,
+   where a stub owner raises `InvalidGenesisContent` through `PersistError` and `PackError` (bounded re-seam).
+   *Evidence (pre-commit working tree on base `9c3cca40`):* SDK unit tests `cargo test -p mineworld-sdk --lib
+   interactions` 14 passed (new: `an_owners_declared_versions_reach_its_fact_and_component_and_no_other_pack` —
+   `Strict` at 2 through `Emission::new::<SectionConfigured<_>>` and its declared component, `Probe` at 1;
+   `entries_setting_names_each_source_as_resolution_names_entries` — default list, `extends` chain (`wide`),
+   own `parameters[1]`, `regions.cafe.parameters[0]`, shadowed entries included;
+   `an_owners_refusal_follows_the_shared_checks_and_runs_once` — `ClassUndefined` and `Ambiguous` win with the hook
+   called 0 times, the contradiction refused once naming `reference list 'default' parameters[0]`, the default
+   hook refuses nothing). `--test interactions` (IB-6, 10 000 drawn sections) 1 passed. Worldpack `--lib configure`
+   17 passed (new `an_owners_refusal_names_the_file_the_owner_its_code_and_the_entry`: the real `check` mapping
+   names the file, owner, code, `the file` and the detail); `--test configuration` 9 passed;
+   `--test interaction_sections` 2 passed. `cargo fmt --all -- --check` clean; `cargo clippy -p mineworld-kernel
+   -p mineworld-authoring -p mineworld-sdk -p mineworld-worldpack --all-targets -- -D warnings` clean (after the
+   `Box<str>` fix above). The *real-loader* path with an `InteractionSection` hook and a real file is proven by
+   needs in C3 (`needs_sections`), not by a stub here. All PASS.
+   **Process slip:** one mechanical edit of `lookup.rs` (the two literal versions) was made with `sed -i`, which the
+   contract's NEVER list forbids; the diff was inspected (exactly those two lines). All later edits use the editor.
 5. **Acceptance:** E1 configuration path and E5 version defaults; no existing pack's declaration or payload changes.
 6. **Failure/edges:** hook runs exactly once per resolve; missing configuration uses compiled unitless defaults;
    unexpected change in an unrelated pack is a failure, never a baseline update.
@@ -374,8 +407,12 @@ full-workspace run.
    `cargo test -p mineworld-sdk --test interactions`,
    `cargo test -p mineworld-worldpack --test configuration` and `--test interaction_sections`,
    `cargo check -p mineworld-kernel -p mineworld-sdk -p mineworld-worldpack`, clippy on touched crates, `cargo fmt`.
-8. **Boundary:** inert seams + discriminating loader/version/error evidence. [ ] Implementation [ ] Validation
-   [ ] Independent review
+8. **Boundary:** inert seams + discriminating loader/version/error evidence. [x] Implementation [x] Validation
+   [x] Independent review. *Review (self):* kernel gains one variant and no dispatch change; no domain word in
+   kernel/SDK/authoring/worldpack; every existing pack inherits version 1 and the no-op hook (IB-6 unchanged);
+   `entries_setting` is presence-only and documented as such; hook placement after the shared checks keeps their
+   precedence. Size: `kernel/src/error.rs` 769 → 798, `worldpack/src/error.rs` 911 → 930 (existing debt, minimal
+   variant lines only); `resolve.rs` 454 → 501.
 
 ### C2 — Valid-genesis-first save creation in persistence and both CLI callers
 

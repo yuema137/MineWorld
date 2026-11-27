@@ -510,3 +510,237 @@ fn a_restricted_field_is_refused_under_another_role_and_in_a_region() {
         Ok(())
     );
 }
+
+// ---- An owner's own versions and refusal (`ARC-370`) ---------------------------------------------
+
+/// A second probe that raises its section's schema versions and refuses `reach` anywhere while its
+/// own base sets `step` to 100 — a combination neither field's bound can express.
+#[derive(Debug, Clone, Default, PartialEq)]
+struct Strict;
+
+impl SystemIdentity for Strict {
+    const ID: SystemId = SystemId::from_static("strict");
+}
+
+impl mineworld_kernel::System for Strict {
+    const VERSION: SystemVersion = SystemVersion::new(1);
+
+    fn declaration(&self) -> SystemDeclaration {
+        declare::<Self>(SystemDeclaration::of::<Self>())
+    }
+}
+
+impl crate::SystemPack for Strict {
+    const PACKAGE: crate::Package = crate::package!();
+}
+
+const STRICT_CODE: RejectionCode = RejectionCode::from_static("strict-reach-with-step-100");
+
+std::thread_local! {
+    /// How many times `Strict::validate_authored` ran on this thread.
+    static VALIDATIONS: core::cell::Cell<usize> = const { core::cell::Cell::new(0) };
+}
+
+impl InteractionSection for Strict {
+    type Parameters = ProbeParameters;
+    type Knobs = ();
+    const CONFIGURED: EventTypeId = EventTypeId::from_static("strict-interactions-configured");
+    const COMPONENT: ComponentTypeId = ComponentTypeId::from_static("strict-interactions");
+    const CONFIGURED_SCHEMA_VERSION: mineworld_contracts::EventSchemaVersion =
+        mineworld_contracts::EventSchemaVersion::new(2);
+    const COMPONENT_SCHEMA_VERSION: mineworld_contracts::ComponentSchemaVersion =
+        mineworld_contracts::ComponentSchemaVersion::new(2);
+    const PARAMETER_ROLES: &'static [Role] = &[Role::Actor];
+
+    /// `default` sets `reach`; `generous` extends `wide`, which sets it too.
+    fn reference_lists() -> Vec<(&'static str, Section<Self>)> {
+        let mut default = Section::empty();
+        default
+            .entries
+            .parameters
+            .push(param(Selectors::any(), None, Some(11)));
+        let mut wide = Section::empty();
+        wide.entries
+            .parameters
+            .push(param(Selectors::any(), None, Some(12)));
+        let mut generous = Section::empty();
+        generous.extends = Some("wide");
+        generous
+            .entries
+            .parameters
+            .push(param(Selectors::any(), Some(3), None));
+        vec![("default", default), ("wide", wide), ("generous", generous)]
+    }
+
+    fn validate_authored(
+        section: &Section<Self>,
+        resolved: &Resolved<Self>,
+    ) -> Result<(), ConfigurationRefusal> {
+        VALIDATIONS.with(|count| count.set(count.get() + 1));
+        if resolved.base.parameters.step != 100 {
+            return Ok(());
+        }
+        match section.entries_setting("reach").into_iter().next() {
+            None => Ok(()),
+            Some(entry) => Err(ConfigurationRefusal::Owner {
+                entry: Some(entry),
+                code: STRICT_CODE,
+                detail: "'reach' may not be set beside step 100".to_owned(),
+            }),
+        }
+    }
+
+    fn encode(_: &Resolved<Self>) -> Vec<u8> {
+        Vec::new()
+    }
+
+    fn decode(_: &[u8]) -> Result<Resolved<Self>, String> {
+        Err("not in a unit test".to_owned())
+    }
+}
+
+fn validations() -> usize {
+    VALIDATIONS.with(core::cell::Cell::get)
+}
+
+/// An owner that declares version 2 states its configured fact and declares its component at 2; an
+/// owner that declares nothing stays at 1 (E5: unrelated packs keep schema 1).
+#[test]
+fn an_owners_declared_versions_reach_its_fact_and_component_and_no_other_pack() {
+    let configured =
+        |emission: mineworld_kernel::Emission| emission.record().schema_version().get();
+    assert_eq!(
+        configured(
+            mineworld_kernel::Emission::new::<SectionConfigured<Strict>>(
+                Vec::new(),
+                mineworld_contracts::Visibility::SystemInternal
+            )
+        ),
+        2
+    );
+    assert_eq!(
+        configured(mineworld_kernel::Emission::new::<SectionConfigured<Probe>>(
+            Vec::new(),
+            mineworld_contracts::Visibility::SystemInternal
+        )),
+        1
+    );
+    let owned = |declaration: SystemDeclaration| {
+        declaration
+            .owns()
+            .iter()
+            .map(|owned| owned.schema_version().value())
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(owned(mineworld_kernel::System::declaration(&Strict)), [2]);
+    assert_eq!(
+        owned(declare::<Probe>(SystemDeclaration::of::<Probe>())),
+        [1]
+    );
+}
+
+/// `entries_setting` names every entry setting a field, wherever it applies from — the default list,
+/// the `extends` chain, the section's own entries, a region — even when a later entry shadows it.
+#[test]
+fn entries_setting_names_each_source_as_resolution_names_entries() {
+    let mut section = Section::<Strict>::empty();
+    section.extends = Some("generous");
+    section.entries.parameters.extend([
+        param(Selectors::any(), Some(4), None),
+        param(actor(class("noble")), None, Some(13)),
+    ]);
+    section.regions.insert(
+        EntityKey::new("cafe").expect("a key"),
+        Entries {
+            parameters: vec![param(Selectors::any(), None, Some(14))],
+            ..Entries::default()
+        },
+    );
+    let named: Vec<String> = section
+        .entries_setting("reach")
+        .iter()
+        .map(ToString::to_string)
+        .collect();
+    assert_eq!(
+        named,
+        [
+            "reference list 'default' parameters[0]",
+            "reference list 'wide' parameters[0]",
+            "parameters[1]",
+            "regions.cafe.parameters[0]",
+        ]
+    );
+    assert_eq!(
+        section
+            .entries_setting("step")
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>(),
+        ["reference list 'generous' parameters[0]", "parameters[0]"]
+    );
+}
+
+/// The owner's refusal comes after the class and ambiguity checks, runs exactly once per resolution,
+/// and names the entry the owner blames — here the default list's, which the author never wrote but
+/// which applies all the same. A pack with no hook of its own refuses nothing more.
+#[test]
+fn an_owners_refusal_follows_the_shared_checks_and_runs_once() {
+    let classes = classes();
+    let before = validations();
+    let mut undefined = Section::<Strict>::empty();
+    undefined
+        .entries
+        .parameters
+        .push(param(actor(class("knight")), Some(100), None));
+    assert!(matches!(
+        resolve(&undefined, &classes),
+        Err(ConfigurationRefusal::ClassUndefined { .. })
+    ));
+    let mut ambiguous = Section::<Strict>::empty();
+    ambiguous.entries.parameters.extend([
+        param(actor(class("noble")), Some(100), None),
+        param(actor(class("person")), Some(99), None),
+    ]);
+    assert!(matches!(
+        resolve(&ambiguous, &classes),
+        Err(ConfigurationRefusal::Ambiguous { .. })
+    ));
+    assert_eq!(validations(), before, "the shared refusals win first");
+
+    let mut contradictory = Section::<Strict>::empty();
+    contradictory
+        .entries
+        .parameters
+        .push(param(Selectors::any(), Some(100), None));
+    match resolve(&contradictory, &classes) {
+        Err(ConfigurationRefusal::Owner {
+            entry,
+            code,
+            detail,
+        }) => {
+            assert_eq!(
+                entry.map(|entry| entry.to_string()).as_deref(),
+                Some("reference list 'default' parameters[0]")
+            );
+            assert_eq!(code, STRICT_CODE);
+            assert!(detail.contains("reach"), "{detail}");
+        }
+        other => panic!("expected the owner's refusal, got {other:?}"),
+    }
+    assert_eq!(validations(), before + 1, "exactly once per resolution");
+
+    let mut accepted = Section::<Strict>::empty();
+    accepted
+        .entries
+        .parameters
+        .push(param(Selectors::any(), Some(99), None));
+    resolve(&accepted, &classes).expect("step 99 beside reach is fine");
+    assert_eq!(validations(), before + 2);
+
+    let mut probe = Section::<Probe>::empty();
+    probe
+        .entries
+        .parameters
+        .push(param(Selectors::any(), Some(100), Some(1)));
+    resolve(&probe, &classes).expect("the default hook refuses nothing");
+}

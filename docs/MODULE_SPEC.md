@@ -1986,7 +1986,7 @@ like any other, but it names no action a client can send (`ARC-63` note of 2026-
   is neither defined nor implicit (`ClassUndefined`); two ambiguous entries (`AmbiguousEntries`);
 - with the entry when there is one, after those two: the owner's own refusal of a combination no single
   bound can express (`ConfigurationRefusal::Owner { entry, code, detail }`, reported as
-  `ConfigurationRefusedByOwner` naming the file, the owner, its code and the entry). An owner says it
+  `ConfigurationContradictory` naming the file, the owner, its code and the entry). An owner says it
   through `InteractionSection::validate_authored(section, resolved)`, which sees the section as written —
   which fields each entry, region and reference list sets — and the resolution; it is called once inside
   resolution, so the load check and the genesis seed cannot disagree (`ARC-370`; *added 2026-11-27*,
@@ -2118,7 +2118,7 @@ refused.
   | `hunger_model` | `unitless` \| `food-energy`; base only | `unitless` | `unitless` is the deficit model above, unchanged. `food-energy` makes hunger a kcal reserve |
   | `energy_kcal_per_day` | 1 … 100 000; scoped by `actor` | 2 000 | food-energy use per 86 400 world seconds, and the reserve's capacity. 2 000 is the FDA Daily Value reference intake on US Nutrition Facts labels (21 CFR 101.9(c)(9)): a game default, not personal advice |
 
-  Refused, naming the file and the entry (`ConfigurationRefusedByOwner`): in `unitless`, `energy_kcal_per_day`
+  Refused, naming the file and the entry (`ConfigurationContradictory`): in `unitless`, `energy_kcal_per_day`
   anywhere (`needs-model-parameter-conflict`); in `food-energy`, `hunger_per_hour` or `hunger_asleep_per_hour`
   anywhere, even shadowed (`needs-model-parameter-conflict`), and a model without a base entry setting
   `energy_kcal_per_day` (`needs-energy-daily-use-required`). Per-person daily use is not provided; vary it by
