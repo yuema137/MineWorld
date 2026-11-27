@@ -4,11 +4,11 @@
 
 ```text
 Design revision:        revision 1 (2026-10-26), DESIGN FROZEN 2026-10-27 (operator approved in the primary session: every question answered as recommended)
-Approved by / evidence: operator ruling 2026-10-27 (§13), recorded in legacy commit 6736d63e; recovery dispatch 2026-11-22
+Approved by / evidence: the operator, 2026-10-27 (primary session, 21:11 UTC): §13 answered as recommended; S34-B amendment approved 2026-11-22 (§13)
 Implementation base:    origin/main @ 0b2faf2f (after #301 S34-a, #363 S34-b, #368 S34-c1, #462 S33-f)
-Start condition:        met; recovery from reviewed local base listed in §12
+Start condition:        this design frozen by the operator (met 2026-10-27)
 Execution contract:     §10
-Lifecycle:              LOCAL REVIEW READY; execution closed pending coordinator integration (recovery closeout below)
+Lifecycle:              FROZEN 2026-10-27; implementation rebuilt after the /tmp loss and published 2026-11-27 (§12, last sections); not merged
 ```
 
 **Dated note, 2026-10-27 (operator ruling Q-S34c3-3; SD-c3-5 in
