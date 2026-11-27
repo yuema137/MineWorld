@@ -5,6 +5,7 @@ use std::collections::BTreeSet;
 use std::path::PathBuf;
 
 use mineworld_authoring::{DataOrigin, DataSource};
+use mineworld_contracts::EntityKey;
 use serde::Serialize;
 
 use crate::backend::{Backend, MINEWORLD, choose};
@@ -13,6 +14,7 @@ use crate::config::AttributesConfiguration;
 use crate::declaration::DataFile;
 use crate::lock::Lock;
 use crate::mask::Mask;
+use crate::newcomer::NewcomerContext;
 use crate::profile::{Profile, ProfileError, build};
 
 /// The world's population: what genesis samples from.
@@ -28,6 +30,8 @@ pub struct Population {
     pub lock_name: Option<String>,
     /// The lock, when the configuration names one and the world holds it.
     pub lock: Option<Lock>,
+    /// The people who arrive later, when the configuration has `newcomers:` (`ARC-128`).
+    pub later: Option<BTreeSet<EntityKey>>,
 }
 
 /// The population's identity in `attributes-composed` (`pr-s30d-sampler.md` §5.7): a resumed world whose
@@ -71,6 +75,8 @@ impl Population {
 /// `attributes`' context.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AttributesContext {
+    /// Completed by subject resolution, before context facts are seeded.
+    pub newcomers: Option<NewcomerContext>,
     /// The frozen catalogue.
     pub catalogue: Catalogue,
     /// The population, when the world configures `attributes`.
@@ -266,6 +272,7 @@ impl AttributesContext {
         let provided = backends.into_iter().map(|(_, backend)| backend).collect();
         let Some(configuration) = configuration else {
             return Ok(Self {
+                newcomers: None,
                 catalogue,
                 population: None,
                 composition,
@@ -294,6 +301,27 @@ impl AttributesContext {
             });
         }
         let profile = build(&catalogue, &profiles, Some(configuration))?;
+        let later = match &configuration.newcomers {
+            None => None,
+            Some(newcomers) => {
+                let mut later = BTreeSet::new();
+                for key in &newcomers.later {
+                    let key = EntityKey::new(key.as_str()).map_err(|error| ContextRefusal {
+                        file: None,
+                        reason: format!("UnknownPerson: newcomers.later names '{key}': {error}"),
+                    })?;
+                    if !later.insert(key.clone()) {
+                        return Err(ContextRefusal {
+                            file: None,
+                            reason: format!(
+                                "DuplicateNewcomer: newcomers.later lists '{key}' more than once"
+                            ),
+                        });
+                    }
+                }
+                Some(later)
+            }
+        };
         let lock = match &configuration.lock {
             None => None,
             Some(name) => {
@@ -314,6 +342,7 @@ impl AttributesContext {
             }
         };
         Ok(Self {
+            newcomers: None,
             catalogue,
             composition,
             backends: provided,
@@ -323,6 +352,7 @@ impl AttributesContext {
                 salt: configuration.salt,
                 lock_name: configuration.lock.clone(),
                 lock,
+                later,
             }),
         })
     }

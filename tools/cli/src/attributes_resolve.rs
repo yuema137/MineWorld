@@ -89,6 +89,12 @@ pub fn resolve(request: &ResolveRequest<'_>) -> Result<(), String> {
         None => (
             pack.people()
                 .keys()
+                .filter(|key| {
+                    !context
+                        .newcomers
+                        .as_ref()
+                        .is_some_and(|newcomers| newcomers.deferred.contains_key(*key))
+                })
                 .map(|key| key.as_str().to_owned())
                 .collect(),
             false,
@@ -114,10 +120,15 @@ pub fn resolve(request: &ResolveRequest<'_>) -> Result<(), String> {
             }
         })
         .collect();
+    let lock = lock.map(|lock| {
+        let mut lock = lock.clone();
+        lock.people.retain(|key, _| keys.contains(key));
+        lock
+    });
     let resolution = sample(
         catalogue,
         profile,
-        if synthetic { None } else { lock },
+        if synthetic { None } else { lock.as_ref() },
         words,
         &members,
     )
@@ -218,6 +229,13 @@ fn document(
             .collect();
         people.insert(key.clone(), json!({ "look": null, "values": listed }));
     }
+    if let Some(newcomers) = &context.newcomers {
+        for key in newcomers.deferred.keys() {
+            if request.person.is_none_or(|person| person == key) {
+                people.insert(key.to_string(), json!({ "deferred": true }));
+            }
+        }
+    }
     document["people"] = json!(people);
     document
 }
@@ -267,7 +285,11 @@ fn print_text(document: &Value) {
     println!("profile {}", document["profile"]);
     if let Some(people) = document["people"].as_object() {
         for (key, person) in people {
-            println!("{key}");
+            if person["deferred"] == true {
+                println!("{key} deferred");
+            } else {
+                println!("{key}");
+            }
             for (id, entry) in person["values"].as_object().into_iter().flatten() {
                 println!("  {id}  {}  {}", entry["value"], entry["origin"]);
             }

@@ -253,6 +253,7 @@ impl Cafe {
         }
         if attributes.is_some() {
             let composed = AttributesComposed {
+                newcomers: None,
                 schema: COMPOSED_SCHEMA,
                 catalogue: catalogue(&yielded)
                     .expect("the catalogue builds")

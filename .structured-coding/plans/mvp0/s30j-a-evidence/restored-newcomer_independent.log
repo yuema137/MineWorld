@@ -1,0 +1,11 @@
+   Compiling mineworld-attributes-model v0.1.0 (/Users/yuema137/mineworld-worktrees/recovered-s30j/.recovery/replay/tmp/mineworld-s30j-fidelity-a-recovery/authoring/attributes)
+    Finished `test` profile [optimized + debuginfo] target(s) in 2.96s
+     Running tests/newcomer_independent.rs (/Users/yuema137/mineworld-worktrees/recovered-s30j/.recovery/target-fida/debug/deps/newcomer_independent-1ea77b337287f01d)
+
+running 4 tests
+test cumulative_boundary_is_exclusive_at_the_integer_point ... ok
+test independent_rows_masks_adjustments_and_uniforms_match_known_vectors ... ok
+test restrictions_fixed_origins_and_empty_support_remain_hard_constraints ... ok
+test changing_or_reordering_residents_cannot_change_independent_draws ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

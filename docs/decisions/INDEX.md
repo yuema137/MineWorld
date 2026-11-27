@@ -131,6 +131,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-124](ARC-124.md) | The attribute owner interface, with S31's subscriptions and wealth band as its first users |
 | [ARC-125](ARC-125.md) | Apparent descriptors are perceivable attributes; `look` stays opaque (amends `ARC-91` item 3) |
 | [ARC-126](ARC-126.md) | Person-generation backends and masks are data; the MineWorld backend is the default; a backend runs no code |
+| [ARC-128](ARC-128.md) | Runtime sampling for predeclared people admitted later |
 | [ARC-138](ARC-138.md) | Route B: a modular character is a Meshy base-layer body, a hidden `hm08` fitting template registered to it, and separately generated parts |
 | [ARC-140](ARC-140.md) | The runtime garment format: a neutral-rest mesh plus a `.mhclo`-style binding to the `hm08` template, fitted at load (format part) |
 | [ARC-141](ARC-141.md) | The S26 gates restated per assembled outfit, the wardrobe gates W-1…W-12 and the no-stock scan V-1 |

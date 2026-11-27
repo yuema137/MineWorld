@@ -251,6 +251,10 @@ pub struct Uses {
     /// Each attribute it may propose changes to.
     #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
     pub proposes: BTreeSet<QualifiedId>,
+    /// Whether it admits people who arrive later (`ARC-128`); absent when not, so no projection without
+    /// an admitter moves a byte.
+    #[serde(default, skip_serializing_if = "core::ops::Not::not")]
+    pub admits: bool,
 }
 
 /// One world's frozen catalogue.
@@ -592,8 +596,13 @@ impl Catalogue {
         }
         let pack = SystemId::new(&origin.pack)
             .map_err(|error| bad(at.clone(), "uses", "uses", error.to_string()))?;
-        let RawUses { reads, proposes } = &uses.value;
+        let RawUses {
+            reads,
+            proposes,
+            admits,
+        } = &uses.value;
         let entry = self.uses.entry(pack).or_default();
+        entry.admits |= *admits;
         for (id, read) in reads {
             let read = match read {
                 RawRead::Kind(kind) => Read {

@@ -42,6 +42,10 @@ pub struct AttributesComposed {
     /// The backend and mask, when the world's packs provide a backend (S30-e): compared at resume.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub composition: Option<crate::context::CompositionIdentity>,
+    /// What the running world draws newcomers from, when the world configures `newcomers:` (S30-j,
+    /// `ARC-128`): compared at resume like the rest of this fact.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub newcomers: Option<crate::newcomer::NewcomerContext>,
 }
 
 impl Event for AttributesComposed {
@@ -213,14 +217,16 @@ pub fn check_proposal<'c>(
     Ok(declaration)
 }
 
-/// [`check_proposal`] against the world's running catalogue.
+/// [`check_proposal`] against the world's running catalogue, about `person`.
 ///
 /// # Errors
 ///
-/// As [`check_proposal`], or `attributes-uncomposed`.
+/// As [`check_proposal`], `attributes-uncomposed`, or `not-arrived` for a person who arrives later
+/// and has not yet (`ARC-128`).
 pub fn admit_proposal(
     world: &WorldRead<'_>,
     proposer: &SystemId,
+    person: PersonId,
     attribute: &QualifiedId,
     to: &AttributeValue,
 ) -> Result<(), Rejection> {
@@ -230,5 +236,11 @@ pub fn admit_proposal(
             "the world has no catalogue".to_owned(),
         )
     })?;
-    check_proposal(running.catalogue(), proposer, attribute, to).map(|_| ())
+    check_proposal(running.catalogue(), proposer, attribute, to)?;
+    crate::newcomer::check_arrived(world, person)
+}
+
+/// A refusal with its reason code (`ARC-120` item 3), for this crate's checked constructors.
+pub(crate) fn refused(code: &'static str, detail: String) -> Rejection {
+    refusal(code, detail)
 }
