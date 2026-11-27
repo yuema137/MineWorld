@@ -76,6 +76,11 @@ jobs:
           python3 scripts/ci_release.py verify-tag --tag "$REF_NAME" --commit "$GITHUB_SHA" $dry \
             --repo "$GITHUB_REPOSITORY" --output "$GITHUB_OUTPUT"
 
+      # R-d owns CITATION.cff; dry runs may precede it, but a real tag must validate it.
+      - name: The citation version (real tags only)
+        if: github.ref_type == 'tag'
+        run: python3 scripts/ci_release.py citation
+
   bundle:
     name: bundle (${{ matrix.target }})
     needs: verify-tag
@@ -168,7 +173,10 @@ jobs:
           if [ "$RUNNER_OS" = "Windows" ]; then temp=$(cygpath -u "$RUNNER_TEMP"); untar=/c/Windows/System32/tar.exe; fi
           place="$temp/MineWorld 世界"
           mkdir -p "$place"
-          "$untar" -xf "$ARCHIVE" -C "$place"
+          # Resolve before cd: ARCHIVE is relative on the build runner. Windows tar's narrow -C
+          # argument corrupted 世界 (run 40587709153); inherit that directory as cwd instead.
+          archive="$(cd "$(dirname "$ARCHIVE")" && pwd)/$(basename "$ARCHIVE")"
+          (cd "$place" && "$untar" -xf "$archive")
           bundle=$(ls -d "$place"/MineWorld-*)
           "$PY" scripts/package.py probe "$bundle"
 
@@ -383,7 +391,8 @@ jobs:
           case "$RUNNER_OS" in
             Linux) tar -xzf "$archive" -C "$place" ;;
             macOS) ditto -x -k "$archive" "$place" ;;
-            Windows) /c/Windows/System32/tar.exe -xf "$archive" -C "$place" ;;
+            # Preserve the Unicode destination without passing it through tar's narrow -C argv.
+            Windows) (cd "$place" && /c/Windows/System32/tar.exe -xf "$archive") ;;
           esac
           bundle=$(ls -d "$place"/MineWorld-*)
           echo "ARCHIVE=$archive" >> "$GITHUB_ENV"
@@ -496,7 +505,7 @@ jobs:
           python3 "$GITHUB_WORKSPACE/scripts/ci_release.py" sums --out SHA256SUMS MineWorld-*
           sha256sum -c SHA256SUMS
 
-      # DEP-42: provenance for each archive and SHA256SUMS; then the SBOM bound to each archive.
+      # DEP-42: provenance for every asset, including the raw SBOM; SPDX predicates name archives.
       - name: Provenance attestations
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
@@ -504,6 +513,7 @@ jobs:
             ${{ runner.temp }}/release/MineWorld-*.zip
             ${{ runner.temp }}/release/MineWorld-*.tar.gz
             ${{ runner.temp }}/release/SHA256SUMS
+            ${{ runner.temp }}/release/MineWorld-*-sbom.spdx.json
 
       - name: SBOM attestations
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
@@ -516,7 +526,7 @@ jobs:
       - name: Verify the attestations as a player would
         run: |
           cd "$RUNNER_TEMP/release"
-          for file in MineWorld-*.zip MineWorld-*.tar.gz SHA256SUMS; do
+          for file in MineWorld-*.zip MineWorld-*.tar.gz MineWorld-*-sbom.spdx.json SHA256SUMS; do
             gh attestation verify "$file" -R "$GITHUB_REPOSITORY"
           done
           for file in MineWorld-*.zip MineWorld-*.tar.gz; do

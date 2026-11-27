@@ -9,7 +9,7 @@ able to tell that an archive was built by this repository's workflow from a name
 
 **Choice.** `actions/attest` v4.2.2, pinned by commit SHA `1e69f48acb82d1966a394da916b4c1698aa569d6` (read
 with `gh api` 2026-10-26 and re-read 2026-10-27). The `draft` job of `.github/workflows/release.yml` — the
-only job with `id-token: write` and `attestations: write` — attests the four archives and `SHA256SUMS`
+only job with `id-token: write` and `attestations: write` — attests the four archives, the raw SBOM JSON asset and `SHA256SUMS`
 (build provenance), then binds the SBOM (`DEP-40`) to each archive with `sbom-path`. The job verifies
 every attestation with `gh attestation verify <file> -R yuema137/MineWorld` (and, for the SBOM,
 `--predicate-type https://spdx.dev/Document/v2.3`) before it creates the draft. A public repository signs
@@ -25,3 +25,11 @@ statement of origin).
 **Limitation accepted.** A dispatch dry run with `draft: true` also attests its archives (that is how the
 step is tested). Those attestations name a non-tag ref, so a verifier who checks the source ref of a
 release tag never accepts them.
+
+## Subject accounting correction (2026-11-23, PR #529)
+
+The raw SBOM is a release asset covered by SHA256SUMS and build provenance. The SPDX
+predicate describes each archive: verify it against each archive, not against the raw
+SBOM JSON as a subject. This clarifies the existing per-file provenance promise and
+preserves DEP-40's archive-to-SBOM binding. R-d's consumer must align with this subject
+set before A-R9 passes; real attestation execution remains pending.

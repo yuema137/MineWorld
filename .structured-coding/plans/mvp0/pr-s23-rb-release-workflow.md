@@ -328,7 +328,8 @@ transit).
   tree's lock files (`Cargo.lock`, `uv.lock`); the release notes say it covers the Rust and Python graphs
   only, and that Godot's libraries are listed in `LICENSES/godot/COPYRIGHT.txt` (step §5.4).
 - **Provenance.** `actions/attest` v4.2.2 (`1e69f48acb82d1966a394da916b4c1698aa569d6`, latest release,
-  read 2026-10-26) with `subject-path` = the four archives and `SHA256SUMS`; a second call with
+  read 2026-10-26) with `subject-path` = the four archives, raw SBOM JSON and `SHA256SUMS` (subject-accounting
+  correction of 2026-11-23, §13); a second call with
   `sbom-path` binds the SBOM to the four archives. Permissions `id-token: write`, `contents: read`,
   `attestations: write` (GitHub docs, "Using artifact attestations", read 2026-10-26: the examples use
   `actions/attest@v4` with these three permissions, and `sbom-path` on the same action).
@@ -717,11 +718,11 @@ NOT RUN in this session. Gate 1 N/A (no LLM-facing change). Targeted checks ≤5
 
 ### 13.3 Correction checklist (separate from unproven historical C0–C6)
 
-- [ ] Implementation: local main dependency refresh inspected and committed.
-- [ ] Implementation: both Windows extraction call sites retain the required path and native tool.
-- [ ] Implementation: raw SBOM provenance coverage; real-tag citation wiring.
-- [ ] Validation: offline extraction regression and planted old-argument counterfactual.
-- [ ] Validation: cheap workflow and helper checks; classify tool/environment limitations.
+- [x] Implementation: local main dependency refresh inspected and committed as `b4d472bd`.
+- [x] Implementation: both Windows extraction call sites retain the required path and native tool; cwd avoids the corrupted destination argument.
+- [x] Implementation: raw SBOM provenance coverage; real-tag citation wiring in verify-tag job.
+- [x] Validation: offline extraction regression and planted old-argument counterfactual (§13.4).
+- [x] Validation: cheap workflow and helper checks classified in §13.4; helper import remains INCONCLUSIVE.
 - [ ] LLM review: independent reviewer `review_sol` on exact local candidate.
 - [ ] Remote validation: exact final public head Release/CI; not authorized in this session.
 
@@ -733,3 +734,29 @@ release responsibilities need a separately scoped ownership refactor; arbitrary 
 would obscure the shared interface. New coupling is restricted to the already-documented citation
 command and explicit producer/consumer subjects, reviewed together with R-d. No unknown is retried
 or skipped into a pass. Remaining debt and acceptance gaps prevent full readiness.
+
+### 13.4 Local correction evidence — 2026-11-23
+
+All checks below ran on `b4d472bd` plus the correction diff; the correction commit records the
+identical executable content. This ledger does not check off C0–C6 retroactively.
+
+| Command / observation | Result | Meaning / limit |
+| --- | --- | --- |
+| `python3 .structured-coding/plans/mvp0/pr529-evidence/check_unpack.py` | PASS, <1 s | Executes both actual workflow unpack blocks under bash -e/pipefail with a local native-tar seam. Real ZIP bytes appear at `MineWorld 世界/<bundle>/payload`; build archive starts relative, fresh archive absolute; fresh BUNDLE output preserved. Each old `-C` mutation is rejected. All literal workflow run blocks pass `bash -n`. This is POSIX seam evidence; Windows native runtime NOT RUN. |
+| Ruby standard `YAML.load_file` and assertions on parsed jobs/steps | PASS, <1 s | Valid YAML; provenance exactly archives + raw SBOM + sums; SPDX exactly archives with expected predicate file; citation command only for real tags; no always() bypass added to draft. This is static configuration evidence, not real attestation verification. |
+| `/opt/homebrew/bin/python3.12 scripts/check_ci_pins.py` | PASS, <1 s | All existing pins preserved. Initial `/usr/bin/python3` invocation INCONCLUSIVE: that Python lacks tomllib; corrected interpreter needs no install. |
+| `python3 scripts/check_doc_headings.py` | PASS, <1 s | 254 numbered sections, 339 docs at initial correction check. |
+| `python3 scripts/check_decision_ids.py` | PASS, <1 s | 259 distinct IDs; index current. First correction heading repeated canonical DEP-42 prefix and FAILED; renamed subsection, no new ID allocated. |
+| `/opt/homebrew/bin/python3.12 scripts/ci_parity.py --self-test` | PASS, <1 s | Includes planted difference, missing record, commit mismatch, --root cases; intentional missing-reference FAIL line is part of passing negative test. |
+| `/opt/homebrew/bin/python3.12 scripts/ci_release.py --self-test` | INCONCLUSIVE, import failure | `package.py -> plistlib -> pyexpat`: missing `_XML_SetAllocTrackerActivationThreshold` in host libexpat. Also observed with Python 3.14; an ephemeral DYLD_LIBRARY_PATH attempt did not resolve it. No host modifications, dependency installs, module stubs or script workaround. |
+| `git diff --check` | PASS | Correction whitespace only. |
+| actionlint | NOT RUN | Not installed; YAML parsing/bash syntax is narrower evidence. |
+| Cargo, Godot, full suites, Windows native tar, Release/CI, attestation service, draft, reproducibility runs | NOT RUN | Explicit dispatch limits; no background jobs or spend. |
+
+Self logic review: no scripts or publishing flags changed; no new generic abstraction. Both archive
+paths are absolute at native tar invocation: build normalizes before cwd; fresh smoke's downloaded
+archive starts under absolute RUNNER_TEMP via cygpath. Directory changes run in subshells so probe and
+subsequent steps retain their previous working directory. Both extraction commands propagate failure.
+The fixture's native seam checks argv/cwd and actual local ZIP extraction, not Windows codec support.
+Independent reviewer remains pending. The original name-only `fast`/`test` limitation, supersession
+adoption, F-RC-7, R-d integration and full release acceptance remain open as §13.2 states.
