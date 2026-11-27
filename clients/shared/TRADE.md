@@ -81,12 +81,12 @@ without a numeric `exponent` and a string `symbol`, it returns `{}`.
 
 | Currency | Amount | Text (en) |
 | --- | --- | --- |
-| `{ US dollar, "$", 2, before }` | 200 000 | `$2,000.00` |
+| `{ Example dollar, "$", 2, before }` | 200 000 | `$2,000.00` |
 | the same | 300 | `$3.00` |
 | `{ crown, "cr", 0, after }` | 3 | `3 cr` (never `0.03 cr`) |
 | `{ dinar, "KD", 3, before }` | 1 500 | `KD1.500` |
 | `{ unidad, "UF", 4, after }` | 12 345 | `1.2345 UF` |
-| `{ US dollar, "$", 2, before }` | 1 000 000 000 000 | `$10,000,000,000.00` |
+| `{ Example dollar, "$", 2, before }` | 1 000 000 000 000 | `$10,000,000,000.00` |
 
 ### 3.3 Parsing a typed price
 
@@ -134,7 +134,7 @@ Pinned from the System Packs' serialisation (`systems/economy/src/{currency.rs,c
 A live-frame pin is part of the milestone drive (§7).
 
 ```text
-currency      { "name": "US dollar", "symbol": "$", "exponent": 2, "symbol_at": "before",
+currency      { "name": "Example dollar", "symbol": "$", "exponent": 2, "symbol_at": "before",
                 "references": [ … ] }                         references: never read by a client
 wallet        { "balance": 200000 }
 wealth        { "amount": 201500, "unvalued": 2 }

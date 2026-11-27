@@ -10,7 +10,7 @@ extends SceneTree
 ## failure.
 
 const TOP := 1000000000000
-const DOLLAR := {"name": "US dollar", "symbol": "$", "exponent": 2, "symbol_at": "before"}
+const DOLLAR := {"name": "Example dollar", "symbol": "$", "exponent": 2, "symbol_at": "before"}
 const CROWN := {"name": "crown", "symbol": "cr", "exponent": 0, "symbol_at": "after"}
 const DINAR := {"name": "dinar", "symbol": "KD", "exponent": 3, "symbol_at": "before"}
 const UNIDAD := {"name": "unidad", "symbol": "UF", "exponent": 4, "symbol_at": "after"}

@@ -175,7 +175,7 @@ impl Market {
             .map(|(kind, value)| json!({ "item": item(*kind), "value": self.amount(*value) }))
             .collect();
         let (name, symbol, exponent, at) = if self.scale == 1 {
-            ("US dollar", "$", 2, "before")
+            ("Example dollar", "$", 2, "before")
         } else {
             ("crown", "cr", 0, "after")
         };
