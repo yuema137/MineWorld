@@ -632,3 +632,104 @@ NORMAL STOP:               READY FOR OPERATOR REVIEW — DO NOT MERGE
 | Date | Commit / run | Event |
 | --- | --- | --- |
 | 2026-10-26 | — | revision 1 drafted from origin/main 0b2faf2f and #498 head 5cb3c313; #498 run 40447534966: all three legs assemble inside the budget, then FAIL at the probe step's first line (§1.3) |
+
+## 13. Bounded correction session — 2026-11-23 (PR #529)
+
+### 13.1 Authority, identity and pre-code correction record
+
+This fresh correction session owns only `/tmp/mineworld-pr529-closeout-source`, branch
+`fix/pr529-closeout`, initially exact PR head `3c2acbe71e3028c10eb759e381db3cd9b87bc5f4`.
+The coordinator's dispatch of 2026-11-23 authorizes reviewable local workflow/helper repairs,
+local documentation, commits and cheap offline checks. It expressly prohibits Cargo, Godot,
+CI dispatch, tag/release creation, public push, merge, settings changes and child agents.
+This narrowing supersedes §11's remote-execution authority for this session only.
+The root checkout and its dirty coordinator-owned documents are not edited. No hooks enabled.
+
+The full read-only audit `/tmp/mineworld-pr-backlog-release.md` was read. Its decisive evidence:
+Release dispatch [40587709153](https://github.com/yuema137/MineWorld/actions/runs/40587709153)
+on exact head `3c2acbe…` FAILED. Windows job 122484032470 stopped before probes with
+`tar.exe: could not chdir to 'D:/a/_temp/MineWorld ??'`; Linux/macOS passed 2D but 3D timed out
+with missing `PhysicsEngineProbe` and dependent compile errors. Smoke was skipped; parity's
+missing macOS record is a cascade, not measured behavioral divergence; draft was skipped.
+Ordinary CI 40587700891 passed selectively with eleven workload jobs/matrices skipped.
+Neither run establishes release acceptance. Historical #498 run 40449288276 also FAILED:
+Windows extraction; Linux/macOS `STATION_KIT_MISSING`. Packaging fix `63989b4f` is already an
+ancestor of #529, so it needs no cherry-pick.
+
+Before implementation, the bounded correction is recorded as follows:
+
+- Preserve §3.4's native Windows tar and exact `MineWorld 世界` destination. The quoted `-C`
+  argument remains one path in the log (including its space); it is corrupted to question marks.
+  This is evidence of the destination argument/encoding boundary, not a missing quote or proof
+  that native tar cannot write files beneath a Unicode working directory. Upstream libarchive
+  [issue 2092](https://github.com/libarchive/libarchive/issues/2092) and
+  [Windows path handling source](https://github.com/libarchive/libarchive/blob/master/tar/bsdtar_windows.c)
+  were read 2026-11-23: narrow command arguments and CP_ACP conversion corroborate that
+  diagnosis. The exact runner tar version/codepage is not established. Repair both callers by
+  resolving the archive before changing directory, then run native tar with destination as cwd;
+  do not rename the path, change native tools, or claim the external issue proves our runner fixed.
+- Merge already-public main `b457a94d9a1ace6a39005de683cc393886e19288` locally for #530's
+  exported diagnostic fix. A no-commit merge is conflict-free; its 16-path delta is existing main
+  content, including #519's parse gate and #520's documentation. `ci_layer.py` adds only the
+  already-main gdparse self-test and retains both release command sets. No F-RC-7 code is added.
+  This dependency refresh does not prove release smoke.
+- Preserve existing SBOM-as-predicate-for-archives semantics. Correct producer subject accounting
+  by including the raw SBOM asset in build provenance and its provenance-verification loop,
+  alongside archives and SHA256SUMS. §0 already promises provenance per file; §3.6 already puts
+  the raw SBOM digest in SHA256SUMS. This closes that gap without making an SPDX predicate
+  self-attestation. The consumer proposal for #524 is in §13.2 and requires coordination.
+- Wire the existing `citation` command on real tag runs only, as the copied helper docstring and
+  R-d design require. R-b dry runs remain independent of R-d's CITATION.cff. A real tag without
+  R-d's citation fails; do not manufacture its owned file here.
+
+Validation ownership: offline workflow-block execution owns cwd/absolute-archive propagation
+and preservation of the Unicode destination; static review owns producer subject lists and
+real-tag-only citation wiring; existing script self-tests own deterministic helper semantics.
+Only real Windows execution owns the actual Windows encoding fix. Five real smoke legs,
+four bundles, both-mode validation, remote attestations/draft and canonical exact-head CI remain
+NOT RUN in this session. Gate 1 N/A (no LLM-facing change). Targeted checks ≤5 minutes each,
+≤15 minutes total CPU wall time; no network execution or paid compute.
+
+### 13.2 Coordinator proposals — not adopted dependency/policy changes
+
+1. **#498 supersession:** replace §11's “this PR merges after #498” with: “#529 is the combined
+   R-b delivery including #498 exact head `469ffa8c39018dd19df517f140cbf7c174d884a6` (an exact
+   ancestor of #529); #498 is subsumed, not a separate merge prerequisite. Preserve its template
+   installer and workflow capability. Merge #529 only after its own acceptance is met.” Record
+   coordinator/operator adoption before closing #498. This proposal does not itself close #498
+   or rewrite the frozen dependency as already approved.
+2. **#524 shared attestation seam:** producer build-provenance subjects = four archives, raw
+   `MineWorld-<version>-sbom.spdx.json`, SHA256SUMS; SPDX-predicate subjects = four archives,
+   predicate file = raw SBOM. Consumer verifies provenance on all six assets, verifies SPDX on
+   each archive, and verifies SHA256SUMS exact asset membership/digests. It must not ask for an
+   SPDX attestation whose subject is the SBOM JSON itself. Keep default-off publishing. R-d
+   owner must implement/confirm its side; A-R9 remains INCONCLUSIVE until real draft verification.
+3. **Green-check gate:** §3.3 literally accepts successful `fast` and `test` check runs, but ARC-154
+   deliberately reports deferred tests green. Do not silently redefine those check names or
+   alter protections/CI in R-b. Proposed policy amendment: before a real tag is eligible, require
+   one successful canonical milestone CI run at that exact commit with every intended workload
+   actually executed (not skipped/deferred), and preserve its run/head/job evidence; decide how
+   `verify-tag` consumes that evidence before calling this sufficient. Implementation is pending
+   coordinator policy reconciliation with ARC-48/ARC-154; current name-only gate proves less.
+4. **F-RC-7:** local `003d3543` is not public/merged at this audit. Keep the separate dependency and
+   both-mode validation pending; do not import it into this correction. A green dry run with
+   continue-on-error cannot establish both-mode acceptance. No full release PASS is claimed.
+
+### 13.3 Correction checklist (separate from unproven historical C0–C6)
+
+- [ ] Implementation: local main dependency refresh inspected and committed.
+- [ ] Implementation: both Windows extraction call sites retain the required path and native tool.
+- [ ] Implementation: raw SBOM provenance coverage; real-tag citation wiring.
+- [ ] Validation: offline extraction regression and planted old-argument counterfactual.
+- [ ] Validation: cheap workflow and helper checks; classify tool/environment limitations.
+- [ ] LLM review: independent reviewer `review_sol` on exact local candidate.
+- [ ] Remote validation: exact final public head Release/CI; not authorized in this session.
+
+Maintainability disposition before edits: packaging remains owned by package.py; no kernel,
+System, client semantics or inheritance changes. ci_release.py (900 lines), ci_parity.py (1145),
+release.yml (549) already exceed review triggers in #529. This correction adds no helper command
+or generic abstraction and no growth to those two Python modules. Existing mixed publishing/
+release responsibilities need a separately scoped ownership refactor; arbitrary line-count splits
+would obscure the shared interface. New coupling is restricted to the already-documented citation
+command and explicit producer/consumer subjects, reviewed together with R-d. No unknown is retried
+or skipped into a pass. Remaining debt and acceptance gaps prevent full readiness.

@@ -24,6 +24,8 @@
 class_name SliceProbe
 extends Node
 
+const PhysicsEngine := preload("res://scripts/physics_engine.gd")
+
 const OUT := "res://shots/slice"
 
 var player: SlicePlayer
@@ -1001,7 +1003,7 @@ func _drive() -> void:
 	var fails := 0
 
 	# The engine every number below is measured on (`DECISIONS.md` DEP-20).
-	var engine: String = PhysicsEngineProbe.running()
+	var engine: String = PhysicsEngine.running()
 	print("engine %s" % engine)
 	if not engine.begins_with("Jolt Physics"):
 		fails += 1
