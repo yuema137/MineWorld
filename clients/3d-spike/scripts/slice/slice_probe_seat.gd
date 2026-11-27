@@ -128,7 +128,7 @@ func _place_rows(link: SliceLink, bodies: Array) -> void:
 		if not MineWorldSitRule.binds(p, tags):
 			continue
 		p["_seen_in"] = link.here
-		var pose := link.seating.pose_of(tags, obs.component_value(link.here, "sit-points"), p["point"])
+		var pose := link.seating.pose_of(tags, MineWorldSitRule.disclosed_of(obs), p["point"])
 		if pose.is_empty():
 			_fails += 1
 			print("FAIL: %s has no position" % p["point"])

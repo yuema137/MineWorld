@@ -21,6 +21,9 @@ extends Node
 ## `town.local_in` and sent by `intents.gd`, the only script that submits.
 
 signal walk_ended(completed: bool)
+## The walk keys were pressed (the first frame they are held): before the body moves, so a seated player can be
+## stood up first (S34-e §5.5).
+signal keys_pressed
 ## The world put the body somewhere the client did not ask for, and the body followed (rule 4).
 signal reconciled(place: String, plan: Vector2)
 
@@ -291,6 +294,8 @@ func _process(delta: float) -> void:
 	var dt := minf(delta, 1.0 / 30.0)
 	var keys := _keys()
 	if keys != Vector2.ZERO:
+		if not _keys_held:
+			keys_pressed.emit()
 		# A move of my own ends the walk on the server; the keys end its pacing here.
 		_wanted = {}
 		_end_walk(true)
