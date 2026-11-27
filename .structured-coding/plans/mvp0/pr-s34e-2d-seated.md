@@ -1057,3 +1057,67 @@ First PR CI (`fast`, head `4214f42d`) FAIL at `cargo fmt --all --check`: `client
 replay-identical file) wrapped one `for` header differently under CI rustfmt 1.9.0. Fixed by `cargo fmt`
 (formatting only); local `cargo fmt --all --check` and `cargo clippy -p mineworld-cli -p
 mineworld-acceptance --all-targets --all-features -D warnings` PASS before the push.
+
+### Red-team follow-ups on #544 @02b6fee0 — 2026-11-27
+
+Review `mineworld-worktrees/_reviews/pr544.md`: PASS-WITH-FOLLOWUPS; two items hold the merge.
+
+**The binding S34-B packet and its generators are now in the repository** under
+[`s34e-evidence/`](s34e-evidence/):
+- `ENGINE-B-PACKET.md` (SHA256 `c7727ba6…`, the approved packet) and `REPORT.md`;
+- `engine-targets.json`, the provenance manifests and `seat-surfaces.png`;
+- the generators in `generators/` (`measure.py`, `surfaces.py`, `placements.py`, `report.py`,
+  `stage-engine.py`, `engine.gd`, `close-engine.py`, `freeze-legacy.gd`, `author-approved.py`,
+  `create-check-uid.gd`), as originally written, with their historical `/tmp` paths;
+- the reconstruction tooling in `reconstruction/` (the replayer, the path unmapper, the write-restricting
+  sandbox profile, the stubs, and the posture projection script).
+
+**Why the fixture said `73a2d4ed`.** `author-approved.py` records the SHA256 of each measurement artifact
+in `seat-surfaces.json`. During the replay, the six artifacts that contain file paths (`engine.gd`,
+`stage-engine.py`, `close-engine.py`, `engine.log`, `engine-cache-provenance.json`,
+`ENGINE-B-PACKET.md`) held the sandbox's remapped paths when they were hashed. So the fixture pinned
+hashes of sandbox-tainted copies, `73a2d4ed…` for the packet among them. The six data artifacts (`mesh-survey`,
+`candidate-surfaces`, `placement-measurements`, `engine-results`, `engine-targets`,
+`engine-world-inputs`) were hashed correctly. Corrected: the six entries now hash the path-restored files.
+The packet entry is `c7727ba6…`, and the generator scripts are the original text. The `engine.log` and
+`engine-cache-provenance.json` entries hash this regeneration's own log and cache record; the original
+ones were lost and cannot be byte-equal (the log carries timestamps). No measured value, target,
+tolerance or test reads these entries; the sources the tests pin are unchanged.
+
+**Packaged root check.** See the next section.
+
+**Godot CI wiring** (small change, done): a new `tools/cli/tests/client_sit_checks.rs` (`#[ignore]`, Godot)
+runs `sit_chain_check.gd`, `sit_pose_check.gd` and `seated_sprite_check.gd`. A check passes only on a
+clean exit plus its PASS line, with no `SCRIPT ERROR` and no `[FAIL]`: a parse error can exit 0, as the
+first local chain run showed. `client_sit_checks` and `client_2d_sit` join `scripts/ci_godot.py`
+`GODOT_TESTS`, with weights estimated from local wall time (15 s, 40 s). Local run: 3 PASS, 5.08 s;
+`ci_godot.py --self-test` PASS.
+
+**Planted mutations re-run on the re-recorded fixtures** (whole `client_sit_rule` binary each, then
+restored byte for byte):
+
+| Mutation | Result | Failing tests |
+| --- | --- | --- |
+| X-e-4 travel view kept | RED | contested seat; disclosed posture + seeded variants |
+| X-e-5 scalar pelvis sign reversed | RED | contested seat. The Café rows are format-2 vectors, so the posture fixtures do not cover the scalar sign; the Lakeside fixture does |
+| X-e-1 2D disclosure removed | RED | disclosed posture + seeded variants; disclosure suppresses fallback |
+| restored | PASS | 3 tests, 10.70 s |
+
+**Recorded follow-ups (not in this PR):**
+- Clicking another seat while seated walks without the requested `stand`. The chain sees no `sit` offer
+  for a seated observer and answers `{walk}`. `app.gd`'s seat-click path does not call `_leave_seat()`,
+  so the server auto-stands with `Moved` instead of `Requested`. Fix by standing first and adding one
+  chain-check arm.
+- A missing depiction file under an explicit `--root` should record a `problem` and warn.
+- The 2D `Seating.SIT_PACK` should come from the selected pack.
+- Wire `check_packaged_seating.py` into the package or release lane.
+- `sit_point_depictions.rs`:
+  - read `seat_height_m` from `lakeside.yaml` (the `legacy_surfaces` assert compares the fixture with itself);
+  - enumerate `sit_points/*.yaml` instead of naming worlds;
+  - assert the per-world target count.
+- One `disclosed_of` in the chain.
+- Size debt in `app.gd` (756), `people.gd` (660) and two long comparator functions.
+
+**§9 note.** The `[x]` marks in §9 and in "Packaged root correction" rest on the 2026-11-22 evidence,
+which was lost with `/tmp`. Where the reconstruction tables above re-ran a check, those tables are the
+current evidence; everything else is historical.

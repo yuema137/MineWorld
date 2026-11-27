@@ -1,0 +1,28 @@
+{
+  "head": "4487888bf1b630c528dddd1e27448307169db5b5",
+  "artifacts_sha256": {
+    "engine.gd": "6550bdd7f2cb590f405aff4b708b4e29a358f55c9fa7f7c15d95f309fc12d26b",
+    "stage-engine.py": "1b975241443ed38c7c6afb76ebd0b2ee41a5f07cfa8665274aa3e061b2b451f6",
+    "close-engine.py": "99204539d5528e02b62444dc26533d10e6c6d1cef45b4c0ec112c4fa1fd9437f",
+    "engine.log": "fd2e1bcb66f6843af09e9b02c62c78ffab5d421e109152c44f2514db2ccbb729",
+    "engine-results.json": "aba12f24bae6bb3af07244c1148b8e8191991130292495577d71289962248684",
+    "engine-targets.json": "3b7f1e92faaedacdcfc2a8d3c5e57a71bed74517faed0e6a4223781f701fbfbe",
+    "engine-world-inputs.json": "a37c7ff5768811f8ec147e650efa8457e79918fcd51fc96584a3c36e64aa32cb",
+    "engine-cache-provenance.json": "2666038e1de6cec6402c593fc885756b7711aaf76f10d95c2822ef8e1922507b",
+    "ENGINE-B-PACKET.md": "73a2d4ed0e864ebc916cf0133b4d4edcf032698981730b9cf9f81aaa0b93bd4e",
+    "mesh-survey.json": "636d7f9e1ed007225a22c268300dcada9b04524fb0e9bb8b1ed4566be6517b31",
+    "candidate-surfaces.json": "d19fc4a987a875163a9211980e9d2410757ee4556c139f7b330a6dd1686aff05",
+    "placement-measurements.json": "b3c31ebbeab0cacf17adf894d44341aec292de57f93ec5bc2346abf907b53e83"
+  },
+  "source_sha256": {
+    "worlds/social-cafe/places/cafe.yaml": "9cd9c3ffb6a4b2ede28d775965de786b03a46148ea5e7247851e5aaf8baec0c0",
+    "worlds/market-town/places/cafe.yaml": "9cd9c3ffb6a4b2ede28d775965de786b03a46148ea5e7247851e5aaf8baec0c0",
+    "clients/3d-spike/assets/models/contact.json": "529d8a8e59e8ebb44d2897acb6868436d438dd640342131d93ff943c81ddce6b",
+    "clients/3d-spike/scripts/slice/dressing.gd": "d287550e7693ba914c96fa31797917e4283343a3a47c269a85a0670e17d36a3b",
+    "clients/3d-spike/scripts/slice/settle.gd": "b1bceda65064507458c8689d9f4f96c63bbc5479030f9d696461eadb3c606f59",
+    "clients/3d-spike/scripts/slice/furnishings.gd": "c3300275b48be5d2c67b7b385d6558e26dcf6232a1bed90e2defbdec4ae4080c",
+    "clients/3d-spike/scripts/props.gd": "24475bd23bd785e16b044c051a233b148ac1a503c9ea158642677cca6d8f451d",
+    "presentation/mineworld-default/3D/furniture/furnishings.yaml": "6c5de9bf7ca7f5e5b339ebbd5580e494849c4e36c89e0c684b5bebbe9576af39"
+  },
+  "earlier_report_sha256": "0a607eac9d6d837fae97a130d5249d05494bcde670180dec004e408bcb0dfd10"
+}

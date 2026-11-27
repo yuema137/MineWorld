@@ -26,15 +26,15 @@
     "worlds/lakeside/places/station-platform.yaml": "126b039c06319913610384463328afd309a6641263559a738c5daafa4b702ad6"
   },
   "measurement_artifacts_sha256": {
-    "engine.gd": "6550bdd7f2cb590f405aff4b708b4e29a358f55c9fa7f7c15d95f309fc12d26b",
-    "stage-engine.py": "1b975241443ed38c7c6afb76ebd0b2ee41a5f07cfa8665274aa3e061b2b451f6",
-    "close-engine.py": "99204539d5528e02b62444dc26533d10e6c6d1cef45b4c0ec112c4fa1fd9437f",
-    "engine.log": "fd2e1bcb66f6843af09e9b02c62c78ffab5d421e109152c44f2514db2ccbb729",
+    "engine.gd": "733c6ec1161f53462469b63d50d32e7721f8060e10c66a10c97d6f64754853fb",
+    "stage-engine.py": "1700c82f29944c494df5e80cd5a51fdfb627a72f251c9d3b0920e1e4ecf9ca38",
+    "close-engine.py": "13c889e309581fd5e2537c98a82d3f38b52825fdbe9a84182f6593f435ac57dc",
+    "engine.log": "f897e48fd1e5c3d4dff321a72ba81f0d0a0e6e73b627dc768e5824ecdd3826cb",
     "engine-results.json": "aba12f24bae6bb3af07244c1148b8e8191991130292495577d71289962248684",
     "engine-targets.json": "3b7f1e92faaedacdcfc2a8d3c5e57a71bed74517faed0e6a4223781f701fbfbe",
     "engine-world-inputs.json": "a37c7ff5768811f8ec147e650efa8457e79918fcd51fc96584a3c36e64aa32cb",
-    "engine-cache-provenance.json": "2666038e1de6cec6402c593fc885756b7711aaf76f10d95c2822ef8e1922507b",
-    "ENGINE-B-PACKET.md": "73a2d4ed0e864ebc916cf0133b4d4edcf032698981730b9cf9f81aaa0b93bd4e",
+    "engine-cache-provenance.json": "598ee91996e53662e44f32e839f876582ff3980dca2bd35e9dd1f55716e27199",
+    "ENGINE-B-PACKET.md": "c7727ba68ff0207ae7553414656196ba4fecc4bc27f9240cb6445eb713387634",
     "mesh-survey.json": "636d7f9e1ed007225a22c268300dcada9b04524fb0e9bb8b1ed4566be6517b31",
     "candidate-surfaces.json": "d19fc4a987a875163a9211980e9d2410757ee4556c139f7b330a6dd1686aff05",
     "placement-measurements.json": "b3c31ebbeab0cacf17adf894d44341aec292de57f93ec5bc2346abf907b53e83"
