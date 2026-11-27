@@ -1,9 +1,15 @@
 # PR RL1 — Repository top-level layout: group by architectural layer
 
-**Lifecycle:** DRAFT — FREEZE-READY (revision 2, 2026-11-27, after red-team review
-`_reviews/repo-layout.md` @ `c9ea0a12`, verdict NOT-READY; every finding F-1 … F-10 is addressed below and
-traced in §11). Not frozen. Implementation requires the operator's answers to §0 and a `DESIGN FROZEN`
-header written on the operator's approval. Nothing in this document authorizes a file move.
+**`DESIGN FROZEN 2026-11-27 (operator ruling "仓库整理按推荐"; rulings in §0.3)`**
+
+**Lifecycle:** FROZEN — awaiting execution. Scope, invariants, decisions and acceptance are frozen at
+revision 3. Design base: `origin/main @ 303c0df360a04c2a4bd4abb6b2cd1596dc7d2f91`. **Execution timing:**
+after PR #534 and the in-flight lanes (#540, #541 and any lane the primary names) merge; the primary
+session schedules the quiet window (merge freeze on `main`) and dispatches a fresh implementation session
+in its own worktree. The implementation base is `origin/main` at the start of that window, recorded in
+§10. Superseded lifecycles: DRAFT — FREEZE-READY revision 2 (`bba8033f`, red-team PASS with two
+non-blocking leftovers, applied in revision 3); revision 1 (`c9ea0a12`, red-team NOT-READY, findings
+F-1 … F-10 traced in §11). Merge requires the operator's explicit authorization.
 **Requirement (operator, 2026-11-27):** "现在这个repo顶层的文件和文件夹太多了，很杂乱，你需要好好organize"
 ("the repository's top level has too many files and folders and is messy; organize it properly").
 **Effort:** `repo-layout`, one PR. This file is the step design and the PR design at once (the skill's
@@ -52,6 +58,14 @@ interaction systems") is demonstrated with. If wanted, Option 2 is a later, sepa
 | **Q-RL-10** | In-flight branches and frozen-but-unimplemented designs (S30g–k, S31c–h, S34c3–e and the open PRs) name old paths | **A** integrate main by **merge** (not rebase), bottom-up for stacks (§6); a frozen design's file-level scope at an old path is mapped through the path map as a **bounded mechanical correction** recorded in that PR's ledger, not a material deviation · **B** treat each as a deviation needing operator review | **A.** Path renames change no scope, invariant, contract or ownership; requiring per-PR operator review would stall every lane for no information. |
 | **Q-RL-11** | CI spend for validation | **A** one full CI run (`milestone` label) on the final head + one `release.yml` `workflow_dispatch` dry run on Linux, macOS and Windows at the same head (V-7) · **B** full CI only | **A.** The release path (`package.py`, `ci_release.py`) runs in no PR layer; it is the one place the launcher/`packaging` moves can break silently. The dry run is three bundle jobs, once. |
 | **Q-RL-12** | Commit boundary | **A** C1 (move + rewrites + Q-RL-8 + record), C2 (spike retirement) — fixed · **B** three commits with the record separate | **A.** The decision record and the `ARCHITECTURE.md` §14 update describe the tree C1 creates; shipping them in C1 keeps every commit's documentation true. C2 is separate so Q-RL-4 can be reverted alone. |
+
+### 0.3 Operator rulings (binding)
+
+| Date | Source | Ruling | Effect |
+| --- | --- | --- | --- |
+| 2026-11-27 | operator, relayed by the primary session | "仓库整理按推荐" ("organize the repository as recommended") | **Option 1** (39 → 29 root entries) and **every freeze question at its recommendation**: Q-RL-1 A, Q-RL-2 A, Q-RL-3 A, Q-RL-4 A, Q-RL-5 A, Q-RL-6 A, Q-RL-7 A, **Q-RL-8 A** (two-component framework root, `ARC-54` note), Q-RL-9 A, Q-RL-10 A, Q-RL-11 A, Q-RL-12 A. Option 2 is not adopted. |
+| 2026-11-27 | primary session (scheduling) | Execute after #534 and the in-flight lanes merge; the primary schedules the quiet window | §6 timing; implementation base recorded in §10 at the window's start |
+| 2026-11-27 | red-team PASS at `bba8033f` (non-blocking leftovers) | Keep the Windows-path and `repo2` test cases at the new depth; list the Q-RL-8 tests in I-RL-1's allowed edits | Applied: A-RL-3, I-RL-1 |
 
 **Stays at root, no question needed** (tool or convention requires it): `Cargo.toml`, `Cargo.lock`,
 `rust-toolchain.toml` (rustup searches upward for this exact name), `clippy.toml`, `deny.toml` (documented
@@ -243,8 +257,10 @@ cites `spike/server/src/world.rs` (→ permalink). Q-RL-4 A keeps every linked o
 
 - **I-RL-1 Move only, with named exceptions.** No behaviour change. Permitted source edits: path strings,
   path constants, comments and links naming a moved path; **Q-RL-8's root-depth change** (the one
-  semantic edit, preserving `ARC-54` point 2's meaning); launchers' root computation (`$here/..`); the CI
-  cache-key salt (V-11); the P-1 preserve marker comments. No crate renamed; no dependency, version or
+  semantic edit, preserving `ARC-54` point 2's meaning) **and its tests** — the existing
+  `packages/tests/identity.rs` `bundled_means_compiled_under_the_framework_workspace` cases moved to the
+  new depth, plus A-RL-3's new cases and integration test; launchers' root computation (`$here/..`); the
+  CI cache-key salt (V-11); the P-1 preserve marker comments. No crate renamed; no dependency, version or
   feature change.
 - **I-RL-2 Same build graph.** `Cargo.lock` byte-identical. `cargo metadata --format-version 1` equal to
   base after normalising every `manifest_path` / path-dependency `path` through the path map.
@@ -416,7 +432,13 @@ Acceptance:
 - **A-RL-2** V-1 empty diffs; `Cargo.lock` identical.
 - **A-RL-3** Q-RL-8: `packages` tests assert `compiled_under` is true for `<repo>/systems/presence` and
   `<repo>/cognition/decision` under `<repo>/crates/packages`, false for `<repo>2/systems/x` and for
-  `/home/u/.cargo/git/checkouts/other/abc/systems/x`; and an integration test resolves `worlds/market-town`
+  `/home/u/.cargo/git/checkouts/other/abc/systems/x`. Every existing case of
+  `packages/tests/identity.rs::bundled_means_compiled_under_the_framework_workspace` is kept at the new
+  depth, none dropped: `/a/repo2/systems/x` (sibling sharing the root's name as a prefix) and `/a/rep`
+  stay false; the Windows case becomes `compiled_under(r"C:\w\repo\systems\x", r"C:\w\repo\crates\packages")`
+  true, with a Windows `repo2` sibling (`r"C:\w\repo2\systems\x"`) false; the no-separator case and the
+  `/elsewhere/acme` third-party `Package` stay; `/a/repo/crates/packages` itself is bundled. Then an
+  integration test resolves `worlds/market-town`
   and `worlds/lakeside` with every enabled System Pack reported `bundled: true` (no `ThirdPartyNotRequired`).
 - **A-RL-4** V-2 exit 0; V-10 no missing path.
 - **A-RL-5** V-3 counts equal (cargo, `SKIPPED:`, pytest).
@@ -450,13 +472,14 @@ additional preserve markers for history-pinned literals of the P-1 kind, doc wor
 ## 9. Execution contract
 
 ```text
-PROJECT / PR:           repo-layout PR RL1 — repository top-level layout (Option <1|2 per operator>)
+PROJECT / PR:           repo-layout PR RL1 — repository top-level layout (Option 1, ruled 2026-11-27)
 PRIMARY DESIGN DOC:     .structured-coding/plans/repo-layout/pr-rl1-top-level-layout.md
 RELATED / BINDING DOCS: CLAUDE.md §§2–4; docs/ARCHITECTURE.md §14; docs/ENGINEERING_STANDARDS.md §6;
                         docs/MODULE_SPEC.md §§3.1–3.2; docs/DECISIONS.md; decisions ARC-33, ARC-54,
                         ARC-66, ARC-80; docs/REUSE_POLICY.md; _reviews/repo-layout.md
-IMPLEMENTATION BASE:    origin/main at the start of the merge freeze, after #534/#540/#541 land or
-                        checkpoint; recorded SHA in §10
+IMPLEMENTATION BASE:    design base 303c0df3 (origin/main at freeze); executed on origin/main at the
+                        start of the quiet window the primary schedules after #534 and the in-flight
+                        lanes merge; that exact SHA recorded in §10 and the counts re-measured
 APPROVED SCOPE:         §1.4 moves; §2.2 rewrites; Q-RL-8 A; §5 C1 docs; C2 spike retirement;
                         scripts/relayout.py. Nothing in §0 "Deferred".
 FROZEN INVARIANTS:      I-RL-1 … I-RL-7; preserve list P-1 … P-4
