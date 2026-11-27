@@ -1805,3 +1805,11 @@ supervised cognition child, corrected-recall acceptance, package and live gate) 
 integration stack (`e37ce9fd`) and PR-A merge. Bounded resolutions B1–B3 (`--fresh` deletes the world's
 cognition store; per-user cognition profile; cross-platform CI with a Mac-only live gate) are recorded in the
 design §0 and may be overruled by the operator. Operator check 2 stays open until PR-B's live gate passes.
+
+## Nutrition engine design frozen — 2026-11-27
+
+Operator rulings 2026-11-27 ("同意三个都按推荐冻结"; "营养设计那两点、S34-c3 也全都同意你的推荐"): Q-FE-1…Q-FE-6 and
+C-FE-2 of [`step-fe-food-energy.md`](step-fe-food-energy.md) answered as recommended. PR FE-a
+([`pr-fe-a-food-energy-engine.md`](pr-fe-a-food-energy-engine.md), contract
+[`pr-fe-a-contract.md`](pr-fe-a-contract.md)) is DESIGN FROZEN on `main` @ `24dbc3bf`. Market Town content
+PR FE-b stays blocked on its own design and freeze.

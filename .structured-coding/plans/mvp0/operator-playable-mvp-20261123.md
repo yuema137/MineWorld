@@ -139,6 +139,10 @@ deterministic, persisted results. Do not implement a direct timestamp jump.
 The operator approved **2000 kcal/day, configurable** on November 23. This
 fixes the example default, not a physiological model.
 
+Food energy, serving units, overrides, the bar and old saves are designed in
+[`step-fe-food-energy.md`](step-fe-food-energy.md) (engine PR FE-a, Market Town
+content PR FE-b); its §1 records the 2026-11-27 rulings.
+
 Still to resolve before dependent implementation:
 
 - Explicit nutritional serving units and optional per-person overrides.
