@@ -276,6 +276,8 @@ pub struct Composition<'a> {
     pub mask: &'a crate::mask::Mask,
     /// Every pack that carries a backend, chosen or not.
     pub backend_packs: &'a BTreeSet<String>,
+    /// The chosen backend's mapping, when it names one.
+    pub mapping: Option<&'a crate::mapping::Mapping>,
 }
 
 /// The catalogue as `attributes-composed` states it: what the running world needs, and no file path,
@@ -509,6 +511,8 @@ impl Catalogue {
                         });
                     }
                 }
+                // Only a backend's mapping makes one, checked when the catalogue is composed.
+                Derive::Map { .. } => {}
                 Derive::Projection => {
                     if declaration.owner == ATTRIBUTES {
                         return Err(bad(
@@ -856,9 +860,33 @@ impl Catalogue {
                 removed.insert(id.clone(), format!("the backend '{}'", backend.id));
             }
         }
+        let by_backend = format!("the backend '{}'", backend.id);
+        // `keeps` (Q-S30h-4): a `core` attribute the backend would remove stays MineWorld's.
+        for kept in &backend.keeps {
+            let reason = if composition
+                .mapping
+                .is_some_and(|mapping| mapping.views.contains_key(kept))
+            {
+                Some(format!("'{kept}' is both kept and mapped"))
+            } else if removed.get(kept) != Some(&by_backend) {
+                Some(format!(
+                    "'{kept}' is not a `core` attribute this backend removes (appearance and quantities are always MineWorld's)"
+                ))
+            } else {
+                None
+            };
+            if let Some(reason) = reason {
+                return Err(AttributeError::BadDeclaration {
+                    at: At::file(Path::new("backends")),
+                    attribute: format!("backend {}", backend.id),
+                    field: "keeps".to_owned(),
+                    reason: format!("BackendMalformed: {reason}"),
+                });
+            }
+            removed.remove(kept);
+        }
         // A kept attribute keeps the `core` source it is derived from (`core.age-years` needs `core.birth`
         // under any backend): the quantities are MineWorld's, and so is what they are computed from.
-        let by_backend = format!("the backend '{}'", backend.id);
         loop {
             let needed: Vec<QualifiedId> = self
                 .attributes
@@ -877,6 +905,7 @@ impl Catalogue {
                 removed.remove(&from);
             }
         }
+        let (views, unprovided) = self.views(composition, &own, &removed, &by_backend)?;
         for id in removed.keys() {
             self.attributes.remove(id);
         }
@@ -890,8 +919,128 @@ impl Catalogue {
                 });
             }
         }
+        removed.extend(unprovided);
+        for view in views {
+            removed.remove(&view.id);
+            self.attributes.insert(view.id.clone(), view);
+        }
         self.removed = removed;
         Ok(())
+    }
+
+    /// The backend's mapping, checked against the catalogue before anything is removed (§5.7): each
+    /// target put back as a derived view of its source, and the targets whose source the mask leaves
+    /// out, with why they are not provided.
+    #[allow(clippy::type_complexity)]
+    fn views(
+        &self,
+        composition: &Composition<'_>,
+        own: &BTreeSet<QualifiedId>,
+        removed: &BTreeMap<QualifiedId, String>,
+        by_backend: &str,
+    ) -> Result<(Vec<Declaration>, Vec<(QualifiedId, String)>), AttributeError> {
+        let (mut views, mut unprovided) = (Vec::new(), Vec::new());
+        let Some(mapping) = composition.mapping else {
+            return Ok((views, unprovided));
+        };
+        for (target, view) in &mapping.views {
+            let refuse = |reason: String| AttributeError::BadDeclaration {
+                at: At::file(&mapping.path),
+                attribute: target.to_string(),
+                field: "mapping".to_owned(),
+                reason,
+            };
+            let from = &view.from;
+            let Some(declared) = self.attributes.get(target) else {
+                return Err(refuse(format!(
+                    "MappingTargetNotRemoved: '{target}' is declared by no catalogue of this world"
+                )));
+            };
+            if declared.owner != ATTRIBUTES {
+                return Err(refuse(format!(
+                    "MappingTargetOwned: '{target}' is owned by '{}'; a backend never maps onto an owner's attribute",
+                    declared.owner
+                )));
+            }
+            if removed.get(target).map(String::as_str) != Some(by_backend) {
+                return Err(refuse(format!(
+                    "MappingTargetNotRemoved: '{target}' is not a `core` attribute this backend removes (appearance, quantities and keeps stay MineWorld's)"
+                )));
+            }
+            let Some(source) = self.attributes.get(from).filter(|_| own.contains(from)) else {
+                return Err(refuse(format!(
+                    "MappingSourceUnknown: '{from}' is not in the backend '{}''s catalogue",
+                    composition.backend.id
+                )));
+            };
+            let kinds = || {
+                refuse(format!(
+                    "MappingKind: '{from}' is a {} and '{target}' a {}; a view maps a category or level onto a category, level or flag",
+                    source.kind.name(),
+                    declared.kind.name()
+                ))
+            };
+            let source_values = match &source.kind {
+                Kind::Category { values, .. } | Kind::Level { values } => values.clone(),
+                _ => return Err(kinds()),
+            };
+            let target_values = match &declared.kind {
+                Kind::Category { values, .. } | Kind::Level { values } => values.clone(),
+                Kind::Flag => ["true", "false"]
+                    .iter()
+                    .filter_map(|value| ValueSlug::new(value).ok())
+                    .collect(),
+                _ => return Err(kinds()),
+            };
+            if let Some(value) = source_values
+                .iter()
+                .find(|value| !view.values.contains_key(*value))
+            {
+                return Err(refuse(format!(
+                    "MappingUncovered: the value '{value}' of '{from}' has no entry"
+                )));
+            }
+            if let Some(value) = view
+                .values
+                .keys()
+                .find(|value| !source_values.contains(value))
+            {
+                return Err(refuse(format!(
+                    "MappingValueUnknown: '{value}' is not a value of the source '{from}'"
+                )));
+            }
+            if let Some(value) = view
+                .values
+                .values()
+                .find(|value| !target_values.contains(value))
+            {
+                return Err(refuse(format!(
+                    "MappingValueUnknown: '{value}' is not a value of the target '{target}'"
+                )));
+            }
+            if declared.visibility < source.visibility {
+                return Err(refuse(format!(
+                    "MappingWidens: '{target}' is {}, wider than its source '{from}' ({})",
+                    declared.visibility, source.visibility
+                )));
+            }
+            if removed.contains_key(from) {
+                unprovided.push((
+                    target.clone(),
+                    format!("{by_backend} (not provided: the mask leaves out the source '{from}')"),
+                ));
+                continue;
+            }
+            let mut put_back = declared.clone();
+            put_back.mutability = Mutability::Derived;
+            put_back.default = None;
+            put_back.derive = Some(Derive::Map {
+                from: from.clone(),
+                values: view.values.clone(),
+            });
+            views.push(put_back);
+        }
+        Ok((views, unprovided))
     }
 
     /// The backend the world uses, when one.

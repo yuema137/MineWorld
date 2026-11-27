@@ -41,6 +41,7 @@ pub mod facts;
 pub mod id;
 pub mod kind;
 pub mod lock;
+pub mod mapping;
 pub mod mask;
 pub mod owner;
 pub mod profile;

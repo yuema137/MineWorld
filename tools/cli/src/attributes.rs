@@ -97,7 +97,7 @@ pub fn backends(world: &Path, roots: &PackRoots) -> Result<(), String> {
         .map(|composed| composed.backend.id.as_str());
     for backend in &context.backends {
         println!(
-            "{}{} {} (pack {}, licence {}): {}; masks {:?}, default {}; sampling {:?}; provenance {:?}",
+            "{}{} {} (pack {}, licence {}): {}; masks {:?}, default {}; sampling {:?}; provenance {}",
             if used == Some(backend.id.as_str()) {
                 "* "
             } else {
@@ -116,6 +116,17 @@ pub fn backends(world: &Path, roots: &PackRoots) -> Result<(), String> {
     }
     for line in composition_lines(&context) {
         println!("{line}");
+    }
+    if let Some(composed) = &context.composition {
+        for kept in &composed.backend.keeps {
+            println!("keeps: {kept}");
+        }
+        for (target, view) in composed.mapping.iter().flat_map(|mapping| &mapping.views) {
+            match context.catalogue.removed().get(target) {
+                Some(by) => println!("view: {target} <- {}: {by}", view.from),
+                None => println!("view: {target} <- {}: provided", view.from),
+            }
+        }
     }
     Ok(())
 }

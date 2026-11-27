@@ -12,6 +12,7 @@ use crate::catalogue::{AttributeError, CORE_PACK, Catalogue, Composition};
 use crate::config::AttributesConfiguration;
 use crate::declaration::DataFile;
 use crate::lock::Lock;
+use crate::mapping::Mapping;
 use crate::mask::Mask;
 use crate::profile::{Profile, ProfileError, build};
 
@@ -90,6 +91,8 @@ pub struct Composed {
     pub mask: Mask,
     /// The backend's default mask, which carries the `core` reader lines (§5.6).
     pub default_mask: Option<Mask>,
+    /// The backend's mapping, when it names one (S30-h1).
+    pub mapping: Option<Mapping>,
 }
 
 /// The composition's identity in `attributes-composed`: a resumed world whose backend or mask changed is
@@ -155,6 +158,7 @@ impl AttributesContext {
         let mut locks = Vec::new();
         let mut backends = Vec::new();
         let mut masks = Vec::new();
+        let mut mappings = Vec::new();
         for (origin, file) in files {
             match file {
                 DataFile::Profile(profile) => profiles.push((origin.path, *profile)),
@@ -174,6 +178,7 @@ impl AttributesContext {
                     })?;
                     masks.push((origin, checked));
                 }
+                DataFile::Mapping(mapping) => mappings.push((origin, mapping)),
                 DataFile::Lock(lock) => {
                     if origin.source != DataSource::World {
                         return Err(ContextRefusal {
@@ -241,10 +246,12 @@ impl AttributesContext {
                         origin.pack == backend.pack && mask.id == backend.masks.default
                     })
                     .map(|(_, mask)| mask.clone());
+                let mapping = mapping_of(&backend, &mappings)?;
                 Some(Composed {
                     backend,
                     mask,
                     default_mask,
+                    mapping,
                 })
             }
         };
@@ -260,6 +267,7 @@ impl AttributesContext {
                     backend: &composed.backend,
                     mask: &composed.mask,
                     backend_packs: &backend_packs,
+                    mapping: composed.mapping.as_ref(),
                 })
                 .as_ref(),
         )?;
@@ -326,4 +334,47 @@ impl AttributesContext {
             }),
         })
     }
+}
+
+/// The mapping `backend` names: `mappings/<stem>.yaml` of its own pack, for this backend.
+fn mapping_of(
+    backend: &Backend,
+    mappings: &[(DataOrigin, Box<crate::mapping::MappingFile>)],
+) -> Result<Option<Mapping>, ContextRefusal> {
+    let Some(stem) = &backend.mapping else {
+        return Ok(None);
+    };
+    let found = mappings.iter().find(|(origin, _)| {
+        origin.pack == backend.pack
+            && origin
+                .path
+                .file_stem()
+                .is_some_and(|file| file.to_string_lossy() == stem.as_str())
+    });
+    let Some((origin, file)) = found else {
+        return Err(ContextRefusal {
+            file: None,
+            reason: format!(
+                "BackendMalformed: the backend of '{}', field 'mapping': its pack holds no mappings/{stem}.yaml",
+                backend.pack
+            ),
+        });
+    };
+    let mapping =
+        Mapping::check(&backend.pack, origin.path.clone(), file).map_err(|reason| {
+            ContextRefusal {
+                file: Some(origin.path.clone()),
+                reason,
+            }
+        })?;
+    if mapping.backend != backend.id {
+        return Err(ContextRefusal {
+            file: Some(origin.path.clone()),
+            reason: format!(
+                "BackendMalformed: the backend of '{}', field 'mapping': the mapping is for '{}', not '{}'",
+                backend.pack, mapping.backend, backend.id
+            ),
+        });
+    }
+    Ok(Some(mapping))
 }

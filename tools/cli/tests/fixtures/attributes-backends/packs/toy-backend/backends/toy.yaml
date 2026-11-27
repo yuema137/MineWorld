@@ -7,3 +7,5 @@ catalogues: [toy]
 masks: { default: toy-all, ships: [toy-all, toy-small] }
 sampling: [profile]
 provenance: { source: mineworld }
+keeps: [core.natal-sex]
+mapping: toy
