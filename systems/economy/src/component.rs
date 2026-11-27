@@ -497,10 +497,11 @@ mod tests {
     }
 }
 
-/// `shop-stock`: every shop of the world, by its place, and the kinds its operator asks for and holds
-/// at least one of — kinds only, never counts (S35 N-h R5, Q-Nh-4). What a shop window or a "sold out"
-/// sign tells a passer-by, so a person can skip a shop that has nothing for them without walking in to
-/// find out, and a controller that keeps no memory needs none (F-Ng-3).
+/// `shop-stock`: every shop of the world, by its place, and the kinds its operator asks for, holds at
+/// least one of, **and has on sale now** — kinds only, never counts (S35 N-h R5, Q-Nh-4; `ARC-364`
+/// N1-I6). What a shop window, a "sold out" or a "closed" sign tells a passer-by, so a person can skip a
+/// shop that has nothing for them without walking in to find out, and a controller that keeps no memory
+/// needs none (F-Ng-3). A shop outside its hours is listed with nothing stocked; schema unchanged.
 ///
 /// Disclosed to each living Person about itself, wherever it stands: perception lists only the place one
 /// stands in, so a shop's own record (its [`Listing`]) is seen from inside it alone. Computed when

@@ -368,25 +368,59 @@ residents eat across a night/morning, and save/restart reproduces the hours.
 2. **Scope.** `systems/economy/src/{sale,haggle,offer,code,component}.rs` (`ShopStock` computation), economy
    sale/haggle integration tests. Depends on C1.
 3. **Implementation.**
-   - [ ] `judge_open(world, &sale)` for Shop sellers, called first inside `judge_exchange`.
-   - [ ] Call it in `haggle.rs::judge_proposal` (which does not use `judge_exchange`).
-   - [ ] New code `shop-closed` in `code.rs`; offers carry it.
-   - [ ] `ShopStock`: closed shop ⇒ `stocked: []`; update its documented meaning (N1-I6).
-   - [ ] Audit every other `Seller::Shop` consumer (`buys`, `settle_buy`, listing, price-survey reads) and record.
-4. **Validation.** [ ] hand-computed boundaries (open, `from`, `until`, overnight) through the `buy` offer, direct
-   `buy`, `propose-price`, `accept-proposal` offer and accepted settlement; [ ] proposal made open, accepted closed ⇒
-   refused; [ ] balances, `Holdings`, absence of `sold` unchanged on refusal; [ ] reopen succeeds; [ ] closed shop with
-   zero stock reports `shop-closed`, not `out-of-stock`; [ ] person-to-person sale unaffected; [ ] `shop-stock` for a
+   - [x] `judge_open(world, &sale)` for Shop sellers, called first inside `judge_exchange`.
+         → `sale.rs::judge_open` ("step 4½"): a `Seller::Shop` whose `Shop::open_at(world.at())` is false →
+         `shop-closed`; a person seller has no hours; a shop that is gone falls through to the existing steps.
+         `judge_exchange` = `judge_open` → `judge_self_trade` → `judge_goods`; `judge_sale` keeps `price-changed`
+         before it, so the N1-I3 precedence holds for `buy`.
+   - [x] Call it in `haggle.rs::judge_proposal` (which does not use `judge_exchange`).
+         → after `resolve_seller` and the price range, before self-trade and the limits (N1-I3 for propose).
+   - [x] New code `shop-closed` in `code.rs`; offers carry it.
+         → `code::SHOP_CLOSED`. `buy` offers carry it through `judge_sale`; the `accept-proposal` offer through
+         `judge_exchange`; the shop-directed `propose-price` offer explicitly (`haggle::offers`, closed before the
+         keeper/self-trade refusal, the dispatch's order).
+   - [x] `ShopStock`: closed shop ⇒ `stocked: []`; update its documented meaning (N1-I6).
+         → `offer.rs::shop_stock` reads `world.at()` (the observation's read is at the world's now); doc on
+         `component.rs::ShopStock`: "asks, holds at least one of, and has on sale now". Schema 1 unchanged.
+   - [x] Audit every other `Seller::Shop` consumer (`buys`, `settle_buy`, listing, price-survey reads) and record.
+         → `buys` and `validate` → `judge_sale` (covered); `settle_buy` re-judges `judge_sale` at the resolution's
+         instant (covered); accepted-proposal settlement → `judge_acceptance` → `judge_exchange` (covered);
+         `listing.rs` (list/set-price/withdraw) judges seller authority only — unchanged by design (N1-I5);
+         the shop `Listing` disclosure (operator, prices, stock) is unchanged: prices in a window are still
+         readable while closed, and `price-survey` (`judge.rs` reads `Listing`) surveys asks, never buys —
+         unaffected. No other crate reads `Shop` to sell (`git grep mineworld_economy::` outside economy:
+         price-survey only).
+4. **Validation.** [x] hand-computed boundaries (open, `from`, `until`, overnight) through the `buy` offer, direct
+   `buy`, `propose-price`, `accept-proposal` offer and accepted settlement; [x] proposal made open, accepted closed ⇒
+   refused; [x] balances, `Holdings`, absence of `sold` unchanged on refusal; [x] reopen succeeds; [x] closed shop with
+   zero stock reports `shop-closed`, not `out-of-stock`; [x] person-to-person sale unaffected; [x] `shop-stock` for a
    closed shop is empty, open shop unchanged. Negative: no test merely restates getters.
+   Evidence: `systems/economy/tests/closed.rs` (5 tests): `every_way_of_buying_agrees_at_the_open_and_close_instants`
+   (08:00–20:00 at 07:59:59 / 08:00:00 / 19:59:59 / 20:00:00 and 22:00–06:00 at 21:59:59 / 23:59:59 / 00:00:00 /
+   06:00:00: `buy` offer, `propose-price` offer, `shop-stock`, direct `buy` with state/wallet/holdings unchanged and
+   no facts on refusal, direct `propose-price`); `a_proposal_made_open_cannot_be_accepted_after_closing` (19:50
+   proposal accepted 19:55 settles; accepted 20:02 refused in offer and dispatch, nothing moves; next day 08:00 a
+   buy sells); `closed_comes_after_the_seller_and_price_and_before_funds_and_stock` (out-of-stock and
+   insufficient-funds become shop-closed when closed; not-for-sale and price-changed precede it);
+   `a_person_still_sells_and_a_keeper_still_reprices_in_a_closed_shop`; `a_shop_without_hours_is_always_open`.
+   `hours.rs::hours_are_the_same_after_save_and_reopen` now also asserts the reopened save refuses `shop-closed`.
 5. **Acceptance.** All Shop paths agree exactly at the close instant; accepted haggles cannot bypass hours; keepers
-   still re-price closed shops.
+   still re-price closed shops. **Met** (above).
 6. **Failure/edges.** Removed shop/stale seller keeps existing precedence; same-instant close vs accept follows the
-   kernel's instant order (judged at `world.at()`); no client-only refusal exists.
+   kernel's instant order (judged at `world.at()`); no client-only refusal exists. **Met**: `judge_open` answers
+   `Ok` when the `Shop` component is gone; every judgement reads `world.at()`; no client or controller code changed.
 7. **Commands/evidence.** `cargo test -p mineworld-economy --test buy --test sale --test haggle --test
-   haggle_settlement --test settlement` plus the new boundary target; `cargo test -p mineworld-price-survey`. NOT RUN.
-8. **Boundary.** One sale rule with evidence. [ ] independent caller-path review covering `judge_proposal`;
-   [ ] staged diff/ledger before commit.
-
+   haggle_settlement --test settlement` plus the new boundary target; `cargo test -p mineworld-price-survey`.
+   **Run 2026-11-27 on the C2 tree (local, macOS arm64)**: `cargo test -p mineworld-economy -p
+   mineworld-price-survey` — every target PASS (economy 18 targets incl. `closed` 5/5 and `hours` 4/4;
+   price-survey all PASS); clippy `-p mineworld-economy --all-targets -D warnings` PASS; fmt PASS.
+   Mutations (each reverted): M1 drop `judge_open` from `judge_proposal` → `every_way…` FAILS (caught);
+   M2 drop it from `judge_exchange` → 3 tests FAIL (caught); M3 move it after `judge_goods` →
+   `closed_comes_after…` FAILS (caught); M4 `shop_stock` ignores hours → `every_way…` FAILS (caught).
+8. **Boundary.** One sale rule with evidence. [x] caller-path review covering `judge_proposal` (author's
+   caller-path audit in item 3; every `judge_self_trade` / `judge_goods` caller now has `judge_open` before it:
+   `judge_exchange` and `judge_proposal` are the only two — `git grep judge_goods` — independent PR review in
+   §11); [x] staged diff/ledger before commit.
 ### N1-C3 — Market Town hours, residents' night, decision record
 
 1. **Goal.** Configured closures in the reference town without breaking residents' food access or S35 rhythm.
@@ -629,4 +663,5 @@ Scope:               N1-C1, N1-C2, N1-C3 (N1-C3's packaged launcher check waits 
 | Checkpoint | Commit | State |
 | --- | --- | --- |
 | Frozen design + contract carried | `953f3331` | done |
-| N1-C1 typed, persistent shop hours | (this commit) | implementation, validation, logic review done; next: N1-C2 |
+| N1-C1 typed, persistent shop hours | `39e9b0cd` | done |
+| N1-C2 one availability judgement and disclosure | (this commit) | implementation, validation, caller-path review done; next: N1-C3 |

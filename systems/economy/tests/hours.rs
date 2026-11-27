@@ -288,13 +288,21 @@ fn hours_are_the_same_after_save_and_reopen() {
     let town = pack("hours-saved", authored);
     let save = mineworld_test_support::scratch!(empty "hours-saved-save");
     let saved = create(&town, &save);
-    let (resumed, ids) = resume(&town, &save);
+    let (mut resumed, ids) = resume(&town, &save);
     let reopened: Vec<Shop> = SHOPS
         .iter()
         .map(|(stem, _)| shop(resumed.world(), &ids, stem))
         .collect();
     assert_eq!(reopened, saved);
     assert!(reopened[2].hours().is_some() && reopened[0].hours().is_none());
+    // The reopened save judges its hours: the `day` shop, closed at 23:00, refuses at 23:30.
+    assert_eq!(
+        buy_at_half_past_eleven(&mut resumed, &ids),
+        ActionResult::Rejected(mineworld_contracts::Rejection::System {
+            code: mineworld_economy::code::SHOP_CLOSED,
+            detail: None
+        })
+    );
 }
 
 /// N1-I8 (`ARC-61` item 7 applied): hours are authored content, never a configuration fact, so a save
@@ -317,16 +325,25 @@ fn a_save_from_before_hours_resumes_with_its_shops_always_open() {
     assert_eq!(shops, saved, "the save keeps its genesis terms");
 
     // Alice stands in the `day` shop, which the pack now closes at 23:00: the save's shop still sells.
-    let late = at(23 * HOUR + 30 * 60);
     let day = PlaceId::new(ids[&key("day")], EntityType::Place).expect("a place");
     assert!(
         resumed
             .world()
             .read()
             .component::<Shop>(day.entity_id())
-            .is_some_and(|shop| shop.open_at(late)),
+            .is_some_and(|shop| shop.open_at(at(23 * HOUR + 30 * 60))),
         "the pre-hours save's day shop is still open at 23:30"
     );
+    let sold = buy_at_half_past_eleven(&mut resumed, &ids);
+    assert!(matches!(sold, ActionResult::Accepted { .. }), "{sold:?}");
+}
+
+/// Alice, standing in the `day` shop, buys one bread at 23:30 of day 0; the result.
+fn buy_at_half_past_eleven(
+    world: &mut PersistentWorld,
+    ids: &std::collections::BTreeMap<EntityKey, mineworld_contracts::EntityId>,
+) -> ActionResult {
+    let late = at(23 * HOUR + 30 * 60);
     let bread =
         mineworld_contracts::ItemId::new(ids[&key("bread")], EntityType::Item).expect("an item");
     let intent = ActionIntent::new(
@@ -335,10 +352,9 @@ fn a_save_from_before_hours_resumes_with_its_shops_always_open() {
         ActionRecord::new::<Buy>(serde_json::to_vec(&Buy::new(bread, 100)).expect("encodes")),
         late,
     );
-    let done = resumed.dispatch(&intent, late).expect("dispatches");
-    assert!(
-        matches!(done.result(), ActionResult::Accepted { .. }),
-        "{:?}",
-        done.result()
-    );
+    world
+        .dispatch(&intent, late)
+        .expect("dispatches")
+        .result()
+        .clone()
 }
