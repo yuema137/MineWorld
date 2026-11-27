@@ -83,11 +83,12 @@ jobs:
           set -euo pipefail
           cd "$RUNNER_TEMP/assets"
           if [ "$EVENT" = "release" ]; then source_ref="--source-ref refs/tags/$TAG"; else source_ref=""; fi
-          for file in *.zip *.tar.gz SHA256SUMS; do
+          for file in *.zip *.tar.gz SHA256SUMS *sbom.spdx.json; do
             gh attestation verify "$file" --repo "$REPO" \
               --signer-workflow "$REPO/.github/workflows/release.yml" $source_ref
           done
-          for file in *sbom.spdx.json; do
+          # The SBOM is the predicate; the archives are its attested subjects (R-b / DEP-42).
+          for file in *.zip *.tar.gz; do
             gh attestation verify "$file" --repo "$REPO" --predicate-type https://spdx.dev/Document/v2.3 \
               --signer-workflow "$REPO/.github/workflows/release.yml" $source_ref
           done

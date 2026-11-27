@@ -76,6 +76,7 @@ LAYERS: dict[str, list[list[str]]] = {
         ["python3", "scripts/ci_release.py", "citation"],
         ["python3", "scripts/ci_release.py", "check-secrets"],
         ["python3", "scripts/ci_release.py", "check-switch"],
+        ["python3", "scripts/check_publish_attestations.py"],
         # The nightly's classifiers (ARC-83), each under a second: a verdict rule that fails open would
         # otherwise be found only by a red night that never comes.
         ["python3", "scripts/ci_nightly.py", "--self-test"],

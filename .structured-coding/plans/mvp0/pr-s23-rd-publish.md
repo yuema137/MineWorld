@@ -519,3 +519,99 @@ a `butler` step moved into `verify` fails.
 
 **Acceptance.** A-R10 is unchanged. The switch adds a self-test case for `check-switch` and the static guard
 result on the head. Enabling it is a later operator action (the repository variable), not part of this PR.
+
+## 15. Bounded closeout correction — attestation subjects (2026-11-23)
+
+Execution authority: coordinator's fresh bounded PR524 closeout dispatch, based on public head
+`75539a3c9a75795e3ea4240dfe858f146aae67df`. This session exclusively owns the isolated clone
+`/tmp/mineworld-pr524-closeout-source`, branch `closeout/pr524-attestation`; no root-tree writes.
+This narrows §12's endpoint to local commits and review artifacts only: no push, remote comment,
+merge, workflow dispatch, tag, Release, upload, live-switch change, or publishing. Offline cheap
+checks only; no cargo/Godot, new dependency, or child agent.
+
+### 15.1 Audit and decision before implementation
+
+Previous assumption: an SPDX attestation can be verified using the raw SBOM JSON as its subject.
+Actual producer audit: PR529 at `3c2acbe71e3028c10eb759e381db3cd9b87bc5f4`, release.yml's
+Provenance/SBOM attestations steps, gives SPDX predicates archive subjects and the JSON as
+`sbom-path`. Thus publish.yml's SPDX verification of `*sbom.spdx.json` requests an attestation
+that the producer never creates. The consumer is wrong; verification must remain mandatory.
+
+PR529 owner confirmed on 2026-11-23: its bounded producer correction adds raw SBOM JSON to
+build-provenance subjects beside all four archives and SHA256SUMS. SPDX subjects remain the
+four archives, with that same SBOM JSON as predicate. Producer owns release.yml and DEP-42;
+this lane changes neither. Integrate both corrections before real acceptance.
+
+Decision: verify build provenance for four archives, raw SBOM, and SHA256SUMS; verify SPDX
+`https://spdx.dev/Document/v2.3` against each archive. The verified SHA256SUMS already covers
+the downloaded SBOM bytes; raw-SBOM provenance adds direct producer coverage. This preserves
+SBOM integrity and its archive relation through the producer's signed SPDX statement. It does
+not add a separate consumer comparison between JSON file contents and the signed predicate.
+Keep repository, signer-workflow and release-event source-ref restrictions on every call;
+manual draft verification omits source-ref exactly as before. Keep triggers, permissions,
+default-off switch, Environment, citation/version policy and the push job unchanged.
+
+Primary-source check (2026-11-23):
+<https://github.com/actions/attest/blob/main/README.md> describes subjects as artifact names
+and digests, and SBOM inputs as predicates; <https://cli.github.com/manual/gh_attestation_verify>
+requires the artifact subject, defaults to SLSA provenance, and documents predicate-type,
+signer-workflow and source-ref. This confirms the correction; hosted CLI/authentication and
+real cryptographic verification remain acceptance evidence, not simulated by a local test.
+
+### 15.2 Single semantic correction and validation plan
+
+- [x] Implementation: correct publish.yml's two verification loops; add a focused offline
+  regression script executing the actual shell block and wire it into `ci_layer.py fast`.
+- [x] Deterministic validation: a fixed producer-contract fixture accepts exactly six provenance
+  subjects and four SPDX archive subjects for both release and draft dispatch, checks repository,
+  signer and source-ref arguments, and refuses each missing attestation in turn. Demonstrate the
+  original consumer fails. Existing ci_release self-tests, citation, check-switch, check-secrets,
+  pins, headings and diff hygiene remain cheap checks. No GitHub CLI network call in the fixture.
+- [x] Independent LLM review: request coordinator/review_sol review of exact diff, invariants,
+  maintainability, and honest remaining gates; record disposition separately from tests.
+
+A-R9 real draft positive/tamper workflow integration: NOT RUN (INCONCLUSIVE), coordinator/R-b
+owns scheduling under separate authority. A-R10 Environment evidence, CFF schema validation,
+final integrated-head fast/guide checks, shared-script integration and the operator-owned live
+rehearsal remain pending. This bounded fix cannot establish whole-PR readiness.
+
+
+### 15.3 Observed evidence and review disposition
+
+Producer candidate confirmed by its owner:
+`3e1cb1e076065daebaa3e758634345ea76577642` in the separate PR529 clone; six provenance and
+four archive-subject SPDX attestations match this consumer exactly. This candidate still
+needs integration; no raw-SBOM provenance exists in PR529's original public head.
+
+Local evidence (2026-11-23, macOS, Python 3.12, each command under three seconds):
+
+- PASS `python3.12 scripts/check_publish_attestations.py`: 22 cases execute the actual
+  publish.yml shell block (two successful producer-contract fixtures, twenty missing-attestation
+  refusals). The uncorrected workflow returned 1 and failed both positive fixtures by requesting
+  SPDX against the JSON subject; the corrected workflow returns 0 with all ten required calls.
+- PASS counterfactual mutations: omit all SPDX checks, omit raw-SBOM provenance, remove signer
+  restriction, remove release source-ref restriction. Each makes the positive fixture fail.
+- PASS `python3.12 scripts/ci_release.py --self-test`, `citation`, `check-switch`, `check-secrets`.
+- PASS `python3.12 scripts/check_ci_pins.py`, `scripts/check_decision_ids.py` (258 distinct ids,
+  index current), `scripts/check_doc_headings.py` (254 sections / 338 docs); `git diff --check`.
+  Initial pins invocation with system Python failed because it lacks tomllib; rerunning with
+  the repository-compatible Python 3.12 passed. No environment repair or dependency install.
+- PASS Ruby YAML parse: three jobs remain gate/verify/push. The workflow-only diff changes
+  verification subjects and an explanatory comment; trigger, permissions, secret, Environment,
+  version and live-switch behavior are untouched. Complete fast, cargo, Godot and full suites:
+  NOT RUN per closeout limits. Real GitHub signatures/API behavior: NOT RUN.
+
+Independent review: coordinator relayed review_sol's joint PR524/PR529 PASS on 2026-11-23
+(message `ded3bc73-4c72-4e9c-a072-74a25fbe3734`). Reviewer reran all 22 cases, found the
+six/four seam correct, and confirmed signer/repository/ref and default-off behavior remain.
+No correction requested. This review covers the bounded correction, not the release gates.
+
+Maintainability disposition: the new 103-line checker owns only the attestation shell/producer
+command boundary, uses stdlib and Bash, and cannot invoke installed gh through the intercepted
+calls. Its case runner's roughly 50 lines share one fixture lifecycle; splitting it would not
+improve ownership. No inheritance, domain coupling, dependency or framework abstraction added.
+Shared ci_release.py remains byte-identical (454 lines at this base); the existing 671-line
+ci_layer.py gains one check declaration. Existing shared-script size/integration debt reported
+in the backlog audit remains separate; this correction adds no release policy to that script.
+Raw logs and the review-content SHA-256 manifest are in `/tmp/mineworld-pr524-closeout/`;
+this tracked section preserves the observations and their limits beyond those temporary files.
