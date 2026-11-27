@@ -8,6 +8,10 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
+# The owner interface: `notices.subscriptions` is received through `attributes-handed`, projected and
+# disclosed through the model crate's one filter and renderer (S31-b2, ARC-124). The model crate, never
+# the `attributes` pack.
+mineworld-attributes-model = { workspace = true }
 # The seams a pack owns a section of an authored file and a world-level configuration through
 # (DECISIONS.md ARC-31, ARC-61).
 mineworld-authoring = { workspace = true }
@@ -23,6 +27,8 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 
 [dev-dependencies]
+# tests/attributes.rs runs the real `attributes` pack beside notices (S31-b2 §8).
+mineworld-attributes = { workspace = true }
 # The tests decode sections and the configuration from YAML text exactly as the World Pack loader does
 # (DEP-10).
 serde-saphyr = { workspace = true }

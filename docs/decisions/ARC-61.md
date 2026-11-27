@@ -117,3 +117,15 @@ what its empty section requires (`SectionDecl::requires_default`, filled by `int
 missing system naming `world.yaml`, the pack and the system (`PackError::DefaultConfigurationRequiresSystem`).
 A pack whose file is written is checked by that file alone. Every pack before `needs` requires nothing by
 default, so no world changed.
+
+**Note, 2026-11-27 (S31-b2; operator ruling 2026-10-27) — drift compares only facts genesis states
+directly.** Item 7 compared every genesis fact whose type is in the union of the enabled packs'
+`configuration_facts`. A configuration-typed fact may also be stated during genesis by a **reaction**: S31-b2's
+`notices` states `subscriptions-seeded { origin: default }` in reaction to `attributes-handed`, so the save holds
+it while assembly, which re-states only the direct genesis inputs, does not — and every world enabling `notices`
+and `attributes` with a handed value would have been refused at resume as drift. `worldpack::configure::compare`
+therefore keeps only saved facts whose causation is `Causation::WorldGenesis`. Configuration-typed facts stated
+by a reaction during genesis are derived from those inputs and are verified by replay, not by the drift check.
+Configuration added, removed or changed is still drift, exactly as item 7 states. `ARC-121` item 5 context facts
+(`attributes-composed`) are stated directly by genesis (`WorldGenesis`), so their comparison is unchanged.
+Regression: `worldpack/src/configure/tests.rs` (`the_comparator…`, discriminative against removal of the filter).
