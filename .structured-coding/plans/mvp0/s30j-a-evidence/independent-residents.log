@@ -1,0 +1,21 @@
+   Compiling mineworld-attributes-model v0.1.0 (/Users/yuema137/mineworld-worktrees/recovered-s30j/.recovery/replay/tmp/mineworld-s30j-fidelity-a-recovery/authoring/attributes)
+    Finished `test` profile [optimized + debuginfo] target(s) in 1.65s
+     Running tests/newcomer_independent.rs (/Users/yuema137/mineworld-worktrees/recovered-s30j/.recovery/target-fida/debug/deps/newcomer_independent-1ea77b337287f01d)
+
+running 1 test
+
+thread 'changing_or_reordering_residents_cannot_change_independent_draws' (2841788) panicked at authoring/attributes/tests/newcomer_independent.rs:281:17:
+assertion `left == right` failed: external=false key=alpha
+  left: {QualifiedId { text: "oracle.amount", dot: 6 }: (Quantity(ScaledInt { value: 1388, scale: 0 }), Sampled { stratum: "", draw: 0 }), QualifiedId { text: "oracle.choice", dot: 6 }: (Category(ValueSlug("b")), Sampled { stratum: "oracle.parent=p", draw: 0 }), QualifiedId { text: "oracle.parent", dot: 6 }: (Category(ValueSlug("p")), Authored)}
+ right: {QualifiedId { text: "oracle.amount", dot: 6 }: (Quantity(ScaledInt { value: 1388, scale: 0 }), Sampled { stratum: "", draw: 0 }), QualifiedId { text: "oracle.choice", dot: 6 }: (Category(ValueSlug("a")), Sampled { stratum: "oracle.parent=p", draw: 0 }), QualifiedId { text: "oracle.parent", dot: 6 }: (Category(ValueSlug("p")), Authored)}
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test changing_or_reordering_residents_cannot_change_independent_draws ... FAILED
+
+failures:
+
+failures:
+    changing_or_reordering_residents_cannot_change_independent_draws
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p mineworld-attributes-model --test newcomer_independent`

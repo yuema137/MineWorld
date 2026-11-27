@@ -117,7 +117,8 @@ impl System for EarlyBird {
         let dye: Dye = serde_json::from_slice(intent.payload().payload())
             .map_err(|_| Rejection::PreconditionFailed)?;
         let (attribute, to) = proposal(&dye.colour);
-        mineworld_attributes_model::facts::admit_proposal(world, &Self::ID, &attribute, &to)
+        let person = PersonId::new(intent.actor(), EntityType::Person).expect("a person");
+        mineworld_attributes_model::facts::admit_proposal(world, &Self::ID, person, &attribute, &to)
     }
 
     fn resolve(
@@ -256,6 +257,7 @@ fn world() -> (World, EntityId, EntityId) {
         )
     };
     let composed = AttributesComposed {
+        newcomers: None,
         schema: 1,
         catalogue: catalogue.projection(),
         population: None,

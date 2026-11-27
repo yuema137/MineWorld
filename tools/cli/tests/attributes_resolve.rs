@@ -12,6 +12,25 @@ const WORLD: &str = concat!(
     "/tests/fixtures/attributes-sampled"
 );
 
+#[test]
+fn deferred_people_are_listed_without_values() {
+    let world = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/fixtures/attributes-newcomers"
+    );
+    let output = mineworld(&["attributes", "resolve", world, "--json"]);
+    assert!(output.status.success(), "{}", stderr(&output));
+    let document: Value = serde_json::from_str(&stdout(&output)).expect("JSON");
+    for name in ["nadia", "omar", "pia", "quin"] {
+        assert_eq!(
+            document["people"][name],
+            serde_json::json!({"deferred": true})
+        );
+    }
+    assert_eq!(document["people"].as_object().unwrap().len(), 12);
+    assert!(document["people"]["dev"]["values"].is_object());
+}
+
 fn resolved(extra: &[&str]) -> (String, Value) {
     let mut arguments = vec!["attributes", "resolve", WORLD, "--json"];
     arguments.extend_from_slice(extra);
@@ -107,4 +126,68 @@ fn a_thousand_synthetic_people_match_the_profile() {
         .and_then(|text| text.parse().ok())
         .expect("a marginal");
     assert!(marginal <= 0.5, "{}", document["worst"]);
+}
+
+/// Installed-loader compatibility: real CLI create, reopen/continue and full replay of the
+/// existing sampled world. The generic derived-context drift case is the schema seam's test.
+#[test]
+fn attributes_context_survives_cli_save_resume_and_verify() {
+    use mineworld_contracts::{Causation, EventEnvelope};
+    use mineworld_persistence::format;
+    let save = headless::fresh("attributes-context-restart");
+    let path = save.path().to_str().expect("path");
+    let run = |days| {
+        let output = mineworld(&[
+            "run",
+            WORLD,
+            "--headless",
+            "--seed",
+            "7",
+            "--days",
+            days,
+            "--save",
+            path,
+        ]);
+        assert!(output.status.success(), "{}", stderr(&output));
+        stdout(&output)
+    };
+    let created = run("1");
+    assert!(created.contains("created "), "{created}");
+    let before = headless::Tables::read(save.path());
+    let context_facts = |tables: &headless::Tables| -> Vec<Vec<u8>> {
+        tables
+            .facts
+            .iter()
+            .filter_map(|(_, bytes)| {
+                let fact: EventEnvelope = format::decode(bytes, "fact").expect("fact");
+                (fact.event_type().as_str() == "attributes-composed"
+                    && *fact.caused_by() == Causation::WorldGenesis)
+                    .then(|| bytes.clone())
+            })
+            .collect()
+    };
+    assert_eq!(context_facts(&before).len(), 1);
+    let resumed = run("2");
+    assert!(
+        resumed.contains("resumed ") && resumed.contains("re-executed"),
+        "{resumed}"
+    );
+    let after = headless::Tables::read(save.path());
+    assert_eq!(context_facts(&before), context_facts(&after));
+    assert!(
+        after.facts.starts_with(&before.facts),
+        "saved history retained"
+    );
+    let verified = mineworld(&["replay", WORLD, "--save", path]);
+    assert!(verified.status.success(), "{}", stderr(&verified));
+    let report = stdout(&verified);
+    assert!(
+        report.contains("reproduced byte for byte") && report.contains("head revision"),
+        "{report}"
+    );
+    assert_eq!(
+        headless::Tables::read(save.path()).facts,
+        after.facts,
+        "verify does not append"
+    );
 }
