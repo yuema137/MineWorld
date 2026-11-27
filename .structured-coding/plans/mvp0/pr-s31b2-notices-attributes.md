@@ -15,7 +15,8 @@ Implementation base:    original C0 0b2faf2f; recovery 2b4d36fa (2026-11-22)
 Start condition:        this design frozen by the operator; the coordinator's dispatch
 Execution contract:     §12
 Implementer:            Opus-class for C1 (a loader seam); Haiku may take C3 (the topics record)
-Lifecycle:              LOCAL REVIEW READY — independent review pending; publication withheld
+Lifecycle:              PUBLISHED 2026-11-27 (branch mvp0/pr-s31b2-notices); red-team PASS-WITH-FOLLOWUPS;
+                        awaiting CI on the exact head and operator merge review
 ```
 
 **Effort:** `mvp0` · **Step:** [`step-31-wealth-prices.md`](step-31-wealth-prices.md) §8.5 ("Order");
@@ -463,6 +464,57 @@ ruled as proposed: `compare` in `worldpack/src/configure.rs` checks only saved f
 `Causation::WorldGenesis`, with one test in `worldpack/src/configure/tests.rs`. Both files join §2.1 for this PR.
 
 ## 15. Ledger (live during implementation)
+
+### Publication on 2026-11-27
+
+Owner: publication agent, worktree `/Users/yuema137/mineworld-worktrees/pub-s31b2` (branch
+`recover/s31b2-notices-attributes`, pushed as `mvp0/pr-s31b2-notices`; the old remote `mvp0/pr-s31b2`
+holds the October WIP and is left untouched). Authority: the coordinator's 2026-11-27 dispatch — push, open
+the PR, repair CI; no merge, tag, release or release-job dispatch.
+
+**Merge with main.** `origin/main @ 02b17504` merged (not rebased) into `f10b1ee8` as `fc3f1541`: clean
+automatic merge; no file is changed on both sides since base `2b4d36fa` (main's side touched only CI
+scripts/actions, guide tests, `social_composition.rs`, `packages/tests/far_field.rs`, 3D probe scripts,
+READMEs and plan files).
+
+**Local validation on `fc3f1541`** (the executable content of every later commit on this branch; later
+commits are documentation only). Every Cargo command ran through `cast-slots/with-slot.sh`, with
+`CARGO_TARGET_DIR` inside the worktree; logs in the worktree's ignored `target/b2-evidence/` (not durable).
+
+| Check | Result |
+| --- | --- |
+| `cargo fmt --all --check`; `git diff --check` | PASS |
+| `cargo clippy -p mineworld-authoring -p mineworld-worldpack -p mineworld-notices -p mineworld-cli --all-targets -- -D warnings` | PASS, no warnings |
+| `cargo test -p mineworld-notices` | PASS, 30 (attributes 6, board 3, configuration 4, parity 1, publish 7, subscriptions 6, topics 3) |
+| `cargo test -p mineworld-worldpack --lib data` | PASS, 9 |
+| `cargo test -p mineworld-worldpack --lib configure::tests::the_comparator` | PASS, 2 (mutation proof is historical, not rerun) |
+| `cargo test -p mineworld-cli --test notices -- --skip no_random_subscription` | PASS, 7 (1 filtered: the 30-day scenario, NOT RUN) |
+| `mineworld reference --check docs/reference` | PASS, 46 files |
+| `check_doc_headings.py`, `check_decision_ids.py` (after the F-1 docs commit) | PASS |
+
+Not run locally: full workspace suite, `no_random_subscription`, `ac1_composability` on this head (its 16/16
+PASS was on `f10b1ee8`, historical), AC-b2-8. CI on the exact PR head is the gate.
+
+**Independent red-team review (2026-11-27):** PASS-WITH-FOLLOWUPS on `f10b1ee8` + merge `fc3f1541`
+(`/Users/yuema137/mineworld-worktrees/_reviews/s31b2.md`). Dispositions:
+
+- **F-1 (medium, fixed in this PR):** the comparator's WorldGenesis-only rule was recorded only here. Added a
+  dated `ARC-61` note (item 7) and aligned `docs/MODULE_SPEC.md` (configure drift paragraph). CLAUDE.md §2.1
+  rule 4.
+- **F-2 (low, open follow-up):** the `defaults.by_tag` refusal in an `attributes` world is occupancy-based
+  (fires only when a tag actually seeds someone). An unmatched `by_tag` loads silently; no second state
+  source results. A configuration-level declarative check is a candidate follow-up.
+- **F-3 (low, open):** the new `topics` record reaches every observation in notices-enabled scratch worlds
+  (agent MCP tests, `client_trade.rs`, 2D HUD generic row). The `python` and Godot CI layers must pass on the
+  exact head before merge; under CI's `deferred` mode (ARC-154) a normal PR runs `fast` only, so those layers
+  run only in `full` mode (the `milestone` label or a milestone dispatch) — an operator/coordinator cost
+  decision, not taken here. R-S31g-b2-1 and R-S31e-b2-1 remain open.
+- **F-4 (low, process, open):** the October/November `/tmp` evidence (recovery worktree, snapshot logs,
+  comparator mutant/restored logs, parity-baseline log, PR body, prior review) was wiped on reboot. Those
+  claims are historical; the durable evidence is the tracked parity fixtures with their SHA-256 and the tests.
+- **Size (open follow-up):** `tools/cli/tests/notices.rs` is 697 lines, near the ~800 trigger; the next
+  notices CLI test splits the file by AC family.
+- F-5 notes: informational, no action.
 
 ### Recovery on 2026-11-22
 
