@@ -12,6 +12,15 @@ Execution contract:     §10
 Lifecycle:              DESIGN FROZEN — 2026-10-19 (operator approved in the primary session: every question answered as recommended)
 ```
 
+**Dated note, 2026-10-27 (operator ruling Q-S34c3-7, in
+[`pr-s34c3-station-sit-points.md`](pr-s34c3-station-sit-points.md)): S34-c2's frozen scope is widened.**
+Lakeside's pier and square benches face the opposite way from S33-f §5.2's sit points (F-c3-6). S34-c2 no
+longer copies S33-f's table verbatim where the two disagree. It checks each drawn bench against its sit
+points, decides from the drawn geometry which side is wrong, and corrects that side: the bench's `facing`
+in the place file, or the sit points' `facing` and `at`. It records the numbers in its ledger. The load-time
+clearance check (S34-b) and every acceptance criterion of §8 still hold after the correction. S34-c3 runs
+after S34-c2.
+
 **Effort:** `mvp0`, release-blocking · **Step:** [`step-34-posture.md`](step-34-posture.md) §§5.1, 12–14
 (the S34-c row; AC-S34-4, AC-S34-6's world half, AC-S34-11; I-S34-1, -2, -6, -7, -9; Q-S34-8; R-S34-6) ·
 **Previous PRs:** [`pr-s34a-posture-pack.md`](pr-s34a-posture-pack.md) (#301),

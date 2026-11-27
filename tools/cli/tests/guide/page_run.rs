@@ -7,6 +7,7 @@ use super::command;
 use super::features::Features;
 use super::files;
 use super::page::{Block, Body, Directive, Page};
+use super::rewrite::{self, Mode};
 
 /// What a page run needs from outside the page: the features the guide is checked against, the
 /// repository the committed folders of `equals` are named in (and the one `git clone` reads, §4.6), and
@@ -15,6 +16,8 @@ pub struct Environment<'a> {
     pub features: &'a Features,
     pub repo: &'a Path,
     pub home: &'a Path,
+    /// Whether a console block whose output differs fails, or is re-recorded (§11.2).
+    pub mode: Mode,
 }
 
 /// What the runner made of one executed block.
@@ -22,6 +25,9 @@ pub struct Environment<'a> {
 pub enum Outcome {
     /// The block ran, its output matched, and any `equals` held.
     Passed,
+    /// Write mode only (§11.2): the block ran, any `equals` held, and its output differed from the page, so
+    /// these are the block's lines as they are to be written: its commands, each followed by what it printed.
+    Rewritten(Vec<String>),
     /// The block waits for this feature, or is operator-only (`"operator-only"`). It was not run (§8.1).
     Pending(String),
     /// The block failed; the text is the reason a writer needs to fix it.
@@ -96,18 +102,20 @@ fn block_outcome(block: &Block, scratch: &Path, environment: &Environment) -> Ou
         }
     }
     let result = match &block.body {
-        Body::File { path, text } => files::write(scratch, path, text),
-        Body::Console { exit, lines } => console(scratch, *exit, lines, packs),
+        Body::File { path, text } => files::write(scratch, path, text).map(|()| None),
+        Body::Console { exit, lines } => console(scratch, *exit, lines, packs, environment.mode),
         Body::Shell { family, .. } if !family.is_this_os() => {
             return Outcome::OtherOs(family.word());
         }
         Body::Shell { family, text } => {
             command::shell(scratch, environment.home, environment.repo, *family, text)
+                .map(|()| None)
         }
     };
-    if let Err(reason) = result {
-        return Outcome::Failed(reason);
-    }
+    let rewritten = match result {
+        Ok(rewritten) => rewritten,
+        Err(reason) => return Outcome::Failed(reason),
+    };
     if let Some((folder, committed)) = equals {
         let checked = files::confine(folder).and_then(|folder| {
             files::same_tree(&scratch.join(folder), &environment.repo.join(committed))
@@ -116,11 +124,21 @@ fn block_outcome(block: &Block, scratch: &Path, environment: &Environment) -> Ou
             return Outcome::Failed(format!("equals {folder} {committed}: {reason}"));
         }
     }
-    Outcome::Passed
+    rewritten.map_or(Outcome::Passed, Outcome::Rewritten)
 }
 
-/// Runs each command of a console block and matches what it printed against the lines under it (§4).
-fn console(scratch: &Path, exit: i32, lines: &[String], packs: Option<&str>) -> Result<(), String> {
+/// Runs each command of a console block and matches what it printed against the lines under it (§4). In
+/// write mode a difference is not a failure: the block's lines with each differing command's output recorded
+/// (§11.2) are returned instead. An exit code other than the block's is a failure in both modes.
+fn console(
+    scratch: &Path,
+    exit: i32,
+    lines: &[String],
+    packs: Option<&str>,
+    mode: Mode,
+) -> Result<Option<Vec<String>>, String> {
+    let mut written = Vec::new();
+    let mut changed = false;
     for (command_line, expected) in commands(lines) {
         let mut words = command::words(&command_line)?;
         if let Some(dir) = packs {
@@ -133,11 +151,25 @@ fn console(scratch: &Path, exit: i32, lines: &[String], packs: Option<&str>) -> 
                 "`{command_line}` exited with {code}, the page expects {exit}:\n{actual}"
             ));
         }
-        command::matches(&expected, &actual).map_err(|difference| {
-            format!("`{command_line}` printed other output than the page shows:\n{difference}")
-        })?;
+        written.push(format!("$ {command_line}"));
+        match (command::matches(&expected, &actual), mode) {
+            (Ok(()), _) => written.extend(expected.lines().map(str::to_owned)),
+            (Err(difference), Mode::Check) => {
+                return Err(format!(
+                    "`{command_line}` printed other output than the page shows:\n{difference}"
+                ));
+            }
+            (Err(_), Mode::Write) => {
+                changed = true;
+                written.extend(
+                    rewrite::recorded(&expected, &actual)
+                        .lines()
+                        .map(str::to_owned),
+                );
+            }
+        }
     }
-    Ok(())
+    Ok(changed.then_some(written))
 }
 
 /// A console block as (command, expected output) pairs. The block's first line is a command, which parsing

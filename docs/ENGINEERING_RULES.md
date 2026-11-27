@@ -28,7 +28,7 @@ These rules are mandatory unless an approved design document explicitly override
 
 ## 1. Product North Star: MineWorld Is a Playable Living World
 
-MineWorld is not primarily:
+The required playable reference delivery cannot be replaced by only:
 
 - a social-science simulator;
 - an agent benchmark;
@@ -56,7 +56,15 @@ The player should feel that they are **inside the world**, not observing a simul
 
 Agent simulation exists to make that world alive.
 
-It is not the product by itself.
+It is not sufficient by itself to pass the playable delivery.
+
+**Operator clarification, 2026-11-23 (`VISION.md` §1.2):** headless agent/social
+simulation is also a supported application of the same framework. It may omit
+human players and presentation. Preserve common server-authoritative Systems,
+observations, actions, persistence and interchangeable Controllers across that
+application and the two playable clients. No renderer or LLM is required to keep
+the world valid. This does not remove either reference client or relax its
+playability requirements; it prevents interpreting them as a ban on research use.
 
 ---
 
