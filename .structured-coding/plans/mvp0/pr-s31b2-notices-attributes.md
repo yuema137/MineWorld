@@ -516,6 +516,35 @@ PASS was on `f10b1ee8`, historical), AC-b2-8. CI on the exact PR head is the gat
   notices CLI test splits the file by AC family.
 - F-5 notes: informational, no action.
 
+**F-3 closure without full CI (operator CI policy 2026-11-27: per-PR relevant tests only).** The `milestone`
+label was removed by the coordinator; the full run was cancelled, not failed. Instead, the consumers of the
+notices records were run locally through `with-slot.sh` on `fc3f1541` (code-equivalent to `1b9bdc62`), each
+compared with the same command on a detached `origin/main @ 02b17504` baseline worktree (since removed).
+Consumers found by grepping `clients/` and `tools/cli/tests` for notices/subscriptions/topics.
+
+| Check | Branch | `main` baseline | Verdict |
+| --- | --- | --- | --- |
+| `uv run --locked pytest` agent subset: `test_notices_view`, `test_market_acts`, `test_market_inbox`, `test_mcp_resources`, `test_http_prototype`, `test_play_market_mcp` (real server) | 43 pass, 3 fail | 43 pass, 3 fail (same three) | PASS for 43; 3 pre-existing FAIL, not caused by this PR |
+| The same three real-server MCP tests with only the scratch directory renamed to the pack id (temporary probe file, deleted, never committed) | W3 `cafe-notices` (notices, no economy) PASS; W1/W2 FAIL `bodies-in-solid` | — | W3 consumes `subscriptions`/`topics` through the real server: PASS. W1/W2 blocked before notices load |
+| `cargo test -p mineworld-cli --test client_trade -- --ignored --test-threads=1` (Godot 4.7.2 2D, headless) | 1 pass (`refusals_have_words_and_a_stale_notice_is_still_shown`, the notice-board consumer), 5 fail | identical 1 pass, 5 fail | notices consumer PASS; 5 pre-existing FAIL |
+| `cargo test -p mineworld-cli --test price_reporter` (notices worlds, rule/clerk controllers) | 4 pass, 1 fail (`clerk_publishes_and_keepers_follow`: "no keeper moved away", 6 vs 0) | same test FAILS identically (6 vs 0) | 4 PASS; 1 pre-existing FAIL |
+
+Pre-existing defects on `main` found here (outside this PR's frozen scope, which excludes `clients/`; routed to
+the coordinator, not fixed):
+
+1. `clients/agent/tests/test_play_market_mcp.py` copies worlds into directories named `market-g`,
+   `market-g-crown`, `cafe-notices`, which the loader refuses ("a pack's id is its directory name").
+2. The Market Town fixture moves Grace to `cafe (2610, 600)`, now refused `bodies-in-solid` (0 mm from a solid);
+   it breaks the W1/W2 agent tests and four Godot trade tests.
+3. `client_trade.rs` reuses scratch `trade-e11` within one test (`a_world_without_economy_shows_no_trade`
+   fails alone with "already in use").
+4. `price_reporter.rs::clerk_publishes_and_keepers_follow`: keepers move away from suggestions 6 times.
+
+Reference-world goldens (AC-b2-8): not run. No world under `worlds/` enables `notices` or `attributes`
+(re-checked on the merged tree), so Social Café and Market Town observations cannot carry the new records;
+AC-b2-8 holds by construction (I-b2-3), with its CI golden evidence still deferred to the milestone run.
+Compute used for this closure: about 6 minutes including the baseline build.
+
 ### Recovery on 2026-11-22
 
 The coordinator delegated local completion on base `2b4d36fa`, branch
