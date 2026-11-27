@@ -148,7 +148,9 @@ brief and provenance in the pack. The client builds the character's body from it
 The reference body (`vera-lindgren`) is not described by a manifest yet: the client's resource index
 `assets/characters/cast/index.json` names it `"body": "reference"`, and that entry wins. Its entry also carries
 her measured `ground` and `stand_gates`, and `grip` (the side her strap grip holds: `human.gd`'s additive layer, not
-the clip, so that arm is not gated).
+the clip, so that arm is not gated). It also carries `role` (`"protagonist"`) and `scene` (her body's `res://` path),
+which `tools/patch_imports.py` reads to give the base colour beside that scene the protagonist's shipped size
+(2048², `DEP-162`, operator ruling 2026-10-27); every other body ships 1024².
 
 
 ## 2.2 How a body stands on the ground (the grounding chain)

@@ -86,8 +86,17 @@ lower loss keeps what detail is left.
 The operator's 2026-10-26 ruling makes 1024² the shipped edge of *every*
 character base colour, not only the cast's, so the town body's albedo maps
 (the `albedo` role: `face_bc.jpg` was 2048², `hair_strands.png` 2048×1024) take
-the same `CHARACTER_BASE_COLOUR_PX` cap. One constant serves both roles, so no
-character ships a sharper base colour than another.
+the same `CHARACTER_BASE_COLOUR_PX` cap.
+
+The operator's 2026-10-27 ruling (option A) restores the *protagonist's* base
+colour to 2048², because the player looks at her more than at anyone else; every
+other character keeps 1024². The cap is therefore chosen by the character's role,
+not by a file name: the client's resource index
+(`assets/characters/cast/index.json`) gives each reference body a `role` and its
+`scene`, and every `*_base_color.png` beside a `protagonist` scene takes the
+`protagonist_albedo` texture role (`PROTAGONIST_BASE_COLOUR_PX`). A body with any
+other role, or none, keeps `CHARACTER_BASE_COLOUR_PX`. Promoting a different
+character to protagonist is a change to the index, not to this file.
 
   python3 clients/3d-spike/tools/patch_imports.py           write, report changes
   python3 clients/3d-spike/tools/patch_imports.py --check   exit 1 if a cast
@@ -97,6 +106,7 @@ character ships a sharper base colour than another.
 from __future__ import annotations
 
 import glob
+import json
 import os
 import sys
 
@@ -132,6 +142,10 @@ BASIS = {
 # colour, overriding Q-S26-5). A map already this small or smaller is untouched:
 # Godot's size_limit only scales down.
 CHARACTER_BASE_COLOUR_PX = "1024"
+# The protagonist role's edge (DEP-162, operator ruling 2026-10-27, option A): her
+# authored 2048² map ships unscaled.
+PROTAGONIST_BASE_COLOUR_PX = "2048"
+PROTAGONIST = "protagonist"
 ROLES = {
     "albedo": {**BASIS, "compress/rdo_quality_loss": "1.0", "compress/normal_map": "0",
                "process/size_limit": CHARACTER_BASE_COLOUR_PX},
@@ -140,10 +154,14 @@ ROLES = {
     "normal": {**BASIS, "compress/rdo_quality_loss": "4.0", "compress/normal_map": "1"},
     "cast_albedo": {**BASIS, "compress/rdo_quality_loss": "1.0", "compress/normal_map": "0",
                     "process/size_limit": CHARACTER_BASE_COLOUR_PX},
+    "protagonist_albedo": {**BASIS, "compress/rdo_quality_loss": "1.0", "compress/normal_map": "0",
+                           "process/size_limit": PROTAGONIST_BASE_COLOUR_PX},
 }
 
 # Every cast base colour, by the pipeline's stored-once name (PIPELINE.md §9).
 CAST_BASE_COLOURS = "assets/characters/**/*_base_color.png.import"
+# The client's resource index: each reference body's `role` and `scene`.
+INDEX = "assets/characters/cast/index.json"
 
 TEXTURE_DIR = "assets/characters/vitruvian/textures"
 TEXTURE_ROLES = {
@@ -184,13 +202,30 @@ def patch_texture(path: str, role: str, write: bool = True) -> bool:
     return True
 
 
-def cast_base_colours() -> list[str]:
-    return sorted(glob.glob(os.path.join(PROJ, CAST_BASE_COLOURS), recursive=True))
+def protagonist_dirs() -> set[str]:
+    """The folders of every body the index gives the protagonist role (its `scene`'s folder)."""
+    index = json.load(open(os.path.join(PROJ, INDEX)))
+    dirs = set()
+    for character, entry in sorted(index["characters"].items()):
+        if entry.get("role") != PROTAGONIST:
+            continue
+        scene = str(entry.get("scene", ""))
+        if not scene.startswith("res://"):
+            raise SystemExit(f"{INDEX}: {character} has the {PROTAGONIST} role but no res:// scene")
+        dirs.add(os.path.dirname(os.path.join(PROJ, scene.removeprefix("res://"))))
+    return dirs
+
+
+def cast_base_colours() -> list[tuple[str, str]]:
+    """Every character base colour with its texture role: by the character's role, never its name."""
+    protagonists = protagonist_dirs()
+    return [(p, "protagonist_albedo" if os.path.dirname(p) in protagonists else "cast_albedo")
+            for p in sorted(glob.glob(os.path.join(PROJ, CAST_BASE_COLOURS), recursive=True))]
 
 
 def check() -> int:
     """Exit status 1 if any cast base colour or town-body map's `.import` is off its role."""
-    paths = [(p, "cast_albedo") for p in cast_base_colours()]
+    paths = cast_base_colours()
     paths += [(os.path.join(PROJ, TEXTURE_DIR, name + ".import"), role)
               for name, role in sorted(TEXTURE_ROLES.items())]
     drift = [p for p, r in paths if not os.path.exists(p) or patch_texture(p, r, write=False)]
@@ -259,10 +294,10 @@ def main() -> int:
         if patch_texture(tp, role):
             changed += 1
             print(f"  patched {name:<18} as {role}")
-    for tp in cast_base_colours():
-        if patch_texture(tp, "cast_albedo"):
+    for tp, role in cast_base_colours():
+        if patch_texture(tp, role):
             changed += 1
-            print(f"  patched {os.path.relpath(tp, PROJ)} as cast_albedo")
+            print(f"  patched {os.path.relpath(tp, PROJ)} as {role}")
     print(f"{changed} file(s) changed; re-run `godot --headless --path . --import`")
     return 0
 
