@@ -1,0 +1,11 @@
+error: cannot create the lock file /private/var/folders/v6/w270mz6n7bz4zgk94fn07ljc0000gn/T/mineworld-ci-archive-fshvsboo/Cargo.lock because --locked was passed to prevent this
+help: to generate the lock file without accessing the network, remove the --locked flag and use --offline instead.
+error: command `/Users/yuema137/.rustup/toolchains/1.97.1-aarch64-apple-darwin/bin/cargo '--color=auto' metadata '--format-version=1' --all-features --filter-platform aarch64-apple-darwin --locked` failed with exit status: 101
+Traceback (most recent call last):
+  File "/private/tmp/mineworld-recover-ci-p1/scripts/test_ci_execution.py", line 173, in <module>
+    integration()
+    ~~~~~~~~~~~^^
+  File "/private/tmp/mineworld-recover-ci-p1/scripts/test_ci_execution.py", line 144, in integration
+    assert ci_archive.build(archive) == 0
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError

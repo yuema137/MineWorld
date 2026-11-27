@@ -1,0 +1,40 @@
+$ cargo nextest archive --locked --profile ci -p mineworld-packages -p mineworld-test-support --test manifest --test structure --test scratch --archive-file /private/tmp/mineworld-recover-ci-p1/artifacts/real-core.tar.zst
+   Compiling mineworld-packages v0.1.0 (/private/tmp/mineworld-recover-ci-p1/packages)
+   Compiling mineworld-test-support v0.1.0 (/private/tmp/mineworld-recover-ci-p1/tests/support)
+    Finished `test` profile [optimized + debuginfo] target(s) in 0.27s
+   Archiving 3 binaries and 1 standard library to /private/tmp/mineworld-recover-ci-p1/artifacts/real-core.tar.zst
+    Archived 6 files to /private/tmp/mineworld-recover-ci-p1/artifacts/real-core.tar.zst in 0.03s
+
+exit=0 wall=0.60s
+    Finished `test` profile [optimized + debuginfo] target(s) in 0.03s
+$ cargo nextest run --profile ci --no-fail-fast --archive-file /private/tmp/mineworld-recover-ci-p1/artifacts/real-core.tar.zst --extract-to /private/tmp/mineworld-recover-ci-p1 --extract-overwrite
+  Extracting 3 binaries to /private/tmp/mineworld-recover-ci-p1
+   Extracted 6 files to /private/tmp/mineworld-recover-ci-p1 in 0.02s
+────────────
+ Nextest run ID 6eee23ff-bc4c-4df6-9836-51f0d0f81de1 with nextest profile: ci
+    Starting 16 tests across 3 binaries
+        PASS [   0.024s] ( 1/16) mineworld-packages::manifest a_style_manifest_needs_an_id_and_a_dimension
+        PASS [   0.025s] ( 2/16) mineworld-packages::manifest a_data_pack_range_that_excludes_the_framework_is_refused_naming_both
+        PASS [   0.026s] ( 3/16) mineworld-packages::manifest a_directory_of_packs_is_read_by_manifest_and_nothing_else
+        PASS [   0.027s] ( 4/16) mineworld-packages::manifest a_well_formed_pack_file_is_one_identity
+        PASS [   0.029s] ( 5/16) mineworld-packages::structure the_manifest_names_no_mineworld_dependency
+        PASS [   0.030s] ( 6/16) mineworld-packages::manifest an_entity_pack_may_carry_data_directories_only
+        PASS [   0.031s] ( 7/16) mineworld-packages::structure the_sources_name_no_other_mineworld_crate
+        PASS [   0.031s] ( 8/16) mineworld-packages::manifest an_entity_pack_carries_item_kinds_and_nothing_else
+        PASS [   0.031s] ( 9/16) mineworld-test-support::scratch a_failing_test_loses_its_scratch_unless_failures_are_kept
+        PASS [   0.032s] (10/16) mineworld-packages::manifest every_bad_pack_file_is_refused_naming_what_is_wrong
+        PASS [   0.012s] (11/16) mineworld-test-support::scratch a_live_name_cannot_be_taken_twice_and_is_free_again_once_dropped
+        PASS [   0.009s] (12/16) mineworld-test-support::scratch a_scratch_name_is_one_plain_component
+        PASS [   0.012s] (13/16) mineworld-test-support::scratch a_pack_copy_is_named_as_its_pack_and_its_whole_scratch_goes_with_it
+        PASS [   0.012s] (14/16) mineworld-test-support::scratch a_scratch_is_named_as_asked_under_the_target_tmpdir_and_gone_when_dropped
+        PASS [   0.013s] (15/16) mineworld-test-support::scratch a_passing_test_loses_its_scratch_unless_everything_is_kept
+        PASS [   0.009s] (16/16) mineworld-test-support::scratch the_keep_variable_accepts_failed_and_all_and_refuses_anything_else
+────────────
+     Summary [   0.043s] 16 tests run: 16 passed, 0 skipped
+
+exit=0 wall=0.45s
+$ /Users/yuema137/MineWorld/.venv/bin/python scripts/check_scratch.py left --target-dir target
+no scratch left under target/tmp or as /private/tmp/mineworld-recover-ci-p1/artifacts/real-temp/mineworld-*
+
+exit=0 wall=0.03s
+MineWorld archive PASS: 16 baseline identities, source fixtures and scratch paths, cleanup clean
