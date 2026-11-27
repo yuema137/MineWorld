@@ -658,6 +658,26 @@ None of the four blocks an MVP-0 acceptance criterion; MVP-0's acceptance does n
   itch app installs and opens it on one OS, Zenodo shows a record with a DOI (or QR-9 rules candidates out).
 - **Adversarial:** A-R9, A-R10.
 
+## 13.6 Merge order and pre-tag checklist (recorded 2026-11-27, red-team review of #529 / #524)
+
+Merge order is a hard dependency, not a preference:
+
+- [ ] **#529 (R-b) merges before #524 (R-d).** #524's head contains #529's head and resolves their overlap in
+  `scripts/ci_release.py`, `scripts/ci_layer.py` and `docs/decisions/ARC-79.md`; merged the other way round,
+  #529 would conflict with `main`.
+- [ ] **#524 (R-d) is merged before any real tag.** R-b's `verify-tag` runs `ci_release.py citation` on a real
+  tag (`release.yml`, citation step, tag runs only), and `CITATION.cff` arrives with R-d. Until R-d merges, a
+  real tag fails at that step by design (R-d owns `CITATION.cff`). Dry runs are unaffected.
+
+Before the next real tag (not required before either merge; each needs operator authorization):
+
+- [ ] A `release.yml` dry-run dispatch (`workflow_dispatch`, `draft: true`) on the merged R-b + R-d `main`
+  that is green through the Windows bundle and smoke legs (review F-1: the Windows `tar` fix of #529 has only
+  POSIX-seam evidence; run 40587709153 shows the defect, not the fix).
+- [ ] Real A-R9 attestation verification (`gh attestation verify`, provenance and SPDX) against that draft.
+- [ ] Operator-side items of §13.5 (itch page and key, `itch` Environment, Zenodo) before the first live
+  publish.
+
 ---
 
 # 14. Adversarial criteria (fixed before measuring)
