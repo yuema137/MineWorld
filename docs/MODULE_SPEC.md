@@ -1193,6 +1193,38 @@ Either form is refused naming `needs` when the world does not enable `needs`, as
 without `inventory`. A number outside 0 … 1 000 (`needs: { nourishment: { hunger: 1001 } }`) is refused at
 its line and column with the pack's own message.
 
+**Food-energy forms** (*added 2026-11-27*, step FE, PR FE-a; `ARC-370`). In a world whose
+`configure/needs.yaml` chooses `hunger_model: food-energy` (§4.2), hunger is a kcal reserve and the section's
+forms are:
+
+```text
+person   { food_energy: { initial_kcal: <0 … the person's effective daily use> }, tiredness: <0 … 1 000> }
+         `food_energy` is required (`needs: {}` and the unitless `hunger` are refused when genesis is reduced);
+         tiredness optional (700).
+item     { nourishment: { energy_kcal: <0 … 100 000>,
+                          serving: { label: <1 … 128 bytes, no control characters>,
+                                     quantity: { unit: g | ml, amount: <1 … 100 000> } } } }
+         the energy of one whole serving; one inventory unit is one whole serving. `label` is display text,
+         never parsed.
+```
+
+The unitless and food-energy keys are exclusive in one section (`hunger` with `food_energy`, `nourishment.hunger`
+with `energy_kcal` or `serving`) and refused at the section; a decode error keeps its line and column. Which model
+a form belongs to is checked against the world's model when genesis is reduced: a form of the other model, or an
+`initial_kcal` above the person's effective daily use, stops construction with the kernel's
+`InvalidGenesisContent`, naming the owner `needs`, the entity's key, the code (`needs-model-mismatch`,
+`needs-initial-energy-out-of-range`) and the field (`hunger`, `food_energy.initial_kcal`,
+`nourishment.hunger`, `nourishment.energy_kcal`); it claims no line. No save is created for such a world.
+
+```yaml
+# people/alice.yaml (excerpt), in a food-energy world
+needs: { food_energy: { initial_kcal: 1500 } }
+
+# items/bread.yaml
+item: { category: food }
+needs: { nourishment: { energy_kcal: 160, serving: { label: "2 slices", quantity: { unit: g, amount: 64 } } } }
+```
+
 `location` and `passages` are fields of the format rather than sections. They predate the seam, and
 moving them onto it would change `presence` and `movement` and the refusals authors already see;
 that move is recorded as a later candidate in `ARC-31`, not made silently.
@@ -1952,7 +1984,19 @@ like any other, but it names no action a client can send (`ARC-63` note of 2026-
   or over-long chain;
 - with the list and the index of each entry, once the classes are read: a selector naming a class that
   is neither defined nor implicit (`ClassUndefined`); two ambiguous entries (`AmbiguousEntries`);
+- with the entry when there is one, after those two: the owner's own refusal of a combination no single
+  bound can express (`ConfigurationRefusal::Owner { entry, code, detail }`, reported as
+  `ConfigurationRefusedByOwner` naming the file, the owner, its code and the entry). An owner says it
+  through `InteractionSection::validate_authored(section, resolved)`, which sees the section as written —
+  which fields each entry, region and reference list sets — and the resolution; it is called once inside
+  resolution, so the load check and the genesis seed cannot disagree (`ARC-370`; *added 2026-11-27*,
+  PR FE-a). Its default accepts everything;
 - a region naming no declared place, as any configuration naming an unknown entity (§4.1).
+
+**An owner's schema versions** (*added 2026-11-27*, PR FE-a, `ARC-370`). The configured fact
+`<pack>-interactions-configured` and the per-Place component `<pack>-interactions` carry the versions the
+owner declares as `InteractionSection::CONFIGURED_SCHEMA_VERSION` and `COMPONENT_SCHEMA_VERSION`, both 1 by
+default; an owner raises them when its resolved section's encoding changes. Today only `needs` declares 2.
 
 **What a list cannot do.** Grant: a `permit` is a filter on the pack's own checks, never a bypass. Name
 an action, a fact or a role its owner does not declare. Exceed a bound. Widen an audience, or switch
@@ -2066,6 +2110,55 @@ refused.
 
   The thresholds are not disclosed; the words are. A controller, a prompt and a HUD read these numbers and
   words and never read an item file or hard-code a rate.
+
+- **Food energy** (*added 2026-11-27*, step FE, PR FE-a; `ARC-370`, `ARC-284` note). Two more parameters:
+
+  | Field | Bound | Default | Meaning and source |
+  | --- | --- | --- | --- |
+  | `hunger_model` | `unitless` \| `food-energy`; base only | `unitless` | `unitless` is the deficit model above, unchanged. `food-energy` makes hunger a kcal reserve |
+  | `energy_kcal_per_day` | 1 … 100 000; scoped by `actor` | 2 000 | food-energy use per 86 400 world seconds, and the reserve's capacity. 2 000 is the FDA Daily Value reference intake on US Nutrition Facts labels (21 CFR 101.9(c)(9)): a game default, not personal advice |
+
+  Refused, naming the file and the entry (`ConfigurationRefusedByOwner`): in `unitless`, `energy_kcal_per_day`
+  anywhere (`needs-model-parameter-conflict`); in `food-energy`, `hunger_per_hour` or `hunger_asleep_per_hour`
+  anywhere, even shadowed (`needs-model-parameter-conflict`), and a model without a base entry setting
+  `energy_kcal_per_day` (`needs-energy-daily-use-required`). Per-person daily use is not provided; vary it by
+  actor class (`{ actor: high-energy, energy_kcal_per_day: 2400 }`). `restore: { hunger: [] }` is allowed: the
+  reserve then only drains.
+
+  **Arithmetic.** With `D` the person's effective daily use and capacity `C = D`, the reserve is stored as a
+  numerator `N` in kcal × 86 400 and the instant it was true; intermediates are `i128`. `N(t) = max(0, N(at) −
+  D·(t − at))`, the same rate asleep and awake (a deliberate simplification: real sleeping expenditure is near
+  basal rate, ~60–70 kcal/h for a typical adult against the 83 kcal/h daily average), no midnight reset, no
+  wall time. Consuming `count` units of a kind of `K` kcal: `N' = min(C·86 400, N(t) + K·count·86 400)`; excess
+  is discarded; two meals at one instant both count; a kind of 0 kcal (water) is consumed and writes nothing.
+  An empty reserve has no consequence beyond the words (no collapse, illness, slowdown or death).
+
+- **The `needs` record is schema 2** (`ARC-370`): every record adds `hunger_model`. `hunger` stays the
+  normalized deficit 0 … 1 000 — in food-energy mode `⌊1 000·(C·86 400 − N)/(C·86 400)⌋` — and the words use
+  the thresholds on it, *at or above*. In food-energy mode `rates` carries only the tiredness rates, each
+  `nourishment[]` and `kinds[]` entry carries `energy_kcal` and `serving` beside its `hunger`, which is then the
+  motivation score `⌈1 000·min(K, C)/C⌉` (0 for 0 kcal) that ranks food and never changes the reserve, and the
+  record adds:
+
+  ```text
+  food_energy {
+    unit: "kcal"
+    available_kcal                    ⌊N/86 400⌋
+    capacity_kcal                     C
+    use_kcal_per_world_day            D
+    bar { value, maximum }            ⌊1 000·N/(C·86 400)⌋ of 1 000
+    replaces_need: "hunger"           the need this reserve stands for: a reader shows the reserve in its row
+  }
+  ```
+
+  A reader checks the record's schema first: schema 1 keeps its old reading; schema 2 accepts exactly these
+  shapes; an unknown schema or a malformed food-energy record shows no energy row and never falls back to a
+  deficit bar. No client, agent or prompt computes kcal, a rate or a threshold.
+
+- **Saves.** Every needs component and fact, the record and the configured fact are schema 2 and `NeedsSystem`
+  is version 2. A save of a needs-enabled world made by an earlier build is refused with the first applicable
+  explicit error (configuration drift on `needs-interactions-configured`, else `PersistedSystemOutdated`), its
+  committed contents logically unchanged; play it with the build that made it.
 
 ```yaml
 # configure/needs.yaml — a world without the sleep pack, where tiredness only rises
@@ -3390,7 +3483,12 @@ randomness. `--days N` (N ≥ 1) is the **age** the world is run to: until
 `genesis instant + N × 86 400` simulated seconds. A day is the command's unit, not the kernel's
 (`INV-12`). Without `--save` the world lives in memory. With `--save DIR`, a save that does not
 exist is created and one that exists is resumed and run on to the same age, so re-running a killed
-command completes the same world rather than appending a second run (`ARC-27`).
+command completes the same world rather than appending a second run (`ARC-27`). Here and in `server
+--save`, a new save is created only after the world has assembled and its genesis has been reduced and
+encoded in memory (`PersistentWorld::create_with_backend`, `ARC-370`; *added 2026-11-27*, PR FE-a): a pack
+that fails to assemble, or whose genesis an owner refuses as `InvalidGenesisContent` (which names the owner,
+the entity key, the code and the field), exits non-zero and leaves an absent save directory absent — no
+`world.sqlite`, WAL or SHM — and `server` binds no port.
 
 Each seat `k` is consulted on the lattice `genesis + k + m·900` and, while its person is walking (has
 movement's `Walking`), also at the step instants `genesis + k + n·30`: `RUN_STEP`, a notional stride
