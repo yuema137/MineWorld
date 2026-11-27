@@ -64,7 +64,11 @@ fn payload<E: Event + DeserializeOwned>(record: &EventRecord) -> Result<E, Contr
 }
 
 /// A refusal of this pack's own, with its reason code.
-fn refused(event_type: EventTypeId, code: &'static str, detail: Option<String>) -> KernelError {
+pub(crate) fn refused(
+    event_type: EventTypeId,
+    code: &'static str,
+    detail: Option<String>,
+) -> KernelError {
     KernelError::FactRefusedByOwner {
         system: ATTRIBUTES,
         event_type,
@@ -100,6 +104,7 @@ impl System for AttributesSystem {
             .subscribing_to::<TraitsStated>()
             .subscribing_to::<AttributeChangeProposed>()
             .subscribing_to::<TraitChanged>()
+            .subscribing_to::<mineworld_attributes_model::NewcomerAdmitted>()
     }
 
     fn install(&self, tables: &mut Declarations<'_, Self>) -> Result<(), KernelError> {
@@ -124,7 +129,18 @@ impl System for AttributesSystem {
                 ProcessStart::<CatalogueProcess<Self>>::new(encode(&composed.catalogue))
                     .uninterruptible(),
             )?;
+            if let Some(context) = composed.newcomers {
+                world.start_process(
+                    ProcessStart::<mineworld_attributes_model::NewcomersProcess<Self>>::new(
+                        encode(&mineworld_attributes_model::Newcomers::new(context)),
+                    )
+                    .uninterruptible(),
+                )?;
+            }
             return Ok(Vec::new());
+        }
+        if kind == mineworld_attributes_model::NewcomerAdmitted::EVENT_TYPE {
+            return crate::newcomers::admit(world, event, payload(event.payload())?);
         }
         if kind == TraitsStated::EVENT_TYPE {
             let stated: TraitsStated = payload(event.payload())?;
@@ -167,6 +183,13 @@ fn check(
     let kind = event.event_type().clone();
     let running = catalogue(world, &kind)?;
     let proposer = event.provenance().emitted_by();
+    mineworld_attributes_model::newcomer::check_arrived(world, proposed.person).map_err(
+        |reason| KernelError::FactRefusedByOwner {
+            system: ATTRIBUTES,
+            event_type: kind.clone(),
+            reason,
+        },
+    )?;
     let id = &proposed.attribute;
     let declaration =
         check_proposal(running.catalogue(), proposer, id, &proposed.to).map_err(|reason| {

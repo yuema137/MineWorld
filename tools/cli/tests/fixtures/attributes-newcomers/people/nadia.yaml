@@ -1,0 +1,6 @@
+name: Alice
+location: { place: cafe }
+attributes:
+  sex: female
+  stature: 1.66
+  birth: -1072915200

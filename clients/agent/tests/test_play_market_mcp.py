@@ -3,7 +3,7 @@ AC-g-1 … AC-g-6; step-31 AC-S31-8, AC-S31-6's agent half, X-9 through the agen
 
 The worlds are scratch copies the test builds, as `test_mcp_same_answers.py` builds its own (A-18):
 
-- **W1 `market-g`**: Market Town with Grace in the café 1 m from the visitor, holding two flowers she asks 4.50
+- **W1 `market-g`**: Market Town with Grace in the café 1 m north of the visitor (clear of the window bench), holding two flowers she asks 4.50
   for; Felix a keeper of the corner store; `notices` enabled with `news.daily` (text, the visitor publishes) and
   `prices.ingredients` (prices, Felix publishes); Grace subscribes to both.
 - **W2 `market-g-crown`**: W1 whose currency is the crown (`cr`, exponent 0, after): the same code reads every
@@ -77,13 +77,14 @@ def _with_notices(world: Path, after: str, configuration: str) -> None:
 
 def market_g(root: Path, *, crowns: bool = False) -> Path:
     """W1 (or W2 with `crowns`), built from `worlds/market-town`."""
-    world = root / ("market-g-crown" if crowns else "market-g")
+    # The loader reads a pack's id from its directory name, so the label is the parent directory.
+    world = root / ("market-g-crown" if crowns else "market-g") / "market-town"
     shutil.copytree(REPOSITORY / "worlds" / "market-town", world)
     grace = world / "people" / "grace.yaml"
     _edit(
         grace,
         "location:\n  place: workplace\n  position:\n    x: 3000\n    y: -3000\n",
-        "location:\n  place: cafe\n  position:\n    x: 2610\n    y: 600\n",
+        "location:\n  place: cafe\n  position:\n    x: 1610\n    y: 1600\n",
     )
     _edit(
         grace,
@@ -110,7 +111,7 @@ def market_g(root: Path, *, crowns: bool = False) -> Path:
 
 def cafe_notices(root: Path) -> Path:
     """W3, built from `worlds/social-cafe`: notices and nothing of economy."""
-    world = root / "cafe-notices"
+    world = root / "cafe-notices" / "social-cafe"
     shutil.copytree(REPOSITORY / "worlds" / "social-cafe", world)
     _with_notices(world, "appearance", NOTICES.format(news="visitor", prices="wanderer"))
     return world

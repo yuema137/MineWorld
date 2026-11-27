@@ -5,17 +5,19 @@
 **Ruled 2026-10-27 (operator, primary session):** every question below is answered as recommended.
 
 ```text
-Design revision:        draft 1 (2026-10-26)
+Design revision:        draft 1 (2026-10-26), frozen 2026-10-27
 Author:                 S30-h PR-design session (Opus), worktree /Users/yuema137/mineworld-worktrees/design-s30h,
                         branch docs/pr-design-s30h, planning base origin/main @ 0b2faf2f (#382)
-Approved by / evidence: none yet — the operator freezes this design; §15 holds the questions
+Approved by / evidence: the operator, 2026-10-27 (primary session, 21:11 UTC): §15's questions answered as
+                        recommended
 Implementation base:    main (origin/main at each part's C0); C0 records the commit and the merged prerequisites
 Start condition:        S30-c, S30-d, S30-e and S30-f merged (all four are on main at 0b2faf2f: #280, #293, #300,
                         #373); this design frozen; §15 ruled; the coordinator's dispatch
 Execution contract:     §13
 Recommended split:      three PRs from this one design (Q-S30h-1): S30-h1 the backend pack, S30-h2 the
                         `log-linear` mode, S30-h3 the demo world and the guide page
-Lifecycle:              DRAFT
+Lifecycle:              FROZEN 2026-10-27 (header reconciled 2026-11-27); not yet implemented (S30-h1 WIP
+                        preserved unreviewed on branch mvp0/pr-s30h1)
 ```
 
 **Effort:** `mvp0` · **Step:** [`step-30-person-attributes.md`](step-30-person-attributes.md) (APPROVED 2026-10-15; amended)

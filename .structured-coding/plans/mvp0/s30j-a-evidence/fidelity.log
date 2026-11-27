@@ -1,0 +1,57 @@
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.26
+   Compiling serde_core v1.0.229
+   Compiling zmij v1.0.23
+   Compiling serde v1.0.229
+   Compiling rustversion v1.0.23
+   Compiling serde_json v1.0.151
+   Compiling itoa v1.0.18
+   Compiling memchr v2.8.3
+   Compiling thiserror v2.0.21
+   Compiling autocfg v1.5.1
+   Compiling ref-cast v1.0.27
+   Compiling num-traits v0.2.19
+   Compiling cfg-if v1.0.5
+   Compiling scopeguard v1.2.0
+   Compiling multiversion_no_op v1.0.0
+   Compiling simdutf8 v0.1.5
+   Compiling winnow v1.0.4
+   Compiling anstyle v1.0.14
+   Compiling target-tuple v1.0.2
+   Compiling unicode-width v0.2.2
+   Compiling smallvec v1.16.2
+   Compiling arraydeque v0.5.1
+   Compiling dyn-clone v1.0.20
+   Compiling granit-parser v1.3.0
+   Compiling annotate-snippets v0.12.16
+   Compiling toml_parser v1.1.3+spec-1.1.0
+   Compiling toml_writer v1.1.2+spec-1.1.0
+   Compiling syn v3.0.6
+   Compiling encoding_rs v0.8.42
+   Compiling glob v0.3.4
+   Compiling termcolor v1.4.1
+   Compiling toml_datetime v1.1.1+spec-1.1.0
+   Compiling serde_derive_internals v0.30.0
+   Compiling serde_spanned v1.1.1
+   Compiling toml v1.1.6+spec-1.1.0
+   Compiling serde_derive v1.0.229
+   Compiling thiserror-impl v2.0.21
+   Compiling ref-cast-impl v1.0.27
+   Compiling schemars_derive v1.2.3
+   Compiling encoding_rs_io v0.1.8
+   Compiling serde-saphyr v1.3.0
+   Compiling mineworld-contracts v0.1.0 (/Users/yuema137/mineworld-worktrees/recovered-s30j/.recovery/replay/tmp/mineworld-s30j-fidelity-a-recovery/contracts)
+   Compiling schemars v1.2.3
+   Compiling trybuild v1.0.121
+   Compiling mineworld-kernel v0.1.0 (/Users/yuema137/mineworld-worktrees/recovered-s30j/.recovery/replay/tmp/mineworld-s30j-fidelity-a-recovery/kernel)
+   Compiling mineworld-authoring v0.1.0 (/Users/yuema137/mineworld-worktrees/recovered-s30j/.recovery/replay/tmp/mineworld-s30j-fidelity-a-recovery/authoring)
+   Compiling mineworld-attributes-model v0.1.0 (/Users/yuema137/mineworld-worktrees/recovered-s30j/.recovery/replay/tmp/mineworld-s30j-fidelity-a-recovery/authoring/attributes)
+error[E0432]: unresolved import `mineworld_authoring::EntityKey`
+   --> authoring/attributes/tests/fidelity/newcomers.rs:322:9
+    |
+322 |     use mineworld_authoring::EntityKey;
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ no `EntityKey` in the root
+
+For more information about this error, try `rustc --explain E0432`.
+error: could not compile `mineworld-attributes-model` (test "fidelity") due to 1 previous error

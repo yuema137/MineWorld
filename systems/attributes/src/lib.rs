@@ -17,6 +17,7 @@
 #![warn(missing_docs)]
 
 mod data;
+mod newcomers;
 mod section;
 pub mod system;
 

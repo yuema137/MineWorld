@@ -1,0 +1,116 @@
+   Compiling mineworld-attributes-model v0.1.0 (/private/tmp/mineworld-s30j-runtime/authoring/attributes)
+    Finished `test` profile [optimized + debuginfo] target(s) in 9.84s
+     Running tests/fidelity.rs (target/debug/deps/fidelity-75254b59bb81ecf4)
+
+running 1 test
+newcomer digest test-town 0804352e9dfaeec4
+newcomer digest san-diego-county 6298ea3e916c652f
+
+thread 'newcomers::a_thousand_arrivals_preserve_both_profiles_and_reproduce' (14259215) panicked at authoring/attributes/tests/fidelity/newcomers.rs:329:5:
+test-town attributes-newcomers.hair-colour stratify=false [ValueSlug("20s")] black count83 N303 expected_micropersons90900000 threshold=2pp
+test-town attributes-newcomers.hair-colour stratify=false [ValueSlug("20s")] brown count129 N303 expected_micropersons121200000 threshold=2pp
+test-town attributes-newcomers.hair-colour stratify=false [ValueSlug("30s")] brown count150 N403 expected_micropersons161200000 threshold=2pp
+test-town attributes-newcomers.hair-colour stratify=false [ValueSlug("30s")] blond count89 N403 expected_micropersons80600000 threshold=2pp
+test-town attributes-newcomers.hair-colour stratify=false [ValueSlug("40-plus")] blond count55 N302 expected_micropersons46461538 threshold=2pp
+test-town attributes-newcomers.hair-colour stratify=false black marginal actual_micropersons275000000 expected_micropersons281492307 N1008 threshold=0.5pp
+test-town attributes-newcomers.hair-colour stratify=false blond marginal actual_micropersons203000000 expected_micropersons187661538 N1008 threshold=0.5pp
+test-town attributes-newcomers.hair-colour stratify=false grey marginal actual_micropersons158000000 expected_micropersons163523076 N1008 threshold=0.5pp
+san-diego-county core.eye-shape stratify=false almond marginal actual_micropersons190000000 expected_micropersons200000400 N1200 threshold=0.5pp
+san-diego-county core.eye-shape stratify=false deep-set marginal actual_micropersons189000000 expected_micropersons200000400 N1200 threshold=0.5pp
+san-diego-county core.eye-shape stratify=false downturned marginal actual_micropersons217000000 expected_micropersons199999200 N1200 threshold=0.5pp
+san-diego-county core.face-shape stratify=false oval marginal actual_micropersons182000000 expected_micropersons200000400 N1200 threshold=0.5pp
+san-diego-county core.face-shape stratify=false round marginal actual_micropersons192000000 expected_micropersons200000400 N1200 threshold=0.5pp
+san-diego-county core.face-shape stratify=false square marginal actual_micropersons193000000 expected_micropersons200000400 N1200 threshold=0.5pp
+san-diego-county core.face-shape stratify=false heart marginal actual_micropersons221000000 expected_micropersons200000400 N1200 threshold=0.5pp
+san-diego-county core.face-shape stratify=false long marginal actual_micropersons190000000 expected_micropersons199999200 N1200 threshold=0.5pp
+san-diego-county core.face-shape stratify=false diamond marginal actual_micropersons222000000 expected_micropersons199999200 N1200 threshold=0.5pp
+san-diego-county core.facial-hair stratify=false [ValueSlug("male")] none count344 N602 expected_micropersons331100000 threshold=2pp
+san-diego-county core.facial-hair stratify=false none marginal actual_micropersons942000000 expected_micropersons929100000 N1200 threshold=0.5pp
+san-diego-county core.facial-hair stratify=false stubble marginal actual_micropersons82000000 expected_micropersons90300000 N1200 threshold=0.5pp
+san-diego-county core.facial-hair stratify=false short-beard marginal actual_micropersons112000000 expected_micropersons120400000 N1200 threshold=0.5pp
+san-diego-county core.hair-colour stratify=false [ValueSlug("hispanic-or-latino"), ValueSlug("20s")] black count15 N60 expected_micropersons20000040 threshold=2pp
+san-diego-county core.hair-colour stratify=false [ValueSlug("hispanic-or-latino"), ValueSlug("20s")] dark-brown count24 N60 expected_micropersons19999980 threshold=2pp
+san-diego-county core.hair-colour stratify=false [ValueSlug("hispanic-or-latino"), ValueSlug("30s")] black count35 N83 expected_micropersons27666722 threshold=2pp
+san-diego-county core.hair-colour stratify=false [ValueSlug("hispanic-or-latino"), ValueSlug("30s")] dark-brown count20 N83 expected_micropersons27666639 threshold=2pp
+san-diego-county core.hair-colour stratify=false [ValueSlug("hispanic-or-latino"), ValueSlug("40s")] black count23 N74 expected_micropersons24666716 threshold=2pp
+san-diego-county core.hair-colour stratify=false [ValueSlug("hispanic-or-latino"), ValueSlug("40s")] dark-brown count21 N74 expected_micropersons24666642 threshold=2pp
+san-diego-county core.hair-colour stratify=false [ValueSlug("hispanic-or-latino"), ValueSlug("40s")] brown count30 N74 expected_micropersons24666642 threshold=2pp
+san-diego-county core.hair-colour stratify=false [ValueSlug("hispanic-or-latino"), ValueSlug("50s")] black count19 N79 expected_micropersons17116693 threshold=2pp
+san-diego-county core.hair-colour stratify=false [ValueSlug("hispanic-or-latino"), ValueSlug("50s")] grey count25 N79 expected_micropersons27650000 threshold=2pp
+san-diego-county core.hair-colour stratify=false [ValueSlug("hispanic-or-latino"), ValueSlug("60s")] black count10 N63 expected_micropersons6300000 threshold=2pp
+san-diego-county core.hair-colour stratify=false [ValueSlug("hispanic-or-latino"), ValueSlug("60s")] dark-brown count4 N63 expected_micropersons6300000 threshold=2pp
+san-diego-county core.hair-colour stratify=false [ValueSlug("hispanic-or-latino"), ValueSlug("60s")] brown count9 N63 expected_micropersons6300000 threshold=2pp
+san-diego-county core.hair-colour stratify=false [ValueSlug("hispanic-or-latino"), ValueSlug("60s")] grey count40 N63 expected_micropersons44100000 threshold=2pp
+san-diego-county core.hair-colour stratify=false [ValueSlug("white"), ValueSlug("20s")] brown count16 N112 expected_micropersons18666704 threshold=2pp
+san-diego-county core.hair-colour stratify=false [ValueSlug("white"), ValueSlug("20s")] light-brown count24 N112 expected_micropersons18666704 threshold=2pp
+san-diego-county core.hair-colour stratify=false [ValueSlug("white"), ValueSlug("20s")] blond count24 N112 expected_micropersons18666704 threshold=2pp
+san-diego-county core.hair-colour stratify=false [ValueSlug("white"), ValueSlug("20s")] auburn count15 N112 expected_micropersons18666592 threshold=2pp
+san-diego-county core.hair-colour stratify=false [ValueSlug("white"), ValueSlug("20s")] red count14 N112 expected_micropersons18666592 threshold=2pp
+san-diego-county core.hair-colour stratify=false [ValueSlug("white"), ValueSlug("30s")] brown count14 N99 expected_micropersons16500033 threshold=2pp
+san-diego-county core.hair-colour stratify=false [ValueSlug("white"), ValueSlug("30s")] auburn count21 N99 expected_micropersons16499934 threshold=2pp
+san-diego-county core.hair-colour stratify=false [ValueSlug("white"), ValueSlug("30s")] red count13 N99 expected_micropersons16499934 threshold=2pp
+san-diego-county core.hair-colour stratify=false [ValueSlug("white"), ValueSlug("40s")] brown count12 N82 expected_micropersons13666694 threshold=2pp
+san-diego-county core.hair-colour stratify=false [ValueSlug("white"), ValueSlug("40s")] light-brown count11 N82 expected_micropersons13666694 threshold=2pp
+san-diego-county core.hair-colour stratify=false [ValueSlug("white"), ValueSlug("40s")] red count16 N82 expected_micropersons13666612 threshold=2pp
+san-diego-county core.hair-colour stratify=false [ValueSlug("white"), ValueSlug("50s")] brown count9 N67 expected_micropersons7258378 threshold=2pp
+san-diego-county core.hair-colour stratify=false [ValueSlug("white"), ValueSlug("50s")] light-brown count3 N67 expected_micropersons7258311 threshold=2pp
+san-diego-county core.hair-colour stratify=false [ValueSlug("white"), ValueSlug("50s")] blond count9 N67 expected_micropersons7258311 threshold=2pp
+san-diego-county core.hair-colour stratify=false [ValueSlug("white"), ValueSlug("50s")] red count4 N67 expected_micropersons7258311 threshold=2pp
+san-diego-county core.hair-colour stratify=false [ValueSlug("white"), ValueSlug("50s")] grey count26 N67 expected_micropersons23450000 threshold=2pp
+san-diego-county core.hair-colour stratify=false [ValueSlug("white"), ValueSlug("60s")] light-brown count0 N67 expected_micropersons3350000 threshold=2pp
+san-diego-county core.hair-colour stratify=false [ValueSlug("white"), ValueSlug("60s")] blond count2 N67 expected_micropersons3350000 threshold=2pp
+san-diego-county core.hair-colour stratify=false [ValueSlug("white"), ValueSlug("60s")] auburn count0 N67 expected_micropersons3350000 threshold=2pp
+san-diego-county core.hair-colour stratify=false [ValueSlug("white"), ValueSlug("60s")] red count2 N67 expected_micropersons3350000 threshold=2pp
+san-diego-county core.hair-colour stratify=false [ValueSlug("white"), ValueSlug("60s")] grey count56 N67 expected_micropersons46900000 threshold=2pp
+san-diego-county core.hair-colour stratify=false light-brown marginal actual_micropersons68000000 expected_micropersons74608394 N1200 threshold=0.5pp
+san-diego-county core.hair-colour stratify=false blond marginal actual_micropersons69000000 expected_micropersons59808394 N1200 threshold=0.5pp
+san-diego-county core.hair-colour stratify=false red marginal actual_micropersons49000000 expected_micropersons59808101 N1200 threshold=0.5pp
+san-diego-county core.hair-style stratify=false [ValueSlug("female")] pixie-cut count66 N598 expected_micropersons85428486 threshold=2pp
+san-diego-county core.hair-style stratify=false [ValueSlug("female")] low-bun count101 N598 expected_micropersons85428486 threshold=2pp
+san-diego-county core.hair-style stratify=false pixie-cut marginal actual_micropersons66000000 expected_micropersons85428486 N1200 threshold=0.5pp
+san-diego-county core.hair-style stratify=false low-bun marginal actual_micropersons101000000 expected_micropersons85428486 N1200 threshold=0.5pp
+san-diego-county core.hair-style stratify=false top-knot marginal actual_micropersons94000000 expected_micropersons85428486 N1200 threshold=0.5pp
+san-diego-county core.hair-style stratify=false short-layered marginal actual_micropersons77000000 expected_micropersons85428486 N1200 threshold=0.5pp
+san-diego-county core.hair-style stratify=false shaved-head marginal actual_micropersons75000000 expected_micropersons85999914 N1200 threshold=0.5pp
+san-diego-county core.hair-style stratify=false close-fade marginal actual_micropersons94000000 expected_micropersons85999914 N1200 threshold=0.5pp
+san-diego-county core.hair-texture stratify=false [ValueSlug("asian")] straight count119 N151 expected_micropersons113250000 threshold=2pp
+san-diego-county core.hair-texture stratify=false [ValueSlug("asian")] curly count3 N151 expected_micropersons7550000 threshold=2pp
+san-diego-county core.hair-texture stratify=false [ValueSlug("black")] curly count16 N51 expected_micropersons12750000 threshold=2pp
+san-diego-county core.hair-texture stratify=false [ValueSlug("black")] coily count33 N51 expected_micropersons35700000 threshold=2pp
+san-diego-county core.hair-texture stratify=false coily marginal actual_micropersons61000000 expected_micropersons68700000 N1200 threshold=0.5pp
+san-diego-county core.lips stratify=false wide marginal actual_micropersons308000000 expected_micropersons300000000 N1200 threshold=0.5pp
+san-diego-county core.nose stratify=false straight marginal actual_micropersons181000000 expected_micropersons200000400 N1200 threshold=0.5pp
+san-diego-county core.nose stratify=false narrow marginal actual_micropersons193000000 expected_micropersons200000400 N1200 threshold=0.5pp
+san-diego-county core.nose stratify=false aquiline marginal actual_micropersons184000000 expected_micropersons200000400 N1200 threshold=0.5pp
+san-diego-county core.nose stratify=false upturned marginal actual_micropersons222000000 expected_micropersons199999200 N1200 threshold=0.5pp
+san-diego-county core.nose stratify=false wide-bridged marginal actual_micropersons215000000 expected_micropersons199999200 N1200 threshold=0.5pp
+san-diego-county core.skin-tone stratify=false [ValueSlug("asian")] mst-3 count27 N151 expected_micropersons30200000 threshold=2pp
+san-diego-county core.skin-tone stratify=false [ValueSlug("asian")] mst-4 count23 N151 expected_micropersons30200000 threshold=2pp
+san-diego-county core.skin-tone stratify=false [ValueSlug("asian")] mst-5 count42 N151 expected_micropersons30200000 threshold=2pp
+san-diego-county core.skin-tone stratify=false [ValueSlug("black")] mst-5 count11 N51 expected_micropersons8500017 threshold=2pp
+san-diego-county core.skin-tone stratify=false [ValueSlug("black")] mst-7 count13 N51 expected_micropersons8500017 threshold=2pp
+san-diego-county core.skin-tone stratify=false [ValueSlug("black")] mst-8 count4 N51 expected_micropersons8500017 threshold=2pp
+san-diego-county core.skin-tone stratify=false [ValueSlug("black")] mst-10 count6 N51 expected_micropersons8499966 threshold=2pp
+san-diego-county core.skin-tone stratify=false [ValueSlug("hispanic-or-latino")] mst-4 count80 N423 expected_micropersons70500141 threshold=2pp
+san-diego-county core.skin-tone stratify=false [ValueSlug("multiracial-or-other")] mst-3 count16 N79 expected_micropersons13166693 threshold=2pp
+san-diego-county core.skin-tone stratify=false [ValueSlug("multiracial-or-other")] mst-4 count10 N79 expected_micropersons13166693 threshold=2pp
+san-diego-county core.skin-tone stratify=false [ValueSlug("multiracial-or-other")] mst-5 count9 N79 expected_micropersons13166693 threshold=2pp
+san-diego-county core.skin-tone stratify=false [ValueSlug("multiracial-or-other")] mst-6 count11 N79 expected_micropersons13166693 threshold=2pp
+san-diego-county core.skin-tone stratify=false [ValueSlug("multiracial-or-other")] mst-7 count19 N79 expected_micropersons13166614 threshold=2pp
+san-diego-county core.skin-tone stratify=false [ValueSlug("white")] mst-1 count138 N496 expected_micropersons124000000 threshold=2pp
+san-diego-county core.skin-tone stratify=false [ValueSlug("white")] mst-3 count108 N496 expected_micropersons124000000 threshold=2pp
+san-diego-county core.skin-tone stratify=false mst-1 marginal actual_micropersons138000000 expected_micropersons124000000 N1200 threshold=0.5pp
+san-diego-county core.skin-tone stratify=false mst-3 marginal actual_micropersons217000000 expected_micropersons237866834 N1200 threshold=0.5pp
+san-diego-county core.skin-tone stratify=false mst-5 marginal actual_micropersons133000000 expected_micropersons122366851 N1200 threshold=0.5pp
+san-diego-county core.skin-tone stratify=false mst-7 marginal actual_micropersons100000000 expected_micropersons92166349 N1200 threshold=0.5pp
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test newcomers::a_thousand_arrivals_preserve_both_profiles_and_reproduce ... FAILED
+
+failures:
+
+failures:
+    newcomers::a_thousand_arrivals_preserve_both_profiles_and_reproduce
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2 filtered out; finished in 1.19s
+
+error: test failed, to rerun pass `-p mineworld-attributes-model --test fidelity`
