@@ -49,13 +49,14 @@
 //! 8 … 12   answer an invitation, initiative, invitee, kind, joined          social.rs
 //! 13       follow the agenda                                                 agenda.rs
 //! 14, 15   attempt a complete affordance, and which one                      offered.rs
+//! 16       sit, or set off for a free seat                                   rest.rs
 //! —        a due commute takes no draw                                       commute.rs
 //! —        asleep, eat, bed and fetch take no draw (the bedtime offset is a mix)  needs.rs
 //! ```
 //!
 //! The order of the hard rungs: asleep (wake or nothing) → a due commute → eat → an invitation, a
 //! reply → the boss policy → a bed spot clear of the doors → bed → fetch food, unless waiting for a
-//! punctual part (Q-S35-OP1) → the agenda → everything after (`pr-s35-nc-controllers.md` SD-Nc-2, N-c2). Greeting, approaching and inviting skip a person disclosed asleep; with nobody asleep the
+//! punctual part (Q-S35-OP1) → the agenda → the social bands → rest (`rest.rs`) → everything after (`pr-s35-nc-controllers.md` SD-Nc-2, N-c2). Greeting, approaching and inviting skip a person disclosed asleep; with nobody asleep the
 //! lists are the same, so the same index is drawn.
 //!
 //! The doorway choice is not a draw index: it is a separate mix over `(seed, observer, instant ÷ six
@@ -82,7 +83,7 @@ use crate::price::{self, Pricing};
 use crate::read::{
     disclosed_history, distance, doorways, in_activity, may_talk_to, newest_per_speaker, others,
 };
-use crate::{agenda, offered, social};
+use crate::{agenda, offered, rest, social};
 
 /// Within this distance of somebody, approaching them again is pointless; the controller wanders.
 /// A walk to a person ends within movement's `PERSON_APPROACH` (1 200 mm) of them when the way is
@@ -118,7 +119,7 @@ const DOOR_WINDOW: i64 = 21_600;
 /// Every action type this rule builds a request for by name: its own bands decide them, so the generic
 /// offered band leaves them out of its draw (`offered.rs`, `DECISIONS.md` `ARC-151`). A band that comes to
 /// decide another action by name adds its type here.
-pub(crate) const DECIDED_BY_NAME: [ActionTypeId; 10] = [
+pub(crate) const DECIDED_BY_NAME: [ActionTypeId; 12] = [
     Talk::ACTION_TYPE,
     WalkTo::ACTION_TYPE,
     WalkStep::ACTION_TYPE,
@@ -130,6 +131,9 @@ pub(crate) const DECIDED_BY_NAME: [ActionTypeId; 10] = [
     // The hands of `item-transfer`, by slug: only the fetch band puts down or picks up (S35 N-h R4).
     ActionTypeId::from_static(crate::fetch::PUT_DOWN),
     ActionTypeId::from_static(crate::fetch::PICK_UP),
+    // posture's, by slug: only the rest band sits, and nobody stands by chance (S34-d1 SD-d-3, F-d-2).
+    ActionTypeId::from_static(crate::rest::SIT),
+    ActionTypeId::from_static(crate::rest::STAND),
 ];
 
 /// A Person whose actions are a seeded rule, consulted every `pace` simulated seconds.
@@ -339,6 +343,11 @@ impl PacedRuleController {
         };
         if social.is_some() {
             return social;
+        }
+        // Staying where my day keeps me: sit where the world lets me, or walk to a free seat
+        // (`rest.rs`, S34-d1). No sit point disclosed and no `sit` offered, no draw is taken.
+        if let Some(decided) = rest::band(observation, &draw, mine.is_none() || at_agenda) {
+            return decided;
         }
         // What the world offers complete — an action of a pack this controller was never compiled
         // against — sometimes (`offered.rs`, `ARC-34`). Nothing complete offered, nothing changes; what

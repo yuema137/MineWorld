@@ -513,6 +513,26 @@ journal sits facing away from the point and is named (`posture::tests::a_sit_fac
   own `place-sit-points` facts, never from posture's code; the reader decodes with the owners' published
   types, as `social::decoded` does.
 
+#### C2 — The rule controller's rest band
+- [x] Implementation: `cognition/rule-controller/src/rest.rs` (new: `seats`, `sit_point`, `available_sit`,
+  `seat_to_seek`, `choose`, `request`, `band`; `SITS_BELOW = 50`, `REST_DRAW = 16`; public so the motivated
+  model reads the same rule); `paced.rs` (`DECIDED_BY_NAME` 10 → 12 with `sit` and `stand` by slug; the band
+  called after the social bands and before the offered band, with `staying = no agenda or at the agenda's
+  place`, `waiting` included; draw table row 16); `lib.rs` (module and test registration);
+  `rest_tests.rs` (new). No `Cargo.toml` change (D-d1-1). No existing constant changed (I-d-2).
+- [x] Validation (local, Darwin/arm64): `cargo test -p mineworld-rule-controller` 94 passed (7 new in
+  `rest_tests`: an available seat is sat on by its own offer on 16-48 of 64 seeds; out of reach the nearest
+  free seat is walked to, ties by key; a seat **not offered** is walked to (the dated note's row); a seat
+  refused `TargetUnavailable`, `PermissionDenied`, `Busy` or `NoSupportedInteraction` is never chosen and
+  the band takes no part; walking or away from my day rests nowhere; without posture the band takes no part;
+  the paced rule never submits a chance `stand` over 64 seeds × 8 consults). `offered_tests.rs` and
+  `paced_tests.rs` pass unchanged. `cargo clippy -p mineworld-rule-controller -p mineworld-motivated -p
+  mineworld-cli --all-targets -- -D warnings` clean.
+- [x] Review: the band reads the observation only — disclosed sit points and posture's verdict on each
+  offer; the one distance it computes ranks candidate seats for the walk (I-S34-4 allows reading `at`; reach
+  and occupancy are never computed); no key, place or world in code or tests; the band takes no draw unless a
+  seat is offered or disclosed, so a world without posture decides as before (AC-d-6, checked in C4).
+
 ## 14. Operator questions (each with a recommended answer)
 
 **Ruled 2026-10-27 (operator, primary session):** every question below is answered as recommended.

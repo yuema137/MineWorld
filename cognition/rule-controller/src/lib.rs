@@ -167,6 +167,9 @@ pub mod fetch;
 mod model;
 mod offered;
 mod paced;
+/// The rest band: a person staying where they are sits where the world lets them, or walks to a free
+/// seat; read by the motivated model too (`pr-s34d-npcs-agents-sit.md` SD-d-3, S34-d1).
+pub mod rest;
 mod social;
 
 /// Request builders shared by the decision models: what to submit, built from an offered option
@@ -209,6 +212,8 @@ mod agenda_tests;
 
 #[cfg(test)]
 mod offered_tests;
+#[cfg(test)]
+mod rest_tests;
 
 #[cfg(test)]
 mod commute_tests;
