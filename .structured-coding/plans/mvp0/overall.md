@@ -1764,6 +1764,10 @@ Existing hunger units and template replies do not satisfy those new requirements
 by relabeling. Social Cafe remains a removal witness; Market Town's richer actual
 packaged play must be validated. Shop hours, personal residence semantics and
 single-player sleep advance have explicit design gaps in the reconciliation.
+Update 2026-11-27: shop hours (PR N1) and single-player `sleep-until` advance
+(PR N2) are DESIGN FROZEN in [`pr-nightlife.md`](pr-nightlife.md) (operator ruling
+Q-L1 … Q-L5 as recommended; private residences deferred). N1 can start on main;
+N2 follows N1, and its packaged client commit waits for launcher prerequisites P1–P3.
 
 Operator also requests a future scalability/hosting plan for hundreds/thousands
 of residents while retaining clean code and measured performance. Section7 of

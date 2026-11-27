@@ -1,9 +1,9 @@
-# Nightlife N1 / N2 — implementation contracts (filled, pending freeze)
+# Nightlife N1 / N2 — implementation contracts (filled, frozen)
 
 ```text
-Lifecycle:  DRAFT — FREEZE-READY (NOT FROZEN). These contracts take effect only when pr-nightlife.md carries an
-            operator-dated DESIGN FROZEN header. Each endpoint below whose source reads "pending freeze answer"
-            is settled by that answer; until then no endpoint is authorized.
+Lifecycle:  FROZEN 2026-11-27 with pr-nightlife.md revision 2. The operator approved every recommendation of the
+            design (Q-L1 … Q-L5, Q-L4 option A) on 2026-11-27: "同意三个都按推荐冻结", relayed by the primary
+            coordinator. The endpoint lines below take their source from that ruling.
 ```
 
 The generic bodies of `.claude/skills/structured-coding/prompts/implementation-working-rules.md` and
@@ -24,13 +24,16 @@ RELATED / BINDING DOCS:
   economy decisions ARC-112, ARC-118, ARC-28; .structured-coding/standards.md
 
 IMPLEMENTATION BASE:
-  origin/main at the session's start (design audited on 7718d952); record the exact commit in the handoff
+  origin/main at the session's start, at or after the freeze base 8c971f0f7b469f05d1bf6f21fc933501eb22c404;
+  record the exact commit in the handoff and re-check the §2.2 seams if main has moved.
+  N1-C1 and N1-C2 can start on main now; N1-C3's packaged Gate2 check waits for P1 (pr-nightlife.md §1.3)
+  and is recorded INCONCLUSIVE — prerequisite until then; every other N1-C3 item runs on main.
 
 APPROVED SCOPE:
-  pr-nightlife.md §5 (N1-C1 … N1-C3) and invariants N1-I1 … N1-I7
+  pr-nightlife.md §5 (N1-C1 … N1-C3) and invariants N1-I1 … N1-I8
 
 FROZEN INVARIANTS:
-  - N1-I1 … N1-I7 (pr-nightlife.md §3)
+  - N1-I1 … N1-I8 (pr-nightlife.md §3)
   - kernel, clients and controllers compute no business hours; no stored open flag, no Process, no scheduler
   - absent hours = today's behaviour; Social Café and Bodies Yard unchanged
   - S35 AC-S35-8 rhythm bounds are never relaxed to pass
@@ -44,6 +47,8 @@ AUTONOMOUS VALIDATION BUDGET:
   - real LLM calls: none (Gate1 N/A)
   - Gate2 packaged launcher night check: one shared heavy-job slot assigned by the primary, ≤ 10 min per run,
     ≤ 60 min total including retries
+  - long records (Market Town baselines re-record + AC-S35-8, pr-nightlife.md N1-C3): once on the final head in
+    the primary-assigned heavy slot, ≤ 60 min total; projection recorded before launch
   - monetary spend: $0
   - anything beyond: stop with a cost/runtime projection
 
@@ -58,11 +63,11 @@ PR CONTEXT SCOPE / INITIALIZATION / AUTHORITY ORDER / CONTINUITY / COMPACTION / 
   /Users/yuema137/mineworld-worktrees/ on branch feat/nightlife-n1-shop-hours, held by one session
 
 ENDPOINT AUTHORITY:
-  - implementation + local validation:  authorized on freeze      source: operator freeze answer (pending)
-  - semantic commits:                   authorized on freeze      source: operator freeze answer (pending)
-  - branch push:                        authorized on freeze      source: operator freeze answer (pending)
-  - PR creation / update:               authorized on freeze      source: operator freeze answer (pending)
-  - CI repair to review readiness:      authorized on freeze      source: operator freeze answer (pending)
+  - implementation + local validation:  authorized   source: operator freeze ruling 2026-11-27 ("同意三个都按推荐冻结")
+  - semantic commits:                   authorized   source: operator freeze ruling 2026-11-27 ("同意三个都按推荐冻结")
+  - branch push:                        authorized   source: operator freeze ruling 2026-11-27 ("同意三个都按推荐冻结")
+  - PR creation / update:               authorized   source: operator freeze ruling 2026-11-27 ("同意三个都按推荐冻结")
+  - CI repair to review readiness:      authorized   source: operator freeze ruling 2026-11-27 ("同意三个都按推荐冻结")
   - merge:                              explicit operator authorization only (code PR; CLAUDE.md §6)
 
 POST-MERGE SYNCHRONIZATION OWNER:
@@ -98,14 +103,17 @@ RELATED / BINDING DOCS:
   ARC-67, ARC-69, ARC-267, ARC-268; step-35 (Q-S35-9, SD-Na-*); step-19 (INV-TW-*)
 
 IMPLEMENTATION BASE:
-  origin/main after PR N1 and the launcher Market Town prerequisite (§1.3) have merged; re-audit §2.2 seams
-  and record the exact commit
+  origin/main after PR N1 has merged; re-audit §2.2 seams and record the exact commit. N2-C1 … N2-C3 need
+  nothing else; N2-C4 additionally waits for launcher prerequisites P1, P2 and P3 (pr-nightlife.md §1.3)
 
 APPROVED SCOPE:
-  pr-nightlife.md §6 (N2-C1 … N2-C4) and invariants N2-I1 … N2-I11, with Q-L4 option A
+  pr-nightlife.md §6 (N2-C1 … N2-C4) and invariants N2-I1 … N2-I14 (incl. N2-I1b), with Q-L4 option A;
+  includes the rule/motivated controllers' exclusion of sleep-until (N2-C1) and the ARC-69 item 5 amendment
+  record (N2-C2); excludes tools/launch and tools/cli/src/hosted.rs
 
 FROZEN INVARIANTS:
-  - N2-I1 … N2-I11 (pr-nightlife.md §3)
+  - N2-I1 … N2-I14, incl. N2-I1b (pr-nightlife.md §3)
+  - the server never submits an ActionIntent for a session-driven Person (cancel stops only)
   - kernel unchanged; server names no sleep type; admin routes name no instant
   - advance never a fact, input or revision; no rescale used as an advance; shared worlds never advance
   - ordinary tick_at semantics unchanged; oracle fixture frozen before the loop exists
@@ -119,6 +127,8 @@ AUTONOMOUS VALIDATION BUDGET:
   - real LLM calls: none (Gate1 N/A)
   - Gate2 (2D + 3D packaged sleep/advance/cancel/kill-reopen): one heavy slot from the primary,
     ≤ 10 min per run, ≤ 60 min total including retries; Godot builds count against the slot
+  - long records (baselines re-record + AC-S35-8, N2-C1): once on the final head, heavy slot, ≤ 60 min total
+  - N2-C3 speed acceptance measured in a release build of mineworld-server tests only
   - monetary spend: $0
   - anything beyond: stop with a projection
 
@@ -132,11 +142,11 @@ PR CONTEXT (all generic fields):
   as N1; branch feat/nightlife-n2-sleep-advance; fresh session; never the N1 context
 
 ENDPOINT AUTHORITY:
-  - implementation + local validation:  authorized on freeze      source: operator freeze answer (pending)
-  - semantic commits:                   authorized on freeze      source: operator freeze answer (pending)
-  - branch push:                        authorized on freeze      source: operator freeze answer (pending)
-  - PR creation / update:               authorized on freeze      source: operator freeze answer (pending)
-  - CI repair to review readiness:      authorized on freeze      source: operator freeze answer (pending)
+  - implementation + local validation:  authorized   source: operator freeze ruling 2026-11-27 ("同意三个都按推荐冻结")
+  - semantic commits:                   authorized   source: operator freeze ruling 2026-11-27 ("同意三个都按推荐冻结")
+  - branch push:                        authorized   source: operator freeze ruling 2026-11-27 ("同意三个都按推荐冻结")
+  - PR creation / update:               authorized   source: operator freeze ruling 2026-11-27 ("同意三个都按推荐冻结")
+  - CI repair to review readiness:      authorized   source: operator freeze ruling 2026-11-27 ("同意三个都按推荐冻结")
   - merge:                              explicit operator authorization only
 
 POST-MERGE SYNCHRONIZATION OWNER:
