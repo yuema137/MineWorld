@@ -1,5 +1,36 @@
 # Packaged launcher living-world correction
 
+## DESIGN FROZEN — not yet: awaiting the operator's explicit freeze (ratification)
+
+```text
+Design revision:        revision 1 (2026-11-23, recovered as e37ce9fd); publication notes 2026-11-27
+Approved by / evidence: PARTIAL. The operator approved the getrandom reuse on 2026-11-23 in the Codex coordination
+                        session, verbatim "同意复用现有 getrandom 库" (relayed by the coordinator; recorded in
+                        handoff-coordinator.md "November 23 continued execution"). The design itself has only an
+                        agent plan PASS (delivery_review) and final source PASS (review_sol). Record the operator's
+                        exact freeze words and date here when given.
+Operator decisions:     D1 ratify this design as a bounded correction to S23/ARC-78 hosting;
+                        D2 merge with the exported-bundle World-tab check NOT RUN (see Publication), or require it
+                           first (it is planned as C2's packaged item in pr-launcher-solo.md)
+Implementation base:    fix/startup-loading-ui (PR #548), itself on #544 + main; branch fix/launcher-living-world (PR #549)
+Lifecycle:              DRAFT — awaiting operator freeze; implementation exists (recovered) and is under review
+```
+
+### Execution contract (filled; binding once frozen)
+
+```text
+Owner / worktree:       one session; /Users/yuema137/mineworld-worktrees/impl-launcher-living, branch fix/launcher-living-world
+Affected paths:         tools/launch/{src/hosting.rs,src/children.rs,src/lib.rs,Cargo.toml,LAUNCHER.md,tests/**},
+                        Cargo.lock, clients/shared/HOST.md, docs/decisions/ARC-78.md, this ledger
+Authorized:             the correction as designed; bounded review fixes; targeted checks; semantic commits; push
+Not authorized:         server/world/controller/schema/client changes; --solo/--hosted-here; dependencies beyond the
+                        approved getrandom reuse; merge; milestone label
+Validation owners:      cargo test -p mineworld-launch (real server built from the head, stub renderer); clippy -D
+                        warnings; fmt; exported-bundle World-tab run (macOS); remote `fast`
+Budgets:                <=600 s per heavy run, one shared slot (cast-slots/with-slot.sh), no paid API calls
+Escalate:               any change to admission, smoke hosting, or token handling beyond this design
+```
+
 ## Authorization and execution contract
 
 Bounded correction to S23/ARC-78 runtime hosting, under the operator's 2026-11-23 actual trial request (residents stationary, no replies, day-length controls unavailable). Existing played-town policy is ARC-345; existing host capability is clients/shared/HOST.md. Coordinator dispatched a fresh execution lane; independent reviewer delivery_review accepts C1 as bounded integration. C2 dependency amendment explicitly approved by operator: “同意复用现有 getrandom 库”. This permits the existing workspace getrandom dependency for a private per-run admin token, replacing ARC-78's standard-library-only restriction only to this extent. It does not authorize other dependency, world, schema or rendering changes.
@@ -87,3 +118,14 @@ correction's scope (Design: "no --solo added") and remains new launcher work nee
 operator's product decision (unlocks >24× on solo). P1 — launcher Market Town for 3D/both with matching depiction —
 is also not here (3D and both still default to `social-cafe`, LAUNCHER.md §2). Dialogue PR-B's `--decisions` and
 cognition-child seams build on this `Hosting` shape and are PR-B's work.
+
+### Red-team review disposition — 2026-11-27 (`_reviews/pr549.md`, PASS-WITH-FOLLOWUPS)
+
+- Finding 6 (exported World tab unverified): **NOT RUN** on this head. No exported bundle was assembled from it. The
+  stub-renderer test proves the server and token path, not the shipped Godot `host_clock.gd` reading the token.
+  Open as operator decision D2; planned as `pr-launcher-solo.md` C2's packaged World-tab item.
+- Finding 4 (approval quote undated): date and place recorded in the header above.
+- Finding 2 (source 3D launcher `mineworld-slice` still adds `--agent alice` in played mode): pre-existing and out
+  of this packaged-only scope; follow-up.
+- Finding 8 (`configure_server` calling `configure_client`; `tests/launcher.rs` at 839 lines): follow-up, no
+  behaviour risk.
