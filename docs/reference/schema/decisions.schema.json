@@ -130,6 +130,20 @@
           "minimum": 0,
           "type": "integer"
         },
+        "seek-seat": {
+          "description": "Walk to a free seat out of reach, in a world with `posture` (S34-d1 SD-d-4): a short walk.",
+          "format": "uint32",
+          "maximum": 1000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "sit": {
+          "description": "Sit on a free seat within reach, in a world with `posture` (S34-d1 SD-d-4): a way of staying.",
+          "format": "uint32",
+          "maximum": 1000,
+          "minimum": 0,
+          "type": "integer"
+        },
         "sleep": {
           "description": "Go to sleep where the world allows it, in a world with `needs` (`ARC-286`).",
           "format": "uint32",

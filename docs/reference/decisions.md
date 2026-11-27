@@ -194,6 +194,8 @@ The base weight of each kind of choice, per mille (§5.4).
 | `leave` | whole number | no | — | 0 to 1000 | Leave my activity. |
 | `offered` | whole number | no | — | 0 to 1000 | Attempt a complete affordance the world offers. |
 | `penalize` | whole number | no | — | 0 to 1000 | Penalize a late member of staff, as a manager (`ARC-287`). |
+| `seek-seat` | whole number | no | — | 0 to 1000 | Walk to a free seat out of reach, in a world with `posture` (S34-d1 SD-d-4): a short walk. |
+| `sit` | whole number | no | — | 0 to 1000 | Sit on a free seat within reach, in a world with `posture` (S34-d1 SD-d-4): a way of staying. |
 | `sleep` | whole number | no | — | 0 to 1000 | Go to sleep where the world allows it, in a world with `needs` (`ARC-286`). |
 | `stay` | whole number | no | — | 0 to 1000 | Do nothing. |
 | `wander` | whole number | no | — | 0 to 1000 | Wander to a point nearby. |

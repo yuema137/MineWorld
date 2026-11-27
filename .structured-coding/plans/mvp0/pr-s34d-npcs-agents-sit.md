@@ -551,6 +551,81 @@ journal sits facing away from the point and is named (`posture::tests::a_sit_fac
 - [x] Review: no world data in the defaults; options appear only where a seat is offered or disclosed; the
   base weights are the design's literals (300 = `stay`, 250 = `wander`), set before measuring.
 
+#### C4 — Thresholds on, re-baselines, mutations
+- [x] Implementation: `posture_life.rs` checks AC-d-3 … AC-d-5 per run (`Measured::misses`; one-seat is
+  held to AC-d-5 only, §6; a run with no spell has no median) and AC-d-6 (`a_world_without_posture_decides_as_before`).
+  **AC-d-4 and AC-d-5's median were missed and are escalated (Q-S34d1-1, Q-S34d1-2 below), not tuned**: they
+  are printed as `ESCALATED` and not asserted until ruled; AC-d-1, AC-d-2, AC-d-3, AC-d-5's zero bobbing and
+  AC-d-6 are asserted. The scratch name of each run carries model and days (the two profiles ran at once and
+  collided on the first attempt — a test defect, fixed). The Social Café 30-day decisions golden re-captured
+  locally (not from CI: per-PR CI runs `fast` only); `docs/reference/decisions.md` and
+  `schema/decisions.schema.json` regenerated (`mineworld reference --out docs/reference`: the two weights).
+- [x] Validation (local, Darwin/arm64, working tree = 090c6410 + this commit's files):
+  `cargo test -p mineworld-cli --test posture_life --test decisions --test reference -- --include-ignored`
+  all pass (posture_life 8 passed in 550 s, the long set included). The after numbers (30 days at pace 900; 5
+  at pace 60):
+
+  | Run | seed 7: seen seated; spells (by `stand`); median consults; bobbing | seed 11 |
+  | --- | --- | --- |
+  | social-cafe, default, 900 | 239/300 (79 %); 1160 (0); 1.00; 0 | 221/300 (73 %); 1075 (0); 1.00; 0 |
+  | social-cafe, motivated, 900 | 0/300; 0 spells | 0/300; 0 spells |
+  | social-cafe, default, 60 | 37/50 (74 %); 2239 (0); 1.00; 0 | 35/50 (70 %); 2203 (0); 1.00; 0 |
+  | market-town, default, 900 | 211/300 (70 %); 776 (0); 1.00; 0 | 199/300 (66 %); 736 (0); 1.00; 0 |
+  | market-town, motivated, 900 | 0/300; 0 spells | 0/300; 0 spells |
+  | market-town, default, 60 | 40/50 (80 %); 2233 (0); 1.00; 0 | 34/50 (68 %); 2113 (0); 1.00; 0 |
+  | renamed-seats, default, 900 | 195/300 (65 %); 806 (0); 1.00; 0 | 199/300 (66 %); 718 (0); 1.00; 0 |
+  | renamed-seats, motivated, 900 | 0/300; 0 spells | 0/300; 0 spells |
+  | renamed-seats, default, 60 | 40/50 (80 %); 2218 (0); 1.00; 0 | 32/50 (64 %); 2147 (0); 1.00; 0 |
+  | one-seat, default, 900 | 141/300 (47 %); 482 (0); 1.00; 0 | 154/300 (51 %); 446 (0); 1.00; 0 |
+  | one-seat, motivated, 900 | 0/300; 0 spells | 0/300; 0 spells |
+  | one-seat, default, 60 | 28/50 (56 %); 1206 (0); 1.00; 0 | 24/50 (48 %); 1209 (0); 1.00; 0 |
+
+  | Criterion | Result |
+  | --- | --- |
+  | AC-d-1, AC-d-2 (invariants after every request, every run, both profiles) | **PASS** |
+  | AC-d-3 (rule seen seated ≥ 50 %, every world and renamed-seats) | **PASS** (65-79 %) |
+  | AC-d-4 (motivated seen seated ≥ 50 %) | **FAIL — escalated, Q-S34d1-2** (0 %, no spell at all) |
+  | AC-d-5 zero bobbing, pace 900 and 60 | **PASS** (0 `stand` requests in 23 000 spells) |
+  | AC-d-5 median spell ≥ 2 consults | **FAIL — escalated, Q-S34d1-1** (1 consult in every run) |
+  | AC-d-6 no-posture variants equal the base record | **PASS** |
+
+  Planted mutations, each run against the tests named, each **red** as expected, then reverted
+  (`git checkout`; the tree re-verified clean before the commit):
+  - X-d-1 (`sit`, `stand` out of `DECIDED_BY_NAME`): `posture_life_short` red — AC-d-5, 2-45 bobbing spells
+    per run in every world, pace 900 and 60.
+  - X-d-2 (the band also takes `TargetUnavailable`): `rest_tests::a_taken_crowded_forbidden_or_busy_seat_is_never_chosen` red.
+  - X-d-3 (the band reads only keys containing `-`, i.e. the authored naming): `posture_life_short` red —
+    AC-d-3, renamed-seats 0 of 30 samples, both seeds; every authored world still passed.
+  - X-d-4 (the band takes its draw and holds the consult without posture): `a_world_without_posture_decides_as_before`
+    red (market-town moved against its base record).
+  - X-d-7 (the checker skips facing): owned by `posture::tests::a_sit_facing_away_from_the_point_is_named`
+    (C1). X-d-5, X-d-6 belong to S34-d2.
+- [x] Review: bodies-yard's and Lakeside's baseline sections untouched; the decisions golden diff is
+  posture's: `sit accepted 50 → 1160`, `stand accepted 9 → 0`, and every count downstream of the walks a
+  sitter no longer takes (consults 81 235 → 86 639, more facts per day); no `sit` is ever rejected, because
+  the band attempts only available offers.
+
+**Escalation (contract §12: AC-d-4 and AC-d-5 missed after C4; numbers reported, nothing tuned).**
+
+- **Q-S34d1-1 — the rule's spells last one consult (AC-d-5 median).** Cause, from `paced.rs`: a seated
+  person is consulted again one pace later; the rest band does not decide for a seated person (SD-d-3: "it
+  never decides `stand`"), so the consult falls to the walking roll — approach (30), a doorway (12, or up to
+  60 on a street of several doors) and wander (23) out of 100 — and the agenda, and any walk stands them up
+  (`stood-up { moved }`). Nobody bobs (zero `stand` requests), but half the spells end at the first consult.
+  *Recommendation:* the smallest revision inside SD-d-3's band — a seated person who is staying (no agenda,
+  or at its place) holds the consult on the same draw 16 below `SITS_BELOW`, before the walking roll; no new
+  constant, no new draw index, no posture change. Expected median ≈ 2 consults; measured after the ruling.
+  *Alternative:* revise AC-d-5 to "zero bobbing" only.
+- **Q-S34d1-2 — the motivated model never sits (AC-d-4).** Cause, from `score.rs` `select`: a consult draws
+  among the choices within `top_band` (100 ‰) of the best score; `sit` (300 × `Rested` ≤ 1 000) and
+  `seek-seat` (250 × `LeisureHour`) are below 90 % of `approach` (350) and of the agenda (900) whenever those
+  are offered, so they are almost never drawable — as `stay` is not. The motivated runs moved only by the
+  removal of a chance `stand` (none happened). *Recommendation:* the operator sets the two base weights
+  once (for example `sit: 1000` as `sleep`, and `seek-seat: 400` above `approach`), with Q-S34d1-1's "a
+  seated, staying person stays" as a third motivated option weighted like `sit`; then measure once and
+  record, without further tuning. *Alternative:* accept AC-d-4 as a follow-up, leaving the motivated model
+  seat-capable but rarely seated.
+
 ## 14. Operator questions (each with a recommended answer)
 
 **Ruled 2026-10-27 (operator, primary session):** every question below is answered as recommended.

@@ -71,12 +71,37 @@ enum Model {
 struct Measured {
     label: String,
     pace: i64,
+    model: Model,
     ledger: Ledger,
     summary: Vec<String>,
 }
 
+/// AC-d-3 and AC-d-4, out of 100: at least this share of the 09:00-18:00 hour samples shows somebody
+/// seated (Q-S34d-5, fixed before measuring).
+const SEEN_SEATED_AT_LEAST: usize = 50;
+
+/// AC-d-5: the median spell lasts at least this many consults (Q-S34d-5).
+const MEDIAN_CONSULTS_AT_LEAST: i64 = 2;
+
+/// Whether a missed threshold fails the test or is printed as escalated. AC-d-4 (the motivated model is
+/// seen seated) and AC-d-5's median spell were missed after C4 and escalated to the operator with their
+/// numbers, as the execution contract requires ("do not tune"; pr-s34d §12, §13 Q-S34d1-1 and Q-S34d1-2).
+/// Ruling on them turns each back to `Asserted` or revises it.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Criterion {
+    Asserted,
+    Escalated,
+}
+
 fn run(label: &str, world: &Path, seed: u64, days: u64, pace: i64, model: Model) -> Measured {
-    let save = fresh(&format!("posture-life-{label}-{seed}-{pace}"));
+    let model_name = match model {
+        Model::Default => "default",
+        Model::Motivated => "motivated",
+    };
+    // Unique within the process: the short and the long profile may run at once.
+    let save = fresh(&format!(
+        "posture-life-{label}-{seed}-{pace}-{days}-{model_name}"
+    ));
     let pack = world.to_str().expect("a printable path");
     let (entities, presentation) = (
         format!("{ROOT}/entities"),
@@ -126,13 +151,10 @@ fn run(label: &str, world: &Path, seed: u64, days: u64, pace: i64, model: Model)
         .into_iter()
         .map(str::to_owned)
         .collect();
-    let model_name = match model {
-        Model::Default => "default",
-        Model::Motivated => "motivated",
-    };
     Measured {
         label: format!("{label} seed {seed} {model_name} pace {pace}"),
         pace,
+        model,
         ledger: Ledger::of(reads, until),
         summary,
     }
@@ -158,6 +180,54 @@ impl Measured {
         )
     }
 
+    /// AC-d-3 … AC-d-5 (§6), as named failures: zero bobbing spells and a median spell of at least two
+    /// consults in every run; at pace 900, where `seating_floor` (every world and renamed-seats, not
+    /// one-seat), at least half the hour samples show somebody seated. A run with no spell has no median.
+    fn misses(&self, seating_floor: bool) -> Vec<(Criterion, String)> {
+        let ledger = &self.ledger;
+        let mut missed = Vec::new();
+        if ledger.bobbing(self.pace) > 0 {
+            missed.push((
+                Criterion::Asserted,
+                format!(
+                    "AC-d-5: {}: {} bobbing spell(s)",
+                    self.label,
+                    ledger.bobbing(self.pace)
+                ),
+            ));
+        }
+        if !ledger.spells.is_empty() && ledger.median_spell() < MEDIAN_CONSULTS_AT_LEAST * self.pace
+        {
+            missed.push((
+                Criterion::Escalated,
+                format!(
+                    "AC-d-5: {}: median spell {} s, under {MEDIAN_CONSULTS_AT_LEAST} consults",
+                    self.label,
+                    ledger.median_spell()
+                ),
+            ));
+        }
+        let samples = ledger.samples.len();
+        if seating_floor
+            && self.pace == PACE
+            && ledger.showing_seating() * 100 < SEEN_SEATED_AT_LEAST * samples
+        {
+            let (kind, criterion) = match self.model {
+                Model::Default => (Criterion::Asserted, "AC-d-3"),
+                Model::Motivated => (Criterion::Escalated, "AC-d-4"),
+            };
+            missed.push((
+                kind,
+                format!(
+                    "{criterion}: {}: {} of {samples} hour samples show seating",
+                    self.label,
+                    ledger.showing_seating()
+                ),
+            ));
+        }
+        missed
+    }
+
     /// AC-d-1, AC-d-2: no invariant breached after any request.
     fn holds_invariants(&self) {
         assert!(
@@ -170,8 +240,9 @@ impl Measured {
     }
 }
 
-/// Every run of one profile: (world label, world path) × seeds × (default 900, motivated 900, default 60).
-fn measure(days: u64, hosted_days: u64) -> Vec<Measured> {
+/// Every run of one profile: (world label, world path) × seeds × (default 900, motivated 900, default 60),
+/// each with whether the seen-seated floor applies to it (not to one-seat, §6).
+fn measure(days: u64, hosted_days: u64) -> Vec<(Measured, bool)> {
     let worlds = posture_worlds();
     let base = worlds[0].to_str().expect("a printable path").to_owned();
     let renamed = variants::renamed_seats(&base);
@@ -191,6 +262,7 @@ fn measure(days: u64, hosted_days: u64) -> Vec<Measured> {
     subjects.push(("one-seat".to_owned(), one_seat.path.clone()));
     let mut measured = Vec::new();
     for (label, world) in &subjects {
+        let seating_floor = label != "one-seat";
         for seed in SEEDS {
             for (pace, model, days) in [
                 (PACE, Model::Default, days),
@@ -199,17 +271,28 @@ fn measure(days: u64, hosted_days: u64) -> Vec<Measured> {
             ] {
                 let run = run(label, world, seed, days, pace, model);
                 eprintln!("{}", run.report());
-                measured.push(run);
+                measured.push((run, seating_floor));
             }
         }
     }
     measured
 }
 
-fn holds(measured: &[Measured]) {
-    for run in measured {
+/// AC-d-1 … AC-d-5 over every run: the invariants first, then every asserted threshold missed, all named at
+/// once. A criterion escalated to the operator is printed, never asserted, until it is ruled on.
+fn holds(measured: &[(Measured, bool)]) {
+    for (run, _) in measured {
         run.holds_invariants();
     }
+    let (escalated, missed): (Vec<_>, Vec<_>) = measured
+        .iter()
+        .flat_map(|(run, floor)| run.misses(*floor))
+        .partition(|(criterion, _)| *criterion == Criterion::Escalated);
+    for (_, line) in &escalated {
+        eprintln!("ESCALATED (S34-d1 §13, Q-S34d1-1/2): {line}");
+    }
+    let missed: Vec<String> = missed.into_iter().map(|(_, line)| line).collect();
+    assert!(missed.is_empty(), "{}", missed.join("\n"));
 }
 
 #[test]
