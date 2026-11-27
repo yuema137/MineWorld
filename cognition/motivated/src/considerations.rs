@@ -277,7 +277,8 @@ fn by_choice(
             }
             list
         }
-        Choice::Stay => {
+        // Sitting is a way of staying (S34-d1 SD-d-4): the same consideration as `stay`.
+        Choice::Stay | Choice::Sit(_) => {
             let rested = if at_home { atus("rest") } else { 1_000 };
             vec![(Consideration::Rested, rested)]
         }
@@ -320,6 +321,8 @@ fn by_choice(
                 curves.strictness.at(i64::from(count)),
             )]
         }
+        // A walk to a free seat is a short walk at leisure, as a wander is, without the weather.
+        Choice::SeekSeat(_) => vec![(Consideration::LeisureHour, atus("leisure"))],
         Choice::Wander => {
             let mut list = vec![(Consideration::LeisureHour, atus("leisure"))];
             if here_role == Some(Role::Outdoor) {

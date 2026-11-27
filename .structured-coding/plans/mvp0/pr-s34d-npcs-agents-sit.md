@@ -533,6 +533,24 @@ journal sits facing away from the point and is named (`posture::tests::a_sit_fac
   and occupancy are never computed); no key, place or world in code or tests; the band takes no draw unless a
   seat is offered or disclosed, so a world without posture decides as before (AC-d-6, checked in C4).
 
+#### C3 — The motivated model's two options
+- [x] Implementation: `options.rs` (`Choice::Sit(index)`, `Choice::SeekSeat(Seat)` — the seat itself
+  rather than its key, so the request needs no second lookup; built from `rest::choose`, only where my day
+  keeps me and no commute presses; `sit` and `stand` left out of `Offered`; names `sit`, `seek-seat`; base
+  weights); `settings.rs` (`Base::sit = 300`, `Base::seek_seat = 250`, serialized `seek-seat`);
+  `parameters.rs` (`OPTIONS` 13 → 15, `set_base`); `considerations.rs` (`Sit` takes `stay`'s `Rested`,
+  `SeekSeat` takes `wander`'s `LeisureHour` without the weather); `seat_tests.rs` (new). No `Cargo.toml`
+  change.
+- [x] Validation (local): `cargo test -p mineworld-motivated` 55 passed (5 new: a seat in reach is one `Sit`
+  option and never an `Offered` one, and some seed sits; a seat out of reach or not offered is one
+  `SeekSeat`, nearest first; a taken seat gives no option and a seated person's `stand` is never submitted
+  over 256 seeds; a decision list with `sit: 0` and `seek-seat: 0` makes nobody sit or walk to the seat;
+  without posture no seat option appears). "The parameters test lists 15 options": no test enumerates
+  `OPTIONS`; the generated reference (`docs/reference/decisions.md`, the schema) carries the two new
+  weights, regenerated in C4.
+- [x] Review: no world data in the defaults; options appear only where a seat is offered or disclosed; the
+  base weights are the design's literals (300 = `stay`, 250 = `wander`), set before measuring.
+
 ## 14. Operator questions (each with a recommended answer)
 
 **Ruled 2026-10-27 (operator, primary session):** every question below is answered as recommended.

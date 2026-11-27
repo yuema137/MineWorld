@@ -49,10 +49,24 @@ struct RawRule {
     by: BTreeMap<String, u32>,
 }
 
-/// The options a `base` entry may name (§5.4; `commute`, `ARC-282`; `sleep`, `ARC-286`).
-const OPTIONS: [&str; 13] = [
-    "agenda", "stay", "greet", "approach", "invite", "join", "leave", "door", "offered", "wander",
-    "commute", "penalize", "sleep",
+/// The options a `base` entry may name (§5.4; `commute`, `ARC-282`; `sleep`, `ARC-286`; `sit` and
+/// `seek-seat`, S34-d1 SD-d-4).
+const OPTIONS: [&str; 15] = [
+    "agenda",
+    "stay",
+    "greet",
+    "approach",
+    "invite",
+    "join",
+    "leave",
+    "door",
+    "offered",
+    "wander",
+    "commute",
+    "penalize",
+    "sleep",
+    "sit",
+    "seek-seat",
 ];
 
 /// The roles a `roles` entry may name (§5.4).
@@ -338,6 +352,8 @@ fn set_base<E: DeError>(base: &mut Base, name: &str, value: u32) -> Result<(), E
         "commute" => &mut base.commute,
         "penalize" => &mut base.penalize,
         "sleep" => &mut base.sleep,
+        "sit" => &mut base.sit,
+        "seek-seat" => &mut base.seek_seat,
         _ => {
             return Err(E::custom(format!(
                 "'{name}' is not an option; the options are {}",

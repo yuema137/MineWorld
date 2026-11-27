@@ -64,3 +64,6 @@ mod fit_tests;
 
 #[cfg(test)]
 mod price_tests;
+
+#[cfg(test)]
+mod seat_tests;

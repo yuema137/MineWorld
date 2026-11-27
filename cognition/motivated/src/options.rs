@@ -19,6 +19,7 @@ use mineworld_relationships::Acquaintances;
 use mineworld_rule_controller::commute::{self, Commute, Mode};
 use mineworld_rule_controller::fetch;
 use mineworld_rule_controller::needs::{self, Felt};
+use mineworld_rule_controller::rest::{self, Rest, Seat};
 use mineworld_rule_controller::{act, boss, read};
 use mineworld_schedule::Agenda;
 use mineworld_sleep::Sleep;
@@ -70,6 +71,11 @@ pub enum Choice {
     Penalize(usize),
     /// Go to sleep here for this many minutes, where the world offers `sleep` (`ARC-286`).
     Sleep(u16),
+    /// Sit: attempt the available complete `sit` offer at this index of the observation's affordances
+    /// (S34-d1 SD-d-4).
+    Sit(usize),
+    /// Walk to this free seat of my place, out of reach or out of offer range (S34-d1 SD-d-4).
+    SeekSeat(Seat),
 }
 
 /// A punctual next part of my day I am not at yet, and how urgent setting out for it is (§0.4).
@@ -383,8 +389,20 @@ pub fn choices(context: &Context<'_>) -> Vec<Choice> {
             && !boss::is_penalty(affordance)
             // The hands are the rule's fetch band's; nobody puts down or picks up by chance (S35 N-h R4).
             && ![fetch::PUT_DOWN, fetch::PICK_UP].contains(&affordance.action_type().as_str())
+            // Sitting is its own two options below, and nobody stands by chance (S34-d1 SD-d-4, F-d-7).
+            && ![rest::SIT, rest::STAND].contains(&affordance.action_type().as_str())
         {
             choices.push(Choice::Offered(index));
+        }
+    }
+    // Where my day keeps me, `rule`'s rest rule says which seat, if any: one available here, else the
+    // nearest free one to walk to; never while a commute presses. No seat disclosed and no `sit` offered,
+    // nothing is added.
+    if !away_from_agenda && !pressing {
+        match rest::choose(observation) {
+            Some(Rest::Sit(index)) => choices.push(Choice::Sit(index)),
+            Some(Rest::SeekSeat(seat)) => choices.push(Choice::SeekSeat(seat)),
+            None => {}
         }
     }
     for (index, _) in &context.penalties {
@@ -457,6 +475,8 @@ pub fn request(
             affordance.request(me, encoded)
         }
         Choice::Sleep(minutes) => Some(act::request(me, &Sleep::new(*minutes))),
+        Choice::Sit(index) => rest::request(observation, &Rest::Sit(*index))?,
+        Choice::SeekSeat(seat) => rest::request(observation, &Rest::SeekSeat(seat.clone()))?,
         Choice::Wander => {
             let here = context.here?;
             let from = here.local()?;
@@ -502,6 +522,8 @@ pub const fn option_name(choice: &Choice) -> &'static str {
         Choice::Commute(_) => "commute",
         Choice::Penalize(_) => "penalize",
         Choice::Sleep(_) => "sleep",
+        Choice::Sit(_) => "sit",
+        Choice::SeekSeat(_) => "seek-seat",
     }
 }
 
@@ -521,5 +543,7 @@ pub fn base(choice: &Choice, settings: &Settings) -> u32 {
         Choice::Commute(_) => weights.commute,
         Choice::Penalize(_) => weights.penalize,
         Choice::Sleep(_) => weights.sleep,
+        Choice::Sit(_) => weights.sit,
+        Choice::SeekSeat(_) => weights.seek_seat,
     }
 }
