@@ -6,23 +6,23 @@
 # name layers; the commands of a layer live in scripts/ci_layer.py only. The job names `fast`, `test`,
 # `test-macos` and `removability` are an interface: a required check matches them by name.
 #
-# Speed first (operator policy of 2026-10-18, ARC-154). `changes` classifies the run with
-# scripts/ci_changes.py into one mode, and every job reads it:
+# Speed first (operator policy of 2026-10-18, ARC-154), with impact selection per pull request (operator
+# ruling of 2026-11-27, ARC-154's dated note). `changes` classifies the run with scripts/ci_changes.py into
+# one mode, and every job reads it:
 #
 #   docs      documentation only (ARC-48's note of 2026-10-09): `fast` runs the `docs` layer.
-#   deferred  every pull request and every push to main: `fast` only (format, compile, clippy, the
-#             scripts' self-tests, the Python static checks). The test layers are deferred to the
-#             milestone; the required gates pass in seconds with the note "deferred to milestone
-#             (operator policy 2026-10-18)".
-#   full      a dispatch with `milestone: true`, a PR labelled `milestone`, or a scratch branch: every
-#             layer on every operating system, and (dispatch, `-scenario` scratch) the AC-8 legs.
-#
-# The trade-off, accepted by the operator: no merge is test-gated. A break is found by the nightly
-# (nightly.yml, ARC-83, unchanged) or at the milestone run, and the milestone's failures are fixed there in
-# one batch.
+#   impact    every other pull request: `fast`, plus the tests scripts/ci_impact.py selects from the change
+#             set, on Linux (`impact-core` shards over the selected packages and test targets, `impact-python`
+#             over the selected Python areas, `impact-godot` for the Godot clients, `removability` when its
+#             inputs changed); macOS and Windows run the Rust selection only for a platform-specific change.
+#             The required gates judge exactly the selected jobs and list the selection in the log.
+#   deferred  a push to main and a plain dispatch: `fast` only; main is the nightly's (ARC-83).
+#   full      a dispatch with `milestone: true`, a PR labelled `milestone`, a scratch branch, or a PR whose
+#             selection is unknown or that touches a build root or the CI definition: every layer on every
+#             operating system, and (dispatch, `-scenario` scratch) the AC-8 legs.
 #
 # The required gates (`test`, `test-macos`, `test-windows`, `removability`) always report on a pull
-# request: a gate whose work is deferred passes and writes why into its job summary. On a push to main
+# request: a gate whose work was not selected passes and writes why into its job summary. On a push to main
 # they do not run at all, so the nightly's flake sampler (ci_nightly.py, which reads main's push run) never
 # mistakes a deferred gate for a passing test sample. There is deliberately no workflow-level
 # `paths-ignore`: a workflow that never starts leaves the required checks pending forever.
@@ -63,6 +63,13 @@ jobs:
       clients: ${{ steps.classify.outputs.clients }}
       mode: ${{ steps.classify.outputs.mode }}
       note: ${{ steps.classify.outputs.note }}
+      impact_core: ${{ steps.classify.outputs.impact_core }}
+      impact_select: ${{ steps.classify.outputs.impact_select }}
+      impact_shards: ${{ steps.classify.outputs.impact_shards }}
+      impact_python: ${{ steps.classify.outputs.impact_python }}
+      impact_godot: ${{ steps.classify.outputs.impact_godot }}
+      impact_removability: ${{ steps.classify.outputs.impact_removability }}
+      impact_platforms: ${{ steps.classify.outputs.impact_platforms }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -78,6 +85,10 @@ jobs:
           HEAD: ${{ github.event.pull_request.head.sha || github.event.after }}
           LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
           MILESTONE: ${{ inputs.milestone && 'true' || 'false' }}
+          # The selection reads `cargo metadata --no-deps` (no build, no network). The runner's own stable
+          # cargo reads the manifests; installing the pinned toolchain here would cost the minute this job
+          # exists to save. A cargo that cannot read them makes the run `full`, never a silent pass.
+          RUSTUP_TOOLCHAIN: stable
         run: >-
           python3 scripts/ci_changes.py --event "$EVENT" --ref "$REF" --base "$BASE" --head "$HEAD"
           --labels "$LABELS" --milestone "$MILESTONE" --github-output "$GITHUB_OUTPUT"
@@ -219,9 +230,110 @@ jobs:
           shard: ${{ matrix.shard }}
           archive: artifacts/core-archive
 
+  # Impact selection (ARC-154's note of 2026-11-27; scripts/ci_impact.py). On a pull request whose mode is
+  # `impact`, the selected Rust packages and test targets run on Linux, in as many shards as their ARC-110
+  # weight needs (1-6). Each shard builds its own targets (`-p` per package): the per-OS archive is the full
+  # run's. Judged by the required `test` gate.
+  impact-core:
+    name: impact-core (${{ matrix.shard }})
+    needs: changes
+    if: >-
+      needs.changes.outputs.mode == 'impact' && needs.changes.outputs.impact_core == 'true' &&
+      github.event_name == 'pull_request' && !github.event.pull_request.draft
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.changes.outputs.impact_shards) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          filter: blob:none
+      - uses: ./.github/actions/layer
+        with:
+          layer: core
+          shard: ${{ matrix.shard }}
+          select: ${{ needs.changes.outputs.impact_select }}
+
+  # The same selection natively on Windows and macOS, only for a platform-specific change (a path or a
+  # changed line that branches on the platform; scripts/ci_impact.py). Judged by `test-windows` and
+  # `test-macos`.
+  impact-core-native:
+    name: impact-core (${{ matrix.os }}, ${{ matrix.shard }})
+    needs: changes
+    if: >-
+      needs.changes.outputs.mode == 'impact' && needs.changes.outputs.impact_core == 'true' &&
+      needs.changes.outputs.impact_platforms == 'true' &&
+      github.event_name == 'pull_request' && !github.event.pull_request.draft
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2025, macos-26]
+        shard: ${{ fromJSON(needs.changes.outputs.impact_shards) }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          filter: blob:none
+      - uses: ./.github/actions/native
+        with:
+          layer: core
+          shard: ${{ matrix.shard }}
+          select: ${{ needs.changes.outputs.impact_select }}
+
+  # The selected Python areas on Linux (ci_layer.py `python --areas`): the static checks always, the
+  # binary only when an area needs it. Judged by `test`.
+  impact-python:
+    name: impact-python
+    needs: changes
+    if: >-
+      needs.changes.outputs.mode == 'impact' && needs.changes.outputs.impact_python != '' &&
+      github.event_name == 'pull_request' && !github.event.pull_request.draft
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          filter: blob:none
+      - uses: ./.github/actions/layer
+        with:
+          layer: python
+          areas: ${{ needs.changes.outputs.impact_python }}
+
+  # The Godot client tests on Linux, as the nightly's `clients` layer runs them (ci_godot.py, its named
+  # skips included), in three shards by GODOT_WEIGHTS, when a client, a Presentation Pack, a launcher or
+  # the server changed. The 3D rendered far-field check stays in `farfield` (full runs) and the nightly.
+  # Judged by `test`.
+  impact-godot:
+    name: impact-godot (${{ matrix.shard }})
+    needs: changes
+    if: >-
+      needs.changes.outputs.mode == 'impact' && needs.changes.outputs.impact_godot == 'true' &&
+      github.event_name == 'pull_request' && !github.event.pull_request.draft
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ["1/3", "2/3", "3/3"]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/godot
+      - uses: ./.github/actions/native
+        with:
+          layer: clients
+          shard: ${{ matrix.shard }}
+
   test:
     name: test
-    needs: [changes, test-archive, test-shard]
+    needs: [changes, test-archive, test-shard, impact-core, impact-python, impact-godot]
     if: >-
       always() && !cancelled() && (
       github.event_name == 'workflow_dispatch' ||
@@ -241,8 +353,25 @@ jobs:
           NOTE: ${{ needs.changes.outputs.note }}
           RESULT: ${{ needs.test-shard.result }}
           ARCHIVE: ${{ needs.test-archive.result }}
+          WANT_CORE: ${{ needs.changes.outputs.impact_core }}
+          CORE: ${{ needs.impact-core.result }}
+          WANT_PYTHON: ${{ needs.changes.outputs.impact_python }}
+          PYTHON: ${{ needs.impact-python.result }}
+          WANT_GODOT: ${{ needs.changes.outputs.impact_godot }}
+          GODOT: ${{ needs.impact-godot.result }}
         run: |
           if [ "$CHANGES" != success ]; then echo "changes: $CHANGES: nothing is known, so nothing passes"; exit 1; fi
+          if [ "$MODE" = impact ]; then
+            echo "test: $NOTE (the selection and its reasons are in the changes job's log)" | tee -a "$GITHUB_STEP_SUMMARY"
+            status=0
+            if [ "$WANT_CORE" = true ]; then echo "impact-core: $CORE" | tee -a "$GITHUB_STEP_SUMMARY"; [ "$CORE" = success ] || status=1; fi
+            if [ -n "$WANT_PYTHON" ]; then echo "impact-python ($WANT_PYTHON): $PYTHON" | tee -a "$GITHUB_STEP_SUMMARY"; [ "$PYTHON" = success ] || status=1; fi
+            if [ "$WANT_GODOT" = true ]; then echo "impact-godot: $GODOT" | tee -a "$GITHUB_STEP_SUMMARY"; [ "$GODOT" = success ] || status=1; fi
+            if [ "$WANT_CORE" != true ] && [ -z "$WANT_PYTHON" ] && [ "$WANT_GODOT" != true ]; then
+              echo "impact: no test reachable from this change beyond fast" | tee -a "$GITHUB_STEP_SUMMARY"
+            fi
+            exit "$status"
+          fi
           if [ "$CODE" != true ] || [ "$MODE" != full ]; then
             echo "test: $NOTE" | tee -a "$GITHUB_STEP_SUMMARY"
             exit 0
@@ -316,7 +445,7 @@ jobs:
 
   test-windows:
     name: test-windows
-    needs: [changes, test-windows-archive, test-windows-shard]
+    needs: [changes, test-windows-archive, test-windows-shard, impact-core-native]
     if: >-
       always() && !cancelled() && (
       github.event_name == 'workflow_dispatch' ||
@@ -336,8 +465,19 @@ jobs:
           NOTE: ${{ needs.changes.outputs.note }}
           RESULT: ${{ needs.test-windows-shard.result }}
           ARCHIVE: ${{ needs.test-windows-archive.result }}
+          WANT: ${{ needs.changes.outputs.impact_core == 'true' && needs.changes.outputs.impact_platforms == 'true' }}
+          NATIVE: ${{ needs.impact-core-native.result }}
         run: |
           if [ "$CHANGES" != success ]; then echo "changes: $CHANGES: nothing is known, so nothing passes"; exit 1; fi
+          if [ "$MODE" = impact ] && [ "$WANT" = true ]; then
+            echo "test-windows: platform-specific change: impact-core on macOS and Windows: $NATIVE" | tee -a "$GITHUB_STEP_SUMMARY"
+            test "$NATIVE" = success
+            exit $?
+          fi
+          if [ "$MODE" = impact ]; then
+            echo "test-windows: $NOTE; no platform-specific change, so Linux carries the selection" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           if [ "$CODE" != true ] || [ "$MODE" != full ]; then
             echo "test-windows: $NOTE" | tee -a "$GITHUB_STEP_SUMMARY"
             exit 0
@@ -422,7 +562,7 @@ jobs:
 
   test-macos:
     name: test-macos
-    needs: [changes, test-macos-archive, test-macos-shard]
+    needs: [changes, test-macos-archive, test-macos-shard, impact-core-native]
     if: >-
       always() && !cancelled() && (
       github.event_name == 'workflow_dispatch' ||
@@ -442,8 +582,19 @@ jobs:
           NOTE: ${{ needs.changes.outputs.note }}
           RESULT: ${{ needs.test-macos-shard.result }}
           ARCHIVE: ${{ needs.test-macos-archive.result }}
+          WANT: ${{ needs.changes.outputs.impact_core == 'true' && needs.changes.outputs.impact_platforms == 'true' }}
+          NATIVE: ${{ needs.impact-core-native.result }}
         run: |
           if [ "$CHANGES" != success ]; then echo "changes: $CHANGES: nothing is known, so nothing passes"; exit 1; fi
+          if [ "$MODE" = impact ] && [ "$WANT" = true ]; then
+            echo "test-macos: platform-specific change: impact-core on macOS and Windows: $NATIVE" | tee -a "$GITHUB_STEP_SUMMARY"
+            test "$NATIVE" = success
+            exit $?
+          fi
+          if [ "$MODE" = impact ]; then
+            echo "test-macos: $NOTE; no platform-specific change, so Linux carries the selection" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           if [ "$CODE" != true ] || [ "$MODE" != full ]; then
             echo "test-macos: $NOTE" | tee -a "$GITHUB_STEP_SUMMARY"
             exit 0
@@ -591,17 +742,26 @@ jobs:
           CODE: ${{ needs.changes.outputs.code }}
           MODE: ${{ needs.changes.outputs.mode }}
           NOTE: ${{ needs.changes.outputs.note }}
+          WANT: ${{ needs.changes.outputs.impact_removability }}
         run: |
           if [ "$CHANGES" != success ]; then echo "changes: $CHANGES: nothing is known, so nothing passes"; exit 1; fi
-          if [ "$CODE" != true ] || [ "$MODE" != full ]; then
+          if [ "$MODE" = impact ] && [ "$WANT" = true ]; then
+            echo "removability: $NOTE: its inputs changed, so it runs" | tee -a "$GITHUB_STEP_SUMMARY"
+          elif [ "$MODE" = impact ]; then
+            echo "removability: $NOTE: none of its inputs changed" | tee -a "$GITHUB_STEP_SUMMARY"
+          elif [ "$CODE" != true ] || [ "$MODE" != full ]; then
             echo "removability: $NOTE" | tee -a "$GITHUB_STEP_SUMMARY"
           fi
-      - if: needs.changes.outputs.code == 'true' && needs.changes.outputs.mode == 'full'
+      - if: >-
+          needs.changes.outputs.code == 'true' && (needs.changes.outputs.mode == 'full' ||
+          (needs.changes.outputs.mode == 'impact' && needs.changes.outputs.impact_removability == 'true'))
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           filter: blob:none
-      - if: needs.changes.outputs.code == 'true' && needs.changes.outputs.mode == 'full'
+      - if: >-
+          needs.changes.outputs.code == 'true' && (needs.changes.outputs.mode == 'full' ||
+          (needs.changes.outputs.mode == 'impact' && needs.changes.outputs.impact_removability == 'true'))
         uses: ./.github/actions/layer
         with:
           layer: removability

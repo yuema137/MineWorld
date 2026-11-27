@@ -20,6 +20,17 @@ inputs:
     description: Directory containing the verified per-OS core archive, or empty for local builds.
     required: false
     default: ""
+  select:
+    description: >-
+      An impact selection (scripts/ci_impact.py, the `changes` job's `impact_select`), as JSON: `core` runs
+      only those packages and test targets (ARC-154's note of 2026-11-27). Empty: the whole layer.
+    required: false
+    default: ""
+  areas:
+    description: >-
+      Comma-separated Python areas for `python --areas` (impact selection); empty runs every area.
+    required: false
+    default: ""
 runs:
   using: composite
   steps:
@@ -57,6 +68,8 @@ runs:
         LAYER: ${{ inputs.layer }}
         SHARD: ${{ inputs.shard }}
         ARCHIVE: ${{ inputs.archive }}
+        SELECT: ${{ inputs.select }}
+        AREAS: ${{ inputs.areas }}
       # CARGO_HOME lies outside the checkout: a git dependency Cargo checks out there must not count as
       # compiled from the framework workspace (DECISIONS.md ARC-54 point 2, ARC-66 point 4).
       run: |
@@ -64,6 +77,11 @@ runs:
         shard=()
         if [ -n "$SHARD" ]; then shard=(--shard "$SHARD"); fi
         if [ -n "$ARCHIVE" ]; then shard+=(--archive "$ARCHIVE"); fi
+        if [ -n "$SELECT" ]; then
+          mkdir -p artifacts && printf '%s' "$SELECT" > artifacts/ci-selection.json
+          shard+=(--select artifacts/ci-selection.json)
+        fi
+        if [ -n "$AREAS" ]; then shard+=(--areas "$AREAS"); fi
         docker run --rm \
           --user "$(id -u):$(id -g)" \
           --volume "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE" \

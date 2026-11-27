@@ -262,11 +262,23 @@ One slot, expected <3 minutes; each subprocess bounded at 600 seconds, no paid c
 - [ ] deterministic validation
 - [ ] LLM logic review
 
-### E4 — impact job (P4)
+### E4 — impact selection per PR (P4, revised by the operator ruling of 2026-11-27)
 
-- [ ] implementation
-- [ ] deterministic validation
-- [ ] LLM logic review
+Branch `ci/econ-impact-select`, worktree `/Users/yuema137/mineworld-worktrees/ci-econ-impact-select`, stacked on E1
+(`ci/econ-p1-nextest`, #534). Authority: the operator ruling of 2026-11-27 (ARC-154's dated note), which
+replaces "deferred" with impact-selected tests per PR and keeps the full matrix for milestones and the nightly.
+
+- [x] Implementation: `scripts/ci_impact.py` (the selection), `ci_changes.py` (mode `impact`, the `impact_*`
+  outputs, fail closed to `full`), `ci_shard.py` (`scope`: `-p` per package instead of `--workspace`),
+  `ci_layer.py` (`core --select FILE`, `python --areas A,B`), `.github/actions/{layer,native}` (`select`,
+  `areas` inputs), `ci.yml` (`impact-core`, `impact-core-native`, `impact-python`, `impact-godot`; the four
+  required gates judge them), ARC-154 dated note. Full-mode commands are unchanged: `--list` of `fast`, `docs`
+  and `python` is byte-identical to E1's.
+- [x] Deterministic validation (local): see 3.5.
+- [ ] LLM logic review: independent red-team pending (coordinator-owned).
+- [ ] Hosted: the PR's own run is `full` (it changes `.github/` and `scripts/ci_*`), so it proves the full path
+  and the self-tests, not an `impact` run. The first `impact` run on a later ordinary PR is the hosted
+  evidence for the new jobs; record it here.
 
 ### E5 — required check (operator)
 
@@ -370,3 +382,56 @@ dates; `Recovered-From:` trailers name the originals).
 - Merge of `7718d952`: the only conflict was this file (main #526 vs the P1 recovery
   ledger). Resolution keeps main's text verbatim and inserts the P1 record as the
   "E1 implementation record" subsection.
+
+### 3.5 E4 departures from the frozen design and local evidence (2026-11-27)
+
+Departures (the ruling governs; each is bounded and recorded rather than escalated):
+
+- D-E4-1. No separate required `impact` job (design §2.4, Q-1, E5). The ruling makes the existing required
+  gates (`test`, `test-windows`, `test-macos`, `removability`) judge the selected jobs, so branch protection
+  does not change and E5 is moot unless the operator wants a separate check.
+- D-E4-2. No recorded test -> pack map yet (design §2.3 "Build (small)", rule 2's CLI narrowing, rule 3).
+  The operator brief asked for changed crates plus reverse dependents via `cargo metadata`; a System Pack
+  change therefore reaches nearly the whole CLI suite (226 of ~250 units on 0599b2b5). Data paths use the
+  Rust files that name their directory (`git grep`) instead of a recorded map. Follow-up: the pack map.
+- D-E4-3. Hub paths (`kernel`, `contracts`, ...) are not a special "gate tier" rule; rule 2's reverse
+  dependents reach the same set. `Cargo.lock`, the root manifest and the toolchain pin are `full`, not
+  "gate tier", per the operator brief ("unknown/global changes fall back to full"). The long tier (P2) is
+  not split yet, so a hub change takes the full run's six Linux shards.
+- D-E4-4. The 25-minute cap is not enforced: a selection is sharded 1-6 ways by ARC-110 weight, never
+  trimmed (design: "sharded, never trimmed"); six shards is the full run's own count.
+- D-E4-5. Python and Godot selection (design rule 5 left Python to another lane): Python areas run the
+  `python` layer subset; Godot paths and direct `server/` changes run the Godot client tests (the nightly
+  `clients` layer, three Linux shards). The 3D rendered far-field check (`farfield`, 50 min) stays full-only.
+- D-E4-6. macOS and Windows run the selection only for platform-specific changes (operator brief); the
+  design kept all three OSes on the gate tier at milestones, which is unchanged.
+
+Local evidence (macOS, this worktree):
+
+- PASS `ci_changes.py --self-test`: 49 mode/classification cases plus 27 selection cases (single crate,
+  kernel with transitive dependents, one test file, a test module directory, shared test modules, a dev-only
+  helper, Python-only (SDK, lock), Godot-only (2D client, launcher), docs-only, workflow -> full, CI script
+  -> full, `Cargo.lock` -> full, unknown path -> full, a guide link target -> the guide test, a world -> its
+  readers, the server -> Python and Godot, platform path and platform line, a crate manifest ->
+  removability, a hub-sized selection -> 6 shards, partition completeness), and a failed `cargo metadata`
+  -> full. Mutation check: dropping transitive dependents and the `scripts/ci_` global rule fails 6 cases.
+- PASS `ci_shard.py --self-test` (new scoped-command cases), `test_ci_execution.py` (6), `check_ci_pins`,
+  `ci_godot.py --self-test`; YAML of ci.yml and both actions parses.
+- Real diffs (`ci_changes.py --event pull_request` over single-class commits): weather pack 0599b2b5 ->
+  impact, 226 units, 6 shards; kernel 92aa9723 -> impact, 247 units, 6 shards; SDK a5c1ef95 -> impact,
+  python=sdk/python, 19 units (the scan suite), 1 shard, removability; 2D client c86304e9 -> impact, godot,
+  1 shard of client/scan targets; 3D client 884fe65a -> impact, godot, removability, 2 shards; guide-linked
+  spec c9ba481a -> impact, the guide test + scan suite, 1 shard; workflow d5d10362 -> full; one CLI test file
+  563f517b -> impact, that target + scan suite, 1 shard.
+- Real Cargo acceptance of the scoped flags: see the E4 cargo note below.
+
+E4 cargo note (2026-11-27, macOS, one slot, own target dir): the selection of a one-test change in
+`authoring/attributes/tests/fidelity.rs` (20 units: the target, the scan suite, `<lib+bins>`, `<doc>`) was
+listed by `ci_layer.py --list core --select` and its commands executed with `cargo test` in place of
+`cargo nextest run` (nextest is not installed locally): Cargo accepted every `-p`/target flag set (build,
+tests, custom harness, doctests). PASS for flag acceptance; nextest's own run is NOT RUN locally.
+Finding: `mineworld-acceptance::currency_names::no_reference_world_currency_name_is_written_into_code`
+FAILS on main's content (`clients/shared/TRADE.md`, `clients/shared/checks/money_check.gd`,
+`cognition/{motivated,rule-controller}/src/price_tests.rs` name 'US dollar'). This is pre-existing debt the
+deferred mode hid, not an E4 regression; since the scan suite joins every Rust selection, every impact PR's
+`test` gate is red until its owner fixes it. Escalated to the coordinator.
