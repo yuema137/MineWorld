@@ -13,9 +13,42 @@ Way 1 downloads a ready-made program from the first release on. Its commands are
 [Step 1.5](#step-15--or-download-a-ready-made-program) at the end of this page: do that step now, then come back here
 and continue at "Make a new, empty folder". Way 2 builds the program from the source code, and it works today.
 
-**Way 2: build from source (works today).** You need [Git](https://git-scm.com) and
-[Rust](https://rustup.rs). Then run these commands once. The first one goes to your home folder, so the
-source lands in `MineWorld` there. On macOS and Linux:
+**Way 2: build from source (works today).** You need four tools:
+
+- [Git](https://git-scm.com), to get the source code.
+- [Git LFS](https://git-lfs.com), for the large art files that the 2D and 3D clients draw with.
+- [Rust](https://rustup.rs), to build the program.
+- A C compiler, because a few parts of the build are written in C. On macOS that is the Xcode
+  Command Line Tools (`xcode-select --install`). On Linux it is `build-essential`. On Windows it is
+  the C++ build tools of Visual Studio; Rust's installer offers to install them.
+
+If you have Git and a C compiler, install Git LFS and Rust. On macOS (with
+[Homebrew](https://brew.sh)) and on Linux (with `apt`, as on Debian and Ubuntu):
+
+<!-- guide: cold-start -->
+
+```sh
+case "$(uname)" in
+  Darwin) brew install git-lfs ;;
+  *) sudo apt-get update && sudo apt-get install -y git-lfs ;;
+esac
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+```
+
+On Windows, in PowerShell:
+
+<!-- guide: cold-start -->
+
+```powershell
+winget install --id GitHub.GitLFS --exact --source winget --disable-interactivity --accept-source-agreements --accept-package-agreements
+Invoke-WebRequest https://win.rustup.rs/x86_64 -OutFile "$env:TEMP\rustup-init.exe"
+& "$env:TEMP\rustup-init.exe" -y
+```
+
+Close the terminal and open a new one, so that it finds the programs you just installed.
+
+Then run these commands once. The first one goes to your home folder, so the source lands in
+`MineWorld` there. On macOS and Linux:
 
 ```sh
 cd "$HOME"
@@ -35,6 +68,26 @@ cargo build --release -p mineworld-cli
 
 The build takes a few minutes the first time. It makes one file: `target/release/mineworld` on
 macOS and Linux, or `target\release\mineworld.exe` on Windows.
+
+Now fetch the art files that Git LFS keeps. On macOS and Linux:
+
+<!-- guide: cold-start -->
+
+```sh
+cd "$HOME/MineWorld"
+git lfs install
+git lfs pull
+```
+
+On Windows, in PowerShell:
+
+<!-- guide: cold-start -->
+
+```powershell
+cd $HOME\MineWorld
+git lfs install
+git lfs pull
+```
 
 Make a new, empty folder for your worlds, outside the `MineWorld` folder and outside the download folder. Open your
 terminal in it. If you chose Way 1, your `PATH` is already set, so skip the two `PATH` blocks below.

@@ -2,22 +2,46 @@
 //! 6, 8). Every block gets one outcome; a pending block is never reported as passed.
 
 use std::path::Path;
+use std::time::{Duration, Instant};
 
-use super::command;
+use super::command::{self, Rules};
 use super::features::Features;
 use super::files;
 use super::page::{Block, Body, Directive, Page};
 use super::rewrite::{self, Mode};
 
+/// The reason a `cold-start` block is listed as not run in the default mode (§6). Unlike a pending feature,
+/// it does not make the blocks after it pending: they never depended on it, because the default run's
+/// machine already has what the block installs.
+pub const COLD_START: &str = "cold-start";
+
 /// What a page run needs from outside the page: the features the guide is checked against, the
-/// repository the committed folders of `equals` are named in (and the one `git clone` reads, §4.6), and
-/// the reader's home folder the shell blocks see as `HOME` (§4.6).
+/// repository the committed folders of `equals` are named in (and the one `git clone` reads, §4.6), the
+/// reader's home folder the shell blocks see as `HOME` (§4.6), the `mineworld` binary every command runs,
+/// the rules (§4.6 or §4.7), and whether a differing console block fails or is re-recorded (§11.2).
 pub struct Environment<'a> {
     pub features: &'a Features,
     pub repo: &'a Path,
     pub home: &'a Path,
+    pub binary: &'a Path,
+    /// Which rules the run follows (§4.6 or §4.7).
+    pub rules: Rules,
     /// Whether a console block whose output differs fails, or is re-recorded (§11.2).
     pub mode: Mode,
+}
+
+impl<'a> Environment<'a> {
+    /// The repository's own guide test (§4.6): the test's own binary, the default rules, check mode.
+    pub fn repository(features: &'a Features, repo: &'a Path, home: &'a Path) -> Self {
+        Self {
+            features,
+            repo,
+            home,
+            binary: Path::new(command::BINARY),
+            rules: Rules::Repository,
+            mode: Mode::Check,
+        }
+    }
 }
 
 /// What the runner made of one executed block.
@@ -48,11 +72,14 @@ pub struct Report {
     pub line: usize,
     /// What happened to the block.
     pub outcome: Outcome,
+    /// How long the block took (§11 item 5).
+    pub elapsed: Duration,
 }
 
 /// Runs `page` in `scratch`. `carried` is the feature a page this one continues is pending on, if any: the
 /// scratch folder is then not the state this page expects, so every block is pending too (§8.1, rule 3).
-/// Returns one report per executed block, and the pending feature the scratch folder is left with.
+/// Returns one report per executed block, and the pending feature the scratch folder is left with. A
+/// `cold-start` block that is not run carries nothing (§6).
 pub fn run_page(
     name: &str,
     page: &Page,
@@ -63,12 +90,14 @@ pub fn run_page(
     let mut pending = carried;
     let mut reports = Vec::with_capacity(page.blocks.len());
     for block in &page.blocks {
+        let began = Instant::now();
         let outcome = match &pending {
             Some(feature) => Outcome::Pending(feature.clone()),
             None => block_outcome(block, scratch, environment),
         };
         if pending.is_none()
             && let Outcome::Pending(feature) = &outcome
+            && feature != COLD_START
         {
             pending = Some(feature.clone());
         }
@@ -77,6 +106,7 @@ pub fn run_page(
             step: block.step.clone(),
             line: block.line,
             outcome,
+            elapsed: began.elapsed(),
         });
     }
     (reports, pending)
@@ -97,20 +127,36 @@ fn block_outcome(block: &Block, scratch: &Path, environment: &Environment) -> Ou
                 Some(true) => {}
             },
             Directive::OperatorOnly => return Outcome::Pending("operator-only".to_owned()),
+            Directive::ColdStart if environment.rules == Rules::Repository => {
+                return Outcome::Pending(COLD_START.to_owned());
+            }
+            Directive::ColdStart => {}
             Directive::Packs(dir) => packs = Some(dir.as_str()),
             Directive::Equals { folder, committed } => equals = Some((folder, committed)),
         }
     }
     let result = match &block.body {
         Body::File { path, text } => files::write(scratch, path, text).map(|()| None),
-        Body::Console { exit, lines } => console(scratch, *exit, lines, packs, environment.mode),
+        Body::Console { exit, lines } => console(
+            environment.binary,
+            scratch,
+            *exit,
+            lines,
+            packs,
+            environment.mode,
+        ),
         Body::Shell { family, .. } if !family.is_this_os() => {
             return Outcome::OtherOs(family.word());
         }
-        Body::Shell { family, text } => {
-            command::shell(scratch, environment.home, environment.repo, *family, text)
-                .map(|()| None)
-        }
+        Body::Shell { family, text } => command::shell(
+            scratch,
+            environment.home,
+            environment.repo,
+            *family,
+            text,
+            environment.rules,
+        )
+        .map(|()| None),
     };
     let rewritten = match result {
         Ok(rewritten) => rewritten,
@@ -131,6 +177,7 @@ fn block_outcome(block: &Block, scratch: &Path, environment: &Environment) -> Ou
 /// write mode a difference is not a failure: the block's lines with each differing command's output recorded
 /// (§11.2) are returned instead. An exit code other than the block's is a failure in both modes.
 fn console(
+    binary: &Path,
     scratch: &Path,
     exit: i32,
     lines: &[String],
@@ -145,7 +192,7 @@ fn console(
             words.push("--packs".to_owned());
             words.push(dir.to_owned());
         }
-        let (actual, code) = command::run(scratch, &words)?;
+        let (actual, code) = command::run(binary, scratch, &words)?;
         if code != exit {
             return Err(format!(
                 "`{command_line}` exited with {code}, the page expects {exit}:\n{actual}"
@@ -174,7 +221,7 @@ fn console(
 
 /// A console block as (command, expected output) pairs. The block's first line is a command, which parsing
 /// guarantees, so every output line has a command above it.
-fn commands(lines: &[String]) -> Vec<(String, String)> {
+pub fn commands(lines: &[String]) -> Vec<(String, String)> {
     let mut pairs: Vec<(String, String)> = Vec::new();
     for line in lines {
         if let Some(command_line) = line.strip_prefix("$ ") {

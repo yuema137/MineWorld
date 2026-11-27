@@ -14,8 +14,41 @@
 [Step 1.5](#step-15--或者下载现成的程序) 里：先做那一步，再回到这里，从“新建一个空文件夹”那里接着做。
 方式二是从源代码自己 build，现在就能用。
 
-**方式二：从源代码 build（现在就能用）。** 你需要先装好 [Git](https://git-scm.com) 和
-[Rust](https://rustup.rs)，然后把下面几条命令跑一次。第一条先回到你的主文件夹，这样源代码会放在那里的 `MineWorld` 里。
+**方式二：从源代码 build（现在就能用）。** 你需要四样工具：
+
+- [Git](https://git-scm.com)，用来拿源代码。
+- [Git LFS](https://git-lfs.com)，用来拿 2D 和 3D 客户端画图用的大美术文件。
+- [Rust](https://rustup.rs)，用来 build 程序。
+- 一个 C 编译器，因为 build 里有几部分是用 C 写的。macOS 上是 Xcode Command Line Tools
+  （`xcode-select --install`）。Linux 上是 `build-essential`。Windows 上是 Visual Studio 的 C++
+  build 工具；Rust 的安装程序会提出帮你装。
+
+如果 Git 和 C 编译器已经有了，就装 Git LFS 和 Rust。macOS 上（用 [Homebrew](https://brew.sh)）和
+Linux 上（用 `apt`，比如 Debian 和 Ubuntu）这样写：
+
+<!-- guide: cold-start -->
+
+```sh
+case "$(uname)" in
+  Darwin) brew install git-lfs ;;
+  *) sudo apt-get update && sudo apt-get install -y git-lfs ;;
+esac
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+```
+
+Windows 上，在 PowerShell 里这样写：
+
+<!-- guide: cold-start -->
+
+```powershell
+winget install --id GitHub.GitLFS --exact --source winget --disable-interactivity --accept-source-agreements --accept-package-agreements
+Invoke-WebRequest https://win.rustup.rs/x86_64 -OutFile "$env:TEMP\rustup-init.exe"
+& "$env:TEMP\rustup-init.exe" -y
+```
+
+关掉终端，再开一个新的，新终端才找得到刚装好的程序。
+
+然后把下面几条命令跑一次。第一条先回到你的主文件夹，这样源代码会放在那里的 `MineWorld` 里。
 macOS 和 Linux 上这样写：
 
 ```sh
@@ -36,6 +69,26 @@ cargo build --release -p mineworld-cli
 
 第一次 build 要几分钟。跑完会多出一个文件：macOS 和 Linux 上是 `target/release/mineworld`，
 Windows 上是 `target\release\mineworld.exe`。
+
+现在把 Git LFS 管的美术文件拉下来。macOS 和 Linux 上这样写：
+
+<!-- guide: cold-start -->
+
+```sh
+cd "$HOME/MineWorld"
+git lfs install
+git lfs pull
+```
+
+Windows 上，在 PowerShell 里这样写：
+
+<!-- guide: cold-start -->
+
+```powershell
+cd $HOME\MineWorld
+git lfs install
+git lfs pull
+```
 
 在 `MineWorld` 文件夹和下载的文件夹外面新建一个空文件夹，以后你的世界都放在这里。在这个文件夹里打开终端。
 如果你选的是方式一，`PATH` 已经设好了，跳过下面两段 `PATH` 命令。
