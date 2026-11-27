@@ -15,7 +15,7 @@ Implementation base:    PR #498's head 469ffa8c plus origin/main 315a50a9 merged
 Start condition:        met: frozen; R-c C5 landed (#517); ARC-79 on main; #498 still open (stacked)
 Execution contract:     §11, filled 2026-10-27
 Implementer:            implementation session, worktree impl-s23-rb, branch mvp0/pr-s23-rb
-Lifecycle:              FROZEN; implementation in progress
+Lifecycle:              MERGED 2026-11-27 (#529, merge commit 8afb7b02); design FROZEN 2026-10-27
 ```
 
 **Effort:** `mvp0` · **Step:** [`step-23-release.md`](step-23-release.md) §§3, 5, 7, 9, 10, 13.4, 14 (A-R2,

@@ -15,7 +15,7 @@ Start condition:        this design frozen (met 2026-10-27); PR #497 (ARC-79, QB
                         required for the C0–C3 commits; C1 merges with R-b's `scripts/ci_release.py` if it exists by then
 Execution contract:     §12
 Implementer:            Opus-class for publish.yml (secret handling); Haiku-class for the docs commits
-Lifecycle:              FROZEN 2026-10-27 (scope, invariants and acceptance frozen; progress and evidence writable)
+Lifecycle:              MERGED 2026-11-27 (#524, merge commit 8c971f0f); design FROZEN 2026-10-27
 ```
 
 **Effort:** `mvp0` · **Step:** [`step-23-release.md`](step-23-release.md) §§4.2, 4.3, 5.1, 10, 11 (R-R4, R-R8),

@@ -1,8 +1,20 @@
 # PR FE-a — Food-energy engine: kcal reserve in `needs`, valid-genesis-first saves, schema-aware views
 
-**Lifecycle:** `DRAFT — AWAITING TWO OPERATOR CONFIRMATIONS` (revision 2, 2026-11-27). **Not DESIGN FROZEN; no
-implementation authorized.** Q-FE-1 … Q-FE-5 approved 2026-11-27; the freeze header is set when the operator
-confirms C-FE-2 and answers Q-FE-6 ([`step-fe-food-energy.md`](step-fe-food-energy.md) §1).
+## DESIGN FROZEN — 2026-11-27 (operator approved in the primary session: every question answered with its recommendation)
+
+```text
+Design revision:        revision 2 (2026-11-27), lane L1, after the red-team pre-freeze review
+Approved by / evidence: the operator, 2026-11-27, relayed by the primary coordinator:
+                        "同意三个都按推荐冻结" (Q-FE-1 … Q-FE-5, PRs #535/#536/#537 as recommended) and
+                        "营养设计那两点、S34-c3 也全都同意你的推荐" (C-FE-2 confirmed; Q-FE-6 defer per-person)
+Implementation base:    origin/main @ 24dbc3bf (no mapped source path changed since the 8c971f0f re-audit);
+                        C0 records the exact base at dispatch
+Execution contract:     .structured-coding/plans/mvp0/pr-fe-a-contract.md
+Lifecycle:              FROZEN
+```
+
+Frozen: scope, invariants (§3), acceptance (§5) and the commit plan (§6). Progress, evidence, audit findings and
+bounded corrections stay writable.
 
 **Parent step:** [`step-fe-food-energy.md`](step-fe-food-energy.md). **Execution contract:**
 [`pr-fe-a-contract.md`](pr-fe-a-contract.md). **History/evidence:** [`fe-evidence/`](fe-evidence/) (the
@@ -20,7 +32,8 @@ pre-freeze review; first audit at `7718d952`).
 
 ## 0. Decisions this design depends on (plain language)
 
-Q-FE-1 … Q-FE-5 **approved by the operator, 2026-11-27** ("同意三个都按推荐冻结"); C-FE-2 and Q-FE-6 pending.
+All **ruled by the operator, 2026-11-27**: Q-FE-1 … Q-FE-5 ("同意三个都按推荐冻结"); C-FE-2 confirmed and Q-FE-6
+deferred ("营养设计那两点、S34-c3 也全都同意你的推荐").
 Full wording in the step document §1.
 
 1. **Q-FE-1 — Reserve bar.** One kcal reserve per person, full at one configured day's use (2000 default), draining

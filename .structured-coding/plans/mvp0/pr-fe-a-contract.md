@@ -1,8 +1,7 @@
 # PR FE-a — execution contract (filled)
 
-**Lifecycle:** `DRAFT — AWAITING TWO OPERATOR CONFIRMATIONS` (revision 2, 2026-11-27). Not in force until
-`DESIGN FROZEN` is recorded on [`pr-fe-a-food-energy-engine.md`](pr-fe-a-food-energy-engine.md), which waits on
-C-FE-2 and Q-FE-6 ([`step-fe-food-energy.md`](step-fe-food-energy.md) §1). Q-FE-1 … Q-FE-5 are approved. The generic body that this block specializes is
+**Lifecycle:** `FROZEN` (2026-11-27), with [`pr-fe-a-food-energy-engine.md`](pr-fe-a-food-energy-engine.md)
+DESIGN FROZEN; every question in [`step-fe-food-energy.md`](step-fe-food-energy.md) §1 ruled by the operator. The generic body that this block specializes is
 `.claude/skills/structured-coding/prompts/implementation-working-rules.md` §1 onward (read in full by the executor;
 not copied here).
 
@@ -23,8 +22,8 @@ RELATED / BINDING DOCS:
   History only: .structured-coding/plans/mvp0/fe-evidence/.
 
 IMPLEMENTATION BASE:
-  origin/main at the time of dispatch; audited design base 8c971f0f. C0 records the exact base. If any
-  mapped path (design §4) changed since 8c971f0f, re-audit those seams before C1 (bounded), or stop if a
+  origin/main @ 24dbc3bf at freeze (mapped source unchanged since the 8c971f0f re-audit) or later at
+  dispatch; C0 records the exact base. If any mapped path (design §4) changed since 24dbc3bf, re-audit those seams before C1 (bounded), or stop if a
   contract in design §3 no longer fits (material).
 
 IMPLEMENTATION WORKTREE / BRANCH / SESSION:

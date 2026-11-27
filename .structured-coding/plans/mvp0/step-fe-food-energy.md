@@ -9,11 +9,10 @@ rows "Initial USD 10,000", "Food energy", "Realistic prices", §4 items 3–5 an
 configurable"). **Builds on:** [`step-35-needs-and-sleep.md`](step-35-needs-and-sleep.md) (frozen) and
 [`pr-s35-nb-needs.md`](pr-s35-nb-needs.md).
 
-**Lifecycle:** `DRAFT — AWAITING TWO OPERATOR CONFIRMATIONS` (revision 2, 2026-11-27). **Not DESIGN FROZEN.**
-Q-FE-1 … Q-FE-5 were approved as recommended on 2026-11-27 (ruling below). The red-team pre-freeze review
-(`/Users/yuema137/mineworld-worktrees/_reviews/design-fe.md`) found that Q-FE-2 understated its consequence and that
-per-person overrides were never asked; the freeze header is set once the operator confirms **C-FE-2** and answers
-**Q-FE-6** below. No implementation is authorized until then.
+**Lifecycle:** `STEP DESIGN FROZEN — 2026-11-27` (operator approved in the primary session: every question in §1
+answered with its recommendation). PR FE-a is DESIGN FROZEN with its contract; PR FE-b still needs its own design
+and freeze. The red-team pre-freeze review (`/Users/yuema137/mineworld-worktrees/_reviews/design-fe.md`) raised
+C-FE-2 and Q-FE-6, which the operator then ruled.
 
 **Design session:** lane L1, worktree `/Users/yuema137/mineworld-worktrees/design-nutrition`, branch
 `docs/pr-design-nutrition`, audit base `origin/main @ 8c971f0f` (first audit `7718d952`).
@@ -34,10 +33,12 @@ player starts with USD 10,000** (operator, 2026-11-23).
 | Q-FE-3 | **Three small framework changes outside `needs`.** (a) One domain-neutral kernel error, `InvalidGenesisContent`, for "this authored world is contradictory" (owner, entity, code, field). It knows nothing about food or money; it amends S35's "kernel unchanged" by one error type, recorded in a new ARC record. (b) The save file is created only *after* the world has started successfully, so a bad world leaves no empty save behind (today it does, for any authoring error). (c) An SDK hook letting a System Pack declare its own schema version and reject contradictory configuration with the file and entry named. Accept? | **Yes.** | Yes, 2026-11-27 |
 | Q-FE-4 | **Two checkpoints.** First the engine PR **FE-a** (this step's only frozen PR): the kcal model, the three framework changes, both clients and agent views, proven on *synthetic* test worlds. Then a separate content PR **FE-b** for Market Town: dated US retail prices (one inventory item = one whole serving), kcal per serving, wallets, wages and stock. FE-b gets its own design and freeze, and stays blocked until every price/portion row is sourced and a liquidity/stock proof holds under the residents' random spending. Accept? | **Yes.** | Yes, 2026-11-27 |
 | Q-FE-5 | **Execution authority for FE-a once frozen.** A fresh Claude Opus 5.5 implementation session in its own worktree may implement, validate locally, make semantic commits, push, open the PR and repair CI up to READY FOR OPERATOR REVIEW. Merge stays with the operator. No paid calls, no models, no local full-workspace runs. Authorize? | **Yes.** | Yes, 2026-11-27 |
-| **C-FE-2** | **Confirm the full consequence of Q-FE-2.** *Every* existing save of a world that enables `needs` — Market Town today, even though it still uses the old unitless hunger — stops loading in the new build; play it with the previous build. A CHANGELOG entry says so. (Keeping unitless saves loadable would need a second hunger store or per-variant versions, which the design forbids.) Confirm? | **Yes.** | **pending** |
-| **Q-FE-6** | **Per-person daily use.** The operator's list (playable-MVP §5) included "optional per-person overrides". FE-a supports daily use per world and per actor class (e.g. a `high-energy` class at 2400); a value for one named person is not in this step (it would need a new per-person needs field). Defer per-person values? | **Yes, defer.** | **pending** |
+| **C-FE-2** | **Confirm the full consequence of Q-FE-2.** *Every* existing save of a world that enables `needs` — Market Town today, even though it still uses the old unitless hunger — stops loading in the new build; play it with the previous build. A CHANGELOG entry says so. (Keeping unitless saves loadable would need a second hunger store or per-variant versions, which the design forbids.) Confirm? | **Yes.** | Confirmed, 2026-11-27 |
+| **Q-FE-6** | **Per-person daily use.** The operator's list (playable-MVP §5) included "optional per-person overrides". FE-a supports daily use per world and per actor class (e.g. a `high-energy` class at 2400); a value for one named person is not in this step (it would need a new per-person needs field). Defer per-person values? | **Yes, defer.** | Deferred, 2026-11-27 |
 
-Answer form for the remainder: "FE: confirm C-FE-2, defer per-person" lets the primary set `DESIGN FROZEN` on FE-a.
+**Operator ruling, 2026-11-27 (relayed by the coordinator), quoted:** "营养设计那两点、S34-c3 也全都同意你的推荐" —
+C-FE-2 confirmed (every existing save of a needs-enabled world stops loading in the new build; the CHANGELOG says to
+use the previous build) and Q-FE-6 answered "defer per-person daily kcal".
 
 Recorded defaults, not operator-listed: thirst/hydration stays excluded; intake diary ("kcal eaten today") is not
 shown.
@@ -63,7 +64,7 @@ optimizer.
 
 | PR | Design | Content | Depends on | State |
 | --- | --- | --- | --- | --- |
-| **FE-a** — food-energy engine | [`pr-fe-a-food-energy-engine.md`](pr-fe-a-food-energy-engine.md); contract [`pr-fe-a-contract.md`](pr-fe-a-contract.md) | `needs` v2 model, SDK owner-version/validation hook, `InvalidGenesisContent`, valid-genesis-first save creation in both CLI callers, schema-aware shared/2D/3D/agent/LM views. Synthetic worlds only. | `main` | DRAFT — FREEZE-READY |
+| **FE-a** — food-energy engine | [`pr-fe-a-food-energy-engine.md`](pr-fe-a-food-energy-engine.md); contract [`pr-fe-a-contract.md`](pr-fe-a-contract.md) | `needs` v2 model, SDK owner-version/validation hook, `InvalidGenesisContent`, valid-genesis-first save creation in both CLI callers, schema-aware shared/2D/3D/agent/LM views. Synthetic worlds only. | `main` | DESIGN FROZEN 2026-11-27 (base `24dbc3bf`) |
 | **FE-b** — Market Town food-energy content | to be written after FE-a freezes; inputs in §6 | Market Town `configure/needs.yaml` food-energy 2000; every needs person initial reserve; ten items' kcal and serving; prices from dated sources; visitor 1 000 000 cents; reviewed NPC wallets, wages, stock and production; any explicit controller-profile change. | FE-a merged; §6 blockers closed | BLOCKED |
 
 Why one engine PR rather than two: the decisive real-CLI evidence for the generic seams (an invalid

@@ -1,12 +1,12 @@
 # PR PDN — Places have display names, authored in the World Pack and localisable
 
-## DESIGN FROZEN 2026-10-27 (operator approved in the primary session: every question answered as recommended) 2026-10-26 (not frozen; implementation needs an operator freeze)
+## DESIGN FROZEN 2026-10-27 (operator approved in the primary session: every question answered as recommended)
 
 **Ruled 2026-10-27 (operator, primary session):** every question below is answered as recommended.
 
 ```text
-Lifecycle:              DRAFT 2026-10-26. Not frozen. No implementation before an operator ruling on §9 and a
-                        DESIGN FROZEN header.
+Lifecycle:              FROZEN 2026-10-27 (drafted 2026-10-26; §9 ruled as recommended by the operator,
+                        primary session 2026-10-27; header reconciled 2026-11-27). Not yet implemented.
 Parent:                 operator ruling of 2026-10-26 ("all as recommended") on the milestone F+D finding that
                         no place has a name; D-P6-43 (pr-s10-p6-lm-controller.md §15, PR #472)
 Audit base:             origin/main as of 2026-10-26 (this branch's base)
