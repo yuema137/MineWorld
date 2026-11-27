@@ -1,5 +1,37 @@
 # Startup loading correction — 2026-11-23
 
+## DESIGN FROZEN — not yet: awaiting the operator's explicit freeze (ratification)
+
+```text
+Design revision:        revision 1 (2026-11-23, recovered as bae264be) + bounded correction R1 (2026-11-27,
+                        red-team _reviews/pr548.md finding 1: scripted runs no longer wait for first view)
+Approved by / evidence: NOT YET. Basis so far: the operator's 2026-11-23 trial report (3D shows only the Godot
+                        splash, no progress) and an agent plan PASS (delivery_review). Neither is a freeze. Record
+                        the operator's exact words and date here when given.
+Operator decisions:     D1 ratify this design as a bounded correction to S23-RT §4.1;
+                        D2 the measured +8.1 s first-view regression (145.180 s → 153.281 s, matched pair
+                           2026-11-23): accept as a recorded deviation for merge, or require a fix first;
+                        D3 merge with the 3D source/exported runs of the checklist below NOT RUN, or require them
+Implementation base:    ff4e41e3 (client stack), published on #544; branch fix/startup-loading-ui (PR #548)
+Lifecycle:              DRAFT — awaiting operator freeze; implementation exists (recovered) and is under review
+```
+
+### Execution contract (filled; binding once frozen)
+
+```text
+Owner / worktree:       one session; /Users/yuema137/mineworld-worktrees/impl-startup-ui, branch fix/startup-loading-ui
+Affected paths:         clients/shared/loading/**, clients/shared/LOADING.md, clients/runtime/runtime/boot.gd,
+                        clients/{runtime,3d-spike}/mineworld_loading (symlinks), clients/3d-spike/scripts/slice/slice_main.gd,
+                        clients/shared/settings/locale/{en,zh_Hans}.po + messages.pot, this ledger
+Authorized:             the correction as designed; bounded fixes from review; targeted checks; semantic commits; push
+Not authorized:         world/server/schema/settings-semantics/rendering-quality changes; speed claims; merge; milestone label
+Validation owners:      GDScript parse (scripts/ci_gdparse.py incl. clients/runtime); headless runtime boot checks;
+                        headless 3D connected-probe join failure (named FAIL inside the probe's own bound);
+                        3D source and exported runs (frame order, input hold, Esc/Quit, failure frame); remote `fast`
+Budgets:                <=600 s per heavy run, one shared slot (cast-slots/with-slot.sh), no paid API calls
+Escalate:               any change to exit statuses, quality settings, or first-view readiness semantics
+```
+
 Bounded correction authorized by operator's slow 3D startup/no progress report and coordinator dispatch. This is a new isolated execution context, not a change to simulation or MVP acceptance. Base 703aa8dce66c3fa150942315e74bffd346fcfa8a from reviewed playable source; clone /tmp/mineworld-startup-20261123-source. Independent reviewer /root/delivery_review. Parent owns progress/shared plans. No public writes/merge, no paid calls. Local implementation, targeted validation, semantic commit and immutable local artifact authorized by dispatch. User saves, existing source/caches/bundle are read-only.
 
 ## Audit and invariants
@@ -60,3 +92,21 @@ itself is drawn at ~15 s in that packaged run versus a blank splash before. Late
 rejected the lazy Metal shader-loading switch and point at path/history-dependent first-camera pipeline
 compilation; the next diagnostic (draw-barrier/pipeline counters) is not run. No speed-up is claimed; the
 investigation stays open as its own follow-up.
+
+### Bounded correction R1 — 2026-11-27 (`_reviews/pr548.md` finding 1, BLOCK)
+
+- **Defect.** The connected 3D path waited on `link.has_first_view()` without a bound, before `_start_probe()`. A
+  scripted probe whose join fails therefore never started, so a harness run hung until killed (CI INCONCLUSIVE)
+  instead of printing the probe's own named FAIL.
+- **Fix.** Scripted runs (`SliceMain._scripted()`) no longer wait for first view. The probe starts right after
+  setup, as it did before this PR, and bounds its own join wait. Players still wait on the loading layer, which
+  shows the worded link status and keeps Quit/Esc available.
+- **Regression check.** `_targets/startup-ui-evidence/probe-join-fail.sh`:
+  `godot --headless --path clients/3d-spike res://scenes/slice.tscn -- --slice-link --server=127.0.0.1:9 …`,
+  run against a closed port with the full 3D import.
+  - Before the fix: no verdict; killed at the 60 s limit, with the last line "disconnected" → **hang reproduced**.
+  - After the fix: `FAIL: not seated after 10 s`, `[probe] exit 1`, 20 s in total → **PASS** (named FAIL inside
+    the probe's own bound).
+  - The `[startup]` stages in the same log appear in setup order: world build ≈ 6.6 s and lighting ≈ 1.4 s
+    headless.
+- **Not done.** A tracked automated test for this case; it is a follow-up, `_reviews/pr548.md` finding 4.

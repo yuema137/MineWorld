@@ -121,7 +121,9 @@ func _ready() -> void:
 	_initialized = true
 	_hold_input(true)
 	await _loading_stage("loading.connecting" if link != null else "loading.ready")
-	while link != null and not link.has_first_view():
+	# A player waits on the loading layer (status worded, Quit available) until the first view. A scripted
+	# run never does: its probe bounds its own join wait and fails by name (slice_probe_world.gd), as before.
+	while link != null and not _scripted() and not link.has_first_view():
 		await get_tree().process_frame
 	await _loading.finish()
 	_hold_input(false)
