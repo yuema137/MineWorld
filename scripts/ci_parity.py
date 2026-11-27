@@ -9,7 +9,9 @@ laptop, the macOS and Windows runners and the Linux container all hash with one 
     python3 scripts/ci_parity.py record --binary target/release/mineworld [--out F]
     python3 scripts/ci_parity.py record --image mineworld:ci [--platform linux/amd64] [--out F]
     python3 scripts/ci_parity.py record ... --profile long [--timings T]
+    python3 scripts/ci_parity.py record --binary <bundle>/runtime/mineworld --root <bundle>/runtime [--out F]
     python3 scripts/ci_parity.py compare F F [F ...]
+    python3 scripts/ci_parity.py match REFERENCE F [F ...]
     python3 scripts/ci_parity.py baseline check RECORD [BASELINES]
     python3 scripts/ci_parity.py baseline write RECORD [BASELINES]
     python3 scripts/ci_parity.py diff OLD NEW
@@ -27,6 +29,14 @@ checkout's; Darwin arm64 native, Linux x86_64 in a container and Windows x86_64 
 toolchain, equal to rust-toolchain.toml's; every world's every key equal across every record). Otherwise it
 exits 1, naming each failure, and for an unequal world which platforms agree with which, the first
 differing summary line or table chunk. Equality of fewer platforms never passes.
+
+The release workflow (S23 R-b, `pr-s23-rb-release-workflow.md` §3.5) records each downloaded bundle's
+server with `--root DIR`: the worlds are those under `DIR/worlds/`, every command runs in DIR, only the
+pack roots that exist under DIR are named, the toolchain is not read (`rustc unread`), the commit is the one
+DIR's `BUNDLE.toml` names (the checkout's HEAD when DIR has none), and `[source]` gains `root bundle`.
+Without `--root` a record is byte-identical to before. `match` passes when G-1, G-2 (one commit, one
+profile, one world list) and G-5 hold between REFERENCE and every other record; it applies neither G-3
+nor G-4, and fails on fewer than two files.
 
 The nightly's long profile (`docs/DECISIONS.md` ARC-83; `pr-13c-nightly.md` §3.2) keeps every key of the
 default profile and adds `summary-1000` (memory, seed 7, 1 000 days) and `summary-300s` with every stored
@@ -74,6 +84,17 @@ CONTAINER_SAVES = "/var/lib/mineworld/ac8"
 # so the same words reach the binary natively (run from the checkout's root) and in the runtime image
 # (WORKDIR /opt/mineworld, which holds both directories).
 PACK_ROOTS = ["--packs", "entities", "--packs", "presentation/mineworld-default"]
+def pack_roots(root: Path | None) -> list[str]:
+    """PACK_ROOTS; under `record --root DIR`, only the roots that exist under DIR (a bundle has
+    `presentation/mineworld-default`, not `entities`; S23 R-b §3.5)."""
+    if root is None:
+        return PACK_ROOTS
+    return [word for flag, path in zip(PACK_ROOTS[::2], PACK_ROOTS[1::2]) if (root / path).is_dir()
+            for word in (flag, path)]
+
+
+# A `--root` record's toolchain facts: not read (a smoke runner has no Rust; `match` skips G-4).
+UNREAD = "unread"
 PLATFORM_KEYS = ("arch", "container", "emulated", "os", "rustc", "target", "translated")
 SOURCE_KEYS = ("commit", "record-format", "worlds")
 WORLD_KEYS = ("manifest", "summary-300", "summary-30s", "validate")
@@ -143,9 +164,9 @@ def toolchain_channel(root: Path) -> str:
         raise Unmet(f"rust-toolchain.toml: no toolchain.channel ({error})") from error
 
 
-def command(arguments: list[str], what: str) -> bytes:
+def command(arguments: list[str], what: str, cwd: Path = ROOT) -> bytes:
     try:
-        result = subprocess.run(arguments, cwd=ROOT, capture_output=True)
+        result = subprocess.run(arguments, cwd=cwd, capture_output=True)
     except OSError as error:
         raise Unmet(f"{what}: could not start {arguments[0]}: {error}") from error
     if result.returncode != 0:
@@ -176,9 +197,14 @@ def normalized_arch(machine: str) -> str:
 
 
 class Native:
-    """The binary run directly, on the laptop or a macOS or Windows runner."""
+    """The binary run directly, on the laptop or a macOS or Windows runner. With `root` (`record --root
+    DIR`, the release's smoke legs and reference, S23 R-b §3.5) every command runs in DIR, and the
+    toolchain is not read: a smoke runner has no Rust, and `match` does not apply G-4."""
 
-    def __init__(self, binary: str) -> None:
+    def __init__(self, binary: str, root: Path | None = None) -> None:
+        self.root = root
+        self.cwd = root if root is not None else ROOT
+        self.packs = pack_roots(root)
         path = Path(binary)
         if not path.is_absolute():
             path = Path.cwd() / path
@@ -191,7 +217,7 @@ class Native:
 
     def run(self, arguments: list[str], what: str, save: Path | None = None) -> bytes:
         extra = ["--save", str(save)] if save is not None else []
-        return command([self.binary, *arguments, *extra], what)
+        return command([self.binary, *arguments, *extra], what, self.cwd)
 
     def platform(self) -> dict[str, str]:
         system = platform.system()
@@ -212,6 +238,9 @@ class Native:
             wow64 = bool(os.environ.get("PROCESSOR_ARCHITEW6432"))
             arm_host = "ARM" in os.environ.get("PROCESSOR_IDENTIFIER", "").upper()
             facts["emulated"] = "1" if wow64 or (arm_host and facts["arch"] == "x86_64") else "0"
+        if self.root is not None:
+            facts["rustc"] = facts["target"] = UNREAD
+            return facts
         verbose = text_lines(command(["rustc", "-vV"], "rustc -vV"), "rustc -vV")
         found = {line.split(": ", 1)[0]: line.split(": ", 1)[1] for line in verbose if ": " in line}
         if "release" not in found or "host" not in found:
@@ -227,6 +256,8 @@ class Image:
     def __init__(self, tag: str, docker_platform: str | None) -> None:
         self.tag = tag
         self.docker_platform = docker_platform
+        self.root = None
+        self.packs = PACK_ROOTS
 
     def docker_run(self, entrypoint: list[str], arguments: list[str], what: str, mount: Path | None) -> bytes:
         options = ["--rm"]
@@ -365,7 +396,7 @@ def run_days(runner: Native | Image, world: str, days: int, key: str, prefix: st
              timings: list[dict[str, object]], save: Path | None = None) -> dict[str, str]:
     """One headless run, seed 7, as `key` (its digest) and `prefix` (its lines). A saved run drops the
     header, which names the host's save path. Its wall time goes to `timings`, never into the record."""
-    arguments = ["run", f"worlds/{world}", "--headless", "--seed", str(SEED), "--days", str(days), *PACK_ROOTS]
+    arguments = ["run", f"worlds/{world}", "--headless", "--seed", str(SEED), "--days", str(days), *runner.packs]
     mode = "saved" if save is not None else "in memory"
     began = time.monotonic()
     lines = summary(text_lines(runner.run(arguments, f"{world}: run {days} days {mode}", save), world), save is not None)
@@ -392,7 +423,7 @@ def record_world(runner: Native | Image, world: str, scratch: Path, profile: str
                  timings: list[dict[str, object]] | None = None) -> dict[str, str]:
     began = time.monotonic()
     timings = [] if timings is None else timings
-    entries = {"validate": sha256(runner.run(["validate", f"worlds/{world}", *PACK_ROOTS], f"validate worlds/{world}"))}
+    entries = {"validate": sha256(runner.run(["validate", f"worlds/{world}", *runner.packs], f"validate worlds/{world}"))}
     entries.update(run_days(runner, world, LONG_DAYS, "summary-300", "line-300.", timings))
     entries.update(saved_run(runner, world, SAVE_DAYS, "summary-30s", "line-30s.", scratch, "table", "manifest", timings))
     if profile == "long":
@@ -418,15 +449,29 @@ def render(sections: dict[str, dict[str, str]]) -> bytes:
     return ("\n".join(out) + "\n").encode("utf-8")
 
 
+def bundle_commit(root: Path | None) -> str | None:
+    """The commit a bundle was built from (its runtime/BUNDLE.toml), so that `match` holds the bundle,
+    not the checkout beside it, to one commit. None outside --root or without BUNDLE.toml (the reference)."""
+    if root is None or not (root / "BUNDLE.toml").is_file():
+        return None
+    found = re.search(r'^commit = "([0-9a-f]+)"$', (root / "BUNDLE.toml").read_text(encoding="utf-8"), re.M)
+    if not found:
+        raise Unmet(f"{root / 'BUNDLE.toml'}: no commit line")
+    return found.group(1)
+
+
 def record(runner: Native | Image, out: Path | None, profile: str = "default", timings: Path | None = None) -> int:
     started = time.monotonic()
     facts = runner.platform()
-    worlds = enumerate_worlds(ROOT)
-    commit = command(["git", "rev-parse", "HEAD"], "git rev-parse HEAD").decode().strip()
+    worlds = enumerate_worlds(runner.root or ROOT)
+    commit = bundle_commit(runner.root) or command(["git", "rev-parse", "HEAD"], "git rev-parse HEAD").decode().strip()
     source = {"commit": commit, "record-format": RECORD_FORMAT, "worlds": " ".join(worlds)}
     if profile != "default":
         # Written only when not default, so a default record stays 13b's byte for byte (I-13c-2).
         source["profile"] = profile
+    if runner.root is not None:
+        # Written only under --root, so a bundle record is never mistaken for a checkout's (S23 R-b §3.5).
+        source["root"] = "bundle"
     sections: dict[str, dict[str, str]] = {"platform": facts, "source": source}
     print(f"[parity] recording {commit} on {facts['os']}/{facts['arch']} (container {facts['container']}), "
           f"profile {profile}", flush=True)
@@ -585,22 +630,9 @@ def first_difference(world: str, keys: list[str], records: list[Record], labels:
 
 def compare_records(records: list[Record], expected_worlds: list[str], channel: str) -> tuple[list[str], list[str]]:
     """Returns (failures, report). No failures means AC-8 holds for these records."""
-    failures: list[str] = []
-    report: list[str] = []
-
-    commits = {record.sections["source"]["commit"] for record in records}
-    if len(commits) != 1:
-        failures.append("G-2 the records name different commits: "
-                        + ", ".join(f"{r.name} {r.sections['source']['commit']}" for r in records))
-    profiles = {record.profile() for record in records}
-    if len(profiles) != 1:
-        failures.append("G-2 the records name different profiles: "
-                        + ", ".join(f"{r.name} {r.profile()}" for r in records))
+    failures = same_source(records)
     world_lists = {record.sections["source"]["worlds"] for record in records}
-    if len(world_lists) != 1:
-        failures.append("G-2 the records name different worlds: "
-                        + "; ".join(f"{r.name}: {r.sections['source']['worlds']}" for r in records))
-    elif sorted(world_lists.pop().split()) != sorted(expected_worlds):
+    if len(world_lists) == 1 and sorted(world_lists.pop().split()) != sorted(expected_worlds):
         failures.append(f"G-2 the records' worlds are not this checkout's worlds/ ({' '.join(expected_worlds)})")
 
     failures += platform_groups(records)
@@ -615,6 +647,42 @@ def compare_records(records: list[Record], expected_worlds: list[str], channel: 
     for label in plain:
         seen[label] = seen.get(label, 0) + 1
         labels.append(f"{label}#{seen[label]}" if plain.count(label) > 1 else label)
+    world_failures, report = compare_worlds(records, labels)
+    return failures + world_failures, report
+
+
+def same_source(records: list[Record]) -> list[str]:
+    """G-2: one commit, one profile and one world list in every record."""
+    failures = []
+    commits = {record.sections["source"]["commit"] for record in records}
+    if len(commits) != 1:
+        failures.append("G-2 the records name different commits: "
+                        + ", ".join(f"{r.name} {r.sections['source']['commit']}" for r in records))
+    profiles = {record.profile() for record in records}
+    if len(profiles) != 1:
+        failures.append("G-2 the records name different profiles: "
+                        + ", ".join(f"{r.name} {r.profile()}" for r in records))
+    world_lists = {record.sections["source"]["worlds"] for record in records}
+    if len(world_lists) != 1:
+        failures.append("G-2 the records name different worlds: "
+                        + "; ".join(f"{r.name}: {r.sections['source']['worlds']}" for r in records))
+    return failures
+
+
+def match_records(records: list[Record], labels: list[str]) -> tuple[list[str], list[str]]:
+    """`match` (S23 R-b §3.5): the first record is the reference; G-2 and G-5 hold for all of them. No
+    platform set is required (the release legs are the platforms) and no toolchain (G-3, G-4)."""
+    if len(records) < 2:
+        return [f"match needs the reference and at least one record; got {len(records)} file(s)"], []
+    failures = same_source(records)
+    world_failures, report = compare_worlds(records, labels)
+    return failures + world_failures, report
+
+
+def compare_worlds(records: list[Record], labels: list[str]) -> tuple[list[str], list[str]]:
+    """G-5: every key of every shared world equal in every record, the unequal ones located."""
+    failures: list[str] = []
+    report: list[str] = []
     compared = 0
     shared = set.intersection(*(set(r.sections["source"]["worlds"].split()) for r in records)) if records else set()
     for world in sorted(shared):
@@ -632,7 +700,14 @@ def compare_records(records: list[Record], expected_worlds: list[str], channel: 
     return failures, report
 
 
-def compare(paths: list[str]) -> int:
+def release_label(path: str) -> str:
+    """A release record's name for `match`'s report: `release-ac8-macos-15.txt` → `macos-15`."""
+    stem = Path(path).name.removesuffix(".txt")
+    return stem.removeprefix("release-ac8-") or stem
+
+
+def compare(paths: list[str], matching: bool = False) -> int:
+    """`compare` (AC-8, G-1 … G-5), or `match` (the release's reference against its legs, G-1, G-2, G-5)."""
     try:
         records = [parse(path, Path(path).read_bytes()) for path in paths]
     except OSError as error:
@@ -641,10 +716,13 @@ def compare(paths: list[str]) -> int:
     except Unmet as unmet:
         print(f"[parity] FAIL {unmet}", file=sys.stderr)
         return 1
-    failures, report = compare_records(records, enumerate_worlds(ROOT), toolchain_channel(ROOT))
+    if matching:
+        failures, report = match_records(records, [release_label(path) for path in paths])
+    else:
+        failures, report = compare_records(records, enumerate_worlds(ROOT), toolchain_channel(ROOT))
     for line in report:
         print(f"[parity] {line}")
-    verdict = "AC-8 PASS" if not failures else "AC-8 FAIL"
+    verdict = ("release match" if matching else "AC-8") + (" PASS" if not failures else " FAIL")
     for line in failures:
         print(f"[parity] {line}", file=sys.stderr)
     print(f"[parity] {verdict}", flush=True)
@@ -873,8 +951,64 @@ def self_test() -> int:
         failed += not good
         print(f"[self-test] {'ok  ' if good else 'FAIL'} a malformed record ({index}) is refused by G-1")
     failed += self_test_long(modified)
+    failed += self_test_match(modified)
     print(f"[self-test] {'passed' if not failed else f'FAILED: {failed} case(s)'}")
     return 0 if not failed else 1
+
+
+def self_test_match(modified) -> int:
+    """`match` and `record --root` (S23 R-b §3.5): each case its stated verdict."""
+    failed = 0
+
+    def judged(name: str, good: bool, got: object) -> None:
+        nonlocal failed
+        failed += not good
+        print(f"[self-test] {'ok  ' if good else 'FAIL'} {name}" + ("" if good else f": got {got}"))
+
+    def bundled(leg: dict) -> dict:
+        copy = modified(modified(leg, "source", "root", "bundle"), "platform", "rustc", UNREAD)
+        return modified(copy, "platform", "target", UNREAD)
+
+    reference = bundled(synthetic("Linux", "x86_64"))
+    legs = [bundled(synthetic("Darwin", "arm64")), bundled(synthetic("Darwin", "arm64")),
+            bundled(synthetic("Windows", "x86_64")), bundled(synthetic("Linux", "arm64"))]
+    names = ["reference", "macos-26", "macos-15", "windows-2025", "ubuntu-24.04-arm"]
+
+    def matched(records: list[dict], labels: list[str] = names) -> list[str]:
+        parsed = [parse(label, render(record)) for label, record in zip(labels, records)]
+        return match_records(parsed, labels[:len(parsed)])[0]
+
+    cases = [
+        ("match: equal bundle records with no Linux container and toolchain unread", [reference, *legs], None),
+        ("match: a leg differing in one summary-300 line fails naming the world and the leg",
+         [reference, legs[0], legs[1], modified(legs[2], "world b", "line-300.0001", "faults 1"), legs[3]],
+         "G-5 world b differs: windows-2025 ≠ {macos-15, macos-26, reference, ubuntu-24.04-arm}"),
+        ("match: a leg of another commit fails", [reference, modified(legs[0], "source", "commit", "beef"), *legs[1:]],
+         "G-2 the records name different commits"),
+        ("match: a leg with another world list fails", [reference, modified(legs[0], "source", "worlds", "a"), *legs[1:]],
+         "G-2 the records name different worlds"),
+        ("match: the reference alone fails", [reference], "at least one record"),
+    ]
+    for name, records, expected in cases:
+        failures = matched(records)
+        judged(name, not failures if expected is None else any(expected in f for f in failures), failures or "PASS")
+    judged("match: a missing leg file fails G-1", compare(["/nonexistent/release-ac8-reference.txt",
+                                                            "/nonexistent/release-ac8-macos-26.txt"], matching=True) == 1, "PASS")
+    judged("release_label names a leg by its file", release_label("x/release-ac8-macos-15.txt") == "macos-15",
+           release_label("x/release-ac8-macos-15.txt"))
+    with tempfile.TemporaryDirectory(prefix="ac8-root-") as tmp:
+        root = Path(tmp)
+        judged("--root: no pack root exists, none is named", pack_roots(root) == [], pack_roots(root))
+        (root / "presentation" / "mineworld-default").mkdir(parents=True)
+        judged("--root: a bundle names only the presentation root it has",
+               pack_roots(root) == ["--packs", "presentation/mineworld-default"], pack_roots(root))
+        judged("without --root the checkout's roots are unchanged", pack_roots(None) == PACK_ROOTS, pack_roots(None))
+        judged("--root without BUNDLE.toml takes the checkout's commit", bundle_commit(root) is None, bundle_commit(root))
+        (root / "BUNDLE.toml").write_text('version = "0.1.0"\ncommit = "abc123"\n', encoding="utf-8")
+        judged("--root takes the bundle's commit from BUNDLE.toml", bundle_commit(root) == "abc123", bundle_commit(root))
+    default = render(synthetic("Linux", "x86_64"))
+    judged("a record made without --root names no root", b"root " not in default, default)
+    return failed
 
 
 def lengthened(leg: dict[str, dict[str, str]]) -> dict[str, dict[str, str]]:
@@ -963,12 +1097,13 @@ def self_test_long(modified) -> int:
 # ----------------------------------------------------------------------------------------------- main
 
 USAGE = ("usage: ci_parity.py record (--binary PATH | --image TAG [--platform P]) [--out FILE]\n"
-         "                           [--profile default|long] [--timings FILE]\n"
+         "                           [--profile default|long] [--timings FILE] [--root DIR]\n"
          "       ci_parity.py compare RECORD RECORD [RECORD ...]\n"
+         "       ci_parity.py match REFERENCE RECORD [RECORD ...]\n"
          "       ci_parity.py baseline check|write RECORD [BASELINES]   (default scripts/baselines.txt)\n"
          "       ci_parity.py diff OLD NEW\n"
          "       ci_parity.py --self-test")
-RECORD_OPTIONS = {"--binary", "--image", "--platform", "--out", "--profile", "--timings"}
+RECORD_OPTIONS = {"--binary", "--image", "--platform", "--out", "--profile", "--timings", "--root"}
 
 
 def main(arguments: list[str]) -> int:
@@ -977,6 +1112,8 @@ def main(arguments: list[str]) -> int:
             return self_test()
         if len(arguments) >= 3 and arguments[0] == "compare":
             return compare(arguments[1:])
+        if len(arguments) >= 3 and arguments[0] == "match":
+            return compare(arguments[1:], matching=True)
         if len(arguments) in (3, 4) and arguments[0] == "baseline" and arguments[1] in ("check", "write"):
             return baseline(arguments[1], arguments[2], Path(arguments[3]) if len(arguments) == 4 else BASELINES)
         if len(arguments) == 3 and arguments[0] == "diff":
@@ -986,10 +1123,14 @@ def main(arguments: list[str]) -> int:
             if len(arguments[1:]) % 2 or set(options) - RECORD_OPTIONS \
                     or ("--binary" in options) == ("--image" in options) \
                     or ("--platform" in options and "--image" not in options) \
+                    or ("--root" in options and "--binary" not in options) \
                     or options.get("--profile", "default") not in PROFILES:
                 print(USAGE, file=sys.stderr)
                 return 2
-            runner = Native(options["--binary"]) if "--binary" in options else Image(options["--image"], options.get("--platform"))
+            root = Path(options["--root"]).resolve() if "--root" in options else None
+            if root is not None and not root.is_dir():
+                raise Unmet(f"--root {options['--root']}: no such directory")
+            runner = Native(options["--binary"], root) if "--binary" in options else Image(options["--image"], options.get("--platform"))
             out = Path(options["--out"]) if "--out" in options else None
             timings = Path(options["--timings"]) if "--timings" in options else None
             return record(runner, out, options.get("--profile", "default"), timings)

@@ -1647,3 +1647,26 @@ The rulings of §16.1 stay visible. The re-rulings came in this order; each late
 
 **Q-S30-9 — Ruled 2026-10-15 (operator answered directly in the primary session):** yes, as recommended — an optional `log-linear` mode of the MatrAIx backend only, used by `worlds/matraix-demo`, never by a reference world; S30-h prototypes it first and drops it, reporting to the operator, if determinism, load time or the ≤ 2 pp fidelity check fails.
 
+
+### 16.4 Runtime fidelity amendment A — operator ruling, 2026-11-22
+
+Operator explicitly approved F-S30j-10 option A: “采用 A，按推荐修改并审查验收契约”.
+For S30-j runtime arrivals, this supersedes the unqualified application of AC-S30-5
+in the §13.1 S30-j checkpoint and §13.4: the unchanged population-balance limits
+apply to distributions eligible for deficit balancing (`stratify: true` and owned
+by `attributes`), including eligible numeric deciles. Independent draws, including
+external-owner attributes, retain their specified sampling semantics and instead
+require independent weight/row/mask/support and integer-boundary oracles, resident
+population invariance with newcomer inputs and resolved parents fixed, and all
+existing authored/locked, replay and privacy invariants. All fixed-corpus discrepancy
+measurements remain reported, including the original failed run. No seeds, input
+profiles, thresholds or production sampling semantics change under this approval.
+This is a runtime-specific amendment, not a retrospective change to genesis evidence.
+
+The detailed replacement acceptance and mutation obligations live in S30-j's PR
+ledger §16, under “Approved A acceptance amendment — 2026-11-22 recovery”, currently
+in the isolated `recover/s30j-fidelity-a` checkout. Independent design review precedes
+implementation; final implementation, deterministic validation and logic review remain
+separate obligations. A separate statistical-quality gate would need a separately
+frozen corpus/statistic/failure policy; this ruling does not claim statistical
+certification. S30-j remains release-blocking and is not yet acceptance-ready or merged.

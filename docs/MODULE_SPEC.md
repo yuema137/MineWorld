@@ -1366,8 +1366,10 @@ it stops being current at its `valid_until`, with no fact stated. Every field is
 
 A world without `configure:` loads exactly as before the key existed. A save remembers its
 configuration: resuming or replaying it against a World Pack whose configuration differs — changed,
-added or removed — is refused, naming the system (`ConfigurationDrift`). Other content is not compared
-at resume.
+added or removed — is refused, naming the system (`ConfigurationDrift`). Only facts genesis states
+directly (`Causation::WorldGenesis`) are compared; a configuration-typed fact stated by a reaction during
+genesis is derived and is verified by replay, not by the drift check (`ARC-61` note 2026-11-27). Other
+content is not compared at resume.
 
 **Framework keys** (`ARC-61` note). Two keys of `configure:` name no System Pack; each is owned by a
 framework crate, never resolved against the installed set, and never seeded on its own:

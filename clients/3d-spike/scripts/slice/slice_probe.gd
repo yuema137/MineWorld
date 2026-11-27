@@ -24,6 +24,9 @@
 class_name SliceProbe
 extends Node
 
+const ProbeVerdict := preload("res://scripts/slice/slice_probe_verdict.gd")
+const PhysicsEngine := preload("res://scripts/physics_engine.gd")
+
 const OUT := "res://shots/slice"
 
 var player: SlicePlayer
@@ -111,6 +114,8 @@ const CROPS := {
 
 var _mode := ""
 var _exit_code := 0
+var _verdict_log := ProbeVerdict.new()
+var _verdict_registered := false
 var _warm := 0
 ## Simulated time, counted on physics ticks -- immune to how long a frame
 ## capture took in wall-clock time.
@@ -145,6 +150,8 @@ func _modes() -> Array:
 
 
 func _ready() -> void:
+	OS.add_logger(_verdict_log)
+	_verdict_registered = true
 	if player != null:
 		player.scripted_look = true
 		# this runner turns the body by setting its yaw; any mouse motion is
@@ -171,7 +178,27 @@ func _process(_d: float) -> void:
 		return
 	set_process(false)
 	await _run(_mode)
-	get_tree().quit(_exit_code)
+	get_tree().quit(_exit_status())
+
+
+## Each mode has finished its producers before returning. Remove before diagnostics to avoid
+## collecting our own report; retain the collector as a member until the node is destroyed.
+func _exit_status() -> int:
+	_unregister_verdict()
+	var status := _verdict_log.exit_status(_exit_code)
+	if status != _exit_code:
+		print("[probe] exit 1: a check failed (%s)" % _verdict_log.first_failure())
+	return status
+
+
+func _unregister_verdict() -> void:
+	if _verdict_registered:
+		OS.remove_logger(_verdict_log)
+		_verdict_registered = false
+
+
+func _exit_tree() -> void:
+	_unregister_verdict()
 
 
 ## Run one mode; a sibling harness runs its own and hands the rest here.
@@ -739,6 +766,8 @@ func _threshold_run(samples: Array, out_pose: Array, out_name: String) -> void:
 
 
 func _verdict(claim: String, ok: bool, detail: String) -> void:
+	if not ok and _exit_code == 0:
+		_exit_code = 1
 	print("%-46s %s  (%s)" % [claim, "PASS" if ok else "FAIL", detail])
 
 
@@ -1001,7 +1030,7 @@ func _drive() -> void:
 	var fails := 0
 
 	# The engine every number below is measured on (`DECISIONS.md` DEP-20).
-	var engine: String = PhysicsEngineProbe.running()
+	var engine: String = PhysicsEngine.running()
 	print("engine %s" % engine)
 	if not engine.begins_with("Jolt Physics"):
 		fails += 1

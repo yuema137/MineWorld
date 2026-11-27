@@ -11,6 +11,15 @@ Continuation aid only. The authority is [`pr-s31b2-notices-attributes.md`](pr-s3
 | Execution contract | the design's §12 |
 | Ends at | Local reviewable commits and PR body, then independent red team coordinated by primary; no publication or merge |
 
+## Publication state (2026-11-27)
+
+- Worktree `/Users/yuema137/mineworld-worktrees/pub-s31b2` (publication owner); pushed as
+  `mvp0/pr-s31b2-notices`. Merged `origin/main @ 02b17504` as `fc3f1541` (clean).
+- Local targeted validation PASS on `fc3f1541`; red-team PASS-WITH-FOLLOWUPS; F-1 fixed (ARC-61 note,
+  MODULE_SPEC). Open: F-2, F-3 (python/Godot layers need `full` CI mode), F-4 (/tmp evidence lost), CLI
+  notices test size, AC-b2-8. Details and dispositions in the design's §15 "Publication on 2026-11-27".
+- Everything below this section is the 2026-11-22 recovery state, now historical.
+
 ## State
 
 - Executable HEAD `19e30172bc57775d4b1369df7ccdee8226745955`; final review HEAD is the
