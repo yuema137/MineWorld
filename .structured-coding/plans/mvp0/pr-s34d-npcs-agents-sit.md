@@ -626,6 +626,15 @@ journal sits facing away from the point and is named (`posture::tests::a_sit_fac
   record, without further tuning. *Alternative:* accept AC-d-4 as a follow-up, leaving the motivated model
   seat-capable but rarely seated.
 
+#### C5 — Docs
+- [x] Implementation: dated notes on `ARC-147` (NPCs sit through a rest band; why no stillness gate; the
+  measured before and after; the two escalations) and `ARC-151` (`sit`, `stand` decided by name); the rule
+  controller's README paragraph; `rest.rs` module docs and `paced.rs`'s draw table (row 16) and rung order.
+- [x] Validation: `python3 -I scripts/check_doc_headings.py` (256 sections, none duplicated) and
+  `python3 -I scripts/check_decision_ids.py` (257 ids, index current) PASS.
+- [x] Review: the notes state the measured baseline and after numbers from this ledger; the README stays
+  orientation-only and links the record.
+
 ## 14. Operator questions (each with a recommended answer)
 
 **Ruled 2026-10-27 (operator, primary session):** every question below is answered as recommended.
