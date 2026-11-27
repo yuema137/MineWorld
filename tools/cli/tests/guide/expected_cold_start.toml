@@ -1,0 +1,37 @@
+# The cold-start run's committed expectation (docs/GUIDE_FORMAT.md §4.7 rule 10; pr-25g §5.3), compared as
+# expected_run.toml is (§11.1). In cold-start mode the `cold-start` blocks run, so only operator-only blocks are
+# not run; their substitutes are reported separately (§4.7 rule 11).
+#
+# [a]: every page, from the clean runner (layer A). minimum_passed is the default run's 164 plus the two
+# cold-start blocks of chapter 01 that run on each system (one install block, one `git lfs pull` block).
+# [b]: chapters 02-06 with the bundled binary (layer B).
+
+[a]
+minimum_passed = 166
+not_run = [
+  "06-play-it | Step 6.2 — Host the world | operator-only",
+  "06-play-it | Step 6.3 — Walk around as Ben | operator-only",
+  "14-play-as-an-agent | Step 14.2 — Start the world with a seat grant | operator-only",
+  "14-play-as-an-agent | Step 14.3 — Install the agent adapter | operator-only",
+  "14-play-as-an-agent | Step 14.3 — Install the agent adapter | operator-only",
+  "14-play-as-an-agent | Step 14.3 — Install the agent adapter | operator-only",
+  "14-play-as-an-agent | Step 14.4 — Connect Claude Code | operator-only",
+  "14-play-as-an-agent | Step 14.4 — Connect Claude Code | operator-only",
+  "14-play-as-an-agent | Step 14.4 — Connect Claude Code | operator-only",
+  "14-play-as-an-agent | Step 14.5 — Connect Codex, or any other MCP client | operator-only",
+  "14-play-as-an-agent | Step 14.6 — Connect over HTTP | operator-only",
+  "14-play-as-an-agent | Step 14.6 — Connect over HTTP | operator-only",
+  "14-play-as-an-agent | Step 14.6 — Connect over HTTP | operator-only",
+  "14-play-as-an-agent | Step 14.7 — Play: the tool loop | operator-only",
+  "14-play-as-an-agent | Step 14.8 — Without MCP: a Python program, or any language | operator-only",
+  "14-play-as-an-agent | Step 14.9 — Mixed play: a friend joins | operator-only",
+  "14-play-as-an-agent | Step 14.9 — Mixed play: a friend joins | operator-only",
+  "14-play-as-an-agent | Step 14.10 — Safety | operator-only",
+]
+
+[b]
+minimum_passed = 0
+not_run = [
+  "06-play-it | Step 6.2 — Host the world | operator-only",
+  "06-play-it | Step 6.3 — Walk around as Ben | operator-only",
+]

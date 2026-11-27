@@ -2,19 +2,41 @@
 //! 6, 8). Every block gets one outcome; a pending block is never reported as passed.
 
 use std::path::Path;
+use std::time::{Duration, Instant};
 
-use super::command;
+use super::command::{self, Mode};
 use super::features::Features;
 use super::files;
 use super::page::{Block, Body, Directive, Page};
 
+/// The reason a `cold-start` block is listed as not run in the default mode (§6). Unlike a pending feature,
+/// it does not make the blocks after it pending: they never depended on it, because the default run's
+/// machine already has what the block installs.
+pub const COLD_START: &str = "cold-start";
+
 /// What a page run needs from outside the page: the features the guide is checked against, the
-/// repository the committed folders of `equals` are named in (and the one `git clone` reads, §4.6), and
-/// the reader's home folder the shell blocks see as `HOME` (§4.6).
+/// repository the committed folders of `equals` are named in (and the one `git clone` reads, §4.6), the
+/// reader's home folder the shell blocks see as `HOME` (§4.6), the `mineworld` binary every command runs,
+/// and the mode (§4.6 or §4.7).
 pub struct Environment<'a> {
     pub features: &'a Features,
     pub repo: &'a Path,
     pub home: &'a Path,
+    pub binary: &'a Path,
+    pub mode: Mode,
+}
+
+impl<'a> Environment<'a> {
+    /// The repository's own guide test (§4.6): the test's own binary, the default mode.
+    pub fn repository(features: &'a Features, repo: &'a Path, home: &'a Path) -> Self {
+        Self {
+            features,
+            repo,
+            home,
+            binary: Path::new(command::BINARY),
+            mode: Mode::Repository,
+        }
+    }
 }
 
 /// What the runner made of one executed block.
@@ -42,11 +64,14 @@ pub struct Report {
     pub line: usize,
     /// What happened to the block.
     pub outcome: Outcome,
+    /// How long the block took (§11 item 5).
+    pub elapsed: Duration,
 }
 
 /// Runs `page` in `scratch`. `carried` is the feature a page this one continues is pending on, if any: the
 /// scratch folder is then not the state this page expects, so every block is pending too (§8.1, rule 3).
-/// Returns one report per executed block, and the pending feature the scratch folder is left with.
+/// Returns one report per executed block, and the pending feature the scratch folder is left with. A
+/// `cold-start` block that is not run carries nothing (§6).
 pub fn run_page(
     name: &str,
     page: &Page,
@@ -57,12 +82,14 @@ pub fn run_page(
     let mut pending = carried;
     let mut reports = Vec::with_capacity(page.blocks.len());
     for block in &page.blocks {
+        let began = Instant::now();
         let outcome = match &pending {
             Some(feature) => Outcome::Pending(feature.clone()),
             None => block_outcome(block, scratch, environment),
         };
         if pending.is_none()
             && let Outcome::Pending(feature) = &outcome
+            && feature != COLD_START
         {
             pending = Some(feature.clone());
         }
@@ -71,6 +98,7 @@ pub fn run_page(
             step: block.step.clone(),
             line: block.line,
             outcome,
+            elapsed: began.elapsed(),
         });
     }
     (reports, pending)
@@ -91,19 +119,28 @@ fn block_outcome(block: &Block, scratch: &Path, environment: &Environment) -> Ou
                 Some(true) => {}
             },
             Directive::OperatorOnly => return Outcome::Pending("operator-only".to_owned()),
+            Directive::ColdStart if environment.mode == Mode::Repository => {
+                return Outcome::Pending(COLD_START.to_owned());
+            }
+            Directive::ColdStart => {}
             Directive::Packs(dir) => packs = Some(dir.as_str()),
             Directive::Equals { folder, committed } => equals = Some((folder, committed)),
         }
     }
     let result = match &block.body {
         Body::File { path, text } => files::write(scratch, path, text),
-        Body::Console { exit, lines } => console(scratch, *exit, lines, packs),
+        Body::Console { exit, lines } => console(environment.binary, scratch, *exit, lines, packs),
         Body::Shell { family, .. } if !family.is_this_os() => {
             return Outcome::OtherOs(family.word());
         }
-        Body::Shell { family, text } => {
-            command::shell(scratch, environment.home, environment.repo, *family, text)
-        }
+        Body::Shell { family, text } => command::shell(
+            scratch,
+            environment.home,
+            environment.repo,
+            *family,
+            text,
+            environment.mode,
+        ),
     };
     if let Err(reason) = result {
         return Outcome::Failed(reason);
@@ -120,14 +157,20 @@ fn block_outcome(block: &Block, scratch: &Path, environment: &Environment) -> Ou
 }
 
 /// Runs each command of a console block and matches what it printed against the lines under it (§4).
-fn console(scratch: &Path, exit: i32, lines: &[String], packs: Option<&str>) -> Result<(), String> {
+fn console(
+    binary: &Path,
+    scratch: &Path,
+    exit: i32,
+    lines: &[String],
+    packs: Option<&str>,
+) -> Result<(), String> {
     for (command_line, expected) in commands(lines) {
         let mut words = command::words(&command_line)?;
         if let Some(dir) = packs {
             words.push("--packs".to_owned());
             words.push(dir.to_owned());
         }
-        let (actual, code) = command::run(scratch, &words)?;
+        let (actual, code) = command::run(binary, scratch, &words)?;
         if code != exit {
             return Err(format!(
                 "`{command_line}` exited with {code}, the page expects {exit}:\n{actual}"
@@ -142,7 +185,7 @@ fn console(scratch: &Path, exit: i32, lines: &[String], packs: Option<&str>) -> 
 
 /// A console block as (command, expected output) pairs. The block's first line is a command, which parsing
 /// guarantees, so every output line has a command above it.
-fn commands(lines: &[String]) -> Vec<(String, String)> {
+pub fn commands(lines: &[String]) -> Vec<(String, String)> {
     let mut pairs: Vec<(String, String)> = Vec::new();
     for line in lines {
         if let Some(command_line) = line.strip_prefix("$ ") {

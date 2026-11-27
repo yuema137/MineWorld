@@ -1,5 +1,7 @@
 //! What a guide run reports (`docs/GUIDE_FORMAT.md` §11).
 
+use std::time::Duration;
+
 /// One check's verdict. A pending or inconclusive item is reported by name and is never counted as passed.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Verdict {
@@ -27,6 +29,21 @@ pub struct Summary {
     pub other_os: Vec<String>,
     /// Every failed block, and every guard, with its name and verdict.
     pub checks: Vec<(String, Verdict)>,
+    /// Each page that ran, in run order, with its wall time (§11 item 5).
+    pub timings: Vec<(String, Duration)>,
+    /// Each executed block, in run order: its page, step, line, wall time and outcome word (`PASS`, `FAIL`,
+    /// `PENDING`, `OTHER OS`). A cold-start report splits page 01 into these.
+    pub block_times: Vec<BlockTime>,
+}
+
+/// One executed block's time, for the cold-start report (§4.7).
+#[derive(Clone, Debug)]
+pub struct BlockTime {
+    pub page: String,
+    pub step: String,
+    pub line: usize,
+    pub elapsed: Duration,
+    pub outcome: &'static str,
 }
 
 impl Summary {
@@ -59,6 +76,14 @@ impl Summary {
                     lines.push(format!("INCONCLUSIVE  {name}: {reason}"));
                 }
             }
+        }
+        if !self.timings.is_empty() {
+            let pages: Vec<String> = self
+                .timings
+                .iter()
+                .map(|(page, time)| format!("{page} {:.1}s", time.as_secs_f64()))
+                .collect();
+            lines.push(format!("timings: {}", pages.join(", ")));
         }
         lines.join("\n")
     }

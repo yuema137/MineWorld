@@ -1,0 +1,20 @@
+# Committed page mutations for the cold-start run (docs/GUIDE_FORMAT.md §4.7 rule 12; pr-25g §9 AD-1, AD-2).
+# A dispatch of .github/workflows/cold-start.yml names one with its `mutation` input. The runner replaces
+# every occurrence of `old` with `new` in the named page's text, in memory, never on disk. A page that does not
+# hold `old` fails the run, so a mutation can never pass by changing nothing. The expected result of each is red.
+#
+# Runner mutations (AD-3 … AD-6: keep-rust, keep-lfs, godot-on-path, wrong-binary) are not page edits; they
+# live in scripts/ci_cold_start.py.
+
+# AD-1: chapter 01 builds a package that does not exist. Expected: page 01's build block fails on every OS,
+# and no binary is made.
+[wrong-build]
+page = "01-get-mineworld"
+old = "cargo build --release -p mineworld-cli"
+new = "cargo build --release -p mineworld-clii"
+
+# AD-2: one expected line of chapter 03 changed. Expected: page 03, step 3.2, fails with the difference.
+[wrong-expected]
+page = "03-two-rooms"
+old = "  places     home, shop\n  people     ana, ben\n"
+new = "  places     home, shops\n  people     ana, ben\n"
