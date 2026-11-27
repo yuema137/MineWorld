@@ -371,6 +371,9 @@ validate document structure only, not the proposed implementation.
 
 ## 10. Execution ledger — S30-j0 owner
 
+Recovery 2026-11-27: C1–C3 were rebuilt byte-identically (exact SHAs); `/tmp` paths below
+name lost artefacts. See the dated recovery note in `pr-s30j-runtime-sampling.md` §16.
+
 Execution initialized 2026-11-22 in fresh shared clone `/tmp/mineworld-s30j0-finalized-context`,
 branch `recover/s30j0-finalized-context`, base/current HEAD
 `f10b1ee8577a3e05f9196cc1387fc297f6f589c6` (local reviewed prerequisite, not merged).
