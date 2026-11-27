@@ -162,6 +162,18 @@ func _print_identity(link: SliceLink) -> void:
 				people[id] = obs.display_name(id)
 	print("IDENTITY_WORLD ", JSON.stringify({"instance": link.instance, "revision": link.client.revision,
 		"people": people, "events_seen": _events_seen}))
+	# The name over each doorway of the observer's place, in the selected language (`ARC-363`); a
+	# doorway the world names nowhere keeps its depicted label, or "" when none is drawn.
+	if obs != null:
+		var doors := []
+		for p in link.layout.passages.get(obs.place(), []):
+			var to := String(p.get("to", ""))
+			var drawn := ""
+			if link.layout.doors.has(to):
+				drawn = str(SliceDoors.rows[link.layout.doors[to]][2])
+			doors.append({"to": to, "text": link.door_text(to, drawn)})
+		print("DOOR_LABELS ", JSON.stringify({"place": obs.place(),
+			"here": link.display_label(obs.place()), "language": MineWorldText.language(), "doors": doors}))
 
 
 func _fail(what: String, why: String) -> void:

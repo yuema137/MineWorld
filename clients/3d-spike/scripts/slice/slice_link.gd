@@ -277,11 +277,27 @@ static func _shown_reason(code: Variant) -> Variant:
 	return MineWorldText.code_ref("reason", String(code))
 
 
-## The name the world disclosed for a perceived entity, or "" when it disclosed
-## none: the `naming` pack's `display-name`, read by the protocol module's own
-## `display_name` (`ARC-31`) so the payload's shape lives in one place.
+## The name the world disclosed for a perceived entity, in the selected language
+## when the author wrote a form for it, or "" when it disclosed none: the
+## `naming` pack's `display-name`, read by the protocol module's own
+## `shown_name` (`ARC-31`, `ARC-363`) so the payload's shape lives in one place.
 func _disclosed_name(obs: MineWorldObservation, id: String) -> String:
-	return obs.display_name(id).strip_edges()
+	return obs.shown_name(id, MineWorldText.language()).strip_edges()
+
+
+## The name over the doorway of the observer's place that leads to `to`, in the
+## selected language: the `naming` pack's `door-names` (`ARC-363`), else the
+## destination's own disclosed name, else `fallback` (the depicted door's label).
+func door_text(to: String, fallback: String = "") -> String:
+	var obs := client.latest if client != null else null
+	if obs != null:
+		var doors := obs.door_names()
+		if doors.has(to):
+			return MineWorldObservation.form_for(doors[to], MineWorldText.language())
+		var shown := _disclosed_name(obs, to)
+		if shown != "":
+			return shown
+	return fallback
 
 
 static func _role(tags: Variant) -> String:

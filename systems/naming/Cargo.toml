@@ -1,6 +1,6 @@
 [package]
 name = "mineworld-naming"
-description = "MineWorld's NamingSystem: a person's display name, authored in their World Pack file, seeded as a genesis fact and disclosed to whoever perceives them."
+description = "MineWorld's NamingSystem: a person's or a place's display name and its forms in other languages, authored in their World Pack file, seeded as a genesis fact and disclosed to whoever perceives them, plus the names over a place's doorways."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -12,6 +12,9 @@ authors.workspace = true
 mineworld-authoring = { workspace = true }
 mineworld-contracts = { workspace = true }
 mineworld-kernel = { workspace = true }
+# Read only: movement's public Passages, for the name over each doorway (DECISIONS.md ARC-363). The
+# optional pack depends on the fundamental one, so a world with movement and no naming builds as before.
+mineworld-movement = { workspace = true }
 # For PerceptionProvider: the seam a pack discloses its own state through. No system dependency.
 mineworld-presence = { workspace = true }
 # What the build needs to know about this pack, said by the pack (DECISIONS.md ARC-33).

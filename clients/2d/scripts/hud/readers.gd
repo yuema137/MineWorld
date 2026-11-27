@@ -26,6 +26,9 @@ const CATALOGUE := "item-catalogue"
 ## id → the last display name the world disclosed for it in this instance (presentation memory,
 ## like the layout cache: dropped when the instance changes).
 var _names: Dictionary = {}
+## place id → its disclosed name with its forms, `{name, forms}`: where one stood, or over a doorway
+## (presentation memory, dropped with `_names`). Kept whole so a language switch re-picks the form.
+var _place_names: Dictionary = {}
 var _instance := ""
 var _latest: MineWorldObservation = null
 ## The layout learned (`town.gd`): the tags of places seen before, for naming a place not in view.
@@ -37,6 +40,7 @@ func reset(instance: String) -> void:
 	if instance != _instance:
 		_instance = instance
 		_names.clear()
+		_place_names.clear()
 
 
 ## Remembers every name the observation discloses: people's and places' display names, and the item
@@ -53,6 +57,12 @@ func learn(observation: MineWorldObservation) -> void:
 		var name := observation.display_name(id)
 		if name != "":
 			_names[id] = name
+			if observation.entity(id).get("entity_type", "") == "place":
+				_place_names[id] = observation.component(id, "display-name")
+	# The names over the doorways of the place in view, remembered as a doorway's tags are (`ARC-363`).
+	var doors := observation.door_names()
+	for to in doors:
+		_place_names[to] = doors[to]
 
 
 ## What a person is called: the name disclosed now, else the last one disclosed, else the id.
@@ -97,9 +107,14 @@ static func loose_shapes(observation: MineWorldObservation) -> Dictionary:
 	return out
 
 
-## A place: its tags as the world lists them now, else as they were last seen (where one stood, or on a
-## doorway's sign), else "place <id>" for a place the world has not named to this observer.
+## A place: the name the world gave it, in the selected language when the author wrote a form for it
+## (disclosed now, else as last disclosed — where one stood, or over a doorway, `ARC-363`); else its tags
+## as the world lists them now, else as they were last seen (where one stood, or on a doorway's sign),
+## else "place <id>" for a place the world has not named to this observer.
 func place(id: String) -> String:
+	var named := _place_name(id)
+	if named != "":
+		return named
 	if _latest != null:
 		var tags: Variant = _latest.entity(id).get("tags", [])
 		if typeof(tags) == TYPE_ARRAY and not tags.is_empty():
@@ -107,6 +122,18 @@ func place(id: String) -> String:
 	if town != null and town.tags.has(id) and not town.tags[id].is_empty():
 		return ", ".join(town.tags[id])
 	return Words.text("ui.place", {"id": id}) if id != "" else ""
+
+
+## A place's name in the selected language: disclosed now, else as last disclosed; `""` when the
+## world named it nowhere this observer was told.
+func _place_name(id: String) -> String:
+	if id == "":
+		return ""
+	if _latest != null and not _latest.component(id, "display-name").is_empty():
+		return _latest.shown_name(id, Words.language())
+	if _place_names.has(id):
+		return MineWorldObservation.form_for(_place_names[id], Words.language())
+	return ""
 
 
 func _known_name(id: String) -> String:

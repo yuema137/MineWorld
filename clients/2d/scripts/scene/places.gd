@@ -94,21 +94,29 @@ const PLACE_NAME_KEYS := [
 ]
 
 
-## "door to <where it leads>". The name comes from the first pair of the table whose tag the
-## destination carries and whose key the wording names; else the place's display name if the world
-## gives one; else "outside". A tag the wording does not name (`public`) says nothing about where a door
-## leads.
+## "door to <where it leads>". The name is the one the world gave the destination, in the selected
+## language when the author wrote a form for it (the `door-names` record over this place's doorways, or
+## the destination's own `display-name`, `ARC-363`): an author's name is more specific than a tag's
+## wording. Else the first pair of the table whose tag the destination carries and whose key the
+## wording names; else "outside". A tag the wording does not name (`public`) says nothing about where a
+## door leads.
 func _door_text(to: String) -> String:
 	return Words.text("ui.door-to", {"place": _place_name(to)})
 
 
 func _place_name(to: String) -> String:
+	if _observation != null:
+		var doors := _observation.door_names()
+		if doors.has(to):
+			return MineWorldObservation.form_for(doors[to], Words.language())
+		var shown := _observation.shown_name(to, Words.language())
+		if shown != "":
+			return shown
 	var to_tags: PackedStringArray = town.tags.get(to, PackedStringArray())
 	for pair in PLACE_NAME_KEYS:
 		if to_tags.has(pair[0]) and Words.has(pair[1]):
 			return Words.text(pair[1])
-	var name := _observation.display_name(to) if _observation != null else ""
-	return name if name != "" else Words.text("ui.outside")
+	return Words.text("ui.outside")
 
 
 ## The doorways of the observer's place, each with the text it is named by: `{to, text}`. For the harness's

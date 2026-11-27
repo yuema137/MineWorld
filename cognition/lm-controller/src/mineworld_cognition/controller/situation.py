@@ -18,7 +18,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import NamedTuple
 
-from mineworld_sdk import ways
+from mineworld_sdk import door_names, ways
 from mineworld_sdk.wire.contract import Observation, PlaceId
 from mineworld_sdk.wire.ids import ActionTypeId, EntityId, JsonValue
 from pydantic import Field
@@ -352,9 +352,11 @@ def _plans(next_part: NextPart | None, places: tuple[Place, ...]) -> tuple[str, 
 
 
 def _learn(observation: Observation, names: NameBook) -> None:
-    """Teaches every disclosed display name first (R-P6-2), in observation order; then labels each place that
-    has no name yet by its disclosed tags (D-P6-43): a perceived place's own tags, and each doorway's
-    `to_tags`. A display name always wins over a tag label, and a tag label never replaces a name."""
+    """Teaches every disclosed display name first (R-P6-2), in observation order; then the name over each
+    doorway of the observer's place (`door-names`, ARC-363); then labels each place that has no name yet by
+    its disclosed tags (D-P6-43): a perceived place's own tags, and each doorway's `to_tags`. A name always
+    wins over a tag label, and a tag label never replaces a name. The default name is taught, never a form
+    in another language: a seat has no language setting yet (pr-pdn OQ-3)."""
     for entity in observation.entities:
         for record in entity.components:
             if record.component_type != DISPLAY_NAME_COMPONENT:
@@ -362,6 +364,8 @@ def _learn(observation: Observation, names: NameBook) -> None:
             name = _display_name(record.payload)
             if name is not None:
                 names.learn(entity.id, name)
+    for door in door_names.of(observation):
+        names.learn(door.to, door.name)
     for entity in observation.entities:
         if entity.entity_type == PLACE:
             _learn_tags(names, entity.id, entity.tags)

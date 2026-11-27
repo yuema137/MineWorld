@@ -29,6 +29,7 @@ from mineworld_sdk.wire.contract import (
     SpecificPlace,
     SystemRejection,
 )
+from mineworld_sdk import door_names
 from mineworld_sdk.wire.ids import EntityId, JsonValue
 
 from mineworld_agent import disclosed
@@ -172,9 +173,12 @@ def _labels(tags: Sequence[str]) -> list[WorldText]:
     return [WorldText(text=tag, kind="label") for tag in tags]
 
 
-def place_line(refs: RefTable, place: EntityId, tags: Sequence[str]) -> PlaceLine:
-    """A place by reference, with its role tags first and every tag as a label (step-29 §9.4)."""
-    return PlaceLine(ref=refs.ref(place), roles=roles_of(tags), labels=_labels(tags))
+def place_line(
+    refs: RefTable, place: EntityId, tags: Sequence[str], name: WorldText | None = None
+) -> PlaceLine:
+    """A place by reference, with its name when the world disclosed one, its role tags first and every tag
+    as a label (step-29 §9.4)."""
+    return PlaceLine(ref=refs.ref(place), name=name, roles=roles_of(tags), labels=_labels(tags))
 
 
 def _entity_id(value: JsonValue) -> EntityId | None:
@@ -279,16 +283,18 @@ def offer_line(
 def _exits(refs: RefTable, place: PerceivedEntity | None, here: EntityId) -> list[ExitLine]:
     payload = _payload(place, PASSAGES)
     leads = payload.get("leads_to") if isinstance(payload, dict) else None
+    over = {door.to: door.name for door in door_names.read(_payload(place, door_names.DOOR_NAMES))}
     exits: list[ExitLine] = []
     for passage in leads if isinstance(leads, list) else []:
         if not isinstance(passage, dict) or (to := _entity_id(passage.get("to"))) is None:
             continue
         tags = passage.get("to_tags")
         labels = [t for t in tags if isinstance(t, str)] if isinstance(tags, list) else []
+        name = WorldText(text=over[to], kind="name") if to in over else None
         exits.append(
             ExitLine(
                 door=_point(refs, here, passage.get("here")),
-                leads_to=place_line(refs, to, labels),
+                leads_to=place_line(refs, to, labels, name),
             )
         )
     return exits
@@ -337,7 +343,12 @@ def render(
         name=_name(mine),
         place=None
         if here is None
-        else place_line(refs, here, place_entity.tags if place_entity is not None else ()),
+        else place_line(
+            refs,
+            here,
+            place_entity.tags if place_entity is not None else (),
+            _name(place_entity),
+        ),
         position=_located(refs, location),
         facing_deg=None if facing is None else round(facing / 1000),
         walking=None if mine is None else _walk(refs, mine, here),

@@ -25,6 +25,12 @@ static func load_pack(pack_dir: String, locale: String = DEFAULT_LOCALE) -> Pack
 	return problems
 
 
+## The language selected now, as a catalog stem (`en`, `zh_Hans`): the form of a world-authored name a
+## reader picks (`ARC-363`).
+static func language() -> String:
+	return MineWorldText.language()
+
+
 ## Whether the wording holds `key`.
 static func has(key: String) -> bool:
 	return MineWorldText.has(key)

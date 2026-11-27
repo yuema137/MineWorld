@@ -164,6 +164,62 @@ func display_name(id: String) -> String:
 	return name if typeof(name) == TYPE_STRING else ""
 
 
+## What a perceived entity is called in `locale`, or `""` when the world disclosed no name for it.
+##
+## The `display-name` payload may carry `forms`, the name in other languages by catalog stem
+## (`{ "name": "The Copper Kettle", "forms": { "zh_Hans": "铜壶咖啡馆" } }`, `ARC-363`). The world's
+## author wrote every form; a client only selects one and never translates (`ARC-70`).
+func shown_name(id: String, locale: String) -> String:
+	return MineWorldObservation.form_for(component(id, "display-name"), locale)
+
+
+## The names over the doorways of the observer's place: `{to id: {name, forms}}`, from the `naming`
+## pack's `door-names` record about that place (`ARC-363`). A doorway whose destination the world named
+## nowhere is absent; a world without `naming` or without doorways gives `{}`.
+func door_names() -> Dictionary:
+	var out := {}
+	var leads_to: Variant = component(place(), "door-names").get("leads_to", [])
+	if typeof(leads_to) != TYPE_ARRAY:
+		return out
+	for entry in leads_to:
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		var to := _ref_id(entry.get("to"))
+		var name: Variant = entry.get("name", "")
+		if to == "" or typeof(name) != TYPE_STRING or name == "":
+			continue
+		var forms: Variant = entry.get("forms", {})
+		out[to] = {"name": name, "forms": forms if typeof(forms) == TYPE_DICTIONARY else {}}
+	return out
+
+
+## The form of a disclosed name (`{name, forms}`) for `locale`: the form written for that locale; else
+## the one form written for its language part (`zh` for `zh_Hans`), when exactly one form has it; else
+## the default name; else `""`.
+static func form_for(named: Dictionary, locale: String) -> String:
+	var name: Variant = named.get("name", "")
+	var fallback: String = name if typeof(name) == TYPE_STRING else ""
+	var forms: Variant = named.get("forms", {})
+	if typeof(forms) != TYPE_DICTIONARY or (forms as Dictionary).is_empty() or locale == "":
+		return fallback
+	var exact: Variant = forms.get(locale)
+	if typeof(exact) == TYPE_STRING and exact != "":
+		return exact
+	var language := locale.split("_")[0]
+	var found: Array = []
+	for written in forms:
+		if String(written).split("_")[0] == language and typeof(forms[written]) == TYPE_STRING:
+			found.append(forms[written])
+	return String(found[0]) if found.size() == 1 else fallback
+
+
+## An identity from a typed reference `{ "entity": id, … }` or a bare identity string.
+static func _ref_id(value: Variant) -> String:
+	if typeof(value) == TYPE_DICTIONARY:
+		return str(value.get("entity", ""))
+	return "" if value == null else str(value)
+
+
 ## How a perceived person looks, as the world disclosed it, or `""` when it disclosed no look.
 ##
 ## The `appearance` System Pack's `look` record, payload `{ "look": "alice-moreau" }`

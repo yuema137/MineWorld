@@ -229,6 +229,9 @@ class PlaceLine(AgentModel):
     """A place the seat is in or walks to, by reference."""
 
     ref: Ref
+    name: WorldText | None = None
+    """The place's name, as its world author wrote it (the default form): disclosed for the place I stand in
+    and over each of its doorways (`ARC-363`). Absent when the world names it nowhere I was told."""
     roles: list[RoleTag] = Field(default_factory=list[RoleTag])
     """The place's role tags (`CORE_CONCEPTS.md` §6.6: station, stop, platform, ticket-office, landmark), in
     that order. A role tag says what the place is; it grants nothing. Empty for most places."""

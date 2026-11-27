@@ -89,3 +89,9 @@ a missing system by name (`PackError::SectionRequiresSystem`: "gives 'soup' a 'n
 world or refusal changed. The first user is `needs`' item form, which requires `consumption`. `needs` is
 also the second section with one form per kind of file (after `body:`): a pack still owns exactly one section
 name (Q-Nb-1).
+
+**Note, 2026-10-27 (PR PDN; `ARC-363`) — places carry `name:` too.** The "later option" of names for places
+is taken: `naming`'s section is carried by person and place files, in a short form (`name: Harbour Hall`) or
+a long form with forms per language (`{ default, forms: { zh_Hans: … } }`). A place's section seeds
+`place-named`; a person's still seeds `named`, byte-identical for the short form. Seeding order (item 4) is
+unchanged, so a world that names places shifts its people's `named` event ids.

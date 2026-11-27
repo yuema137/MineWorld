@@ -6,10 +6,10 @@ use std::collections::BTreeMap;
 use mineworld_authoring::{AuthoredSection, Seeding};
 use mineworld_contracts::{
     Causation, Component, EntityId, EntityKey, EntityType, EventEnvelope, LocalPosition, Location,
-    Millimetres, Observation, PersonId, PlaceId, Rejection, WorldTime,
+    Millimetres, Observation, PersonId, PlaceId, WorldTime,
 };
 use mineworld_kernel::{Emission, World};
-use mineworld_naming::{DisplayName, Name, Named, NamingSystem, names_in};
+use mineworld_naming::{DisplayName, Name, NameSpec, Named, NamingSystem, names_in};
 use mineworld_presence::{PerceptionProvider, PresenceSystem, arrival};
 use serde_json::Value;
 
@@ -64,7 +64,7 @@ fn town(
         facts.push(arrival(&world.read(), person, at).expect("admitted"));
     }
     for (person, name) in names {
-        let authored: Name = serde_saphyr::from_str(name).expect("a valid name decodes");
+        let authored: NameSpec = serde_saphyr::from_str(name).expect("a valid name decodes");
         let read = world.read();
         let seeding = Seeding::new(&read, &keys);
         facts.extend(NamingSystem::seed(&seeding, keys[&key(person)], &authored).expect("seeded"));
@@ -182,11 +182,17 @@ fn a_name_is_validated_by_its_own_type_as_it_is_decoded() {
     let decode =
         |text: &str| serde_saphyr::from_str::<<NamingSystem as AuthoredSection>::Authored>(text);
     assert_eq!(
-        decode("Alice Moreau").expect("valid").as_str(),
+        decode("Alice Moreau")
+            .expect("valid")
+            .default_name()
+            .as_str(),
         "Alice Moreau"
     );
     assert_eq!(
-        decode("Zoë Ångström").expect("any script").as_str(),
+        decode("Zoë Ångström")
+            .expect("any script")
+            .default_name()
+            .as_str(),
         "Zoë Ångström"
     );
     let long = "x".repeat(65);
@@ -210,14 +216,32 @@ fn a_name_is_validated_by_its_own_type_as_it_is_decoded() {
 }
 
 #[test]
-fn a_name_seeded_for_a_place_is_refused_by_its_owner() {
-    let town = town(&[], |_| Vec::new());
-    let read = town.world.read();
-    let seeding = Seeding::new(&read, &town.keys);
-    let name = Name::new("The Copper Kettle").expect("a name");
+fn a_person_named_by_the_short_form_states_the_bytes_named_always_did() {
+    // AC-PDN-4: the literal is the payload `main` recorded before place names existed (pr-pdn §5).
+    let town = town(&[("alice", "Alice Moreau")], |_| Vec::new());
+    let alice = town.id("alice");
+    let fact = town
+        .genesis
+        .iter()
+        .find(|fact| fact.event_type().as_str() == "named")
+        .expect("one named fact");
+    let bytes = fact.payload().payload_for::<Named>().expect("a named fact");
     assert_eq!(
-        NamingSystem::seed(&seeding, town.id("cafe"), &name).expect_err("not a person"),
-        Rejection::PreconditionFailed
+        std::str::from_utf8(bytes).expect("JSON"),
+        format!(
+            "{{\"person\":{{\"entity\":\"{alice}\",\"entity_type\":\"person\"}},\"name\":\"Alice Moreau\"}}"
+        )
+    );
+    let held = town
+        .world
+        .read()
+        .component::<DisplayName>(alice)
+        .cloned()
+        .expect("named");
+    assert_eq!(
+        serde_json::to_string(&held).expect("JSON"),
+        "{\"name\":\"Alice Moreau\"}",
+        "and the display-name payload is byte-identical too"
     );
 }
 

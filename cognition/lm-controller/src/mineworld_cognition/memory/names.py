@@ -4,10 +4,10 @@ A rendered line never shows an entity id. A person with no known name is `someon
 known label `somewhere`. Names are learned from perceived `named` facts (by ingestion, through the
 `named` renderer) and from observations (by P6, `NameBook.learn`); `learn` is the only write path.
 
-A place has no display name in the shipped packs: the world discloses what a place is by its tags (its own,
-to whoever stands in it, and a doorway's `to_tags`, to whoever stands beside it; ARC-82). Such a place is
-labelled by `tag_label`, its tags joined in their disclosed order (`cafe/public`), until a display name
-replaces it (D-P6-43). No tag is singled out, so no world's vocabulary is built in.
+A place is named when its world names it (ARC-363): its own `display-name`, to whoever stands in it, and the
+`door-names` entry over a doorway, to whoever stands beside it — the same observers who see its tags. A place
+the world names nowhere is labelled by `tag_label`, its tags joined in their disclosed order (`cafe/public`),
+until a name replaces it (D-P6-43). No tag is singled out, so no world's vocabulary is built in.
 """
 
 from __future__ import annotations

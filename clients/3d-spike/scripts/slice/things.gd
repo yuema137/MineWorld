@@ -40,7 +40,7 @@ func learn(obs: MineWorldObservation) -> void:
 	for entry in catalogue(obs):
 		_names[entry["item"]] = entry["name"]
 	for id in obs.ids():
-		var shown := obs.display_name(id).strip_edges()
+		var shown := obs.shown_name(id, MineWorldText.language()).strip_edges()
 		if shown != "":
 			_names[id] = shown
 

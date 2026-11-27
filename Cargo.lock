@@ -1353,6 +1353,7 @@ dependencies = [
  "mineworld-authoring",
  "mineworld-contracts",
  "mineworld-kernel",
+ "mineworld-movement",
  "mineworld-presence",
  "mineworld-sdk",
  "schemars",
