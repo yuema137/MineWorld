@@ -110,7 +110,10 @@ const CROPS := {
 }
 
 var _mode := ""
+## The run's exit status as a mode sets it; a failed check printed anywhere in the run raises it to 1
+## (`_verdict_log`, F-RC-7), so a probe never exits 0 after reporting a failure.
 var _exit_code := 0
+var _verdict_log := SliceProbeVerdict.new()
 var _warm := 0
 ## Simulated time, counted on physics ticks -- immune to how long a frame
 ## capture took in wall-clock time.
@@ -160,6 +163,7 @@ func _ready() -> void:
 	Engine.max_fps = 0
 	OS.low_processor_usage_mode = false
 	_mode = requested_of(_modes())
+	OS.add_logger(_verdict_log)
 	DirAccess.make_dir_recursive_absolute(OUT)
 
 
@@ -171,7 +175,16 @@ func _process(_d: float) -> void:
 		return
 	set_process(false)
 	await _run(_mode)
-	get_tree().quit(_exit_code)
+	get_tree().quit(_exit_status())
+
+
+## The status the run exits with: the mode's own, raised to 1 by any failed check it printed.
+func _exit_status() -> int:
+	OS.remove_logger(_verdict_log)
+	if _verdict_log.failed and _exit_code == 0:
+		print("[probe] exit 1: a check failed (%s)" % _verdict_log.first)
+		return 1
+	return _exit_code
 
 
 ## Run one mode; a sibling harness runs its own and hands the rest here.
@@ -739,6 +752,8 @@ func _threshold_run(samples: Array, out_pose: Array, out_name: String) -> void:
 
 
 func _verdict(claim: String, ok: bool, detail: String) -> void:
+	if not ok:
+		_exit_code = 1   # the row ends in FAIL rather than beginning with it
 	print("%-46s %s  (%s)" % [claim, "PASS" if ok else "FAIL", detail])
 
 

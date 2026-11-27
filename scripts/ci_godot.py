@@ -10,8 +10,10 @@
         holds this exact pin, the cache's case), `--version` checked, then `GODOT` and a `godot` command on
         PATH exported for the steps after it. Windows uses the archive's `_console.exe`.
     python3 scripts/ci_godot.py slice [--limit SECONDS] MODE-FLAGS ...
-        `./mineworld-slice MODE-FLAGS` with its output streamed and its verdict parsed, because the probe
-        exits 0 whether its checks pass or fail (F-13c-5): PASS needs exactly one `all <mode> checks
+        `./mineworld-slice MODE-FLAGS` with its output streamed and its verdict parsed. The probe exits 1
+        whenever it prints a failed check (F-RC-7, `slice_probe_verdict.gd`; before it, F-13c-5, it
+        exited 0 either way), but an exit 0 also follows a run that printed no summary, so the printed
+        verdict still decides: PASS needs exactly one `all <mode> checks
         pass` line and no line beginning `FAIL`; a `<n> <MODE> CHECKS FAILED` line or a `FAIL` line is
         FAIL; neither summary (an early return, a crash, a hang killed at the limit) is INCONCLUSIVE.
         Exits 0, 1 or 3, and writes the decisive lines to artifacts/nightly/probe-<mode>.txt.
