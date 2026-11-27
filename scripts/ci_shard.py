@@ -135,14 +135,15 @@ def commands(shard: list[str]) -> list[list[str]]:
     for unit in shard:
         if unit not in (LIB_BINS, DOC):
             targets += ["--test", unit]
+    # --no-fail-fast: one red test binary must not hide the results of the binaries after it (F-1).
     result: list[list[str]] = []
     if targets:
         result += [
             ["cargo", "test", "--workspace", "--no-run", *targets],
-            ["cargo", "test", "--workspace", *targets],
+            ["cargo", "test", "--workspace", "--no-fail-fast", *targets],
         ]
     if DOC in shard:
-        result.append(["cargo", "test", "--workspace", "--doc"])
+        result.append(["cargo", "test", "--workspace", "--no-fail-fast", "--doc"])
     return result
 
 
@@ -228,8 +229,15 @@ def self_test() -> int:
                 ran += [DOC] if "--doc" in command else []
         check(sorted(ran) == sorted(many), f"{count} shards: the commands run every unit once")
 
-    check(commands([DOC]) == [["cargo", "test", "--workspace", "--doc"]], "a doc-only shard never mixes --doc")
+    check(
+        commands([DOC]) == [["cargo", "test", "--workspace", "--no-fail-fast", "--doc"]],
+        "a doc-only shard never mixes --doc and runs every doctest binary",
+    )
     check(commands(["x"])[0] == ["cargo", "test", "--workspace", "--no-run", "--test", "x"], "build first")
+    check(
+        all("--no-fail-fast" in command for command in commands(["x"]) if "--no-run" not in command),
+        "every test command of a shard is --no-fail-fast",
+    )
     for bad in ("0/3", "4/3", "3", "a/b", "1/0", "1,1/3", "1,4/3", ",/3", "1,/3"):
         try:
             parse_shard(bad)

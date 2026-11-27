@@ -1,0 +1,13 @@
+PASS: ci_layer.py byte-identical executable suffix from from __future__
+PASS: ci_layer.py executable AST parity; public source SHA256 2afa010d43d797ff20ed3578c2f28b710aa61f1977d0e1f641413629a2569c2f
+PASS: ci_shard.py executable AST parity; public source SHA256 5d76c15cb290be01bfdcc24903f77a8eda7bf89a9d6025d52703a4043b86c122
+PASS: conflict-free merge-tree against local main b457a94d9a1ace6a39005de683cc393886e19288; gdparse self-test retained
+PASS: python3 scripts/ci_shard.py --self-test
+ci_shard self-test: passed
+PASS: python3 scripts/check_doc_headings.py
+254 numbered sections across 337 documents, none duplicated
+PASS: git diff --check 315a50a9 HEAD
+
+PASS: four historical artifacts byte-identical; initial attempt log identical after trailing-newline normalization (one extra blank removed)
+NOT RUN: Cargo/heavy/full-suite, paid APIs, final-head remote CI. No public writes. Independent final-candidate review PENDING.
+PASS: packet Markdown local links resolve
