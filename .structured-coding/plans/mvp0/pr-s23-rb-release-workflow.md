@@ -1,21 +1,21 @@
 # PR S23 R-b — The CI release workflow: tag, smoke, checksums, provenance, draft release
 
-## DESIGN FROZEN 2026-10-27 (operator approved in the primary session: every question answered as recommended) (not frozen)
+## DESIGN FROZEN 2026-10-27 (operator approved in the primary session: every question answered as recommended)
 
 **Ruled 2026-10-27 (operator, primary session):** every question below is answered as recommended.
 
 ```text
-Design revision:        revision 1 (2026-10-26), DRAFT (not frozen)
+Design revision:        revision 1 (2026-10-26), frozen 2026-10-27
 Author:                 design sub-agent (Opus), worktree /Users/yuema137/mineworld-worktrees/design-s23-rb-rd,
                         branch docs/pr-design-s23-rb-rd, planning base origin/main @ 0b2faf2f
 Builds on:              PR #498 (draft, branch release-dry-run/workflow, head 5cb3c313): "R-b part 1", the
                         dispatch dry run. This document specifies the remainder ("R-b part 2")
-Approved by / evidence: nobody yet. Only the operator freezes this design (CLAUDE.md §3.1)
-Implementation base:    origin/main after #498 merges (or #498's head, stacked, if the operator prefers)
-Start condition:        this design frozen; #498 merged; R-c C5 landed (Q-Rb-2); #497 (ARC-79) merged
-Execution contract:     §11, left unfilled on purpose
-Implementer:            Opus-class (workflow logic, cross-OS jobs, provenance)
-Lifecycle:              DRAFT (not frozen)
+Approved by / evidence: the operator, 2026-10-27 (primary session; relayed by the coordinator)
+Implementation base:    PR #498's head 469ffa8c plus origin/main 315a50a9 merged in (stacked on #498)
+Start condition:        met: frozen; R-c C5 landed (#517); ARC-79 on main; #498 still open (stacked)
+Execution contract:     §11, filled 2026-10-27
+Implementer:            implementation session, worktree impl-s23-rb, branch mvp0/pr-s23-rb
+Lifecycle:              FROZEN; implementation in progress
 ```
 
 **Effort:** `mvp0` · **Step:** [`step-23-release.md`](step-23-release.md) §§3, 5, 7, 9, 10, 13.4, 14 (A-R2,
@@ -328,7 +328,8 @@ transit).
   tree's lock files (`Cargo.lock`, `uv.lock`); the release notes say it covers the Rust and Python graphs
   only, and that Godot's libraries are listed in `LICENSES/godot/COPYRIGHT.txt` (step §5.4).
 - **Provenance.** `actions/attest` v4.2.2 (`1e69f48acb82d1966a394da916b4c1698aa569d6`, latest release,
-  read 2026-10-26) with `subject-path` = the four archives and `SHA256SUMS`; a second call with
+  read 2026-10-26) with `subject-path` = the four archives, raw SBOM JSON and `SHA256SUMS` (subject-accounting
+  correction of 2026-11-23, §13); a second call with
   `sbom-path` binds the SBOM to the four archives. Permissions `id-token: write`, `contents: read`,
   `attestations: write` (GitHub docs, "Using artifact attestations", read 2026-10-26: the examples use
   `actions/attest@v4` with these three permissions, and `sbom-path` on the same action).
@@ -589,19 +590,40 @@ CI IMPACT          ci.yml unchanged; fast gains one self-test line. The PR's own
 
 ## 11. Execution contract
 
-Left unfilled on purpose. The operator freezes this design and the coordinator fills the contract
-(`.claude/skills/structured-coding/prompts/implementation-working-rules.md`) before any code.
+Filled 2026-10-27 by the lane lead (the implementation session) on the coordinator's relay of the
+operator's ruling of 2026-10-27 (the design frozen; Q-Rb-1 … Q-Rb-7 answered as recommended), with the
+coordinator's narrowing of Q-Rb-6 recorded below.
 
 ```text
-PROJECT / PR:              (unfilled)
-PRIMARY DESIGN DOC:        (unfilled)
-IMPLEMENTATION BASE:       (unfilled)
-APPROVED SCOPE:            (unfilled)
-FROZEN INVARIANTS:         (unfilled)
-AUTONOMOUS ACTIONS:        (unfilled)
-STOP CONDITIONS:           (unfilled)
-VALIDATION BUDGET:         (unfilled)
-MERGE AUTHORITY:           (unfilled)
+PROJECT / PR:              MineWorld mvp0, PR S23 R-b — the CI release workflow
+PRIMARY DESIGN DOC:        .structured-coding/plans/mvp0/pr-s23-rb-release-workflow.md (this file)
+RELATED / BINDING DOCS:    step-23-release.md §§3, 5, 9, 10, 14, 19 (R-c C5, F-RC-6, F-RC-7, D-RC-5);
+                           docs/decisions ARC-48, ARC-79, ARC-80, DEP-38, DEP-41, DEP-45
+IMPLEMENTATION BASE:       PR #498's head 469ffa8c (branch release-dry-run/workflow, not merged) plus
+                           origin/main merged in (315a50a9: R-c C5 #517, 3D tools filter #512). Stacked
+                           on #498, the design's allowed alternative; this PR merges after #498. If #498
+                           merges first, origin/main is merged again.
+APPROVED SCOPE:            §3 as frozen, with Q-Rb-1 … Q-Rb-7 answered as recommended, except Q-Rb-6 (below)
+FROZEN INVARIANTS:         §4.1 (I-Rb-1 … I-Rb-6), and: nothing is published. `draft` creates drafts only;
+                           on a dispatch only `test-<run id>` drafts, deleted after the evidence is taken.
+                           The artifact interface of §4.3 is kept exactly (another PR, 25g layer B,
+                           consumes it).
+AUTONOMOUS ACTIONS:        implement, validate, commit, push, open the PR, dispatch release.yml on this
+                           branch (or push it to a release-dry-run/** branch, the dry-run trigger, while
+                           the workflow is not on main). Not: merge, arm auto-merge, push any tag (the
+                           A-R2 scratch tag included), create a non-draft release.
+Q-Rb-6 (narrowed):         the coordinator's instruction of 2026-10-27 replaces the recommended "yes": no
+                           scratch tag is pushed by this session. A-R2 is proven by the script's
+                           self-test and the CLI against a mismatched tag; the real scratch-tag run is
+                           pending operator action.
+STOP CONDITIONS:           any change to frozen scope, a public contract, an ownership boundary, or a
+                           dependency beyond the design's pins.
+VALIDATION BUDGET:         local: ci_release.py and ci_parity.py self-tests, check_ci_pins.py, actionlint
+                           if available; cargo and Godot only through cast-slots/with-slot.sh. Platform
+                           evidence: release.yml runs on this branch, at most ONE in flight, polled at
+                           most every 5 minutes; only heads expected green are pushed.
+MERGE AUTHORITY:           the coordinator only. This session never merges.
+NORMAL STOP:               READY FOR OPERATOR REVIEW — DO NOT MERGE
 ```
 
 ---
@@ -611,3 +633,130 @@ MERGE AUTHORITY:           (unfilled)
 | Date | Commit / run | Event |
 | --- | --- | --- |
 | 2026-10-26 | — | revision 1 drafted from origin/main 0b2faf2f and #498 head 5cb3c313; #498 run 40447534966: all three legs assemble inside the budget, then FAIL at the probe step's first line (§1.3) |
+
+## 13. Bounded correction session — 2026-11-23 (PR #529)
+
+### 13.1 Authority, identity and pre-code correction record
+
+This fresh correction session owns only `/tmp/mineworld-pr529-closeout-source`, branch
+`fix/pr529-closeout`, initially exact PR head `3c2acbe71e3028c10eb759e381db3cd9b87bc5f4`.
+The coordinator's dispatch of 2026-11-23 authorizes reviewable local workflow/helper repairs,
+local documentation, commits and cheap offline checks. It expressly prohibits Cargo, Godot,
+CI dispatch, tag/release creation, public push, merge, settings changes and child agents.
+This narrowing supersedes §11's remote-execution authority for this session only.
+The root checkout and its dirty coordinator-owned documents are not edited. No hooks enabled.
+
+The full read-only audit `/tmp/mineworld-pr-backlog-release.md` was read. Its decisive evidence:
+Release dispatch [40587709153](https://github.com/yuema137/MineWorld/actions/runs/40587709153)
+on exact head `3c2acbe…` FAILED. Windows job 122484032470 stopped before probes with
+`tar.exe: could not chdir to 'D:/a/_temp/MineWorld ??'`; Linux/macOS passed 2D but 3D timed out
+with missing `PhysicsEngineProbe` and dependent compile errors. Smoke was skipped; parity's
+missing macOS record is a cascade, not measured behavioral divergence; draft was skipped.
+Ordinary CI 40587700891 passed selectively with eleven workload jobs/matrices skipped.
+Neither run establishes release acceptance. Historical #498 run 40449288276 also FAILED:
+Windows extraction; Linux/macOS `STATION_KIT_MISSING`. Packaging fix `63989b4f` is already an
+ancestor of #529, so it needs no cherry-pick.
+
+Before implementation, the bounded correction is recorded as follows:
+
+- Preserve §3.4's native Windows tar and exact `MineWorld 世界` destination. The quoted `-C`
+  argument remains one path in the log (including its space); it is corrupted to question marks.
+  This is evidence of the destination argument/encoding boundary, not a missing quote or proof
+  that native tar cannot write files beneath a Unicode working directory. Upstream libarchive
+  [issue 2092](https://github.com/libarchive/libarchive/issues/2092) and
+  [Windows path handling source](https://github.com/libarchive/libarchive/blob/master/tar/bsdtar_windows.c)
+  were read 2026-11-23: narrow command arguments and CP_ACP conversion corroborate that
+  diagnosis. The exact runner tar version/codepage is not established. Repair both callers by
+  resolving the archive before changing directory, then run native tar with destination as cwd;
+  do not rename the path, change native tools, or claim the external issue proves our runner fixed.
+- Merge already-public main `b457a94d9a1ace6a39005de683cc393886e19288` locally for #530's
+  exported diagnostic fix. A no-commit merge is conflict-free; its 16-path delta is existing main
+  content, including #519's parse gate and #520's documentation. `ci_layer.py` adds only the
+  already-main gdparse self-test and retains both release command sets. No F-RC-7 code is added.
+  This dependency refresh does not prove release smoke.
+- Preserve existing SBOM-as-predicate-for-archives semantics. Correct producer subject accounting
+  by including the raw SBOM asset in build provenance and its provenance-verification loop,
+  alongside archives and SHA256SUMS. §0 already promises provenance per file; §3.6 already puts
+  the raw SBOM digest in SHA256SUMS. This closes that gap without making an SPDX predicate
+  self-attestation. The consumer proposal for #524 is in §13.2 and requires coordination.
+- Wire the existing `citation` command on real tag runs only, as the copied helper docstring and
+  R-d design require. R-b dry runs remain independent of R-d's CITATION.cff. A real tag without
+  R-d's citation fails; do not manufacture its owned file here.
+
+Validation ownership: offline workflow-block execution owns cwd/absolute-archive propagation
+and preservation of the Unicode destination; static review owns producer subject lists and
+real-tag-only citation wiring; existing script self-tests own deterministic helper semantics.
+Only real Windows execution owns the actual Windows encoding fix. Five real smoke legs,
+four bundles, both-mode validation, remote attestations/draft and canonical exact-head CI remain
+NOT RUN in this session. Gate 1 N/A (no LLM-facing change). Targeted checks ≤5 minutes each,
+≤15 minutes total CPU wall time; no network execution or paid compute.
+
+### 13.2 Coordinator proposals — not adopted dependency/policy changes
+
+1. **#498 supersession:** replace §11's “this PR merges after #498” with: “#529 is the combined
+   R-b delivery including #498 exact head `469ffa8c39018dd19df517f140cbf7c174d884a6` (an exact
+   ancestor of #529); #498 is subsumed, not a separate merge prerequisite. Preserve its template
+   installer and workflow capability. Merge #529 only after its own acceptance is met.” Record
+   coordinator/operator adoption before closing #498. This proposal does not itself close #498
+   or rewrite the frozen dependency as already approved.
+2. **#524 shared attestation seam:** producer build-provenance subjects = four archives, raw
+   `MineWorld-<version>-sbom.spdx.json`, SHA256SUMS; SPDX-predicate subjects = four archives,
+   predicate file = raw SBOM. Consumer verifies provenance on all six assets, verifies SPDX on
+   each archive, and verifies SHA256SUMS exact asset membership/digests. It must not ask for an
+   SPDX attestation whose subject is the SBOM JSON itself. Keep default-off publishing. R-d
+   owner must implement/confirm its side; A-R9 remains INCONCLUSIVE until real draft verification.
+3. **Green-check gate:** §3.3 literally accepts successful `fast` and `test` check runs, but ARC-154
+   deliberately reports deferred tests green. Do not silently redefine those check names or
+   alter protections/CI in R-b. Proposed policy amendment: before a real tag is eligible, require
+   one successful canonical milestone CI run at that exact commit with every intended workload
+   actually executed (not skipped/deferred), and preserve its run/head/job evidence; decide how
+   `verify-tag` consumes that evidence before calling this sufficient. Implementation is pending
+   coordinator policy reconciliation with ARC-48/ARC-154; current name-only gate proves less.
+4. **F-RC-7:** local `003d3543` is not public/merged at this audit. Keep the separate dependency and
+   both-mode validation pending; do not import it into this correction. A green dry run with
+   continue-on-error cannot establish both-mode acceptance. No full release PASS is claimed.
+
+### 13.3 Correction checklist (separate from unproven historical C0–C6)
+
+- [x] Implementation: local main dependency refresh inspected and committed as `b4d472bd`.
+- [x] Implementation: both Windows extraction call sites retain the required path and native tool; cwd avoids the corrupted destination argument.
+- [x] Implementation: raw SBOM provenance coverage; real-tag citation wiring in verify-tag job.
+- [x] Validation: offline extraction regression and planted old-argument counterfactual (§13.4).
+- [x] Validation: cheap workflow and helper checks classified in §13.4; helper import remains INCONCLUSIVE.
+- [ ] LLM review: independent reviewer `review_sol` on exact local candidate.
+- [ ] Remote validation: exact final public head Release/CI; not authorized in this session.
+
+Maintainability disposition before edits: packaging remains owned by package.py; no kernel,
+System, client semantics or inheritance changes. ci_release.py (900 lines), ci_parity.py (1145),
+release.yml (549) already exceed review triggers in #529. This correction adds no helper command
+or generic abstraction and no growth to those two Python modules. Existing mixed publishing/
+release responsibilities need a separately scoped ownership refactor; arbitrary line-count splits
+would obscure the shared interface. New coupling is restricted to the already-documented citation
+command and explicit producer/consumer subjects, reviewed together with R-d. No unknown is retried
+or skipped into a pass. Remaining debt and acceptance gaps prevent full readiness.
+
+### 13.4 Local correction evidence — 2026-11-23
+
+All checks below ran on `b4d472bd` plus the correction diff; the correction commit records the
+identical executable content. This ledger does not check off C0–C6 retroactively.
+
+| Command / observation | Result | Meaning / limit |
+| --- | --- | --- |
+| `python3 .structured-coding/plans/mvp0/pr529-evidence/check_unpack.py` | PASS, <1 s | Executes both actual workflow unpack blocks under bash -e/pipefail with a local native-tar seam. Real ZIP bytes appear at `MineWorld 世界/<bundle>/payload`; build archive starts relative, fresh archive absolute; fresh BUNDLE output preserved. Each old `-C` mutation is rejected. All literal workflow run blocks pass `bash -n`. This is POSIX seam evidence; Windows native runtime NOT RUN. |
+| Ruby standard `YAML.load_file` and assertions on parsed jobs/steps | PASS, <1 s | Valid YAML; provenance exactly archives + raw SBOM + sums; SPDX exactly archives with expected predicate file; citation command only for real tags; no always() bypass added to draft. This is static configuration evidence, not real attestation verification. |
+| `/opt/homebrew/bin/python3.12 scripts/check_ci_pins.py` | PASS, <1 s | All existing pins preserved. Initial `/usr/bin/python3` invocation INCONCLUSIVE: that Python lacks tomllib; corrected interpreter needs no install. |
+| `python3 scripts/check_doc_headings.py` | PASS, <1 s | 254 numbered sections, 339 docs at initial correction check. |
+| `python3 scripts/check_decision_ids.py` | PASS, <1 s | 259 distinct IDs; index current. First correction heading repeated canonical DEP-42 prefix and FAILED; renamed subsection, no new ID allocated. |
+| `/opt/homebrew/bin/python3.12 scripts/ci_parity.py --self-test` | PASS, <1 s | Includes planted difference, missing record, commit mismatch, --root cases; intentional missing-reference FAIL line is part of passing negative test. |
+| `/opt/homebrew/bin/python3.12 scripts/ci_release.py --self-test` | INCONCLUSIVE, import failure | `package.py -> plistlib -> pyexpat`: missing `_XML_SetAllocTrackerActivationThreshold` in host libexpat. Also observed with Python 3.14; an ephemeral DYLD_LIBRARY_PATH attempt did not resolve it. No host modifications, dependency installs, module stubs or script workaround. |
+| `git diff --check` | PASS | Correction whitespace only. |
+| actionlint | NOT RUN | Not installed; YAML parsing/bash syntax is narrower evidence. |
+| Cargo, Godot, full suites, Windows native tar, Release/CI, attestation service, draft, reproducibility runs | NOT RUN | Explicit dispatch limits; no background jobs or spend. |
+
+Self logic review: no scripts or publishing flags changed; no new generic abstraction. Both archive
+paths are absolute at native tar invocation: build normalizes before cwd; fresh smoke's downloaded
+archive starts under absolute RUNNER_TEMP via cygpath. Directory changes run in subshells so probe and
+subsequent steps retain their previous working directory. Both extraction commands propagate failure.
+The fixture's native seam checks argv/cwd and actual local ZIP extraction, not Windows codec support.
+Independent reviewer remains pending. The original name-only `fast`/`test` limitation, supersession
+adoption, F-RC-7, R-d integration and full release acceptance remain open as §13.2 states.

@@ -9,6 +9,11 @@
         which would only detect corruption, not a replaced asset. Unpacked into DIR (kept when DIR already
         holds this exact pin, the cache's case), `--version` checked, then `GODOT` and a `godot` command on
         PATH exported for the steps after it. Windows uses the archive's `_console.exe`.
+    python3 scripts/ci_godot.py templates
+        The official export templates of the same version (DEP-41), refused unless the archive's SHA-512
+        equals TEMPLATES' pin. Only this OS's templates (and `version.txt`) are unpacked, into Godot's
+        per-user templates folder, where `--export-release` looks; kept when that folder already holds this
+        exact pin. Used by the release dry run (`.github/workflows/release.yml`, step-23 §5).
     python3 scripts/ci_godot.py slice [--limit SECONDS] MODE-FLAGS ...
         `./mineworld-slice MODE-FLAGS` with its output streamed and its verdict parsed, because the probe
         exits 0 whether its checks pass or fail (F-13c-5): PASS needs exactly one `all <mode> checks
@@ -73,6 +78,13 @@ ASSETS = {
                 "09bf868e00778a96984338c1b29dafdb453c6847747694621c6ecf5da2259993",
                 "Godot_v4.7.2-stable_win64_console.exe"),
 }
+# The export templates of the same release (DEP-41: the value in its SHA512-SUMS.txt, read 2026-10-10 and
+# again 2026-10-26). The archive holds every platform's templates under `templates/`; each OS keeps only
+# its own, whose names start with the prefix below.
+TEMPLATES = ("Godot_v4.7.2-stable_export_templates.tpz",
+             "ca4d71c4d7b81dfc15d1a98baa07534aa95b03fdda78a0075b06672e1648d2e5"
+             "f40980c9adc28d23e1b92e732ee7bf3461997aa804af74ec2fcd7a93ccb84079")
+TEMPLATE_PREFIX = {"Linux": "linux_", "Darwin": "macos", "Windows": "windows_"}
 
 # The ignored Godot tests (F-13c-4) and the OSes on which one is skipped by name, each with its reason
 # (QC-5: only a test that cannot show a window on that leg, and only while it passes on another leg the
@@ -264,6 +276,60 @@ def fetch(dest: Path, system: str, env_file: str | None, path_file: str | None) 
     if path_file:
         with open(path_file, "a", encoding="utf-8") as out:
             out.write(f"{commands}\n")
+    return 0
+
+
+def templates_dir(system: str) -> Path:
+    """Godot's per-user export templates folder for VERSION (Godot docs, "Exporting projects")."""
+    if system == "Darwin":
+        base = Path.home() / "Library" / "Application Support" / "Godot"
+    elif system == "Windows":
+        base = Path(os.environ["APPDATA"]) / "Godot"
+    else:
+        base = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share") / "godot"
+    return base / "export_templates" / VERSION.replace("-", ".")
+
+
+def templates(system: str) -> int:
+    if system not in TEMPLATE_PREFIX:
+        raise Unmet(f"no export templates are pinned for {system}")
+    asset, pinned = TEMPLATES
+    into = templates_dir(system)
+    marker = into / "PINNED-SHA512"
+    if marker.is_file() and marker.read_text(encoding="utf-8").strip() == pinned:
+        print(f"[godot] {asset}: already unpacked into {into} with the pinned SHA-512 (cache)", flush=True)
+        return 0
+    shutil.rmtree(into, ignore_errors=True)
+    into.mkdir(parents=True)
+    archive = Path(os.environ.get("RUNNER_TEMP") or into.parent) / asset
+    began = time.monotonic()
+    print(f"[godot] downloading {RELEASE}/{asset}", flush=True)
+    try:
+        with urllib.request.urlopen(f"{RELEASE}/{asset}", timeout=120) as answer, open(archive, "wb") as out:
+            shutil.copyfileobj(answer, out, 1 << 20)
+        found = sha512(archive)
+        if found != pinned:
+            raise Unmet(f"SHA-512 mismatch for {asset}: pinned {pinned}, downloaded {found}; nothing unpacked")
+        kept = 0
+        with zipfile.ZipFile(archive) as bundle:
+            for member in bundle.infolist():
+                name = member.filename.removeprefix("templates/")
+                if member.is_dir() or not (name == "version.txt" or name.startswith(TEMPLATE_PREFIX[system])):
+                    continue
+                (into / name).write_bytes(bundle.read(member))
+                kept += 1
+    except OSError as error:
+        shutil.rmtree(into, ignore_errors=True)
+        raise Unmet(f"download or unpack of {asset} failed: {error}") from error
+    finally:
+        archive.unlink(missing_ok=True)
+    version = (into / "version.txt").read_text(encoding="utf-8").strip() if (into / "version.txt").is_file() else ""
+    if version != VERSION.replace("-", "."):
+        shutil.rmtree(into, ignore_errors=True)
+        raise Unmet(f"{asset}: version.txt says {version!r}, expected {VERSION.replace('-', '.')!r}")
+    marker.write_text(pinned + "\n", encoding="utf-8")
+    print(f"[godot] {asset}: SHA-512 matches the pin; {kept} files for {system} in {into} "
+          f"in {time.monotonic() - began:.1f} s", flush=True)
     return 0
 
 
@@ -523,6 +589,7 @@ def self_test() -> int:
 
 
 USAGE = ("usage: ci_godot.py fetch --dest DIR [--github-env FILE] [--github-path FILE]\n"
+         "       ci_godot.py templates\n"
          "       ci_godot.py slice [--limit SECONDS] FLAGS ...\n"
          "       ci_godot.py tests [--shard K/N] | coverage | --self-test")
 
@@ -533,6 +600,8 @@ def main(arguments: list[str]) -> int:
             return self_test()
         if arguments == ["coverage"]:
             return coverage()
+        if arguments == ["templates"]:
+            return templates(platform.system())
         if arguments == ["tests"]:
             return run_tests(platform.system())
         if len(arguments) == 3 and arguments[:2] == ["tests", "--shard"]:

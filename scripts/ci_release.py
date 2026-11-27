@@ -13,6 +13,31 @@ Commands:
     python3 scripts/ci_release.py citation            CITATION.cff's `version` equals the workspace version
     python3 scripts/ci_release.py --self-test         every rule above on planted inputs, no network
 
+R-b's commands (`release.yml`, `pr-s23-rb-release-workflow.md` §3; the workflow only installs tools and
+calls these):
+    python3 scripts/ci_release.py verify-tag --tag T --commit C [--dry] [--repo OWNER/NAME] [--output FILE]
+        A tag run: T is "v" + Cargo.toml's [workspace.package] version (package.py's parser), optionally
+        "-rc.N"; C is an ancestor of origin/main; C's latest `fast` and `test` check runs concluded
+        `success`. A dry run (`--dry`, a dispatch or a branch push): the would-be tag "v<version>" is
+        checked by the same rule; ancestry and check runs are not read. One line per check; exits 1 naming
+        the first failure. `--output` appends tag, version, dry, prerelease and epoch (C's committer time,
+        the archives' SOURCE_DATE_EPOCH) in GITHUB_OUTPUT's `key=value` form.
+    python3 scripts/ci_release.py sums --out FILE PATH [PATH ...]
+        `sha256sum`'s format, sorted by file name: one line per PATH, named by its base name.
+    python3 scripts/ci_release.py sums --check FILE [FILE ...]
+        Every line of each FILE against the file of that name beside it; exits 1 naming each mismatch.
+    python3 scripts/ci_release.py notes --version V --sha S --run-url U --assets DIR [--tag-run]
+                                        [--changelog FILE] [--template FILE] [--out FILE]
+        The release notes from packaging/release-notes.txt.in (step-23 §10.3). "What's new" and "Known
+        issues" come from CHANGELOG.md's section for V; a dry run without one reads "See the commit
+        history"; a tag run without one fails.
+    python3 scripts/ci_release.py reference-root DIR
+        The AC-8 reference's world tree: the bundle's worlds and Presentation Pack parts, copied from this
+        checkout by package.py's own lists into DIR, laid out like a bundle's runtime/ (R-b §3.5).
+    python3 scripts/ci_release.py repro A B
+        Two bundles (folders, or .zip / .tar.gz archives) compared file by file by SHA-256; lists every
+        file that differs or exists in one only (step-23 §5.3: a measurement, not a gate; exits 0).
+
 `citation` is also called by R-b's `verify-tag` on a tag run, so a tag cannot ship with a stale citation
 (design `pr-s23-rd-publish.md` sections 4.1 and 3). R-b's commands (`verify-tag`, `notes`, `sums`, `repro`)
 are added beside these by its own design (`pr-s23-rb-release-workflow.md` section 4.2).
@@ -23,12 +48,20 @@ shapes `publish.yml` is written in (section 3), and the self-test plants each sh
 
 from __future__ import annotations
 
+import argparse
 import hashlib
+import json
 import re
+import subprocess
 import sys
+import tarfile
 import tempfile
 import tomllib
+import zipfile
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import package  # noqa: E402  (R-b: the bundle's version parser and lists are package.py's, never copied)
 
 ROOT = Path(__file__).resolve().parent.parent
 PUBLISH_WORKFLOW = "publish.yml"
@@ -395,13 +428,425 @@ def self_test() -> list[str]:
     return failures
 
 
+# ================================== R-b: the release workflow's rules ==================================
+# `release.yml` and `pr-s23-rb-release-workflow.md` §3. One tag rule for both PRs: TAG_SHAPE above.
+
+VERSION_SHAPE = re.compile(r"^\d+\.\d+\.\d+$")
+REQUIRED_CHECKS = ("fast", "test")  # ci.yml's required checks by name (ARC-48)
+NOTES_TEMPLATE = ROOT / "packaging" / "release-notes.txt.in"
+CHANGELOG = ROOT / "CHANGELOG.md"
+NO_CHANGELOG = "See the commit history."
+ALWAYS_KNOWN = "Saves may not load in a later 0.x version."
+RB_COMMANDS = ("verify-tag", "sums", "notes", "reference-root", "repro")
+
+
+class Refused(Exception):
+    """A rule did not hold; the message names it."""
+
+
+# ---------- verify-tag ----------
+
+
+def check_tag(tag: str, version: str) -> bool:
+    """The tag against the workspace version; returns whether it is a release candidate."""
+    if not VERSION_SHAPE.match(version):
+        raise Refused(f"Cargo.toml [workspace.package] version {version!r} is not MAJOR.MINOR.PATCH")
+    match = TAG_SHAPE.match(tag)
+    if not match:
+        raise Refused(f"{tag} is not v<MAJOR.MINOR.PATCH> or v<MAJOR.MINOR.PATCH>-rc.<N>")
+    if match.group("version") != version:
+        raise Refused(f"{tag} is not v{version} (Cargo.toml [workspace.package] version)")
+    return match.group("rc") is not None
+
+
+def check_runs(reply: dict, name: str) -> str:
+    """The verdict on one required check from `GET …/commits/C/check-runs?check_name=…&filter=latest`."""
+    runs = [run for run in reply.get("check_runs", []) if run.get("name") == name]
+    if not runs:
+        raise Refused(f"check {name}: no check run on this commit")
+    latest = max(runs, key=lambda run: run.get("id", 0))
+    if latest.get("status") != "completed" or latest.get("conclusion") != "success":
+        raise Refused(f"check {name}: {latest.get('status')}, conclusion {latest.get('conclusion')}, not success")
+    return f"check {name}: success (check run {latest.get('id')})"
+
+
+def fetch_check_runs(repo: str, commit: str, name: str) -> dict:
+    api = f"repos/{repo}/commits/{commit}/check-runs?check_name={name}&filter=latest&per_page=100"
+    try:
+        out = subprocess.run(["gh", "api", api], capture_output=True, text=True)
+    except OSError as error:
+        raise Refused(f"check {name}: could not start gh: {error}") from error
+    if out.returncode != 0:
+        raise Refused(f"check {name}: gh api failed ({out.stderr.strip() or out.returncode}); never passed on an unknown")
+    try:
+        return json.loads(out.stdout)
+    except ValueError as error:
+        raise Refused(f"check {name}: gh api returned no JSON ({error})") from error
+
+
+def git(*args: str) -> subprocess.CompletedProcess:
+    return subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True)
+
+
+def verify_tag(tag: str, commit: str, dry: bool, repo: str, fetch=fetch_check_runs, ancestor=None) -> dict:
+    """Every rule of R-b §3.3, in order; returns the outputs. Raises Refused on the first failure."""
+    try:
+        version = package.workspace_version()
+    except package.Failure as failure:
+        raise Refused(str(failure)) from failure
+    if dry:
+        tag = f"v{version}"
+    prerelease = check_tag(tag, version)
+    print(f"verify-tag: {tag} is v{version} (Cargo.toml [workspace.package] version){' — dry run' if dry else ''}")
+    if not dry:
+        is_ancestor = ancestor(commit) if ancestor else git("merge-base", "--is-ancestor", commit, "origin/main").returncode == 0
+        if not is_ancestor:
+            raise Refused(f"{commit} is not an ancestor of origin/main")
+        print(f"verify-tag: {commit} is on origin/main")
+        for name in REQUIRED_CHECKS:
+            print("verify-tag: " + check_runs(fetch(repo, commit, name), name))
+    else:
+        print("verify-tag: dry run, so the ancestry and the check runs are not read")
+    return {"tag": tag, "version": version, "dry": "true" if dry else "false",
+            "prerelease": "true" if prerelease else "false"}
+
+
+def commit_epoch(commit: str) -> str:
+    out = git("show", "-s", "--format=%ct", commit)
+    if out.returncode != 0 or not out.stdout.strip().isdigit():
+        raise Refused(f"{commit}: no committer time ({out.stderr.strip()})")
+    return out.stdout.strip()
+
+
+# ---------- sums ----------
+
+
+def sums_text(paths: list[Path]) -> str:
+    names = [p.name for p in paths]
+    if len(set(names)) != len(names):
+        raise Refused("sums: two files share a name: " + ", ".join(sorted(names)))
+    return "".join(f"{sha256_of(p)}  {p.name}\n" for p in sorted(paths, key=lambda p: p.name))
+
+
+def check_sums(sums: Path) -> list[str]:
+    """Each line of `sums` against the file of that name beside it."""
+    problems = []
+    lines = re.findall(r"^([0-9a-fA-F]{64}) [ *](.+?)\r?$", sums.read_text(encoding="utf-8"), re.M)
+    if not lines:
+        problems.append(f"{sums}: no `<sha256>  <name>` line")
+    for digest, name in lines:
+        path = sums.parent / name
+        if not path.is_file():
+            problems.append(f"{sums}: {name} is missing")
+        elif sha256_of(path) != digest.lower():
+            problems.append(f"{sums}: {name} does not match its SHA-256")
+    return problems
+
+
+# ---------- notes ----------
+
+
+def changelog_section(text: str, version: str) -> str | None:
+    """The body of `## [V]` (or `## V`) up to the next `## ` heading; None when absent."""
+    match = re.search(rf"^## \[?{re.escape(version)}\]?(?:\s.*)?$", text, re.M)
+    if not match:
+        return None
+    rest = text[match.end():]
+    end = re.search(r"^## ", rest, re.M)
+    return (rest[:end.start()] if end else rest).strip("\n")
+
+
+def split_known(section: str) -> tuple[str, str]:
+    """(what's new, known issues): the `### Known issues` subsection is cut out of the rest."""
+    match = re.search(r"^### Known issues\s*$", section, re.M)
+    if not match:
+        return section.strip(), ""
+    rest = section[match.end():]
+    end = re.search(r"^### ", rest, re.M)
+    known = rest[:end.start()] if end else rest
+    new = section[:match.start()] + (rest[end.start():] if end else "")
+    return new.strip(), known.strip()
+
+
+def downloads(assets: Path) -> str:
+    lines = []
+    for target in package.TARGETS.values():
+        found = sorted(assets.glob(f"MineWorld-*-{target.name}.{target.archive}"))
+        if len(found) != 1:
+            raise Refused(f"notes: expected one {target.name} archive in {assets}, found {len(found)}")
+        size = found[0].stat().st_size / package.MB
+        lines.append(f"- {target.name} — `{found[0].name}`, {size:.1f} MB")
+    return "\n".join(lines)
+
+
+def render_notes(template: str, version: str, sha: str, run_url: str, download: str,
+                 changelog: str | None, tag_run: bool) -> str:
+    section = changelog_section(changelog, version) if changelog is not None else None
+    if section is None:
+        if tag_run:
+            raise Refused(f"notes: CHANGELOG.md has no section {version}" if changelog is not None
+                          else "notes: no CHANGELOG.md, which a tag run requires (R-d writes it)")
+        new, known = NO_CHANGELOG, ""
+    else:
+        new, known = split_known(section)
+    known = "\n".join(line for line in (known, f"- {ALWAYS_KNOWN}") if line)
+    return template.format_map({"version": version, "sha": sha, "run_url": run_url, "downloads": download,
+                                "whats_new": new or NO_CHANGELOG, "known_issues": known})
+
+
+# ---------- reference-root and repro ----------
+
+
+def reference_root(into: Path) -> list[str]:
+    """The worlds and Presentation Pack parts a bundle's runtime/ holds, by package.py's lists (R-b §3.5)."""
+    if into.exists() and any(into.iterdir()):
+        raise Refused(f"reference-root: {into} is not empty")
+    into.mkdir(parents=True, exist_ok=True)
+    prefixes = [f"worlds/{w}" for w in package.WORLDS]
+    prefixes += [f"{package.PACK_2D}/{p}" for p in package.PACK_2D_PARTS]
+    prefixes += [f"{package.PACK_3D}/{p}" for p in package.PACK_3D_PARTS]
+    for prefix in prefixes:
+        package.copy_tracked(prefix, into)
+    return prefixes
+
+
+def file_digests(source: Path) -> dict[str, str]:
+    """Every file of a bundle by its path below the bundle's top folder."""
+    with tempfile.TemporaryDirectory(prefix="mineworld-repro-") as tmp:
+        top = source if source.is_dir() else package.unpack(source, Path(tmp) / "unpacked")
+        return {p.relative_to(top).as_posix(): sha256_of(p) for p in sorted(top.rglob("*")) if p.is_file()}
+
+
+def repro(a: dict[str, str], b: dict[str, str]) -> list[str]:
+    lines = [f"only in A: {name}" for name in sorted(set(a) - set(b))]
+    lines += [f"only in B: {name}" for name in sorted(set(b) - set(a))]
+    lines += [f"differs: {name}" for name in sorted(set(a) & set(b)) if a[name] != b[name]]
+    return lines
+
+
+# ---------- R-b self-test ----------
+
+
+def run_json(name: str, status: str, conclusion: str | None, run_id: int) -> dict:
+    """One check run in the shape GitHub's API returns it (recorded from this repository, 2026-10-27)."""
+    return {"id": run_id, "name": name, "status": status, "conclusion": conclusion}
+
+
+def rb_self_test() -> list[str]:
+    failures: list[str] = []
+
+    def judged(name: str, good: bool, got: object = "") -> None:
+        if not good:
+            failures.append(f"{name}: got {got}")
+
+    def refusal(call) -> str:
+        try:
+            call()
+        except Refused as refused:
+            return str(refused)
+        return ""
+
+    judged("v0.1.0 matches 0.1.0, not a release candidate", check_tag("v0.1.0", "0.1.0") is False)
+    judged("v0.1.0-rc.2 matches 0.1.0, a release candidate", check_tag("v0.1.0-rc.2", "0.1.0") is True)
+    for tag, expected in (("v9.9.9", "v9.9.9 is not v0.1.0"), ("v0.1", "is not v<MAJOR"),
+                          ("0.1.0", "is not v<MAJOR"), ("v0.1.0-beta", "is not v<MAJOR"),
+                          ("v0.1.0-rc.", "is not v<MAJOR"), ("v0.1.0-rc.1x", "is not v<MAJOR")):
+        why = refusal(lambda tag=tag: check_tag(tag, "0.1.0"))
+        judged(f"{tag} is refused", expected in why, why or "accepted")
+    why = refusal(lambda: check_tag("v0.1.0", "0.1"))
+    judged("a workspace version that is not MAJOR.MINOR.PATCH is refused", "is not MAJOR.MINOR.PATCH" in why, why)
+
+    green = {"total_count": 1, "check_runs": [run_json("fast", "completed", "success", 7)]}
+    judged("a successful check passes", check_runs(green, "fast").startswith("check fast: success"))
+    for label, reply, expected in (
+        ("a missing check", {"total_count": 0, "check_runs": []}, "no check run"),
+        ("a failed check", {"check_runs": [run_json("test", "completed", "failure", 9)]}, "conclusion failure"),
+        ("a skipped check (main's docs-only pushes)", {"check_runs": [run_json("test", "completed", "skipped", 9)]},
+         "conclusion skipped"),
+        ("a check still running", {"check_runs": [run_json("test", "in_progress", None, 9)]}, "in_progress"),
+        ("an older success under a newer failure",
+         {"check_runs": [run_json("test", "completed", "success", 8), run_json("test", "completed", "failure", 9)]},
+         "conclusion failure"),
+    ):
+        why = refusal(lambda reply=reply: check_runs(reply, "test"))
+        judged(f"{label} is refused", expected in why, why or "accepted")
+
+    version = package.workspace_version()
+    replies = {"fast": green, "test": {"check_runs": [run_json("test", "completed", "success", 8)]}}
+    outputs = verify_tag(f"v{version}", "c0ffee", False, "o/r", fetch=lambda r, c, n: replies[n], ancestor=lambda c: True)
+    judged("a tag run on main with fast and test green passes", outputs["dry"] == "false" and outputs["tag"] == f"v{version}",
+           outputs)
+    why = refusal(lambda: verify_tag(f"v{version}", "c0ffee", False, "o/r", fetch=lambda r, c, n: replies[n],
+                                     ancestor=lambda c: False))
+    judged("a tag on a commit not on main is refused", "not an ancestor of origin/main" in why, why)
+    failing = dict(replies, test={"check_runs": [run_json("test", "completed", "failure", 9)]})
+    why = refusal(lambda: verify_tag(f"v{version}", "c0ffee", False, "o/r", fetch=lambda r, c, n: failing[n],
+                                     ancestor=lambda c: True))
+    judged("a tag run with a red test is refused", "check test" in why, why)
+    why = refusal(lambda: verify_tag("v9.9.9", "c0ffee", False, "o/r", fetch=lambda r, c, n: replies[n],
+                                     ancestor=lambda c: True))
+    judged("A-R2: v9.9.9 is refused before anything else is read", f"v9.9.9 is not v{version}" in why, why)
+
+    def no_network(*_):
+        raise AssertionError("a dry run read the check runs")
+    dry = verify_tag("v9.9.9", "c0ffee", True, "o/r", fetch=no_network, ancestor=no_network)
+    judged("a dry run checks the would-be tag and reads neither ancestry nor checks",
+           dry["tag"] == f"v{version}" and dry["dry"] == "true", dry)
+
+    with tempfile.TemporaryDirectory(prefix="mineworld-ci-release-") as tmp:
+        folder = Path(tmp)
+        (folder / "b.zip").write_bytes(b"bee")
+        (folder / "a.tar.gz").write_bytes(b"ay")
+        text = sums_text([folder / "b.zip", folder / "a.tar.gz"])
+        expected = (f"{hashlib.sha256(b'ay').hexdigest()}  a.tar.gz\n"
+                    f"{hashlib.sha256(b'bee').hexdigest()}  b.zip\n")
+        judged("sums: sha256sum's format, sorted by name", text == expected, text)
+        (folder / "SUMS").write_text(text, encoding="utf-8")
+        judged("sums --check passes on untouched files", check_sums(folder / "SUMS") == [], check_sums(folder / "SUMS"))
+        (folder / "b.zip").write_bytes(b"bee!")
+        judged("sums --check names a changed file", any("b.zip does not match" in p for p in check_sums(folder / "SUMS")),
+               check_sums(folder / "SUMS"))
+        (folder / "a.tar.gz").unlink()
+        judged("sums --check names a missing file", any("a.tar.gz is missing" in p for p in check_sums(folder / "SUMS")),
+               check_sums(folder / "SUMS"))
+
+        for target in package.TARGETS.values():
+            (folder / f"MineWorld-0.1.0-{target.name}.{target.archive}").write_bytes(b"x" * 1_500_000)
+        download = downloads(folder)
+        judged("notes: one download line per target, with its size",
+               download.count("\n") == 3 and "linux-arm64 — `MineWorld-0.1.0-linux-arm64.tar.gz`, 1.5 MB" in download, download)
+        template = NOTES_TEMPLATE.read_text(encoding="utf-8")
+        changelog = ("# Changelog\n\n## [0.2.0] - later\n\n### Added\n- not this one\n\n"
+                     "## [0.1.0] - 2026-11-01\n\n### Added\n- the demo (#1)\n\n### Known issues\n- a known one (#2)\n\n"
+                     "### Fixed\n- a fix (#3)\n\n## [0.0.1]\n- older\n")
+        notes = render_notes(template, "0.1.0", "abc123", "https://run", download, changelog, True)
+        judged("notes: this version's section only, known issues cut out and the 0.x line always there",
+               "- the demo (#1)" in notes and "- a fix (#3)" in notes and "not this one" not in notes
+               and "- older" not in notes and "- a known one (#2)" in notes and ALWAYS_KNOWN in notes
+               and notes.index("a known one") > notes.index("a fix"), notes)
+        judged("notes: every placeholder is filled", "{" not in notes and "abc123" in notes and "https://run" in notes, notes)
+        judged("notes: the template carries step-23 §10.3's eight headings",
+               all(h in template for h in ("What this is", "Download", "First open", "Verify (optional)",
+                                           "What's new", "Known issues", "Licences", "Built from")), template)
+        dry_notes = render_notes(template, "0.1.0", "abc", "u", download, None, False)
+        judged("notes: a dry run without CHANGELOG.md says so and keeps the 0.x line",
+               NO_CHANGELOG in dry_notes and ALWAYS_KNOWN in dry_notes, dry_notes)
+        why = refusal(lambda: render_notes(template, "0.1.0", "abc", "u", download, None, True))
+        judged("notes: a tag run without CHANGELOG.md fails", "no CHANGELOG.md" in why, why)
+        why = refusal(lambda: render_notes(template, "0.3.0", "abc", "u", download, changelog, True))
+        judged("notes: a tag run without its version's section fails", "CHANGELOG.md has no section 0.3.0" in why, why)
+        (folder / "MineWorld-0.1.0-linux-arm64.tar.gz").unlink()
+        why = refusal(lambda: downloads(folder))
+        judged("notes: a missing archive fails by target", "linux-arm64 archive" in why, why)
+
+        a = {"runtime/mineworld": "1", "runtime/clients/x.pck": "2", "PLAY.txt": "3"}
+        b = {"runtime/mineworld": "1", "runtime/clients/x.pck": "9", "NOTICE": "4"}
+        judged("repro lists each differing and one-sided file",
+               repro(a, b) == ["only in A: PLAY.txt", "only in B: NOTICE", "differs: runtime/clients/x.pck"], repro(a, b))
+        judged("repro of equal bundles is empty", repro(a, a) == [], repro(a, a))
+    return failures
+
+
+# ---------- R-b command line ----------
+
+
+def write_outputs(path: str | None, outputs: dict[str, str]) -> None:
+    lines = "".join(f"{key}={value}\n" for key, value in outputs.items())
+    print(lines, end="")
+    if path:
+        with open(path, "a", encoding="utf-8", newline="\n") as out:
+            out.write(lines)
+
+
+def rb_main(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(prog="ci_release.py")
+    sub = parser.add_subparsers(dest="command", required=True)
+    v = sub.add_parser("verify-tag")
+    v.add_argument("--tag", default="")
+    v.add_argument("--commit", required=True)
+    v.add_argument("--dry", action="store_true")
+    v.add_argument("--repo", default="yuema137/MineWorld")
+    v.add_argument("--output")
+    s = sub.add_parser("sums")
+    s.add_argument("--out")
+    s.add_argument("--check", action="store_true")
+    s.add_argument("paths", nargs="+")
+    n = sub.add_parser("notes")
+    n.add_argument("--version", required=True)
+    n.add_argument("--sha", required=True)
+    n.add_argument("--run-url", required=True)
+    n.add_argument("--assets", required=True)
+    n.add_argument("--tag-run", action="store_true")
+    n.add_argument("--changelog", default=str(CHANGELOG))
+    n.add_argument("--template", default=str(NOTES_TEMPLATE))
+    n.add_argument("--out")
+    r = sub.add_parser("reference-root")
+    r.add_argument("dir")
+    p = sub.add_parser("repro")
+    p.add_argument("a")
+    p.add_argument("b")
+    args = parser.parse_args(argv)
+    try:
+        return rb_dispatch(args)
+    except Refused as refused:
+        print(f"{args.command}: {refused}", file=sys.stderr)
+        return 1
+    except (package.Failure, OSError, zipfile.BadZipFile, tarfile.TarError) as error:
+        print(f"{args.command}: {error}", file=sys.stderr)
+        return 1
+
+
+def rb_dispatch(args: argparse.Namespace) -> int:
+    if args.command == "verify-tag":
+        outputs = verify_tag(args.tag, args.commit, args.dry, args.repo)
+        outputs["epoch"] = commit_epoch(args.commit)
+        write_outputs(args.output, outputs)
+        return 0
+    if args.command == "sums":
+        paths = [Path(p) for p in args.paths]
+        if args.check == bool(args.out):
+            raise Refused("give exactly one of --out FILE or --check")
+        if args.check:
+            problems = [problem for path in paths for problem in check_sums(path)]
+            for problem in problems:
+                print(f"sums: {problem}", file=sys.stderr)
+            if not problems:
+                print("sums: " + ", ".join(p.name for p in paths) + ": every file matches")
+            return 1 if problems else 0
+        Path(args.out).write_text(sums_text(paths), encoding="utf-8", newline="\n")
+        print(Path(args.out).read_text(encoding="utf-8"), end="")
+        return 0
+    if args.command == "notes":
+        changelog = Path(args.changelog)
+        text = render_notes(Path(args.template).read_text(encoding="utf-8"), args.version, args.sha, args.run_url,
+                            downloads(Path(args.assets)),
+                            changelog.read_text(encoding="utf-8") if changelog.is_file() else None, args.tag_run)
+        if args.out:
+            Path(args.out).write_text(text, encoding="utf-8", newline="\n")
+        print(text, end="")
+        return 0
+    if args.command == "reference-root":
+        prefixes = reference_root(Path(args.dir))
+        print(f"reference-root: {len(prefixes)} tracked trees copied into {args.dir}")
+        return 0
+    lines = repro(file_digests(Path(args.a)), file_digests(Path(args.b)))
+    for line in lines or ["every file is byte-identical"]:
+        print(f"repro: {line}")
+    return 0
+
+
+# ---------- main ----------
+
+
 def main(arguments: list[str]) -> int:
     if arguments == ["--self-test"]:
-        failures = self_test()
+        failures = self_test() + rb_self_test()
         for failure in failures:
             print(f"ci_release self-test: FAIL: {failure}")
         print(f"ci_release self-test: {'FAILED' if failures else 'passed'}")
         return 1 if failures else 0
+    if arguments and arguments[0] in RB_COMMANDS:
+        return rb_main(arguments)
     if arguments == ["citation"]:
         problems = citation_problems(
             (ROOT / "CITATION.cff").read_text(encoding="utf-8"), (ROOT / "Cargo.toml").read_text(encoding="utf-8"))
@@ -445,7 +890,8 @@ def main(arguments: list[str]) -> int:
         for problem in problems:
             print(f"check-switch: {problem}", file=sys.stderr)
         return 1 if problems else 0
-    print("usage: ci_release.py publish-gate|verify-assets|itch-channels|check-secrets|check-switch|citation|--self-test",
+    print("usage: ci_release.py publish-gate|verify-assets|itch-channels|check-secrets|check-switch|citation|"
+          "verify-tag|sums|notes|reference-root|repro|--self-test",
           file=sys.stderr)
     return 2
 

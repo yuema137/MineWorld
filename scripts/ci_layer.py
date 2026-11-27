@@ -73,7 +73,8 @@ LAYERS: dict[str, list[list[str]]] = {
         ["python3", "scripts/ci_changes.py", "--self-test"],
         # The packaging script's A-R3 exclusions, A-R4 budget and archive determinism (S23 R-a).
         ["python3", "scripts/package.py", "--self-test"],
-        # The publishing gates (S23 R-d): the self-tests, then the real citation, secret and switch guards.
+        # The release path: R-b's tag, checksum and notes rules and R-d's publishing gates share one
+        # self-test (S23); then R-d's real citation, secret, switch and attestation-subject guards.
         ["python3", "scripts/ci_release.py", "--self-test"],
         ["python3", "scripts/ci_release.py", "citation"],
         ["python3", "scripts/ci_release.py", "check-secrets"],
