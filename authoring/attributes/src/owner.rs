@@ -12,6 +12,7 @@ use serde_json::Value;
 
 use crate::facts::RunningCatalogue;
 use crate::id::QualifiedId;
+use crate::labels::Labels;
 use crate::render::{View, disclose};
 use crate::value::AttributeValue;
 
@@ -26,12 +27,15 @@ pub trait AttributeOwner: SystemIdentity {
     ) -> Option<AttributeValue>;
 }
 
-/// The disclosure of `O`'s attributes of `subject` to `observer`, as an observation carries it; `None`
-/// when nothing is disclosable or the world does not enable `attributes`.
+/// The disclosure of `O`'s attributes of `subject` to `observer`, as an observation carries it, in
+/// English and every locale `labels` offers; `None` when nothing is disclosable or the world does not
+/// enable `attributes`. An owner's provider takes `labels` from [`Labels::from_contexts`] when it is
+/// built (S30-k, `ARC-129`).
 pub fn disclose_owned<O: AttributeOwner>(
     world: &WorldRead<'_>,
     observer: EntityId,
     subject: EntityId,
+    labels: Option<&Labels>,
 ) -> Option<Value> {
     let catalogue = RunningCatalogue::in_world(world)?;
     let disclosed = disclose(
@@ -39,6 +43,7 @@ pub fn disclose_owned<O: AttributeOwner>(
         &O::ID,
         |declaration| O::project(world, subject, &declaration.id),
         View::of(observer, subject),
+        labels,
     )?;
     serde_json::to_value(disclosed).ok()
 }

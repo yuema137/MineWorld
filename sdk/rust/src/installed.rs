@@ -473,16 +473,21 @@ macro_rules! installed {
             }
 
             /// This capability as an answerer of "what may this observer attempt against that
-            /// target".
+            /// target", built from the composition's owner `contexts`.
             ///
             /// A second value of the system type, which is safe by construction rather than merely
-            /// convenient: a system holds no fields, because its mutable state is the components it
-            /// owns and those live in the world.
-            pub fn provider(self) -> ::std::boxed::Box<dyn $perception> {
+            /// convenient: a system holds no mutable fields, because its mutable state is the
+            /// components it owns and those live in the world. Since 2026-10-27 (`ARC-129`) a
+            /// provider may hold immutable presentation data taken from `contexts`
+            /// ([`SystemPack::provider_in`](crate::SystemPack::provider_in)); it still holds no state.
+            pub fn provider(
+                self,
+                contexts: &$crate::__private::ProviderContexts<'_>,
+            ) -> ::std::boxed::Box<dyn $perception> {
                 match self {
                     $(
                         Self::$Variant => ::std::boxed::Box::new(
-                            <$System as ::core::default::Default>::default(),
+                            <$System as $crate::SystemPack>::provider_in(contexts),
                         ),
                     )+
                 }

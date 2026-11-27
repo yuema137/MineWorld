@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use mineworld_authoring::{
     AuthoredConfiguration, AuthoredContent, DataDirectory, DataOrigin, DataRefusal, ErasedSubject,
-    OwnerContext, ResolveRefusal, ResolvedSeeds, ShippedData,
+    OwnerContext, ProviderContexts, ResolveRefusal, ResolvedSeeds, ShippedData,
 };
 use mineworld_contracts::{EventTypeId, SystemId};
 use mineworld_kernel::System;
@@ -27,7 +27,9 @@ use crate::section::{DataOwnerDecl, SectionOwner};
 ///
 /// `Default` is required because the installed set makes the pack twice — once to install into a
 /// world, once to answer perception — and a system holds no fields: its mutable state is the
-/// components it owns, which live in the world (`INV-7`).
+/// components it owns, which live in the world (`INV-7`). (2026-10-27, `ARC-129`: the perception value
+/// may hold immutable presentation data from the composition's contexts, through
+/// [`provider_in`](Self::provider_in); never state.)
 pub trait SystemPack: System + Default {
     /// This pack's package identity (`DECISIONS.md` `ARC-53`): its Cargo name, version, licence,
     /// authors and repository, recorded at compile time. Always the same line, the first of the
@@ -210,6 +212,15 @@ pub trait SystemPack: System + Default {
     /// The data files this pack ships, compiled in, for an owner's directories (`ARC-121` item 4,
     /// Q-S30b-1). Declared only through [`ships_data!`](crate::ships_data); by default none.
     const SHIPS: &'static [ShippedData] = &[];
+
+    /// The value that answers perception for this pack (`ARC-121` note of 2026-10-27, `ARC-129`). It
+    /// may keep presentation data taken from the composition's owner `contexts` — label packs — which
+    /// is immutable, is never world state, and must not change any fact. By default the pack's
+    /// `Default`, as before.
+    fn provider_in(contexts: &ProviderContexts<'_>) -> Self {
+        let _ = contexts;
+        Self::default()
+    }
 }
 
 /// The refusal of a pack that owns no data directory.

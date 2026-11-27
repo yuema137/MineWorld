@@ -547,6 +547,8 @@ pub enum DataFile {
     Backend(Box<crate::backend::BackendFile>),
     /// `masks/*.yaml` (S30-e).
     Mask(Box<crate::mask::MaskFile>),
+    /// `labels/<locale>.yaml` (S30-k).
+    Labels(Box<crate::labels::LabelFile>),
 }
 
 // ---- One declaration, resolved ---------------------------------------------------------------
