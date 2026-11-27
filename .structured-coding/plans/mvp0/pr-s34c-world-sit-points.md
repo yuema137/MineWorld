@@ -234,6 +234,74 @@ Escalate:               any code change outside tests; a change to another world
 - Pending to the milestone (speed-first charter): `scripts/baselines.txt` for social-cafe and
   market-town (a long record of the merged head), and mutations X-c-1…3.
 
+### 11.2 S34-c2 — Lakeside (2026-11-27, branch `mvp0/pr-s34c2`, base `origin/main @ 7718d952`)
+
+**Authority.** This design's banner (frozen 2026-10-19) and the dated note of 2026-10-27 (Q-S34c3-7,
+ruled with S34-c3's freeze) widen S34-c2. Every prerequisite is merged: S33-b #395, S34-b #363, S34-c1
+#368, S33-f #462 (and S33-e2: the halt's benches are on main). Executed by a fresh session (Claude Opus
+5.5 as the lane owner). S34-c3 is not on main; it runs after this PR (dated note).
+
+**Audit (base `7718d952`).**
+
+| # | Fact | Where |
+| --- | --- | --- |
+| A-c2-1 | `world.yaml` has no `posture`; no place file has `sit-points:` | `worlds/lakeside/world.yaml:47-66`; `worlds/lakeside/places/*.yaml` |
+| A-c2-2 | Pier bench solid (450–3 550, 300–750), furnishing `bench.head` facing 180 000; the deck's south edge is y 0 | `pier.yaml:33-45` |
+| A-c2-3 | Square: trunk (11 800–12 200, 8 800–9 200); `bench.west` (10 900–12 500, 9 600–10 000) facing 180 000; `bench.east` (12 600–13 000, 8 100–9 900) facing 270 000 | `square.yaml:25-41` |
+| A-c2-4 | Bakery chairs `long-table.chair-1…5`, boxes x 900–1 400 centred y 1 800 … 4 200, facing 270 000 | `bakery.yaml:24-46` |
+| A-c2-5 | Halt bench row `bench.south` (1 500–6 500, 0–450) facing 0; platform benches (−3 950…−3 500, ±4 000…±6 000) facing 90 000 | `station.yaml:20-27`; `station-platform.yaml:21-31` |
+| A-c2-6 | `bench.pier` and `bench.park` are drawn by the generic backless `form: bench`, which ignores the furnishing's yaw | `presentation/mineworld-default/3D/furniture/furnishings.yaml:81-82`; `clients/3d-spike/scripts/slice/furnishings.gd:264-285` |
+| A-c2-7 | `sit_points/lakeside.yaml` holds 29 depictions with `fallback` positions (S33-f's table; halt 7 + 6) | `presentation/mineworld-default/3D/sit_points/lakeside.yaml` |
+| A-c2-8 | Both clients take the posture branch when the place discloses `sit-points`; the 3D pose reads the disclosed `at`/`facing`; a depiction without `fallback` is tolerated (`at` null) | `clients/shared/sitting/sit_rule.gd:58-72, 96-106`; `clients/3d-spike/scripts/slice/seating.gd:47-60` |
+| A-c2-9 | `ARC-172` / R-S34c-f-1 require S34-c to delete the fallback positions and run the contested seat in the posture branch | `docs/decisions/ARC-172.md`; `pr-s33f-interiors-sit-points.md` §10 |
+| A-c2-10 | `posture` declares dependencies on presence and movement only | `systems/posture/src/system.rs:58-62` |
+
+**Bounded corrections (recorded; scope, invariants and acceptance unchanged).**
+
+- **BC-c2-1 (Q-S34c3-7, the wrong side).** The pier bench and both square benches were authored facing
+  the side nobody can stand on: a south-facing pier point would stand at y 40 (needs ≥ 250 from the edge);
+  a south-facing west-bench point at y 9 340 is 172 mm from the trunk, a west-facing east-bench point at
+  x 12 340 is 140 mm from it (needs 260). The drawn benches are backless and yaw-independent (A-c2-6), so
+  the drawing does not pick a side; the geometry does. The furnishings' `facing` is the wrong side and is
+  corrected: `bench.head` 180 000 → 0; `bench.west` 180 000 → 0; `bench.east` 270 000 → 90 000. The sit
+  points keep S33-f's sides (north / north / east). Moving the pier bench 220 mm north instead
+  (Q-S33f-2 (B)) was ruled out by Q-S33f-2 (A).
+- **BC-c2-2 (SD-c-2 on merged data).** S33-f's three points on the square's north bench assumed a 1.8 m
+  bench; main's is 1.6 m (S33-f D-S33f-2 kept three). One person per 600 mm gives floor(1 600 / 600) = 2,
+  centred: (11 400, 10 260), (12 000, 10 260). The depiction file loses `tree-bench-north.3`.
+- **BC-c2-3 (Q-S34c3-4, ruled as recommended: "S34-c2 adopts the tool's count").** The halt's 5 m bench
+  row holds floor(5 000 / 600) = 8, not S33-f's 7: x 1 900 … 6 100 step 600, y 710. The depiction file
+  gains `wall-bench.8`.
+- **BC-c2-4 (keys).** Keys and groups stay S33-f's (`pier-bench.n`, `tree-bench-north.n`,
+  `long-table.n` grouped by chair, …), numbered west-to-east then south-to-north (SD-c-3), because the
+  depiction file binds by them. S34-c3's generator (`<furnishing>.<i>`) does not regenerate Lakeside's
+  hand-authored sections (its §1 Out).
+- **BC-c2-5 (ARC-172).** Fallback positions deleted from `sit_points/lakeside.yaml`; the contested-seat
+  fixture now discloses the bakery's `sit-points` and 7's `posture-state` from at 102 (held on the point's
+  `at`); expectation unchanged (7 at `long-table.3`, nobody at 100/101). The 2D client's
+  `scripts/scene/seating.gd` header comment ("until the world discloses its sit points") is now stale;
+  `clients/` is held by the client-stack recovery lane, so it is left to S34-e (follow-up), not edited
+  here. No client code changes.
+
+**Final table (29 points).** pier 5 (800 … 3 200, 1 010; 0); square north 2 (11 400, 12 000; 10 260;
+0), east 3 (13 260; 8 400, 9 000, 9 600; 90 000); bakery 5 (1 660; 1 800 … 4 200; 270 000); station 8
+(1 900 … 6 100, 710; 0); platform 3 + 3 (−3 240; ±4 400, ±5 000, ±5 600; 90 000). Each pelvis
+(`at` − `seat_offset_m` × facing) lies over its prop's solid.
+
+**Commit plan (S34-c2).**
+
+- C1 — data: `world.yaml` (`posture`), the five place files (`sit-points:`, bench `facing`), the depiction
+  file, `ARC-147` and `ARC-172` notes, this ledger.
+  - [ ] Implementation · [ ] Validation (`mineworld-posture` `worlds`, `shipped`) · [ ] Review
+- C2 — tests: `tools/cli/tests/lakeside_sit_points.rs` (world points = table; one depiction per point; no
+  fallback; clearance and pelvis), the contested fixture in the posture branch, `client_sit_rule.rs` text.
+  - [ ] Implementation · [ ] Validation · [ ] Review
+- C3 — Lakeside re-baseline (`scripts/baselines.txt` `[world lakeside]` only) and any Lakeside golden the
+  change moves.
+  - [ ] Implementation · [ ] Validation · [ ] Review
+
+**Validation log.** (filled below as runs complete)
+
 ## 12. Operator questions (each with a recommended answer)
 
 **Ruled 2026-10-19 (operator, primary session):** every question below is answered as recommended.

@@ -30,15 +30,31 @@ fishing: { catch: fish, minutes: 90 }
 # Owned by the `bodies` system (`ARC-39`, `ARC-307`): the deck, whose edges are the deck's edges — a
 # stride off the pier is stopped there (step-33 F-S33-3) — the bench across its head and the
 # pavilion's four posts. Sizes are design values (I-S33-7).
+#
+# The bench faces north, back to the lake, toward the village across the water: it stands 300 mm from
+# the head's south edge, so nobody can stand on its lake side (a seated person's point needs 260 mm
+# from the bench and 250 mm from the edge; S33-f F-S33f-3, Q-S33f-2 (A)). It is drawn backless, so the
+# drawing is the same either way (S33-f D-S33f-9); S34-c2 turned its `facing` from 180 000 to 0 so the
+# data says which side is sat on (Q-S34c3-7).
 body:
   floor: { min: { x: 0, y: 0 }, max: { x: 4000, y: 20000 } }
   furnishings:
-    - { key: bench.head, kind: bench.pier, at: { x: 2000, y: 525 }, facing: 180000 }
+    - { key: bench.head, kind: bench.pier, at: { x: 2000, y: 525 }, facing: 0 }
   solids:
-    # the bench across the head, between the pavilion's south posts, facing the water
+    # the bench across the head, between the pavilion's south posts, its back to the water
     - { min: { x: 450, y: 300 }, max: { x: 3550, y: 750 }, height: 450, furnishing: bench.head }
     # the pavilion's four posts (shell)
     - { min: { x: 200, y: 200 }, max: { x: 400, y: 400 }, height: 2600 }
     - { min: { x: 3600, y: 200 }, max: { x: 3800, y: 400 }, height: 2600 }
     - { min: { x: 200, y: 3600 }, max: { x: 400, y: 3800 }, height: 2600 }
     - { min: { x: 3600, y: 3600 }, max: { x: 3800, y: 3800 }, height: 2600 }
+
+# Owned by the `posture` system (`ARC-147`, `ARC-172`): five places on the 3.1 m bench, one person per
+# 600 mm (Q-S34-8; floor(3 100 / 600) = 5), centred on it, on free floor 260 mm north of the bench's box
+# (S34-c SD-c-1), facing north with the bench: toward the village across the water (S33-f §5.2).
+sit-points:
+  - { key: pier-bench.1, group: pier-bench, at: { x: 800, y: 1010 }, facing: 0 }
+  - { key: pier-bench.2, group: pier-bench, at: { x: 1400, y: 1010 }, facing: 0 }
+  - { key: pier-bench.3, group: pier-bench, at: { x: 2000, y: 1010 }, facing: 0 }
+  - { key: pier-bench.4, group: pier-bench, at: { x: 2600, y: 1010 }, facing: 0 }
+  - { key: pier-bench.5, group: pier-bench, at: { x: 3200, y: 1010 }, facing: 0 }
