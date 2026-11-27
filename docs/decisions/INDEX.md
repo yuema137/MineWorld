@@ -232,7 +232,9 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [DEP-36](DEP-36.md) | Noto Sans SC Regular bundled as the clients' CJK fallback font |
 | [DEP-37](DEP-37.md) | The memory store: standard-library `sqlite3`, with FTS5 as a match filter and integer ranking |
 | [DEP-38](DEP-38.md) | `cargo-about` generates the Rust third-party notices of a bundle |
+| [DEP-40](DEP-40.md) | SBOM: `anchore/sbom-action` (syft), SPDX JSON, attested with `actions/attest` |
 | [DEP-41](DEP-41.md) | Official Godot 4.7.2 export templates, checksum-pinned |
+| [DEP-42](DEP-42.md) | Provenance: GitHub artifact attestations through `actions/attest` |
 | [DEP-43](DEP-43.md) | Snapshot compression: `zstd` (bundled libzstd), level 3 |
 | [DEP-44](DEP-44.md) | The resuming seat's reconnect loop is our own, over the adopted `websockets` transport |
 | [DEP-45](DEP-45.md) | Godot in CI: the official 4.7.2 builds, SHA-512 pinned in the repository; Xvfb and Mesa for windowed tests |
