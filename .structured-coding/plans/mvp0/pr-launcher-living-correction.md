@@ -61,3 +61,29 @@ These launcher artifacts are ready for the coordinator's combined startup/launch
 
 
 Independent final review: review_sol inspected the final intended diff, existing Hosting/process implementation and tightened structured dialogue test, new checks.json/logs, and diff whitespace. PASS with no code blocker; the sole new test change is an equivalent let-chain. Review distinguishes source approval from the coordinator-owned actual exported World-tab gate. Maintainability review: Hosting is a small single process-policy owner, no new cross-layer/domain dependency, production files stay scoped; the361-line living test owns one realistic launcher lifecycle scenario with bounded protocol helpers. No material new technical debt identified. Existing supervisor wait/error structure is unchanged. Source-only closeout is READY FOR COORDINATOR INTEGRATION; this is not remote CI, actual renderer acceptance, publication or merge readiness.
+
+## Publication — 2026-11-27 (Claude takeover)
+
+Approval basis: bounded correction requested by the operator's 2026-11-23 play feedback; independent plan PASS and
+final source PASS (`handoff-coordinator.md` "November 23 continued execution"); operator approved the getrandom
+reuse (ARC-78 amendment). The `/tmp` sources were lost on reboot; `e37ce9fd` is the byte-verified recovery of
+`ff94a0ad` (via `d586754a`, patch-id `04bedb59`). Branch `fix/launcher-living-world` is `e37ce9fd` merged onto the
+startup-UI branch `fix/startup-loading-ui` (itself PR #544 + `origin/main` `303c0df3`); no `tools/launch` or
+workspace-manifest change on either side since `ff4e41e3`, so the merge is clean (only `Cargo.lock` auto-merged).
+
+Local evidence on this head (`mineworld-worktrees/_targets/launcher-living-evidence/checks.log`), under the shared
+slot: `cargo build -p mineworld-cli` (the server is built fresh from this head, not borrowed from a package) then
+`cargo test -p mineworld-launch` — PASS, 7 unit + 5 real-launch cases, including
+`played_town_and_private_clock_controls` with the tightened oracle (a structured `spoke` event whose speaker is Bob,
+resolved by display name, whose listener is the player, quoting the original utterance; Carol moves after seat
+release; 401 for missing/inherited token; 6/12/24 confirmed by clock frames; 48× refused 409; pause/resume; scale
+survives restart; secret absent from argv and process logs). `cargo clippy -p mineworld-launch --all-targets -- -D
+warnings` PASS; `cargo fmt -p mineworld-launch --check` PASS. Exported packaged UI check: NOT RUN. Full workspace:
+NOT RUN (remote `fast` gates).
+
+Scope reconciliation with later designs (recorded, not expanded): nightlife (`pr-nightlife.md` §1.3) P2 — per-run
+admin token — is delivered here. P3 — packaged single-player worlds started `--solo` — is explicitly out of this
+correction's scope (Design: "no --solo added") and remains new launcher work needing its own design and the
+operator's product decision (unlocks >24× on solo). P1 — launcher Market Town for 3D/both with matching depiction —
+is also not here (3D and both still default to `social-cafe`, LAUNCHER.md §2). Dialogue PR-B's `--decisions` and
+cognition-child seams build on this `Hosting` shape and are PR-B's work.
