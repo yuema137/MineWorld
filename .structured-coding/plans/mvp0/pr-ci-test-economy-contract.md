@@ -370,3 +370,22 @@ dates; `Recovered-From:` trailers name the originals).
 - Merge of `7718d952`: the only conflict was this file (main #526 vs the P1 recovery
   ledger). Resolution keeps main's text verbatim and inserts the P1 record as the
   "E1 implementation record" subsection.
+
+### 3.5 E1 hosted merge-gate judgement (2026-11-27)
+
+Full run 46072962667 at `ddc4852e` (dispatched once, `milestone: true`). Coordinator-ruled gate for P1: no new
+failures compared with main, and archives built and consumed on all three OSes.
+
+- PASS archives: `test-archive` (Linux, 4.1 GB), `test-macos-archive` (0.93 GB) and `test-windows-archive`
+  (0.86 GB) succeeded. Every core shard ran `cargo nextest run --archive-file … --extract-to <checkout>`
+  on its OS, including `D:\a\MineWorld\MineWorld` on Windows; no provenance mismatch or rebuild of regular
+  targets was seen.
+- Red shards fail only on test assertions that already fail on main and are not touched by P1:
+  `mineworld-acceptance::currency_names` (fixed by #546, now merged), `mineworld-server::seats::
+  a_hosted_request_meets_the_actor_check_and_the_sessions_allocator`, `mineworld-cli::price_reporter::
+  clerk_publishes_and_keepers_follow` (F-S31d-13), and the Linux `python` layer's `clients/agent` pytest
+  cases. Another lane owns seats/pytest. Judgement: no new failures vs main. Gate PASS.
+- Merge of origin/main `4b86c9d9` (with #546) at the next commit: main added a `harness = false` target
+  `newcomers_resume`; `ci_shard --self-test` caught it (the DEP-163 inventory audit working as designed) and
+  it joins `CUSTOM_HARNESS`. No second full run is dispatched for this (coordinator); the final head's
+  `fast` and the PR run are its evidence.
