@@ -23,7 +23,7 @@ Rules, applied to every changed path (the first that names a path decides its ki
                   fixture). Under a content root (CONTENT_ROOTS: worlds/, presentation/, ...) the search is
                   for the root's own name, and the Godot client tests and the binary-driving Python areas
                   run too. Python members, Godot clients, the removability inputs and platform-specific paths
-                  set their own flags. A data path that nothing names and no flag claims is `full`.
+                  set their own flags. A data path that nothing names and no flag claims, a platform file among them, is `full`.
 
 Then every selected test must run somewhere (frozen I-1; `cover_selected`): a target whose tests need
 `--ignored` adds the layer that runs them (the Godot client tests, a Python area); a changed test file whose
@@ -234,10 +234,17 @@ class Selection:
 Readers = Callable[[str], list[str]]
 
 
+# A reader query that starting with WORD matches the rest as a whole word (`git grep -w`): a content root's
+# readers name it in any form, `"worlds"`, `join("../../worlds")`, `concat!(…, "/../../worlds/…")`.
+WORD = "word:"
+
+
 def git_readers(prefix: str) -> list[str]:
-    """The tracked Rust files that name `prefix`."""
-    result = subprocess.run(["git", "grep", "-l", "-F", prefix, "--", "*.rs"], cwd=ROOT,
-                            capture_output=True, text=True)
+    """The tracked Rust files that name `prefix` (as a whole word when it starts with WORD)."""
+    word = prefix.startswith(WORD)
+    needle = prefix[len(WORD):] if word else prefix
+    result = subprocess.run(["git", "grep", "-l", "-F", *(["-w"] if word else []), needle, "--", "*.rs"],
+                            cwd=ROOT, capture_output=True, text=True)
     if result.returncode not in (0, 1):
         raise Unknown(f"`git grep {prefix}` failed: {result.stderr.strip()}")
     return [line for line in result.stdout.splitlines() if line]
@@ -299,7 +306,7 @@ def select_readers(selection: Selection, workspace: Workspace, path: str, reader
     launcher) selects that whole package. Under a content root, the readers are every Rust file that names
     the root itself, since its readers also list directories (red-team B-2)."""
     root = content_root(path)
-    prefixes = [f"{root}/", f'"{root}"'] if root else [data_prefix(path)]
+    prefixes = [f"{WORD}{root}"] if root else [data_prefix(path)]
     prefix = " or ".join(prefixes)
     tests: list[tuple[str, str]] = []
     sources: set[str] = set()
@@ -440,7 +447,8 @@ def select(paths: list[str], workspace: Workspace, readers: Readers, changed_lin
         claimed = flag_data(selection, path)
         named = select_readers(selection, workspace, path, readers)
         rust = rust or named
-        if not (claimed or named or is_platform_path(path)):
+        if not (claimed or named):
+            # A platform file nothing reads (a new .ps1 or launcher) is unknown too: full, on every OS.
             selection.full.append(f"{path}: no rule names it and no Rust file reads it")
     if any(PLATFORM_LINE.search(line) for line in changed_lines):
         selection.platforms = True
@@ -521,8 +529,9 @@ def synthetic() -> Workspace:
 SYNTHETIC_READERS = {
     # Content roots are searched by the root's own name (B-2): an include_str! fixture in a crate's source,
     # a directory-listing test, a CLI test.
-    "worlds/": ["systems/weather/src/fixture.rs", "tools/cli/tests/market_town.rs"],
-    '"worlds"': ["systems/posture/tests/worlds.rs"],
+    # As git grep -w finds them: "worlds", join("../../worlds"), concat!(…, "/../../worlds/…").
+    "word:worlds": ["systems/weather/src/fixture.rs", "tools/cli/tests/market_town.rs",
+                    "systems/posture/tests/worlds.rs", "tools/cli/tests/guide.rs"],
     "clients/2d": ["tools/cli/tests/client_2d.rs", "tools/cli/src/launch.rs", "tools/cli/tests/godot2d/mod.rs"],
     "clients/shared": ["tests/acceptance/tests/client_rules.rs"],
     "mod godot2d;": ["tools/cli/tests/client_2d.rs"],
@@ -585,9 +594,9 @@ def cases() -> list[tuple[str, list[str], list[str], dict]]:
         ("M-5: a script fast does not run: its Rust readers", ["scripts/depiction_variant.py"], [],
          {"full": False, "tests": {"guide"}}),
         ("M-5: a script nothing in fast or Rust names: full", ["scripts/far_field_variant.py"], [], {"full": True}),
-        ("B-2: a world file: include_str! fixtures, directory listers, Godot and Python",
+        ("B-2, D-1: a world file: include_str! fixtures, relative-path and directory readers, Godot, Python",
          ["worlds/market-town/configure/weather.yaml"], [],
-         {"full": False, "tests": {"market_town", "worlds"}, "godot": True, "python_has": binary,
+         {"full": False, "tests": {"market_town", "worlds", "guide"}, "godot": True, "python_has": binary,
           "packages_has": {"mw-weather"}}),
         ("B-2: presentation adds the character pipeline", ["presentation/mineworld-default/3D/x.yaml"], [],
          {"full": False, "godot": True, "python_has": {"tools/character_pipeline"}}),
@@ -596,8 +605,9 @@ def cases() -> list[tuple[str, list[str], list[str], dict]]:
          {"full": False, "tests": {"guide"}, "notests": {"market_town"}, "absent": {"mw-cli"}}),
         ("the server: Rust, Python drivers and Godot", ["server/src/lib.rs"], [],
          {"full": False, "packages": {"mw-server", "mw-cli", "mw-acceptance"}, "python": binary, "godot": True}),
-        ("platform path: macOS and Windows run", ["tools/launch/src/windows.rs"], [],
+        ("platform path in a package: macOS and Windows run", ["kernel/src/windows.rs"], [],
          {"full": False, "platforms": True}),
+        ("D-2: a platform file nothing reads: full", ["tools/install.ps1"], [], {"full": True}),
         ("platform line: a cfg(windows) branch", ["kernel/src/lib.rs"], ["#[cfg(windows)]"],
          {"full": False, "platforms": True}),
         ("M-2: a nested cfg", ["kernel/src/lib.rs"], ['#[cfg(all(unix, not(target_os = "macos")))]'],

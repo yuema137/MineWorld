@@ -499,3 +499,9 @@ Evidence after the fix: `ci_changes.py --self-test` 49 + 38 PASS; `ci_shard.py -
 0599b2b5 and kernel 92aa9723 -> 6 shards + Godot + 5 Python areas; SDK a5c1ef95 -> 1 shard, sdk/python;
 2D client c86304e9 -> 1 shard + Godot; 3D client 884fe65a -> 2 shards + Godot + lm-controller area +
 removability; guide-linked spec c9ba481a and one CLI test file 563f517b -> 1 shard; workflow d5d10362 -> full.
+
+E4 delta review (coordinator, 2026-11-27, narrow BLOCK) fixed: D-1 content roots are searched as whole words
+(`git grep -w`), which finds `join("../../worlds")` (systems/posture/tests/shipped.rs) and
+`concat!(env!("CARGO_MANIFEST_DIR"), "/../../worlds/…")` (tools/cli/tests/ac13_clients.rs), both confirmed on
+the real tree; D-2 a platform file nothing reads (a new `.ps1`) is `full`. Cases added; 49 + 39 PASS.
+P1 (`64af5b96`, with main `4b86c9d9`) merged in; E4 sections renumbered 3.6/3.7 after P1's 3.5.
