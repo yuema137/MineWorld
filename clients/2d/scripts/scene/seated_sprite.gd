@@ -1,11 +1,11 @@
 extends RefCounted
-## The seated figure of a drawn person (S34-e §5.4): the pack's seated sheet when one binds it, else the
-## standing frame cropped at the hip line and lowered until the hip line lies on the seat. Both are sized
-## by the projection's own metre-to-pixel height; `{node, top}` gives the sprite and its top above the pelvis (px).
-## A seated person's hip line lies this share of their stature above the floor (Drillis and Contini 1966).
+
+## Seated atlas selection and the approved hip-crop fallback (S34-e SD-e-4).
+## Reconciliation and gait stay in people.gd; this constructs only a drawable sprite.
+## Greater trochanter / stature: Drillis and Contini (1966), via Winter, 4th ed., Fig. 4.1.
 const HIP_RATIO := 0.530
 
-## The seated figure of `person` seated as `pose`, drawn in `view` (0 down … 4 up), or {}.
+
 static func make(sprites, projection, person: Dictionary, pose: Dictionary, view: int) -> Dictionary:
 	var views: Dictionary = person["views"]
 	if views.is_empty():
@@ -28,7 +28,7 @@ static func make(sprites, projection, person: Dictionary, pose: Dictionary, view
 	var image := texture.get_image()
 	var used := image.get_region(Rect2i(origin, cell)).get_used_rect()
 	var scale := absf(float(source["scale"]))
-	# The hip line from the figure's stature when the pack gives one, else from its opaque height.
+	# Known stature locates the hip above the authored floor anchor. Without it use opaque height.
 	var stature: Variant = source.get("height_m")
 	var hip := float(source["anchor"].y) - HIP_RATIO * float(used.size.y)
 	if stature != null and float(stature) > 0.0:
@@ -42,7 +42,7 @@ static func make(sprites, projection, person: Dictionary, pose: Dictionary, view
 	node.position = Vector2(0, -lift)
 	return {"node": node, "top": lift + crop_h * scale}
 
-## A seated sheet (`<base>_seated`): its anchor the floor under the pelvis, lifted by the seat heights' difference.
+
 static func _sheet(sprites, projection, source: Dictionary, pose: Dictionary, view: int) -> Dictionary:
 	var layout: Dictionary = source["sheet"]
 	var names: Array = layout["views"]
@@ -54,7 +54,7 @@ static func _sheet(sprites, projection, source: Dictionary, pose: Dictionary, vi
 	node.position = Vector2(0, -lift)
 	return {"node": node, "top": float(source["anchor"].y) * absf(node.scale.y) + lift}
 
-## The row of `view` (0 down … 4 up) in a sheet whose rows are named `names`; the nearest it has otherwise.
+
 static func row_of(names: Array, view: int) -> int:
 	var wanted: String = ["down", "down_right", "right", "up_right", "up"][clampi(view, 0, 4)]
 	var row := names.find(wanted)

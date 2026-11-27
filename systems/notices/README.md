@@ -26,6 +26,19 @@ defaults:
 notices: { subscribe: [prices.ingredients] }  # replaces the defaults; [] means none
 ```
 
+### In a world that enables `attributes`
+
+Subscriptions are then the attribute `notices.subscriptions`, written like any other attribute. Its
+values are the world's own topic keys. Set them with `attributes:` in a person's file, a lock, or
+`roles` in a population profile. `defaults.by_tag` and the `notices:` section are then refused
+(`subscriptions-are-attributes`), so each world has one source.
+
+```yaml
+# populations/town.yaml
+roles:
+  - { when: { tags: [barista] }, add: { notices.subscriptions: [prices.ingredients] } }
+```
+
 ## What happens
 
 - `publish-notice { topic, body, valid_for }`: a listed publisher posts. The notice reaches exactly the
@@ -33,6 +46,9 @@ notices: { subscribe: [prices.ingredients] }  # replaces the defaults; [] means 
 - `subscribe { topic }` and `unsubscribe { topic }`: a person's own choice. Nobody else sees it.
 - The **board** shows a person the notices that are current now on the topics they subscribe to or
   publish. A notice leaves the board at its end time, with nothing recorded. The inbox and memory keep it.
+- The **topics** record lists every topic the world declares, so a person knows what there is to follow.
+  For each topic it says what notices carry, how long they stay valid, the daily limit, whether this
+  person may post on it, and whether they follow it. Each person sees only their own.
 
 Every action is offered without a ready-made payload, so a generic NPC never posts or subscribes at
 random. A refusal is always named: `unknown-topic`, `body-mismatch`, `body-too-large`, `body-invalid`,
@@ -43,4 +59,6 @@ random. A refusal is always named: `unknown-topic`, `body-mismatch`, `body-too-l
 
 - The decision: [`docs/decisions/ARC-115.md`](../../docs/decisions/ARC-115.md).
 - Every field: the generated [`docs/reference/`](../../docs/reference/).
-- The design: [`pr-s31b-notices.md`](../../.structured-coding/plans/mvp0/pr-s31b-notices.md).
+- The design: [`pr-s31b-notices.md`](../../.structured-coding/plans/mvp0/pr-s31b-notices.md); the
+  attribute: [`pr-s31b2-notices-attributes.md`](../../.structured-coding/plans/mvp0/pr-s31b2-notices-attributes.md)
+  and [`docs/decisions/ARC-124.md`](../../docs/decisions/ARC-124.md).

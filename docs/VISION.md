@@ -60,9 +60,34 @@ enter world → move through space → explore → enter places → encounter pe
 → continue living in the same persistent world
 ```
 
-The player is a participant standing in the world, not an observer watching a simulation from
-outside. Agent simulation exists to make that world alive; it is not the product by itself. The
-binding form of this requirement is [`ENGINEERING_RULES.md`](ENGINEERING_RULES.md) §§1–12.
+In the playable reference experience, the player is a participant standing in the
+world. That delivery must not be replaced by an observer-only demonstration. The
+framework also supports headless simulation applications as clarified below; the
+binding playable requirements remain [`ENGINEERING_RULES.md`](ENGINEERING_RULES.md) §§1–12.
+
+## 1.2 Games and simulation share one world framework
+
+**Operator clarification, 2026-11-23.** MineWorld must support both playable games
+and agent/social simulation. Backend simulation and 2D/3D presentation are
+independent; a simulation application may run with no player or renderer. Its
+people need not all be LLM agents: each Person may use a human, rule, LLM, RL or
+other Controller under the same authoritative action and observation contracts.
+Replacing a Controller must not recreate the Person or erase world history.
+Subjective controller memory remains governed by its own persistence and access
+contracts; it is not identical to world truth.
+
+This clarification supersedes categorical wording elsewhere that excluded social
+simulation as a use. It does not waive the first MVP's playable delivery or either
+reference client, nor does it promise that every research World Pack ships visual
+assets. A headless application and a playable application must compose the same
+Systems, not maintain parallel implementations of their rules. Removing renderers
+or all models must leave a valid running world.
+
+System Pack installability and behavior across Systems are separate claims. The
+framework must validate meaningful composed actions through shared authority,
+events and persistence, in addition to loading plugins. Emergent institutions,
+novel agent strategies and benchmark outcomes require empirical evidence; this
+positioning does not claim them delivered or authorize agents to edit the simulator.
 
 ---
 
@@ -273,16 +298,15 @@ not an "AI NPC framework"
 not a starter kit you fork and edit in place
 not a single monolithic life simulator
 
-not a social-science simulator
-not an agent benchmark
-not an NPC chatbot framework
-not a backend world-state database
-not a dashboard for watching agents move
+not limited to a social-science simulator or agent benchmark
+not merely an NPC chatbot framework
+not merely a backend world-state database
+not merely a dashboard for watching agents move
 ```
 
-The last five matter because they are what MineWorld decays into if the playable-world
-requirement is ever treated as optional. A world you can only watch has failed even if every
-simulation test passes.
+Those reductions fail when offered in place of the required playable reference
+delivery, even if simulation tests pass. Headless research applications themselves
+are supported (§1.2); they are not required to masquerade as games.
 
 ## 3.1 The boundary against demo / starter-kit projects
 
@@ -579,10 +603,12 @@ kinds of things and, where it needs them, Controller Packs):
    §4 item 2). The kernel never learns what a share, a vote, or a lane is. If one of these domains
    cannot be built without a kernel edit, that is an architecture question raised under §2.7, not a
    reason to widen the kernel quietly.
-2. **The worlds stay playable** (§3; `CLAUDE.md` §1.1). Each domain enters a world a player walks
-   into: a trading floor you can stand on, a council you can attend, a street where an autonomous car
-   passes you. MineWorld does not become a social-science simulator, an agent benchmark, or a
-   dashboard; a domain that can only be watched has failed §3 regardless of its simulation fidelity.
+2. **Play and simulation remain compatible** (§1.2; `CLAUDE.md` §1.1). A domain's
+   semantic contracts must support both headless participation and embodied
+   interaction through optional presentation. The playable examples may include
+   a trading floor, council or street; a research application may omit their
+   renderer. Neither use may move authoritative rules into a client. Required
+   playable reference delivery cannot be replaced by an observer dashboard.
 3. **Single ownership, server authority, determinism, and LM independence** apply to these domains
    exactly as to the café town: one owning System per piece of state, every change an event with its
    cause, seeded and reproducible, and valid with every language model removed.

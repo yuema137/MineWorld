@@ -156,6 +156,12 @@ section  sleep:
 
 接下来是用火车连起来的多个区域，然后是市场和各种机构，一次加一个 pack（见[范围](#范围)）。
 
+## 下载和玩
+
+🚧 macOS、Windows 和 Linux 的下载会随第一个正式版本一起发布。在那之前，请用下面的快速上手。
+
+[指南第 01 章](docs/guide/01-get-mineworld.zh-CN.md)讲了拿到 `mineworld` 命令的两种方式。
+
 ## 快速上手
 
 你需要装好 [Rust](https://rustup.rs)（版本会自己装对）和 [Godot 4.7](https://godotengine.org)，并且能在 `PATH` 里找到它们。
@@ -224,7 +230,7 @@ cargo run -p mineworld-cli -- create my-world
 
 **用到的技术**：Rust · Godot 4.7 · Python · SQLite · Model Context Protocol。
 
-**参与贡献**：先读 [`CLAUDE.md`](CLAUDE.md) 和 [`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md)；`python3 scripts/ci_layer.py fast` 会跑快速检查。如果你也希望这样的世界存在，点个 ⭐ 能帮更多人找到这个项目。
+**参与贡献**：先读 [`CLAUDE.md`](CLAUDE.md) 和 [`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md)；`python3 scripts/ci_layer.py fast` 会跑快速检查。如果你的改动改变了某条命令的输出，用 `MINEWORLD_WRITE_GUIDE=1` 重新录制指南（[`docs/GUIDE_FORMAT.md`](docs/GUIDE_FORMAT.md) §11.2）。如果你也希望这样的世界存在，点个 ⭐ 能帮更多人找到这个项目。
 
 ## 许可证
 

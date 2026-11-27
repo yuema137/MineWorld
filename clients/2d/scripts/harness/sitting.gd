@@ -1,10 +1,10 @@
 extends RefCounted
-## The interaction drive's sitting steps (S34-e C4): `{"click_sit": "<point>" | "last" | "nearest-far"}`,
-## `{"report_posture": true}`, `{"floor_near_seat": true}` and `{"record_seating": true}`.
+
+## Seat-click steps for the real 2D input path. Selectors come from tests, points from disclosure.
 var harness: Node
 var last_point := ""
 
-## Prints `SIT_SENT` for every sit the app submits, with the offers of the frame it was sent from.
+
 func _init(owner: Node) -> void:
 	harness = owner
 	harness.app.link.submitted.connect(func(token: String, request: Dictionary) -> void:
@@ -12,7 +12,7 @@ func _init(owner: Node) -> void:
 			print("SIT_SENT ", JSON.stringify({"token": token, "point": request["payload"]["payload"]["point"],
 				"offers": harness.app.latest.complete_affordances(harness.app.chain.sit_type, "")})))
 
-## One sitting step; "" when it completed, else why not.
+
 func step(request: Dictionary) -> String:
 	var app: Node = harness.app
 	if request.has("report_posture"):
@@ -27,7 +27,7 @@ func step(request: Dictionary) -> String:
 			MineWorldSitRule.disclosed_of(app.latest), last_point)
 		if pose.is_empty():
 			return "no last seat to leave"
-		# 700 mm sideways of the last seat: beyond its picking area, within the server's reach.
+		# Test destination, 0.70 m beside the disclosed point; availability still comes from the server.
 		var yaw := deg_to_rad(float(pose["facing"]) / 1000.0)
 		var at: Vector2 = pose["at"] + Vector2(cos(yaw), -sin(yaw)) * 700.0
 		var failed: String = await harness._click_floor({"x": roundi(at.x), "y": roundi(at.y)})
@@ -68,7 +68,7 @@ func step(request: Dictionary) -> String:
 	var plan: Vector2 = app.town.to_plan(app.latest.place(), {"x": pose["pelvis"].x, "y": pose["pelvis"].y})
 	var center: Vector2 = app.projection.to_screen(plan)
 	var clicked := false
-	# The seat's exposed area: a point over the seat that no figure or object covers.
+	# Person picking precedes seats; choose a visible edge of an occupied seat's hit area.
 	for delta in [Vector2.ZERO, Vector2(0, 10), Vector2(10, 0), Vector2(-10, 0)]:
 		var at: Vector2 = center + delta
 		if app.people.pick(at) == "" and app.objects.pick(at) == "" \

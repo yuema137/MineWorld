@@ -12,9 +12,9 @@
 ##             already (ties by entity id); each person at their nearest such point
 ##
 ## The depiction file (`presentation/mineworld-default/3D/sit_points/<world>.yaml`) binds a point by its
-## place's tags (every one of `tags`, none of `unless`, ARC-179) and its key, and gives the drawn seat (`seat_height_m`, `seat_offset_m`, `prop`) and,
-## until S34-c writes the points into world data, the fallback `at` / `facing` (Q-S33f-1 (A)). A format-2
-## file may give a point `seat_displacement_m: {east, north}` instead of `seat_offset_m` (S34-e AC-e-9).
+## place's tags (every one of `tags`, none of `unless`, ARC-179) and its key. It gives the drawn seat
+## (`seat_height_m`, scalar `seat_offset_m` or format-2 `seat_displacement_m`, `prop`) and,
+## until S34-c writes the points into world data, the fallback `at` / `facing` (Q-S33f-1 (A)).
 ##
 ## Both clients call [method decide] with what they were told: it reads no clock, no scene and no
 ## renderer state, so the 2D and the 3D client draw the same people seated at the same points. Neither
@@ -34,8 +34,8 @@ const DIR := "sit_points"
 const STILL_MM := 1
 
 ## Every point of the file: { tags: PackedStringArray, point, group, prop, seat_height_m,
-## seat_offset_m, at: Vector2 (mm) or null, facing: int (millidegrees) }, plus seat_displacement_m:
-## Vector2 (metres east, north) when the file gives one.
+## seat_offset_m, optional seat_displacement_m: Vector2 (east/north metres),
+## at: Vector2 (mm) or null, facing: int (millidegrees) }.
 var points: Array = []
 var path := ""
 var problem := ""
@@ -62,7 +62,7 @@ static func load_for(pack_dir: String, world_key: String) -> MineWorldSitRule:
 		rule.problem = "%s: scope.world is not %s" % [rule.path, world_key]
 		push_warning("sitting: " + rule.problem)
 		return rule
-	# Every point is checked before any is kept: a faulty file gives no points at all.
+	# Validate before loading any row: one malformed vector rejects the whole file.
 	for p in parsed["points"]:
 		var issue := _vector_problem(p, int(parsed["format"]))
 		if issue != "":
@@ -87,7 +87,7 @@ static func load_for(pack_dir: String, world_key: String) -> MineWorldSitRule:
 	return rule
 
 
-## Why a point's `seat_displacement_m` is unusable, or "" when it is absent or valid.
+## Format 2 adds drawing displacement only; unrelated legacy scalar validation stays unchanged.
 static func _vector_problem(p: Dictionary, format: int) -> String:
 	if not p.has("seat_displacement_m"):
 		return ""

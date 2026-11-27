@@ -31,3 +31,32 @@ Baseline.py launches unchanged exported runtime with default graphics and select
 - Scope: synchronous world/glTF and GI baking identified bottlenecks. These remain unchanged to preserve current depiction contracts/quality. Stage feedback repairs blank splash; no total startup speedup claimed.
 - API verification: https://docs.godotengine.org/en/stable/tutorials/io/background_loading.html (request/status/get; get blocks unless LOADED); RenderingServer reference (headless disables rendering; frame_post_draw for draw barrier).
 - Local parser/import runtime+3D PASS, no script errors. 42 LFS binary hashes verified against committed oid before hydration; git diff has no asset changes. 3D cache copied; import checked66 presentation reference images, no new art or texture campaign.
+
+## Publication — 2026-11-27 (Claude takeover)
+
+Approval basis: bounded correction from the operator's 2026-11-23 trial report; independent plan PASS by
+`delivery_review` (`handoff-coordinator.md` "Operator trial feedback: 3D startup latency"). The `/tmp` source was
+lost on reboot; `bae264be` is the byte-verified recovery of `2295aa8d` (`recovered/startup-2295aa8d`). Branch
+`fix/startup-loading-ui` merges PR #544 (`origin/mvp0/pr-s34e-seated` @ `02b6fee0`) and then `origin/main`
+(`303c0df3`); neither touched `boot.gd`, `slice_main.gd`, `clients/shared/loading/` or the locale catalogs since
+`ff4e41e3`, so both merges are clean and the correction's diff is unchanged.
+
+Local evidence on this branch (`mineworld-worktrees/_targets/startup-ui-evidence/`):
+
+- `scripts/ci_gdparse.py clients/shared clients/2d clients/3d-spike clients/runtime` — PASS (35/73/151/2 scripts,
+  0 failed; the runtime project is added explicitly because the default list omits it).
+- Headless shared-runtime boot against scratch roots with a freshly exported 2D pack (`run-checks.sh`):
+  missing arguments → exit 2, `[runtime] FAIL …` and the error shown on the loading layer — PASS; unreadable pack
+  settings → exit 2 named — PASS; scene path absent from the pack → threaded request reports failure, exit 2
+  `cannot load scene` — PASS; valid 2D scene → stages `Loading scene resources…` → `Preparing scene…` →
+  `client scene visible` (scene_changed one-shot on the root layer), exit 0 — PASS. Headless draws are scheduling
+  markers only, not visual proof.
+- 3D source/exported scene run, input-hold/Esc check and exported failure frames: NOT RUN in this session (the 3D
+  project's full asset import is the heavy step); historical 2026-11-23 evidence above stands as historical only.
+
+Performance status (unchanged, not resolved): the matched-condition 2026-11-23 pair measured old first view
+145.180 s vs UI first view 153.281 s — an **8.1 s first-view regression**, performance acceptance FAIL; the loader
+itself is drawn at ~15 s in that packaged run versus a blank splash before. Later diagnostics (`recovery-plan.md`)
+rejected the lazy Metal shader-loading switch and point at path/history-dependent first-camera pipeline
+compilation; the next diagnostic (draw-barrier/pipeline counters) is not run. No speed-up is claimed; the
+investigation stays open as its own follow-up.

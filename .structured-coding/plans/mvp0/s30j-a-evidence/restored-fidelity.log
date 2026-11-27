@@ -1,0 +1,907 @@
+   Compiling mineworld-attributes-model v0.1.0 (/Users/yuema137/mineworld-worktrees/recovered-s30j/.recovery/replay/tmp/mineworld-s30j-fidelity-a-recovery/authoring/attributes)
+    Finished `test` profile [optimized + debuginfo] target(s) in 13.13s
+     Running tests/fidelity.rs (/Users/yuema137/mineworld-worktrees/recovered-s30j/.recovery/target-fida/debug/deps/fidelity-75254b59bb81ecf4)
+
+running 4 tests
+San Diego bytes profile=8288 context=28340 arrived=17001 process=45364
+test newcomers::san_diego_runtime_state_sizes_are_reported_separately ... ok
+test a_thousand_people_match_the_profiles_marginals ... ok
+test no_masked_value_is_drawn_in_ten_thousand ... ok
+newcomer conditional test-town attributes-newcomers.age-band eligible=true [] 20s actual_micropersons303000000 expected_micropersons302400000 N1008
+newcomer conditional test-town attributes-newcomers.age-band eligible=true [] 30s actual_micropersons403000000 expected_micropersons403200000 N1008
+newcomer conditional test-town attributes-newcomers.age-band eligible=true [] 40-plus actual_micropersons302000000 expected_micropersons302400000 N1008
+newcomer marginal test-town attributes-newcomers.age-band eligible=true 20s actual_micropersons303000000 expected_micropersons302400000 N1008
+newcomer marginal test-town attributes-newcomers.age-band eligible=true 30s actual_micropersons403000000 expected_micropersons403200000 N1008
+newcomer marginal test-town attributes-newcomers.age-band eligible=true 40-plus actual_micropersons302000000 expected_micropersons302400000 N1008
+newcomer conditional test-town attributes-newcomers.chronotype eligible=true [] early-bird actual_micropersons252000000 expected_micropersons252000000 N1008
+newcomer conditional test-town attributes-newcomers.chronotype eligible=true [] neutral actual_micropersons504000000 expected_micropersons504000000 N1008
+newcomer conditional test-town attributes-newcomers.chronotype eligible=true [] night-owl actual_micropersons252000000 expected_micropersons252000000 N1008
+newcomer marginal test-town attributes-newcomers.chronotype eligible=true early-bird actual_micropersons252000000 expected_micropersons252000000 N1008
+newcomer marginal test-town attributes-newcomers.chronotype eligible=true neutral actual_micropersons504000000 expected_micropersons504000000 N1008
+newcomer marginal test-town attributes-newcomers.chronotype eligible=true night-owl actual_micropersons252000000 expected_micropersons252000000 N1008
+newcomer conditional test-town attributes-newcomers.facial-hair eligible=true [ValueSlug("female")] none actual_micropersons504000000 expected_micropersons504000000 N504
+newcomer conditional test-town attributes-newcomers.facial-hair eligible=true [ValueSlug("female")] stubble actual_micropersons0 expected_micropersons0 N504
+newcomer conditional test-town attributes-newcomers.facial-hair eligible=true [ValueSlug("female")] beard actual_micropersons0 expected_micropersons0 N504
+newcomer conditional test-town attributes-newcomers.facial-hair eligible=true [ValueSlug("male")] none actual_micropersons277000000 expected_micropersons277200000 N504
+newcomer conditional test-town attributes-newcomers.facial-hair eligible=true [ValueSlug("male")] stubble actual_micropersons76000000 expected_micropersons75600000 N504
+newcomer conditional test-town attributes-newcomers.facial-hair eligible=true [ValueSlug("male")] beard actual_micropersons151000000 expected_micropersons151200000 N504
+newcomer marginal test-town attributes-newcomers.facial-hair eligible=true none actual_micropersons781000000 expected_micropersons781200000 N1008
+newcomer marginal test-town attributes-newcomers.facial-hair eligible=true stubble actual_micropersons76000000 expected_micropersons75600000 N1008
+newcomer marginal test-town attributes-newcomers.facial-hair eligible=true beard actual_micropersons151000000 expected_micropersons151200000 N1008
+newcomer conditional test-town attributes-newcomers.hair-colour eligible=false [ValueSlug("20s")] black actual_micropersons83000000 expected_micropersons90900000 N303
+newcomer conditional test-town attributes-newcomers.hair-colour eligible=false [ValueSlug("20s")] brown actual_micropersons129000000 expected_micropersons121200000 N303
+newcomer conditional test-town attributes-newcomers.hair-colour eligible=false [ValueSlug("20s")] blond actual_micropersons59000000 expected_micropersons60600000 N303
+newcomer conditional test-town attributes-newcomers.hair-colour eligible=false [ValueSlug("20s")] grey actual_micropersons32000000 expected_micropersons30300000 N303
+newcomer conditional test-town attributes-newcomers.hair-colour eligible=false [ValueSlug("30s")] black actual_micropersons125000000 expected_micropersons120900000 N403
+newcomer conditional test-town attributes-newcomers.hair-colour eligible=false [ValueSlug("30s")] brown actual_micropersons150000000 expected_micropersons161200000 N403
+newcomer conditional test-town attributes-newcomers.hair-colour eligible=false [ValueSlug("30s")] blond actual_micropersons89000000 expected_micropersons80600000 N403
+newcomer conditional test-town attributes-newcomers.hair-colour eligible=false [ValueSlug("30s")] grey actual_micropersons39000000 expected_micropersons40300000 N403
+newcomer conditional test-town attributes-newcomers.hair-colour eligible=false [ValueSlug("40-plus")] black actual_micropersons67000000 expected_micropersons69692307 N302
+newcomer conditional test-town attributes-newcomers.hair-colour eligible=false [ValueSlug("40-plus")] brown actual_micropersons93000000 expected_micropersons92923076 N302
+newcomer conditional test-town attributes-newcomers.hair-colour eligible=false [ValueSlug("40-plus")] blond actual_micropersons55000000 expected_micropersons46461538 N302
+newcomer conditional test-town attributes-newcomers.hair-colour eligible=false [ValueSlug("40-plus")] grey actual_micropersons87000000 expected_micropersons92923076 N302
+newcomer marginal test-town attributes-newcomers.hair-colour eligible=false black actual_micropersons275000000 expected_micropersons281492307 N1008
+newcomer marginal test-town attributes-newcomers.hair-colour eligible=false brown actual_micropersons372000000 expected_micropersons375323076 N1008
+newcomer marginal test-town attributes-newcomers.hair-colour eligible=false blond actual_micropersons203000000 expected_micropersons187661538 N1008
+newcomer marginal test-town attributes-newcomers.hair-colour eligible=false grey actual_micropersons158000000 expected_micropersons163523076 N1008
+newcomer conditional test-town attributes-newcomers.sex eligible=true [] female actual_micropersons504000000 expected_micropersons504000000 N1008
+newcomer conditional test-town attributes-newcomers.sex eligible=true [] male actual_micropersons504000000 expected_micropersons504000000 N1008
+newcomer marginal test-town attributes-newcomers.sex eligible=true female actual_micropersons504000000 expected_micropersons504000000 N1008
+newcomer marginal test-town attributes-newcomers.sex eligible=true male actual_micropersons504000000 expected_micropersons504000000 N1008
+newcomer decile test-town attributes-newcomers.birth eligible=true [ValueSlug("20s")] bin0 count31 N303 expected=10%
+newcomer decile test-town attributes-newcomers.birth eligible=true [ValueSlug("20s")] bin1 count30 N303 expected=10%
+newcomer decile test-town attributes-newcomers.birth eligible=true [ValueSlug("20s")] bin2 count31 N303 expected=10%
+newcomer decile test-town attributes-newcomers.birth eligible=true [ValueSlug("20s")] bin3 count30 N303 expected=10%
+newcomer decile test-town attributes-newcomers.birth eligible=true [ValueSlug("20s")] bin4 count30 N303 expected=10%
+newcomer decile test-town attributes-newcomers.birth eligible=true [ValueSlug("20s")] bin5 count31 N303 expected=10%
+newcomer decile test-town attributes-newcomers.birth eligible=true [ValueSlug("20s")] bin6 count30 N303 expected=10%
+newcomer decile test-town attributes-newcomers.birth eligible=true [ValueSlug("20s")] bin7 count30 N303 expected=10%
+newcomer decile test-town attributes-newcomers.birth eligible=true [ValueSlug("20s")] bin8 count30 N303 expected=10%
+newcomer decile test-town attributes-newcomers.birth eligible=true [ValueSlug("20s")] bin9 count30 N303 expected=10%
+newcomer decile test-town attributes-newcomers.birth eligible=true [ValueSlug("30s")] bin0 count40 N403 expected=10%
+newcomer decile test-town attributes-newcomers.birth eligible=true [ValueSlug("30s")] bin1 count40 N403 expected=10%
+newcomer decile test-town attributes-newcomers.birth eligible=true [ValueSlug("30s")] bin2 count40 N403 expected=10%
+newcomer decile test-town attributes-newcomers.birth eligible=true [ValueSlug("30s")] bin3 count41 N403 expected=10%
+newcomer decile test-town attributes-newcomers.birth eligible=true [ValueSlug("30s")] bin4 count40 N403 expected=10%
+newcomer decile test-town attributes-newcomers.birth eligible=true [ValueSlug("30s")] bin5 count41 N403 expected=10%
+newcomer decile test-town attributes-newcomers.birth eligible=true [ValueSlug("30s")] bin6 count40 N403 expected=10%
+newcomer decile test-town attributes-newcomers.birth eligible=true [ValueSlug("30s")] bin7 count40 N403 expected=10%
+newcomer decile test-town attributes-newcomers.birth eligible=true [ValueSlug("30s")] bin8 count41 N403 expected=10%
+newcomer decile test-town attributes-newcomers.birth eligible=true [ValueSlug("30s")] bin9 count40 N403 expected=10%
+newcomer decile test-town attributes-newcomers.birth eligible=true [ValueSlug("40-plus")] bin0 count30 N302 expected=10%
+newcomer decile test-town attributes-newcomers.birth eligible=true [ValueSlug("40-plus")] bin1 count31 N302 expected=10%
+newcomer decile test-town attributes-newcomers.birth eligible=true [ValueSlug("40-plus")] bin2 count31 N302 expected=10%
+newcomer decile test-town attributes-newcomers.birth eligible=true [ValueSlug("40-plus")] bin3 count30 N302 expected=10%
+newcomer decile test-town attributes-newcomers.birth eligible=true [ValueSlug("40-plus")] bin4 count30 N302 expected=10%
+newcomer decile test-town attributes-newcomers.birth eligible=true [ValueSlug("40-plus")] bin5 count30 N302 expected=10%
+newcomer decile test-town attributes-newcomers.birth eligible=true [ValueSlug("40-plus")] bin6 count30 N302 expected=10%
+newcomer decile test-town attributes-newcomers.birth eligible=true [ValueSlug("40-plus")] bin7 count30 N302 expected=10%
+newcomer decile test-town attributes-newcomers.birth eligible=true [ValueSlug("40-plus")] bin8 count30 N302 expected=10%
+newcomer decile test-town attributes-newcomers.birth eligible=true [ValueSlug("40-plus")] bin9 count30 N302 expected=10%
+newcomer decile test-town attributes-newcomers.stature eligible=true [ValueSlug("female")] bin0 count50 N504 expected=10%
+newcomer decile test-town attributes-newcomers.stature eligible=true [ValueSlug("female")] bin1 count50 N504 expected=10%
+newcomer decile test-town attributes-newcomers.stature eligible=true [ValueSlug("female")] bin2 count51 N504 expected=10%
+newcomer decile test-town attributes-newcomers.stature eligible=true [ValueSlug("female")] bin3 count50 N504 expected=10%
+newcomer decile test-town attributes-newcomers.stature eligible=true [ValueSlug("female")] bin4 count51 N504 expected=10%
+newcomer decile test-town attributes-newcomers.stature eligible=true [ValueSlug("female")] bin5 count50 N504 expected=10%
+newcomer decile test-town attributes-newcomers.stature eligible=true [ValueSlug("female")] bin6 count51 N504 expected=10%
+newcomer decile test-town attributes-newcomers.stature eligible=true [ValueSlug("female")] bin7 count50 N504 expected=10%
+newcomer decile test-town attributes-newcomers.stature eligible=true [ValueSlug("female")] bin8 count50 N504 expected=10%
+newcomer decile test-town attributes-newcomers.stature eligible=true [ValueSlug("female")] bin9 count51 N504 expected=10%
+newcomer decile test-town attributes-newcomers.stature eligible=true [ValueSlug("male")] bin0 count50 N504 expected=10%
+newcomer decile test-town attributes-newcomers.stature eligible=true [ValueSlug("male")] bin1 count50 N504 expected=10%
+newcomer decile test-town attributes-newcomers.stature eligible=true [ValueSlug("male")] bin2 count51 N504 expected=10%
+newcomer decile test-town attributes-newcomers.stature eligible=true [ValueSlug("male")] bin3 count51 N504 expected=10%
+newcomer decile test-town attributes-newcomers.stature eligible=true [ValueSlug("male")] bin4 count50 N504 expected=10%
+newcomer decile test-town attributes-newcomers.stature eligible=true [ValueSlug("male")] bin5 count51 N504 expected=10%
+newcomer decile test-town attributes-newcomers.stature eligible=true [ValueSlug("male")] bin6 count51 N504 expected=10%
+newcomer decile test-town attributes-newcomers.stature eligible=true [ValueSlug("male")] bin7 count50 N504 expected=10%
+newcomer decile test-town attributes-newcomers.stature eligible=true [ValueSlug("male")] bin8 count50 N504 expected=10%
+newcomer decile test-town attributes-newcomers.stature eligible=true [ValueSlug("male")] bin9 count50 N504 expected=10%
+newcomer digest test-town 0804352e9dfaeec4
+newcomer conditional san-diego-county core.age-band eligible=true [] child actual_micropersons0 expected_micropersons0 N1200
+newcomer conditional san-diego-county core.age-band eligible=true [] teen actual_micropersons0 expected_micropersons0 N1200
+newcomer conditional san-diego-county core.age-band eligible=true [] 20s actual_micropersons224000000 expected_micropersons223680000 N1200
+newcomer conditional san-diego-county core.age-band eligible=true [] 30s actual_micropersons246000000 expected_micropersons246000000 N1200
+newcomer conditional san-diego-county core.age-band eligible=true [] 40s actual_micropersons206000000 expected_micropersons205920000 N1200
+newcomer conditional san-diego-county core.age-band eligible=true [] 50s actual_micropersons181000000 expected_micropersons180720000 N1200
+newcomer conditional san-diego-county core.age-band eligible=true [] 60s actual_micropersons170000000 expected_micropersons170040000 N1200
+newcomer conditional san-diego-county core.age-band eligible=true [] 70s actual_micropersons116000000 expected_micropersons116760000 N1200
+newcomer conditional san-diego-county core.age-band eligible=true [] 80-plus actual_micropersons57000000 expected_micropersons56880000 N1200
+newcomer marginal san-diego-county core.age-band eligible=true child actual_micropersons0 expected_micropersons0 N1200
+newcomer marginal san-diego-county core.age-band eligible=true teen actual_micropersons0 expected_micropersons0 N1200
+newcomer marginal san-diego-county core.age-band eligible=true 20s actual_micropersons224000000 expected_micropersons223680000 N1200
+newcomer marginal san-diego-county core.age-band eligible=true 30s actual_micropersons246000000 expected_micropersons246000000 N1200
+newcomer marginal san-diego-county core.age-band eligible=true 40s actual_micropersons206000000 expected_micropersons205920000 N1200
+newcomer marginal san-diego-county core.age-band eligible=true 50s actual_micropersons181000000 expected_micropersons180720000 N1200
+newcomer marginal san-diego-county core.age-band eligible=true 60s actual_micropersons170000000 expected_micropersons170040000 N1200
+newcomer marginal san-diego-county core.age-band eligible=true 70s actual_micropersons116000000 expected_micropersons116760000 N1200
+newcomer marginal san-diego-county core.age-band eligible=true 80-plus actual_micropersons57000000 expected_micropersons56880000 N1200
+newcomer conditional san-diego-county core.ancestry eligible=true [] hispanic-or-latino actual_micropersons423000000 expected_micropersons423000000 N1200
+newcomer conditional san-diego-county core.ancestry eligible=true [] white actual_micropersons496000000 expected_micropersons495480000 N1200
+newcomer conditional san-diego-county core.ancestry eligible=true [] black actual_micropersons51000000 expected_micropersons51480000 N1200
+newcomer conditional san-diego-county core.ancestry eligible=true [] asian actual_micropersons151000000 expected_micropersons150960000 N1200
+newcomer conditional san-diego-county core.ancestry eligible=true [] multiracial-or-other actual_micropersons79000000 expected_micropersons79080000 N1200
+newcomer marginal san-diego-county core.ancestry eligible=true hispanic-or-latino actual_micropersons423000000 expected_micropersons423000000 N1200
+newcomer marginal san-diego-county core.ancestry eligible=true white actual_micropersons496000000 expected_micropersons495480000 N1200
+newcomer marginal san-diego-county core.ancestry eligible=true black actual_micropersons51000000 expected_micropersons51480000 N1200
+newcomer marginal san-diego-county core.ancestry eligible=true asian actual_micropersons151000000 expected_micropersons150960000 N1200
+newcomer marginal san-diego-county core.ancestry eligible=true multiracial-or-other actual_micropersons79000000 expected_micropersons79080000 N1200
+newcomer conditional san-diego-county core.build eligible=true [ValueSlug("female")] slim actual_micropersons86000000 expected_micropersons86112000 N598
+newcomer conditional san-diego-county core.build eligible=true [ValueSlug("female")] average actual_micropersons100000000 expected_micropersons99866000 N598
+newcomer conditional san-diego-county core.build eligible=true [ValueSlug("female")] solid actual_micropersons157000000 expected_micropersons156676000 N598
+newcomer conditional san-diego-county core.build eligible=true [ValueSlug("female")] heavy actual_micropersons255000000 expected_micropersons255346000 N598
+newcomer conditional san-diego-county core.build eligible=true [ValueSlug("male")] slim actual_micropersons53000000 expected_micropersons52976000 N602
+newcomer conditional san-diego-county core.build eligible=true [ValueSlug("male")] average actual_micropersons98000000 expected_micropersons97524000 N602
+newcomer conditional san-diego-county core.build eligible=true [ValueSlug("male")] solid actual_micropersons203000000 expected_micropersons202874000 N602
+newcomer conditional san-diego-county core.build eligible=true [ValueSlug("male")] heavy actual_micropersons248000000 expected_micropersons248626000 N602
+newcomer marginal san-diego-county core.build eligible=true slim actual_micropersons139000000 expected_micropersons139088000 N1200
+newcomer marginal san-diego-county core.build eligible=true average actual_micropersons198000000 expected_micropersons197390000 N1200
+newcomer marginal san-diego-county core.build eligible=true solid actual_micropersons360000000 expected_micropersons359550000 N1200
+newcomer marginal san-diego-county core.build eligible=true heavy actual_micropersons503000000 expected_micropersons503972000 N1200
+newcomer conditional san-diego-county core.eye-shape eligible=false [] almond actual_micropersons190000000 expected_micropersons200000400 N1200
+newcomer conditional san-diego-county core.eye-shape eligible=false [] round actual_micropersons204000000 expected_micropersons200000400 N1200
+newcomer conditional san-diego-county core.eye-shape eligible=false [] hooded actual_micropersons199000000 expected_micropersons200000400 N1200
+newcomer conditional san-diego-county core.eye-shape eligible=false [] deep-set actual_micropersons189000000 expected_micropersons200000400 N1200
+newcomer conditional san-diego-county core.eye-shape eligible=false [] wide-set actual_micropersons201000000 expected_micropersons199999200 N1200
+newcomer conditional san-diego-county core.eye-shape eligible=false [] downturned actual_micropersons217000000 expected_micropersons199999200 N1200
+newcomer marginal san-diego-county core.eye-shape eligible=false almond actual_micropersons190000000 expected_micropersons200000400 N1200
+newcomer marginal san-diego-county core.eye-shape eligible=false round actual_micropersons204000000 expected_micropersons200000400 N1200
+newcomer marginal san-diego-county core.eye-shape eligible=false hooded actual_micropersons199000000 expected_micropersons200000400 N1200
+newcomer marginal san-diego-county core.eye-shape eligible=false deep-set actual_micropersons189000000 expected_micropersons200000400 N1200
+newcomer marginal san-diego-county core.eye-shape eligible=false wide-set actual_micropersons201000000 expected_micropersons199999200 N1200
+newcomer marginal san-diego-county core.eye-shape eligible=false downturned actual_micropersons217000000 expected_micropersons199999200 N1200
+newcomer conditional san-diego-county core.face-shape eligible=false [] oval actual_micropersons182000000 expected_micropersons200000400 N1200
+newcomer conditional san-diego-county core.face-shape eligible=false [] round actual_micropersons192000000 expected_micropersons200000400 N1200
+newcomer conditional san-diego-county core.face-shape eligible=false [] square actual_micropersons193000000 expected_micropersons200000400 N1200
+newcomer conditional san-diego-county core.face-shape eligible=false [] heart actual_micropersons221000000 expected_micropersons200000400 N1200
+newcomer conditional san-diego-county core.face-shape eligible=false [] long actual_micropersons190000000 expected_micropersons199999200 N1200
+newcomer conditional san-diego-county core.face-shape eligible=false [] diamond actual_micropersons222000000 expected_micropersons199999200 N1200
+newcomer marginal san-diego-county core.face-shape eligible=false oval actual_micropersons182000000 expected_micropersons200000400 N1200
+newcomer marginal san-diego-county core.face-shape eligible=false round actual_micropersons192000000 expected_micropersons200000400 N1200
+newcomer marginal san-diego-county core.face-shape eligible=false square actual_micropersons193000000 expected_micropersons200000400 N1200
+newcomer marginal san-diego-county core.face-shape eligible=false heart actual_micropersons221000000 expected_micropersons200000400 N1200
+newcomer marginal san-diego-county core.face-shape eligible=false long actual_micropersons190000000 expected_micropersons199999200 N1200
+newcomer marginal san-diego-county core.face-shape eligible=false diamond actual_micropersons222000000 expected_micropersons199999200 N1200
+newcomer conditional san-diego-county core.facial-hair eligible=false [ValueSlug("female")] none actual_micropersons598000000 expected_micropersons598000000 N598
+newcomer conditional san-diego-county core.facial-hair eligible=false [ValueSlug("female")] stubble actual_micropersons0 expected_micropersons0 N598
+newcomer conditional san-diego-county core.facial-hair eligible=false [ValueSlug("female")] short-beard actual_micropersons0 expected_micropersons0 N598
+newcomer conditional san-diego-county core.facial-hair eligible=false [ValueSlug("female")] full-beard actual_micropersons0 expected_micropersons0 N598
+newcomer conditional san-diego-county core.facial-hair eligible=false [ValueSlug("female")] moustache actual_micropersons0 expected_micropersons0 N598
+newcomer conditional san-diego-county core.facial-hair eligible=false [ValueSlug("male")] none actual_micropersons344000000 expected_micropersons331100000 N602
+newcomer conditional san-diego-county core.facial-hair eligible=false [ValueSlug("male")] stubble actual_micropersons82000000 expected_micropersons90300000 N602
+newcomer conditional san-diego-county core.facial-hair eligible=false [ValueSlug("male")] short-beard actual_micropersons112000000 expected_micropersons120400000 N602
+newcomer conditional san-diego-county core.facial-hair eligible=false [ValueSlug("male")] full-beard actual_micropersons0 expected_micropersons0 N602
+newcomer conditional san-diego-county core.facial-hair eligible=false [ValueSlug("male")] moustache actual_micropersons64000000 expected_micropersons60200000 N602
+newcomer marginal san-diego-county core.facial-hair eligible=false none actual_micropersons942000000 expected_micropersons929100000 N1200
+newcomer marginal san-diego-county core.facial-hair eligible=false stubble actual_micropersons82000000 expected_micropersons90300000 N1200
+newcomer marginal san-diego-county core.facial-hair eligible=false short-beard actual_micropersons112000000 expected_micropersons120400000 N1200
+newcomer marginal san-diego-county core.facial-hair eligible=false full-beard actual_micropersons0 expected_micropersons0 N1200
+newcomer marginal san-diego-county core.facial-hair eligible=false moustache actual_micropersons64000000 expected_micropersons60200000 N1200
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("20s")] black actual_micropersons10000000 expected_micropersons14500000 N29
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("20s")] dark-brown actual_micropersons19000000 expected_micropersons14500000 N29
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("20s")] brown actual_micropersons0 expected_micropersons0 N29
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("20s")] light-brown actual_micropersons0 expected_micropersons0 N29
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("20s")] blond actual_micropersons0 expected_micropersons0 N29
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("20s")] auburn actual_micropersons0 expected_micropersons0 N29
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("20s")] red actual_micropersons0 expected_micropersons0 N29
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("20s")] grey actual_micropersons0 expected_micropersons0 N29
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("20s")] silver-grey actual_micropersons0 expected_micropersons0 N29
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("20s")] white actual_micropersons0 expected_micropersons0 N29
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("30s")] black actual_micropersons16000000 expected_micropersons18500000 N37
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("30s")] dark-brown actual_micropersons21000000 expected_micropersons18500000 N37
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("30s")] brown actual_micropersons0 expected_micropersons0 N37
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("30s")] light-brown actual_micropersons0 expected_micropersons0 N37
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("30s")] blond actual_micropersons0 expected_micropersons0 N37
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("30s")] auburn actual_micropersons0 expected_micropersons0 N37
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("30s")] red actual_micropersons0 expected_micropersons0 N37
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("30s")] grey actual_micropersons0 expected_micropersons0 N37
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("30s")] silver-grey actual_micropersons0 expected_micropersons0 N37
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("30s")] white actual_micropersons0 expected_micropersons0 N37
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("40s")] black actual_micropersons9000000 expected_micropersons11500000 N23
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("40s")] dark-brown actual_micropersons14000000 expected_micropersons11500000 N23
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("40s")] brown actual_micropersons0 expected_micropersons0 N23
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("40s")] light-brown actual_micropersons0 expected_micropersons0 N23
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("40s")] blond actual_micropersons0 expected_micropersons0 N23
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("40s")] auburn actual_micropersons0 expected_micropersons0 N23
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("40s")] red actual_micropersons0 expected_micropersons0 N23
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("40s")] grey actual_micropersons0 expected_micropersons0 N23
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("40s")] silver-grey actual_micropersons0 expected_micropersons0 N23
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("40s")] white actual_micropersons0 expected_micropersons0 N23
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("50s")] black actual_micropersons7000000 expected_micropersons5200000 N16
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("50s")] dark-brown actual_micropersons6000000 expected_micropersons5200000 N16
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("50s")] brown actual_micropersons0 expected_micropersons0 N16
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("50s")] light-brown actual_micropersons0 expected_micropersons0 N16
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("50s")] blond actual_micropersons0 expected_micropersons0 N16
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("50s")] auburn actual_micropersons0 expected_micropersons0 N16
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("50s")] red actual_micropersons0 expected_micropersons0 N16
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("50s")] grey actual_micropersons3000000 expected_micropersons5600000 N16
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("50s")] silver-grey actual_micropersons0 expected_micropersons0 N16
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("50s")] white actual_micropersons0 expected_micropersons0 N16
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("60s")] black actual_micropersons1000000 expected_micropersons2700000 N18
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("60s")] dark-brown actual_micropersons2000000 expected_micropersons2700000 N18
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("60s")] brown actual_micropersons0 expected_micropersons0 N18
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("60s")] light-brown actual_micropersons0 expected_micropersons0 N18
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("60s")] blond actual_micropersons0 expected_micropersons0 N18
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("60s")] auburn actual_micropersons0 expected_micropersons0 N18
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("60s")] red actual_micropersons0 expected_micropersons0 N18
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("60s")] grey actual_micropersons15000000 expected_micropersons12600000 N18
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("60s")] silver-grey actual_micropersons0 expected_micropersons0 N18
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("60s")] white actual_micropersons0 expected_micropersons0 N18
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("70s")] black actual_micropersons1000000 expected_micropersons525000 N21
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("70s")] dark-brown actual_micropersons1000000 expected_micropersons525000 N21
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("70s")] brown actual_micropersons0 expected_micropersons0 N21
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("70s")] light-brown actual_micropersons0 expected_micropersons0 N21
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("70s")] blond actual_micropersons0 expected_micropersons0 N21
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("70s")] auburn actual_micropersons0 expected_micropersons0 N21
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("70s")] red actual_micropersons0 expected_micropersons0 N21
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("70s")] grey actual_micropersons0 expected_micropersons0 N21
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("70s")] silver-grey actual_micropersons10000000 expected_micropersons9975000 N21
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("70s")] white actual_micropersons9000000 expected_micropersons9975000 N21
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("80-plus")] black actual_micropersons0 expected_micropersons0 N7
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("80-plus")] dark-brown actual_micropersons0 expected_micropersons0 N7
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("80-plus")] brown actual_micropersons0 expected_micropersons0 N7
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("80-plus")] light-brown actual_micropersons0 expected_micropersons0 N7
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("80-plus")] blond actual_micropersons0 expected_micropersons0 N7
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("80-plus")] auburn actual_micropersons0 expected_micropersons0 N7
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("80-plus")] red actual_micropersons0 expected_micropersons0 N7
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("80-plus")] grey actual_micropersons0 expected_micropersons0 N7
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("80-plus")] silver-grey actual_micropersons4000000 expected_micropersons3500000 N7
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("asian"), ValueSlug("80-plus")] white actual_micropersons3000000 expected_micropersons3500000 N7
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("20s")] black actual_micropersons4000000 expected_micropersons4500000 N9
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("20s")] dark-brown actual_micropersons5000000 expected_micropersons4500000 N9
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("20s")] brown actual_micropersons0 expected_micropersons0 N9
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("20s")] light-brown actual_micropersons0 expected_micropersons0 N9
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("20s")] blond actual_micropersons0 expected_micropersons0 N9
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("20s")] auburn actual_micropersons0 expected_micropersons0 N9
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("20s")] red actual_micropersons0 expected_micropersons0 N9
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("20s")] grey actual_micropersons0 expected_micropersons0 N9
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("20s")] silver-grey actual_micropersons0 expected_micropersons0 N9
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("20s")] white actual_micropersons0 expected_micropersons0 N9
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("30s")] black actual_micropersons5000000 expected_micropersons4500000 N9
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("30s")] dark-brown actual_micropersons4000000 expected_micropersons4500000 N9
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("30s")] brown actual_micropersons0 expected_micropersons0 N9
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("30s")] light-brown actual_micropersons0 expected_micropersons0 N9
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("30s")] blond actual_micropersons0 expected_micropersons0 N9
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("30s")] auburn actual_micropersons0 expected_micropersons0 N9
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("30s")] red actual_micropersons0 expected_micropersons0 N9
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("30s")] grey actual_micropersons0 expected_micropersons0 N9
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("30s")] silver-grey actual_micropersons0 expected_micropersons0 N9
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("30s")] white actual_micropersons0 expected_micropersons0 N9
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("40s")] black actual_micropersons7000000 expected_micropersons6000000 N12
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("40s")] dark-brown actual_micropersons5000000 expected_micropersons6000000 N12
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("40s")] brown actual_micropersons0 expected_micropersons0 N12
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("40s")] light-brown actual_micropersons0 expected_micropersons0 N12
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("40s")] blond actual_micropersons0 expected_micropersons0 N12
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("40s")] auburn actual_micropersons0 expected_micropersons0 N12
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("40s")] red actual_micropersons0 expected_micropersons0 N12
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("40s")] grey actual_micropersons0 expected_micropersons0 N12
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("40s")] silver-grey actual_micropersons0 expected_micropersons0 N12
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("40s")] white actual_micropersons0 expected_micropersons0 N12
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("50s")] black actual_micropersons3000000 expected_micropersons2275000 N7
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("50s")] dark-brown actual_micropersons4000000 expected_micropersons2275000 N7
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("50s")] brown actual_micropersons0 expected_micropersons0 N7
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("50s")] light-brown actual_micropersons0 expected_micropersons0 N7
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("50s")] blond actual_micropersons0 expected_micropersons0 N7
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("50s")] auburn actual_micropersons0 expected_micropersons0 N7
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("50s")] red actual_micropersons0 expected_micropersons0 N7
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("50s")] grey actual_micropersons0 expected_micropersons2450000 N7
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("50s")] silver-grey actual_micropersons0 expected_micropersons0 N7
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("50s")] white actual_micropersons0 expected_micropersons0 N7
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("60s")] black actual_micropersons1000000 expected_micropersons1200000 N8
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("60s")] dark-brown actual_micropersons0 expected_micropersons1200000 N8
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("60s")] brown actual_micropersons0 expected_micropersons0 N8
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("60s")] light-brown actual_micropersons0 expected_micropersons0 N8
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("60s")] blond actual_micropersons0 expected_micropersons0 N8
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("60s")] auburn actual_micropersons0 expected_micropersons0 N8
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("60s")] red actual_micropersons0 expected_micropersons0 N8
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("60s")] grey actual_micropersons7000000 expected_micropersons5600000 N8
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("60s")] silver-grey actual_micropersons0 expected_micropersons0 N8
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("60s")] white actual_micropersons0 expected_micropersons0 N8
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("70s")] black actual_micropersons0 expected_micropersons125000 N5
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("70s")] dark-brown actual_micropersons0 expected_micropersons125000 N5
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("70s")] brown actual_micropersons0 expected_micropersons0 N5
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("70s")] light-brown actual_micropersons0 expected_micropersons0 N5
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("70s")] blond actual_micropersons0 expected_micropersons0 N5
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("70s")] auburn actual_micropersons0 expected_micropersons0 N5
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("70s")] red actual_micropersons0 expected_micropersons0 N5
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("70s")] grey actual_micropersons0 expected_micropersons0 N5
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("70s")] silver-grey actual_micropersons2000000 expected_micropersons2375000 N5
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("70s")] white actual_micropersons3000000 expected_micropersons2375000 N5
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("80-plus")] black actual_micropersons0 expected_micropersons0 N1
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("80-plus")] dark-brown actual_micropersons0 expected_micropersons0 N1
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("80-plus")] brown actual_micropersons0 expected_micropersons0 N1
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("80-plus")] light-brown actual_micropersons0 expected_micropersons0 N1
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("80-plus")] blond actual_micropersons0 expected_micropersons0 N1
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("80-plus")] auburn actual_micropersons0 expected_micropersons0 N1
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("80-plus")] red actual_micropersons0 expected_micropersons0 N1
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("80-plus")] grey actual_micropersons0 expected_micropersons0 N1
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("80-plus")] silver-grey actual_micropersons0 expected_micropersons500000 N1
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("black"), ValueSlug("80-plus")] white actual_micropersons1000000 expected_micropersons500000 N1
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("20s")] black actual_micropersons15000000 expected_micropersons20000040 N60
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("20s")] dark-brown actual_micropersons24000000 expected_micropersons19999980 N60
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("20s")] brown actual_micropersons21000000 expected_micropersons19999980 N60
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("20s")] light-brown actual_micropersons0 expected_micropersons0 N60
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("20s")] blond actual_micropersons0 expected_micropersons0 N60
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("20s")] auburn actual_micropersons0 expected_micropersons0 N60
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("20s")] red actual_micropersons0 expected_micropersons0 N60
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("20s")] grey actual_micropersons0 expected_micropersons0 N60
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("20s")] silver-grey actual_micropersons0 expected_micropersons0 N60
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("20s")] white actual_micropersons0 expected_micropersons0 N60
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("30s")] black actual_micropersons35000000 expected_micropersons27666722 N83
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("30s")] dark-brown actual_micropersons20000000 expected_micropersons27666639 N83
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("30s")] brown actual_micropersons28000000 expected_micropersons27666639 N83
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("30s")] light-brown actual_micropersons0 expected_micropersons0 N83
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("30s")] blond actual_micropersons0 expected_micropersons0 N83
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("30s")] auburn actual_micropersons0 expected_micropersons0 N83
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("30s")] red actual_micropersons0 expected_micropersons0 N83
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("30s")] grey actual_micropersons0 expected_micropersons0 N83
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("30s")] silver-grey actual_micropersons0 expected_micropersons0 N83
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("30s")] white actual_micropersons0 expected_micropersons0 N83
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("40s")] black actual_micropersons23000000 expected_micropersons24666716 N74
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("40s")] dark-brown actual_micropersons21000000 expected_micropersons24666642 N74
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("40s")] brown actual_micropersons30000000 expected_micropersons24666642 N74
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("40s")] light-brown actual_micropersons0 expected_micropersons0 N74
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("40s")] blond actual_micropersons0 expected_micropersons0 N74
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("40s")] auburn actual_micropersons0 expected_micropersons0 N74
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("40s")] red actual_micropersons0 expected_micropersons0 N74
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("40s")] grey actual_micropersons0 expected_micropersons0 N74
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("40s")] silver-grey actual_micropersons0 expected_micropersons0 N74
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("40s")] white actual_micropersons0 expected_micropersons0 N74
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("50s")] black actual_micropersons19000000 expected_micropersons17116693 N79
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("50s")] dark-brown actual_micropersons17000000 expected_micropersons17116693 N79
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("50s")] brown actual_micropersons18000000 expected_micropersons17116614 N79
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("50s")] light-brown actual_micropersons0 expected_micropersons0 N79
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("50s")] blond actual_micropersons0 expected_micropersons0 N79
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("50s")] auburn actual_micropersons0 expected_micropersons0 N79
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("50s")] red actual_micropersons0 expected_micropersons0 N79
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("50s")] grey actual_micropersons25000000 expected_micropersons27650000 N79
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("50s")] silver-grey actual_micropersons0 expected_micropersons0 N79
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("50s")] white actual_micropersons0 expected_micropersons0 N79
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("60s")] black actual_micropersons10000000 expected_micropersons6300000 N63
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("60s")] dark-brown actual_micropersons4000000 expected_micropersons6300000 N63
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("60s")] brown actual_micropersons9000000 expected_micropersons6300000 N63
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("60s")] light-brown actual_micropersons0 expected_micropersons0 N63
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("60s")] blond actual_micropersons0 expected_micropersons0 N63
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("60s")] auburn actual_micropersons0 expected_micropersons0 N63
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("60s")] red actual_micropersons0 expected_micropersons0 N63
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("60s")] grey actual_micropersons40000000 expected_micropersons44100000 N63
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("60s")] silver-grey actual_micropersons0 expected_micropersons0 N63
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("60s")] white actual_micropersons0 expected_micropersons0 N63
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("70s")] black actual_micropersons1000000 expected_micropersons700014 N42
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("70s")] dark-brown actual_micropersons0 expected_micropersons700014 N42
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("70s")] brown actual_micropersons0 expected_micropersons699972 N42
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("70s")] light-brown actual_micropersons0 expected_micropersons0 N42
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("70s")] blond actual_micropersons0 expected_micropersons0 N42
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("70s")] auburn actual_micropersons0 expected_micropersons0 N42
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("70s")] red actual_micropersons0 expected_micropersons0 N42
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("70s")] grey actual_micropersons0 expected_micropersons0 N42
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("70s")] silver-grey actual_micropersons21000000 expected_micropersons19950000 N42
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("70s")] white actual_micropersons20000000 expected_micropersons19950000 N42
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("80-plus")] black actual_micropersons0 expected_micropersons0 N22
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("80-plus")] dark-brown actual_micropersons0 expected_micropersons0 N22
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("80-plus")] brown actual_micropersons0 expected_micropersons0 N22
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("80-plus")] light-brown actual_micropersons0 expected_micropersons0 N22
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("80-plus")] blond actual_micropersons0 expected_micropersons0 N22
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("80-plus")] auburn actual_micropersons0 expected_micropersons0 N22
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("80-plus")] red actual_micropersons0 expected_micropersons0 N22
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("80-plus")] grey actual_micropersons0 expected_micropersons0 N22
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("80-plus")] silver-grey actual_micropersons10000000 expected_micropersons11000000 N22
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("hispanic-or-latino"), ValueSlug("80-plus")] white actual_micropersons12000000 expected_micropersons11000000 N22
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("20s")] black actual_micropersons4000000 expected_micropersons3500000 N14
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("20s")] dark-brown actual_micropersons4000000 expected_micropersons3500000 N14
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("20s")] brown actual_micropersons4000000 expected_micropersons3500000 N14
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("20s")] light-brown actual_micropersons2000000 expected_micropersons3500000 N14
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("20s")] blond actual_micropersons0 expected_micropersons0 N14
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("20s")] auburn actual_micropersons0 expected_micropersons0 N14
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("20s")] red actual_micropersons0 expected_micropersons0 N14
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("20s")] grey actual_micropersons0 expected_micropersons0 N14
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("20s")] silver-grey actual_micropersons0 expected_micropersons0 N14
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("20s")] white actual_micropersons0 expected_micropersons0 N14
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("30s")] black actual_micropersons3000000 expected_micropersons4500000 N18
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("30s")] dark-brown actual_micropersons7000000 expected_micropersons4500000 N18
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("30s")] brown actual_micropersons3000000 expected_micropersons4500000 N18
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("30s")] light-brown actual_micropersons5000000 expected_micropersons4500000 N18
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("30s")] blond actual_micropersons0 expected_micropersons0 N18
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("30s")] auburn actual_micropersons0 expected_micropersons0 N18
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("30s")] red actual_micropersons0 expected_micropersons0 N18
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("30s")] grey actual_micropersons0 expected_micropersons0 N18
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("30s")] silver-grey actual_micropersons0 expected_micropersons0 N18
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("30s")] white actual_micropersons0 expected_micropersons0 N18
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("40s")] black actual_micropersons3000000 expected_micropersons3750000 N15
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("40s")] dark-brown actual_micropersons6000000 expected_micropersons3750000 N15
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("40s")] brown actual_micropersons3000000 expected_micropersons3750000 N15
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("40s")] light-brown actual_micropersons3000000 expected_micropersons3750000 N15
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("40s")] blond actual_micropersons0 expected_micropersons0 N15
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("40s")] auburn actual_micropersons0 expected_micropersons0 N15
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("40s")] red actual_micropersons0 expected_micropersons0 N15
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("40s")] grey actual_micropersons0 expected_micropersons0 N15
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("40s")] silver-grey actual_micropersons0 expected_micropersons0 N15
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("40s")] white actual_micropersons0 expected_micropersons0 N15
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("50s")] black actual_micropersons4000000 expected_micropersons1950000 N12
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("50s")] dark-brown actual_micropersons1000000 expected_micropersons1950000 N12
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("50s")] brown actual_micropersons2000000 expected_micropersons1950000 N12
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("50s")] light-brown actual_micropersons1000000 expected_micropersons1950000 N12
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("50s")] blond actual_micropersons0 expected_micropersons0 N12
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("50s")] auburn actual_micropersons0 expected_micropersons0 N12
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("50s")] red actual_micropersons0 expected_micropersons0 N12
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("50s")] grey actual_micropersons4000000 expected_micropersons4200000 N12
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("50s")] silver-grey actual_micropersons0 expected_micropersons0 N12
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("50s")] white actual_micropersons0 expected_micropersons0 N12
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("60s")] black actual_micropersons1000000 expected_micropersons1050000 N14
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("60s")] dark-brown actual_micropersons0 expected_micropersons1050000 N14
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("60s")] brown actual_micropersons1000000 expected_micropersons1050000 N14
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("60s")] light-brown actual_micropersons1000000 expected_micropersons1050000 N14
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("60s")] blond actual_micropersons0 expected_micropersons0 N14
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("60s")] auburn actual_micropersons0 expected_micropersons0 N14
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("60s")] red actual_micropersons0 expected_micropersons0 N14
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("60s")] grey actual_micropersons11000000 expected_micropersons9800000 N14
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("60s")] silver-grey actual_micropersons0 expected_micropersons0 N14
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("60s")] white actual_micropersons0 expected_micropersons0 N14
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("70s")] black actual_micropersons0 expected_micropersons50000 N4
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("70s")] dark-brown actual_micropersons0 expected_micropersons50000 N4
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("70s")] brown actual_micropersons0 expected_micropersons50000 N4
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("70s")] light-brown actual_micropersons0 expected_micropersons50000 N4
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("70s")] blond actual_micropersons0 expected_micropersons0 N4
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("70s")] auburn actual_micropersons0 expected_micropersons0 N4
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("70s")] red actual_micropersons0 expected_micropersons0 N4
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("70s")] grey actual_micropersons0 expected_micropersons0 N4
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("70s")] silver-grey actual_micropersons0 expected_micropersons1900000 N4
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("70s")] white actual_micropersons4000000 expected_micropersons1900000 N4
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("80-plus")] black actual_micropersons0 expected_micropersons0 N2
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("80-plus")] dark-brown actual_micropersons0 expected_micropersons0 N2
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("80-plus")] brown actual_micropersons0 expected_micropersons0 N2
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("80-plus")] light-brown actual_micropersons0 expected_micropersons0 N2
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("80-plus")] blond actual_micropersons0 expected_micropersons0 N2
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("80-plus")] auburn actual_micropersons0 expected_micropersons0 N2
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("80-plus")] red actual_micropersons0 expected_micropersons0 N2
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("80-plus")] grey actual_micropersons0 expected_micropersons0 N2
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("80-plus")] silver-grey actual_micropersons1000000 expected_micropersons1000000 N2
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("multiracial-or-other"), ValueSlug("80-plus")] white actual_micropersons1000000 expected_micropersons1000000 N2
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("20s")] black actual_micropersons0 expected_micropersons0 N112
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("20s")] dark-brown actual_micropersons19000000 expected_micropersons18666704 N112
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("20s")] brown actual_micropersons16000000 expected_micropersons18666704 N112
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("20s")] light-brown actual_micropersons24000000 expected_micropersons18666704 N112
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("20s")] blond actual_micropersons24000000 expected_micropersons18666704 N112
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("20s")] auburn actual_micropersons15000000 expected_micropersons18666592 N112
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("20s")] red actual_micropersons14000000 expected_micropersons18666592 N112
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("20s")] grey actual_micropersons0 expected_micropersons0 N112
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("20s")] silver-grey actual_micropersons0 expected_micropersons0 N112
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("20s")] white actual_micropersons0 expected_micropersons0 N112
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("30s")] black actual_micropersons0 expected_micropersons0 N99
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("30s")] dark-brown actual_micropersons15000000 expected_micropersons16500033 N99
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("30s")] brown actual_micropersons14000000 expected_micropersons16500033 N99
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("30s")] light-brown actual_micropersons18000000 expected_micropersons16500033 N99
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("30s")] blond actual_micropersons18000000 expected_micropersons16500033 N99
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("30s")] auburn actual_micropersons21000000 expected_micropersons16499934 N99
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("30s")] red actual_micropersons13000000 expected_micropersons16499934 N99
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("30s")] grey actual_micropersons0 expected_micropersons0 N99
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("30s")] silver-grey actual_micropersons0 expected_micropersons0 N99
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("30s")] white actual_micropersons0 expected_micropersons0 N99
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("40s")] black actual_micropersons0 expected_micropersons0 N82
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("40s")] dark-brown actual_micropersons15000000 expected_micropersons13666694 N82
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("40s")] brown actual_micropersons12000000 expected_micropersons13666694 N82
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("40s")] light-brown actual_micropersons11000000 expected_micropersons13666694 N82
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("40s")] blond actual_micropersons14000000 expected_micropersons13666694 N82
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("40s")] auburn actual_micropersons14000000 expected_micropersons13666612 N82
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("40s")] red actual_micropersons16000000 expected_micropersons13666612 N82
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("40s")] grey actual_micropersons0 expected_micropersons0 N82
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("40s")] silver-grey actual_micropersons0 expected_micropersons0 N82
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("40s")] white actual_micropersons0 expected_micropersons0 N82
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("50s")] black actual_micropersons0 expected_micropersons0 N67
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("50s")] dark-brown actual_micropersons8000000 expected_micropersons7258378 N67
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("50s")] brown actual_micropersons9000000 expected_micropersons7258378 N67
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("50s")] light-brown actual_micropersons3000000 expected_micropersons7258311 N67
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("50s")] blond actual_micropersons9000000 expected_micropersons7258311 N67
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("50s")] auburn actual_micropersons8000000 expected_micropersons7258311 N67
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("50s")] red actual_micropersons4000000 expected_micropersons7258311 N67
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("50s")] grey actual_micropersons26000000 expected_micropersons23450000 N67
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("50s")] silver-grey actual_micropersons0 expected_micropersons0 N67
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("50s")] white actual_micropersons0 expected_micropersons0 N67
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("60s")] black actual_micropersons0 expected_micropersons0 N67
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("60s")] dark-brown actual_micropersons4000000 expected_micropersons3350000 N67
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("60s")] brown actual_micropersons3000000 expected_micropersons3350000 N67
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("60s")] light-brown actual_micropersons0 expected_micropersons3350000 N67
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("60s")] blond actual_micropersons2000000 expected_micropersons3350000 N67
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("60s")] auburn actual_micropersons0 expected_micropersons3350000 N67
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("60s")] red actual_micropersons2000000 expected_micropersons3350000 N67
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("60s")] grey actual_micropersons56000000 expected_micropersons46900000 N67
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("60s")] silver-grey actual_micropersons0 expected_micropersons0 N67
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("60s")] white actual_micropersons0 expected_micropersons0 N67
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("70s")] black actual_micropersons0 expected_micropersons0 N44
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("70s")] dark-brown actual_micropersons1000000 expected_micropersons366696 N44
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("70s")] brown actual_micropersons0 expected_micropersons366696 N44
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("70s")] light-brown actual_micropersons0 expected_micropersons366652 N44
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("70s")] blond actual_micropersons2000000 expected_micropersons366652 N44
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("70s")] auburn actual_micropersons0 expected_micropersons366652 N44
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("70s")] red actual_micropersons0 expected_micropersons366652 N44
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("70s")] grey actual_micropersons0 expected_micropersons0 N44
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("70s")] silver-grey actual_micropersons20000000 expected_micropersons20900000 N44
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("70s")] white actual_micropersons21000000 expected_micropersons20900000 N44
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("80-plus")] black actual_micropersons0 expected_micropersons0 N25
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("80-plus")] dark-brown actual_micropersons0 expected_micropersons0 N25
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("80-plus")] brown actual_micropersons0 expected_micropersons0 N25
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("80-plus")] light-brown actual_micropersons0 expected_micropersons0 N25
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("80-plus")] blond actual_micropersons0 expected_micropersons0 N25
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("80-plus")] auburn actual_micropersons0 expected_micropersons0 N25
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("80-plus")] red actual_micropersons0 expected_micropersons0 N25
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("80-plus")] grey actual_micropersons0 expected_micropersons0 N25
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("80-plus")] silver-grey actual_micropersons12000000 expected_micropersons12500000 N25
+newcomer conditional san-diego-county core.hair-colour eligible=false [ValueSlug("white"), ValueSlug("80-plus")] white actual_micropersons13000000 expected_micropersons12500000 N25
+newcomer marginal san-diego-county core.hair-colour eligible=false black actual_micropersons182000000 expected_micropersons182775185 N1200
+newcomer marginal san-diego-county core.hair-colour eligible=false dark-brown actual_micropersons247000000 expected_micropersons242583473 N1200
+newcomer marginal san-diego-county core.hair-colour eligible=false brown actual_micropersons173000000 expected_micropersons171058352 N1200
+newcomer marginal san-diego-county core.hair-colour eligible=false light-brown actual_micropersons68000000 expected_micropersons74608394 N1200
+newcomer marginal san-diego-county core.hair-colour eligible=false blond actual_micropersons69000000 expected_micropersons59808394 N1200
+newcomer marginal san-diego-county core.hair-colour eligible=false auburn actual_micropersons58000000 expected_micropersons59808101 N1200
+newcomer marginal san-diego-county core.hair-colour eligible=false red actual_micropersons49000000 expected_micropersons59808101 N1200
+newcomer marginal san-diego-county core.hair-colour eligible=false grey actual_micropersons187000000 expected_micropersons182350000 N1200
+newcomer marginal san-diego-county core.hair-colour eligible=false silver-grey actual_micropersons80000000 expected_micropersons83600000 N1200
+newcomer marginal san-diego-county core.hair-colour eligible=false white actual_micropersons87000000 expected_micropersons83600000 N1200
+newcomer conditional san-diego-county core.hair-style eligible=false [ValueSlug("female")] chin-length-bob actual_micropersons90000000 expected_micropersons85429084 N598
+newcomer conditional san-diego-county core.hair-style eligible=false [ValueSlug("female")] pixie-cut actual_micropersons66000000 expected_micropersons85428486 N598
+newcomer conditional san-diego-county core.hair-style eligible=false [ValueSlug("female")] low-bun actual_micropersons101000000 expected_micropersons85428486 N598
+newcomer conditional san-diego-county core.hair-style eligible=false [ValueSlug("female")] low-ponytail actual_micropersons82000000 expected_micropersons85428486 N598
+newcomer conditional san-diego-county core.hair-style eligible=false [ValueSlug("female")] braided-updo actual_micropersons88000000 expected_micropersons85428486 N598
+newcomer conditional san-diego-county core.hair-style eligible=false [ValueSlug("female")] top-knot actual_micropersons94000000 expected_micropersons85428486 N598
+newcomer conditional san-diego-county core.hair-style eligible=false [ValueSlug("female")] short-layered actual_micropersons77000000 expected_micropersons85428486 N598
+newcomer conditional san-diego-county core.hair-style eligible=false [ValueSlug("female")] short-crop actual_micropersons0 expected_micropersons0 N598
+newcomer conditional san-diego-county core.hair-style eligible=false [ValueSlug("female")] buzz-cut actual_micropersons0 expected_micropersons0 N598
+newcomer conditional san-diego-county core.hair-style eligible=false [ValueSlug("female")] side-part actual_micropersons0 expected_micropersons0 N598
+newcomer conditional san-diego-county core.hair-style eligible=false [ValueSlug("female")] textured-top actual_micropersons0 expected_micropersons0 N598
+newcomer conditional san-diego-county core.hair-style eligible=false [ValueSlug("female")] shaved-head actual_micropersons0 expected_micropersons0 N598
+newcomer conditional san-diego-county core.hair-style eligible=false [ValueSlug("female")] swept-back actual_micropersons0 expected_micropersons0 N598
+newcomer conditional san-diego-county core.hair-style eligible=false [ValueSlug("female")] close-fade actual_micropersons0 expected_micropersons0 N598
+newcomer conditional san-diego-county core.hair-style eligible=false [ValueSlug("female")] loose-long actual_micropersons0 expected_micropersons0 N598
+newcomer conditional san-diego-county core.hair-style eligible=false [ValueSlug("male")] chin-length-bob actual_micropersons0 expected_micropersons0 N602
+newcomer conditional san-diego-county core.hair-style eligible=false [ValueSlug("male")] pixie-cut actual_micropersons0 expected_micropersons0 N602
+newcomer conditional san-diego-county core.hair-style eligible=false [ValueSlug("male")] low-bun actual_micropersons0 expected_micropersons0 N602
+newcomer conditional san-diego-county core.hair-style eligible=false [ValueSlug("male")] low-ponytail actual_micropersons0 expected_micropersons0 N602
+newcomer conditional san-diego-county core.hair-style eligible=false [ValueSlug("male")] braided-updo actual_micropersons0 expected_micropersons0 N602
+newcomer conditional san-diego-county core.hair-style eligible=false [ValueSlug("male")] top-knot actual_micropersons0 expected_micropersons0 N602
+newcomer conditional san-diego-county core.hair-style eligible=false [ValueSlug("male")] short-layered actual_micropersons0 expected_micropersons0 N602
+newcomer conditional san-diego-county core.hair-style eligible=false [ValueSlug("male")] short-crop actual_micropersons90000000 expected_micropersons86000516 N602
+newcomer conditional san-diego-county core.hair-style eligible=false [ValueSlug("male")] buzz-cut actual_micropersons85000000 expected_micropersons85999914 N602
+newcomer conditional san-diego-county core.hair-style eligible=false [ValueSlug("male")] side-part actual_micropersons86000000 expected_micropersons85999914 N602
+newcomer conditional san-diego-county core.hair-style eligible=false [ValueSlug("male")] textured-top actual_micropersons87000000 expected_micropersons85999914 N602
+newcomer conditional san-diego-county core.hair-style eligible=false [ValueSlug("male")] shaved-head actual_micropersons75000000 expected_micropersons85999914 N602
+newcomer conditional san-diego-county core.hair-style eligible=false [ValueSlug("male")] swept-back actual_micropersons85000000 expected_micropersons85999914 N602
+newcomer conditional san-diego-county core.hair-style eligible=false [ValueSlug("male")] close-fade actual_micropersons94000000 expected_micropersons85999914 N602
+newcomer conditional san-diego-county core.hair-style eligible=false [ValueSlug("male")] loose-long actual_micropersons0 expected_micropersons0 N602
+newcomer marginal san-diego-county core.hair-style eligible=false chin-length-bob actual_micropersons90000000 expected_micropersons85429084 N1200
+newcomer marginal san-diego-county core.hair-style eligible=false pixie-cut actual_micropersons66000000 expected_micropersons85428486 N1200
+newcomer marginal san-diego-county core.hair-style eligible=false low-bun actual_micropersons101000000 expected_micropersons85428486 N1200
+newcomer marginal san-diego-county core.hair-style eligible=false low-ponytail actual_micropersons82000000 expected_micropersons85428486 N1200
+newcomer marginal san-diego-county core.hair-style eligible=false braided-updo actual_micropersons88000000 expected_micropersons85428486 N1200
+newcomer marginal san-diego-county core.hair-style eligible=false top-knot actual_micropersons94000000 expected_micropersons85428486 N1200
+newcomer marginal san-diego-county core.hair-style eligible=false short-layered actual_micropersons77000000 expected_micropersons85428486 N1200
+newcomer marginal san-diego-county core.hair-style eligible=false short-crop actual_micropersons90000000 expected_micropersons86000516 N1200
+newcomer marginal san-diego-county core.hair-style eligible=false buzz-cut actual_micropersons85000000 expected_micropersons85999914 N1200
+newcomer marginal san-diego-county core.hair-style eligible=false side-part actual_micropersons86000000 expected_micropersons85999914 N1200
+newcomer marginal san-diego-county core.hair-style eligible=false textured-top actual_micropersons87000000 expected_micropersons85999914 N1200
+newcomer marginal san-diego-county core.hair-style eligible=false shaved-head actual_micropersons75000000 expected_micropersons85999914 N1200
+newcomer marginal san-diego-county core.hair-style eligible=false swept-back actual_micropersons85000000 expected_micropersons85999914 N1200
+newcomer marginal san-diego-county core.hair-style eligible=false close-fade actual_micropersons94000000 expected_micropersons85999914 N1200
+newcomer marginal san-diego-county core.hair-style eligible=false loose-long actual_micropersons0 expected_micropersons0 N1200
+newcomer conditional san-diego-county core.hair-texture eligible=false [ValueSlug("asian")] straight actual_micropersons119000000 expected_micropersons113250000 N151
+newcomer conditional san-diego-county core.hair-texture eligible=false [ValueSlug("asian")] wavy actual_micropersons29000000 expected_micropersons30200000 N151
+newcomer conditional san-diego-county core.hair-texture eligible=false [ValueSlug("asian")] curly actual_micropersons3000000 expected_micropersons7550000 N151
+newcomer conditional san-diego-county core.hair-texture eligible=false [ValueSlug("asian")] coily actual_micropersons0 expected_micropersons0 N151
+newcomer conditional san-diego-county core.hair-texture eligible=false [ValueSlug("black")] straight actual_micropersons0 expected_micropersons0 N51
+newcomer conditional san-diego-county core.hair-texture eligible=false [ValueSlug("black")] wavy actual_micropersons2000000 expected_micropersons2550000 N51
+newcomer conditional san-diego-county core.hair-texture eligible=false [ValueSlug("black")] curly actual_micropersons16000000 expected_micropersons12750000 N51
+newcomer conditional san-diego-county core.hair-texture eligible=false [ValueSlug("black")] coily actual_micropersons33000000 expected_micropersons35700000 N51
+newcomer conditional san-diego-county core.hair-texture eligible=false [ValueSlug("hispanic-or-latino")] straight actual_micropersons172000000 expected_micropersons169200000 N423
+newcomer conditional san-diego-county core.hair-texture eligible=false [ValueSlug("hispanic-or-latino")] wavy actual_micropersons171000000 expected_micropersons169200000 N423
+newcomer conditional san-diego-county core.hair-texture eligible=false [ValueSlug("hispanic-or-latino")] curly actual_micropersons63000000 expected_micropersons63450000 N423
+newcomer conditional san-diego-county core.hair-texture eligible=false [ValueSlug("hispanic-or-latino")] coily actual_micropersons17000000 expected_micropersons21150000 N423
+newcomer conditional san-diego-county core.hair-texture eligible=false [ValueSlug("multiracial-or-other")] straight actual_micropersons23000000 expected_micropersons23700000 N79
+newcomer conditional san-diego-county core.hair-texture eligible=false [ValueSlug("multiracial-or-other")] wavy actual_micropersons24000000 expected_micropersons23700000 N79
+newcomer conditional san-diego-county core.hair-texture eligible=false [ValueSlug("multiracial-or-other")] curly actual_micropersons21000000 expected_micropersons19750000 N79
+newcomer conditional san-diego-county core.hair-texture eligible=false [ValueSlug("multiracial-or-other")] coily actual_micropersons11000000 expected_micropersons11850000 N79
+newcomer conditional san-diego-county core.hair-texture eligible=false [ValueSlug("white")] straight actual_micropersons242000000 expected_micropersons248000000 N496
+newcomer conditional san-diego-county core.hair-texture eligible=false [ValueSlug("white")] wavy actual_micropersons175000000 expected_micropersons173600000 N496
+newcomer conditional san-diego-county core.hair-texture eligible=false [ValueSlug("white")] curly actual_micropersons79000000 expected_micropersons74400000 N496
+newcomer conditional san-diego-county core.hair-texture eligible=false [ValueSlug("white")] coily actual_micropersons0 expected_micropersons0 N496
+newcomer marginal san-diego-county core.hair-texture eligible=false straight actual_micropersons556000000 expected_micropersons554150000 N1200
+newcomer marginal san-diego-county core.hair-texture eligible=false wavy actual_micropersons401000000 expected_micropersons399250000 N1200
+newcomer marginal san-diego-county core.hair-texture eligible=false curly actual_micropersons182000000 expected_micropersons177900000 N1200
+newcomer marginal san-diego-county core.hair-texture eligible=false coily actual_micropersons61000000 expected_micropersons68700000 N1200
+newcomer conditional san-diego-county core.lips eligible=false [] full actual_micropersons299000000 expected_micropersons300000000 N1200
+newcomer conditional san-diego-county core.lips eligible=false [] medium actual_micropersons295000000 expected_micropersons300000000 N1200
+newcomer conditional san-diego-county core.lips eligible=false [] thin actual_micropersons298000000 expected_micropersons300000000 N1200
+newcomer conditional san-diego-county core.lips eligible=false [] wide actual_micropersons308000000 expected_micropersons300000000 N1200
+newcomer marginal san-diego-county core.lips eligible=false full actual_micropersons299000000 expected_micropersons300000000 N1200
+newcomer marginal san-diego-county core.lips eligible=false medium actual_micropersons295000000 expected_micropersons300000000 N1200
+newcomer marginal san-diego-county core.lips eligible=false thin actual_micropersons298000000 expected_micropersons300000000 N1200
+newcomer marginal san-diego-county core.lips eligible=false wide actual_micropersons308000000 expected_micropersons300000000 N1200
+newcomer conditional san-diego-county core.natal-sex eligible=true [] female actual_micropersons598000000 expected_micropersons598320000 N1200
+newcomer conditional san-diego-county core.natal-sex eligible=true [] male actual_micropersons602000000 expected_micropersons601680000 N1200
+newcomer marginal san-diego-county core.natal-sex eligible=true female actual_micropersons598000000 expected_micropersons598320000 N1200
+newcomer marginal san-diego-county core.natal-sex eligible=true male actual_micropersons602000000 expected_micropersons601680000 N1200
+newcomer conditional san-diego-county core.nose eligible=false [] straight actual_micropersons181000000 expected_micropersons200000400 N1200
+newcomer conditional san-diego-county core.nose eligible=false [] broad actual_micropersons205000000 expected_micropersons200000400 N1200
+newcomer conditional san-diego-county core.nose eligible=false [] narrow actual_micropersons193000000 expected_micropersons200000400 N1200
+newcomer conditional san-diego-county core.nose eligible=false [] aquiline actual_micropersons184000000 expected_micropersons200000400 N1200
+newcomer conditional san-diego-county core.nose eligible=false [] upturned actual_micropersons222000000 expected_micropersons199999200 N1200
+newcomer conditional san-diego-county core.nose eligible=false [] wide-bridged actual_micropersons215000000 expected_micropersons199999200 N1200
+newcomer marginal san-diego-county core.nose eligible=false straight actual_micropersons181000000 expected_micropersons200000400 N1200
+newcomer marginal san-diego-county core.nose eligible=false broad actual_micropersons205000000 expected_micropersons200000400 N1200
+newcomer marginal san-diego-county core.nose eligible=false narrow actual_micropersons193000000 expected_micropersons200000400 N1200
+newcomer marginal san-diego-county core.nose eligible=false aquiline actual_micropersons184000000 expected_micropersons200000400 N1200
+newcomer marginal san-diego-county core.nose eligible=false upturned actual_micropersons222000000 expected_micropersons199999200 N1200
+newcomer marginal san-diego-county core.nose eligible=false wide-bridged actual_micropersons215000000 expected_micropersons199999200 N1200
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("asian")] mst-1 actual_micropersons0 expected_micropersons0 N151
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("asian")] mst-2 actual_micropersons28000000 expected_micropersons30200000 N151
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("asian")] mst-3 actual_micropersons27000000 expected_micropersons30200000 N151
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("asian")] mst-4 actual_micropersons23000000 expected_micropersons30200000 N151
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("asian")] mst-5 actual_micropersons42000000 expected_micropersons30200000 N151
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("asian")] mst-6 actual_micropersons31000000 expected_micropersons30200000 N151
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("asian")] mst-7 actual_micropersons0 expected_micropersons0 N151
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("asian")] mst-8 actual_micropersons0 expected_micropersons0 N151
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("asian")] mst-9 actual_micropersons0 expected_micropersons0 N151
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("asian")] mst-10 actual_micropersons0 expected_micropersons0 N151
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("black")] mst-1 actual_micropersons0 expected_micropersons0 N51
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("black")] mst-2 actual_micropersons0 expected_micropersons0 N51
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("black")] mst-3 actual_micropersons0 expected_micropersons0 N51
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("black")] mst-4 actual_micropersons0 expected_micropersons0 N51
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("black")] mst-5 actual_micropersons11000000 expected_micropersons8500017 N51
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("black")] mst-6 actual_micropersons9000000 expected_micropersons8500017 N51
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("black")] mst-7 actual_micropersons13000000 expected_micropersons8500017 N51
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("black")] mst-8 actual_micropersons4000000 expected_micropersons8500017 N51
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("black")] mst-9 actual_micropersons8000000 expected_micropersons8499966 N51
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("black")] mst-10 actual_micropersons6000000 expected_micropersons8499966 N51
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("hispanic-or-latino")] mst-1 actual_micropersons0 expected_micropersons0 N423
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("hispanic-or-latino")] mst-2 actual_micropersons69000000 expected_micropersons70500141 N423
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("hispanic-or-latino")] mst-3 actual_micropersons66000000 expected_micropersons70500141 N423
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("hispanic-or-latino")] mst-4 actual_micropersons80000000 expected_micropersons70500141 N423
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("hispanic-or-latino")] mst-5 actual_micropersons71000000 expected_micropersons70500141 N423
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("hispanic-or-latino")] mst-6 actual_micropersons69000000 expected_micropersons70499718 N423
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("hispanic-or-latino")] mst-7 actual_micropersons68000000 expected_micropersons70499718 N423
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("hispanic-or-latino")] mst-8 actual_micropersons0 expected_micropersons0 N423
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("hispanic-or-latino")] mst-9 actual_micropersons0 expected_micropersons0 N423
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("hispanic-or-latino")] mst-10 actual_micropersons0 expected_micropersons0 N423
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("multiracial-or-other")] mst-1 actual_micropersons0 expected_micropersons0 N79
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("multiracial-or-other")] mst-2 actual_micropersons0 expected_micropersons0 N79
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("multiracial-or-other")] mst-3 actual_micropersons16000000 expected_micropersons13166693 N79
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("multiracial-or-other")] mst-4 actual_micropersons10000000 expected_micropersons13166693 N79
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("multiracial-or-other")] mst-5 actual_micropersons9000000 expected_micropersons13166693 N79
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("multiracial-or-other")] mst-6 actual_micropersons11000000 expected_micropersons13166693 N79
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("multiracial-or-other")] mst-7 actual_micropersons19000000 expected_micropersons13166614 N79
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("multiracial-or-other")] mst-8 actual_micropersons14000000 expected_micropersons13166614 N79
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("multiracial-or-other")] mst-9 actual_micropersons0 expected_micropersons0 N79
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("multiracial-or-other")] mst-10 actual_micropersons0 expected_micropersons0 N79
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("white")] mst-1 actual_micropersons138000000 expected_micropersons124000000 N496
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("white")] mst-2 actual_micropersons131000000 expected_micropersons124000000 N496
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("white")] mst-3 actual_micropersons108000000 expected_micropersons124000000 N496
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("white")] mst-4 actual_micropersons119000000 expected_micropersons124000000 N496
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("white")] mst-5 actual_micropersons0 expected_micropersons0 N496
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("white")] mst-6 actual_micropersons0 expected_micropersons0 N496
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("white")] mst-7 actual_micropersons0 expected_micropersons0 N496
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("white")] mst-8 actual_micropersons0 expected_micropersons0 N496
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("white")] mst-9 actual_micropersons0 expected_micropersons0 N496
+newcomer conditional san-diego-county core.skin-tone eligible=false [ValueSlug("white")] mst-10 actual_micropersons0 expected_micropersons0 N496
+newcomer marginal san-diego-county core.skin-tone eligible=false mst-1 actual_micropersons138000000 expected_micropersons124000000 N1200
+newcomer marginal san-diego-county core.skin-tone eligible=false mst-2 actual_micropersons228000000 expected_micropersons224700141 N1200
+newcomer marginal san-diego-county core.skin-tone eligible=false mst-3 actual_micropersons217000000 expected_micropersons237866834 N1200
+newcomer marginal san-diego-county core.skin-tone eligible=false mst-4 actual_micropersons232000000 expected_micropersons237866834 N1200
+newcomer marginal san-diego-county core.skin-tone eligible=false mst-5 actual_micropersons133000000 expected_micropersons122366851 N1200
+newcomer marginal san-diego-county core.skin-tone eligible=false mst-6 actual_micropersons120000000 expected_micropersons122366428 N1200
+newcomer marginal san-diego-county core.skin-tone eligible=false mst-7 actual_micropersons100000000 expected_micropersons92166349 N1200
+newcomer marginal san-diego-county core.skin-tone eligible=false mst-8 actual_micropersons18000000 expected_micropersons21666631 N1200
+newcomer marginal san-diego-county core.skin-tone eligible=false mst-9 actual_micropersons8000000 expected_micropersons8499966 N1200
+newcomer marginal san-diego-county core.skin-tone eligible=false mst-10 actual_micropersons6000000 expected_micropersons8499966 N1200
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("20s")] bin0 count22 N224 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("20s")] bin1 count22 N224 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("20s")] bin2 count23 N224 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("20s")] bin3 count23 N224 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("20s")] bin4 count22 N224 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("20s")] bin5 count22 N224 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("20s")] bin6 count23 N224 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("20s")] bin7 count22 N224 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("20s")] bin8 count23 N224 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("20s")] bin9 count22 N224 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("30s")] bin0 count25 N246 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("30s")] bin1 count24 N246 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("30s")] bin2 count25 N246 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("30s")] bin3 count25 N246 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("30s")] bin4 count25 N246 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("30s")] bin5 count24 N246 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("30s")] bin6 count24 N246 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("30s")] bin7 count25 N246 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("30s")] bin8 count25 N246 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("30s")] bin9 count24 N246 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("40s")] bin0 count21 N206 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("40s")] bin1 count21 N206 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("40s")] bin2 count21 N206 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("40s")] bin3 count21 N206 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("40s")] bin4 count20 N206 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("40s")] bin5 count20 N206 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("40s")] bin6 count21 N206 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("40s")] bin7 count20 N206 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("40s")] bin8 count20 N206 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("40s")] bin9 count21 N206 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("50s")] bin0 count18 N181 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("50s")] bin1 count18 N181 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("50s")] bin2 count18 N181 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("50s")] bin3 count19 N181 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("50s")] bin4 count18 N181 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("50s")] bin5 count18 N181 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("50s")] bin6 count18 N181 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("50s")] bin7 count18 N181 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("50s")] bin8 count18 N181 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("50s")] bin9 count18 N181 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("60s")] bin0 count17 N170 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("60s")] bin1 count17 N170 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("60s")] bin2 count17 N170 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("60s")] bin3 count17 N170 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("60s")] bin4 count17 N170 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("60s")] bin5 count17 N170 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("60s")] bin6 count17 N170 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("60s")] bin7 count17 N170 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("60s")] bin8 count17 N170 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("60s")] bin9 count17 N170 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("70s")] bin0 count12 N116 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("70s")] bin1 count11 N116 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("70s")] bin2 count12 N116 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("70s")] bin3 count12 N116 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("70s")] bin4 count11 N116 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("70s")] bin5 count11 N116 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("70s")] bin6 count12 N116 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("70s")] bin7 count11 N116 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("70s")] bin8 count12 N116 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("70s")] bin9 count12 N116 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("80-plus")] bin0 count6 N57 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("80-plus")] bin1 count6 N57 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("80-plus")] bin2 count5 N57 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("80-plus")] bin3 count6 N57 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("80-plus")] bin4 count5 N57 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("80-plus")] bin5 count6 N57 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("80-plus")] bin6 count6 N57 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("80-plus")] bin7 count5 N57 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("80-plus")] bin8 count6 N57 expected=10%
+newcomer decile san-diego-county core.birth eligible=true [ValueSlug("80-plus")] bin9 count6 N57 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("20s")] bin0 count11 N117 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("20s")] bin1 count12 N117 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("20s")] bin2 count12 N117 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("20s")] bin3 count11 N117 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("20s")] bin4 count12 N117 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("20s")] bin5 count12 N117 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("20s")] bin6 count12 N117 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("20s")] bin7 count12 N117 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("20s")] bin8 count11 N117 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("20s")] bin9 count12 N117 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("30s")] bin0 count13 N131 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("30s")] bin1 count13 N131 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("30s")] bin2 count13 N131 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("30s")] bin3 count13 N131 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("30s")] bin4 count14 N131 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("30s")] bin5 count13 N131 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("30s")] bin6 count13 N131 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("30s")] bin7 count13 N131 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("30s")] bin8 count13 N131 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("30s")] bin9 count13 N131 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("40s")] bin0 count11 N108 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("40s")] bin1 count10 N108 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("40s")] bin2 count11 N108 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("40s")] bin3 count11 N108 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("40s")] bin4 count11 N108 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("40s")] bin5 count10 N108 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("40s")] bin6 count11 N108 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("40s")] bin7 count11 N108 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("40s")] bin8 count11 N108 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("40s")] bin9 count11 N108 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("50s")] bin0 count9 N85 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("50s")] bin1 count9 N85 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("50s")] bin2 count9 N85 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("50s")] bin3 count8 N85 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("50s")] bin4 count9 N85 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("50s")] bin5 count8 N85 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("50s")] bin6 count8 N85 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("50s")] bin7 count8 N85 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("50s")] bin8 count9 N85 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("50s")] bin9 count8 N85 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("60s")] bin0 count7 N69 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("60s")] bin1 count7 N69 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("60s")] bin2 count7 N69 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("60s")] bin3 count7 N69 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("60s")] bin4 count7 N69 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("60s")] bin5 count7 N69 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("60s")] bin6 count7 N69 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("60s")] bin7 count6 N69 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("60s")] bin8 count7 N69 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("60s")] bin9 count7 N69 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("70s")] bin0 count7 N62 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("70s")] bin1 count6 N62 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("70s")] bin2 count6 N62 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("70s")] bin3 count6 N62 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("70s")] bin4 count6 N62 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("70s")] bin5 count7 N62 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("70s")] bin6 count6 N62 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("70s")] bin7 count6 N62 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("70s")] bin8 count6 N62 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("70s")] bin9 count6 N62 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("80-plus")] bin0 count3 N26 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("80-plus")] bin1 count2 N26 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("80-plus")] bin2 count2 N26 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("80-plus")] bin3 count3 N26 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("80-plus")] bin4 count3 N26 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("80-plus")] bin5 count3 N26 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("80-plus")] bin6 count3 N26 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("80-plus")] bin7 count3 N26 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("80-plus")] bin8 count2 N26 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("female"), ValueSlug("80-plus")] bin9 count2 N26 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("20s")] bin0 count11 N107 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("20s")] bin1 count11 N107 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("20s")] bin2 count11 N107 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("20s")] bin3 count11 N107 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("20s")] bin4 count10 N107 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("20s")] bin5 count11 N107 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("20s")] bin6 count10 N107 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("20s")] bin7 count11 N107 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("20s")] bin8 count10 N107 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("20s")] bin9 count11 N107 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("30s")] bin0 count12 N115 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("30s")] bin1 count11 N115 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("30s")] bin2 count11 N115 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("30s")] bin3 count12 N115 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("30s")] bin4 count11 N115 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("30s")] bin5 count12 N115 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("30s")] bin6 count12 N115 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("30s")] bin7 count11 N115 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("30s")] bin8 count11 N115 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("30s")] bin9 count12 N115 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("40s")] bin0 count10 N98 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("40s")] bin1 count9 N98 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("40s")] bin2 count10 N98 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("40s")] bin3 count10 N98 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("40s")] bin4 count10 N98 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("40s")] bin5 count9 N98 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("40s")] bin6 count10 N98 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("40s")] bin7 count10 N98 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("40s")] bin8 count10 N98 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("40s")] bin9 count10 N98 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("50s")] bin0 count9 N96 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("50s")] bin1 count10 N96 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("50s")] bin2 count10 N96 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("50s")] bin3 count11 N96 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("50s")] bin4 count9 N96 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("50s")] bin5 count9 N96 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("50s")] bin6 count9 N96 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("50s")] bin7 count9 N96 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("50s")] bin8 count10 N96 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("50s")] bin9 count10 N96 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("60s")] bin0 count10 N101 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("60s")] bin1 count10 N101 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("60s")] bin2 count11 N101 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("60s")] bin3 count10 N101 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("60s")] bin4 count10 N101 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("60s")] bin5 count10 N101 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("60s")] bin6 count10 N101 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("60s")] bin7 count10 N101 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("60s")] bin8 count10 N101 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("60s")] bin9 count10 N101 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("70s")] bin0 count5 N54 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("70s")] bin1 count6 N54 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("70s")] bin2 count5 N54 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("70s")] bin3 count5 N54 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("70s")] bin4 count5 N54 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("70s")] bin5 count6 N54 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("70s")] bin6 count5 N54 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("70s")] bin7 count5 N54 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("70s")] bin8 count6 N54 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("70s")] bin9 count6 N54 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("80-plus")] bin0 count3 N31 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("80-plus")] bin1 count3 N31 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("80-plus")] bin2 count3 N31 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("80-plus")] bin3 count4 N31 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("80-plus")] bin4 count3 N31 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("80-plus")] bin5 count3 N31 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("80-plus")] bin6 count3 N31 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("80-plus")] bin7 count3 N31 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("80-plus")] bin8 count3 N31 expected=10%
+newcomer decile san-diego-county core.stature eligible=true [ValueSlug("male"), ValueSlug("80-plus")] bin9 count3 N31 expected=10%
+newcomer digest san-diego-county 6298ea3e916c652f
+test newcomers::a_thousand_arrivals_preserve_both_profiles_and_reproduce ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.42s

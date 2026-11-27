@@ -32,6 +32,7 @@ struct Ranges {
     max: BTreeMap<String, u32>,
     fill: u32,
     files: Vec<PathBuf>,
+    resolved_total: u32,
 }
 
 impl OwnsData for Probe {
@@ -57,6 +58,7 @@ impl OwnsData for Probe {
                 .copied()
                 .unwrap_or(0),
             files: Vec::new(),
+            resolved_total: 0,
         };
         for (origin, file) in files {
             for (field, max) in file {
@@ -76,7 +78,10 @@ impl OwnsData for Probe {
 
     /// How many fields the data declared, and the fill: what a running world would need to know.
     fn seed_context(_: &Seeding<'_, '_>, context: &Ranges) -> Result<Vec<Emission>, Rejection> {
-        Ok(vec![declared(context.max.len(), context.fill)])
+        Ok(vec![declared(
+            context.max.len(),
+            context.fill + context.resolved_total,
+        )])
     }
 }
 
@@ -191,10 +196,16 @@ impl ResolvesSubjects for Probe {
 
     /// Every declared field, authored or filled; a subject tagged `invent` makes it seed a stranger.
     fn resolve_subjects(
-        context: &Ranges,
-        _: Option<&dyn Any>,
+        context: std::sync::Arc<Ranges>,
+        configuration: Option<&dyn Any>,
         subjects: &[Subject<'_, Self::Authored>],
-    ) -> Result<BTreeMap<EntityKey, Self::Seed>, ResolveRefusal> {
+    ) -> Result<SubjectResolution<Self::Context, Self::Seed>, ResolveRefusal> {
+        if configuration.is_some_and(|value| !value.is::<u32>()) {
+            return Err(ResolveRefusal {
+                subject: None,
+                reason: "not probe configuration".to_owned(),
+            });
+        }
         let mut seeds = BTreeMap::new();
         for subject in subjects {
             let mut values = subject.authored.cloned().unwrap_or_default();
@@ -206,17 +217,26 @@ impl ResolvesSubjects for Probe {
                 seeds.insert(key("nobody"), BTreeMap::new());
             }
         }
-        Ok(seeds)
+        let context = Arc::new(Ranges {
+            max: context.max.clone(),
+            fill: context.fill,
+            files: context.files.clone(),
+            resolved_total: seeds.values().flat_map(BTreeMap::values).sum(),
+        });
+        Ok(SubjectResolution { context, seeds })
     }
 
     /// The seed's sum.
     fn seed_resolved(
         _: &Seeding<'_, '_>,
         subject: EntityId,
-        _: &Ranges,
+        context: &Ranges,
         seed: &Self::Seed,
     ) -> Result<Vec<Emission>, Rejection> {
-        Ok(vec![stated(subject, seed.values().sum())])
+        Ok(vec![stated(
+            subject,
+            seed.values().sum::<u32>() + context.resolved_total,
+        )])
     }
 }
 
@@ -377,14 +397,31 @@ fn a_resolution_covers_every_subject_and_names_no_stranger() {
     let keys = BTreeMap::new();
     let seeding = Seeding::new(&read, &keys);
     let id = EntityId::from_raw(9);
-    // ada: height 4 authored, width filled with 7; bo: both filled.
+    let final_context = resolved.context();
+    assert_eq!(
+        final_context.seed_context(&seeding),
+        Ok(vec![declared(2, 32)])
+    );
+    assert_eq!(context.seed_context(&seeding), Ok(vec![declared(2, 7)]));
+    assert!(Arc::ptr_eq(
+        &context_of::<Probe>(&*final_context).expect("typed"),
+        &context_of::<Probe>(&*resolved.context()).expect("same typed Arc"),
+    ));
+    assert_eq!(
+        resolved
+            .as_any()
+            .downcast_ref::<BTreeMap<EntityKey, BTreeMap<String, u32>>>()
+            .expect("map-shaped downcast")[&ada]["height"],
+        4
+    );
+    // Each seed uses the final aggregate 25: ada 11 + 25, bo 14 + 25.
     assert_eq!(
         resolved.seed(&seeding, &ada, id),
-        Some(Ok(vec![stated(id, 11)]))
+        Some(Ok(vec![stated(id, 36)]))
     );
     assert_eq!(
         resolved.seed(&seeding, &bo, id),
-        Some(Ok(vec![stated(id, 14)]))
+        Some(Ok(vec![stated(id, 39)]))
     );
     assert_eq!(
         resolved.seed(&seeding, &key("cy"), id),
@@ -445,4 +482,118 @@ fn a_shipped_file_lies_directly_in_an_owners_directory() {
             "'{refused}' is refused"
         );
     }
+}
+
+#[derive(Debug)]
+struct ForeignContext(bool);
+impl OwnerContext for ForeignContext {
+    fn owner(&self) -> SystemId {
+        if self.0 { Probe::ID } else { Quiet::ID }
+    }
+    fn as_any(&self) -> &dyn Any {
+        &()
+    }
+    fn shared(&self) -> Arc<dyn Any + Send + Sync> {
+        Arc::new(())
+    }
+    fn context_facts(&self) -> &'static [EventTypeId] {
+        &[]
+    }
+    fn seed_context(&self, _: &Seeding<'_, '_>) -> Result<Vec<Emission>, Rejection> {
+        Ok(vec![])
+    }
+}
+#[derive(Debug)]
+struct ForeignSection(bool, bool, Option<BTreeMap<String, u32>>);
+impl AuthoredContent for ForeignSection {
+    fn owner(&self) -> SystemId {
+        if self.0 { Probe::ID } else { Quiet::ID }
+    }
+    fn section(&self) -> SectionName {
+        if self.1 {
+            Probe::SECTION
+        } else {
+            SectionName::from_static("wrong")
+        }
+    }
+    fn as_any(&self) -> &dyn Any {
+        self.2
+            .as_ref()
+            .map_or(&() as &dyn Any, |values| values as &dyn Any)
+    }
+    fn references(&self) -> Vec<Reference<'_>> {
+        vec![]
+    }
+    fn seed(&self, _: &Seeding<'_, '_>, _: EntityId) -> Result<Vec<Emission>, Rejection> {
+        panic!("invalid section must not seed")
+    }
+}
+impl PackConfiguration for Quiet {
+    type Configuration = u32;
+    const FACTS: &'static [EventTypeId] = &[];
+    fn seed(
+        _: &Seeding<'_, '_>,
+        _: &u32,
+        _: &ConfigurationContext<'_>,
+    ) -> Result<Vec<Emission>, Rejection> {
+        Ok(vec![])
+    }
+}
+
+/// Erasure must refuse foreign owners and same-owner wrong payload types without a panic.
+#[test]
+fn resolution_rejects_erased_context_configuration_and_section_misuse() {
+    for same_owner in [false, true] {
+        assert!(resolve_erased::<Probe>(&ForeignContext(same_owner), None, &[]).is_err());
+        let (key, tags, section) = (
+            key("ada"),
+            Tags::default(),
+            ForeignSection(same_owner, true, None),
+        );
+        let subjects = [ErasedSubject {
+            key: &key,
+            kind: ContentKind::Person,
+            tags: &tags,
+            authored: Some(&section),
+        }];
+        assert!(resolve_erased::<Probe>(&*context(), None, &subjects).is_err());
+    }
+    let (key, tags, wrong_section) = (
+        key("ada"),
+        Tags::default(),
+        ForeignSection(true, false, Some(BTreeMap::new())),
+    );
+    assert!(
+        resolve_erased::<Probe>(
+            &*context(),
+            None,
+            &[ErasedSubject {
+                key: &key,
+                kind: ContentKind::Person,
+                tags: &tags,
+                authored: Some(&wrong_section),
+            }]
+        )
+        .is_err()
+    );
+    let foreign = DecodeConfiguration::<Quiet>::new()
+        .deserialize(serde::de::value::U32Deserializer::<Error>::new(3))
+        .expect("configuration");
+    assert!(resolve_erased::<Probe>(&*context(), Some(&*foreign), &[]).is_err());
+    assert!(
+        Probe::resolve_subjects(
+            context_of::<Probe>(&*context()).expect("typed"),
+            Some(&()),
+            &[]
+        )
+        .is_err()
+    );
+    let empty = resolve_erased::<Probe>(&*context(), None, &[]).expect("zero subjects");
+    assert!(
+        empty
+            .as_any()
+            .downcast_ref::<BTreeMap<EntityKey, BTreeMap<String, u32>>>()
+            .expect("seed map")
+            .is_empty()
+    );
 }

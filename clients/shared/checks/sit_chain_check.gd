@@ -17,6 +17,7 @@ var _fails := 0
 
 
 func _init() -> void:
+	_check_pose()
 	var chain := MineWorldSitChain.new(SIT, STAND)
 	var near := _frame(PLACE, [_sit("stool-1", true, "")], [])
 	var choice := chain.choose(near, "stool-1")
@@ -49,7 +50,16 @@ func _init() -> void:
 	_check(choice.has("submit") and not choice.has("walk"), "another refusal: sent, never walked to", str(choice))
 
 	var none := _frame(PLACE, [_sit("stool-2", true, "")], [])
-	_check(chain.choose(none, "stool-1").is_empty(), "no offer for the point: nothing")
+	choice = chain.choose(none, "stool-1")
+	_check(choice.has("walk") and choice["walk"]["local"] == AT,
+		"disclosed point without an offer: walk first", str(choice))
+	_check(chain.choose(none, "unknown").is_empty(), "undisclosed point without an offer: nothing")
+	_check(chain.walk_ended(arrived, true).is_empty(), "a new choice cancels the previous walk")
+	chain.choose(far, "stool-1")
+	choice = chain.walk_ended(busy, true)
+	_check(choice.get("submit", {}) == busy.complete_affordances(SIT, "")[0],
+		"arrival sends the newest refused offer unchanged", str(choice))
+	_check(chain.walk_ended(arrived, true).is_empty(), "a completed chain is consumed: no retry")
 
 	var seated := _frame(PLACE, [_sit("stool-1", true, "")], [_stand(true)])
 	choice = chain.leave(seated)
@@ -58,6 +68,21 @@ func _init() -> void:
 
 	print("sit_chain_check: %s" % ("PASS" if _fails == 0 else "FAIL"))
 	quit(0 if _fails == 0 else 1)
+
+
+func _check_pose() -> void:
+	var rule := MineWorldSitRule.new()
+	rule.points = [{"tags": PackedStringArray(["room"]), "point": "bench", "at": Vector2(100, 200),
+		"facing": 0, "seat_offset_m": 0.25, "seat_height_m": 0.47, "prop": "wood"}]
+	var tags := PackedStringArray(["room"])
+	var fallback := rule.pose_of(tags, null, "bench")
+	_check(fallback["pelvis"].is_equal_approx(Vector2(100, -50)), "fallback pelvis moves against facing")
+	var points := [{"key": "bench", "at": {"x": 1000, "y": 2000}, "facing": 90000}]
+	var posed := rule.pose_of(tags, points, "bench")
+	_check(posed["pelvis"].is_equal_approx(Vector2(750, 2000)), "disclosure replaces fallback position/facing")
+	var plain := rule.pose_of(PackedStringArray(), points, "bench")
+	_check(not plain["depicted"] and plain["pelvis"] == Vector2(1000, 2000), "undepicted point uses disclosed position")
+	_check(rule.pose_of(tags, null, "missing").is_empty(), "unknown point has no pose")
 
 
 ## A complete sit offer of point `point`: reachable, or refused with `reason`.
@@ -109,7 +134,7 @@ func _frame(place: String, sits: Array, extra: Array) -> Seen:
 	var frame := {"observer": "1", "at": 100,
 		"self_location": {"place": {"entity": place}, "local": {"x": 3000, "y": 3000}},
 		"entities": [
-			{"id": place, "entity_type": "place", "tags": ["cafe"],
+			{"id": place, "entity_type": "place", "tags": ["fixture-room"],
 				"components": [{"component_type": MineWorldSitChain.DISCLOSED, "payload": points}]},
 			{"id": "1", "entity_type": "person", "location": {"place": {"entity": place}, "local": {"x": 3000, "y": 3000}}},
 		],

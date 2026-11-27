@@ -1,0 +1,30 @@
+   Compiling mineworld-attributes-model v0.1.0 (/Users/yuema137/mineworld-worktrees/recovered-s30j/.recovery/replay/tmp/mineworld-s30j-fidelity-a-recovery/authoring/attributes)
+warning: unused import: `group_weights`
+  --> authoring/attributes/src/sample/newcomer.rs:39:42
+   |
+39 | use crate::profile::rules::{categorical, group_weights};
+   |                                          ^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `mineworld-attributes-model` (lib) generated 1 warning (run `cargo fix --lib -p mineworld-attributes-model` to apply 1 suggestion)
+    Finished `test` profile [optimized + debuginfo] target(s) in 2.91s
+     Running tests/newcomer_independent.rs (/Users/yuema137/mineworld-worktrees/recovered-s30j/.recovery/target-fida/debug/deps/newcomer_independent-1ea77b337287f01d)
+
+running 1 test
+
+thread 'independent_rows_masks_adjustments_and_uniforms_match_known_vectors' (2842350) panicked at authoring/attributes/tests/newcomer_independent.rs:204:17:
+assertion `left == right` failed: false alpha p
+  left: Category(ValueSlug("b"))
+ right: Category(ValueSlug("a"))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test independent_rows_masks_adjustments_and_uniforms_match_known_vectors ... FAILED
+
+failures:
+
+failures:
+    independent_rows_masks_adjustments_and_uniforms_match_known_vectors
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p mineworld-attributes-model --test newcomer_independent`

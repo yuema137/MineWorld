@@ -1,0 +1,213 @@
+commit ce69e9e5210c1ca11ed8637b943cc72aea38d5a0
+Author:     Yue Ma <yuema9810@gmail.com>
+AuthorDate: Tue Oct 27 14:22:59 2026 -0700
+Commit:     Yue Ma <yuema9810@gmail.com>
+CommitDate: Tue Oct 27 14:22:59 2026 -0700
+
+    ci: run every test binary in a shard (--no-fail-fast) and list every failing test
+    
+    The sharded core jobs ran cargo test without --no-fail-fast, so each shard
+    stopped at its first failing test binary and later binaries never ran.
+    The shard's --doc command was also skipped after a failure.
+    
+    - scripts/ci_shard.py: every test command of a shard carries --no-fail-fast.
+    - scripts/ci_layer.py: a failing cargo test no longer stops the layer; the
+      layer runs its remaining commands and fails at the end, and it writes
+      every failing command and FAILED test to target/ci-failed-tests.md.
+      The unsharded core layer gets the flag too; core-repeat no longer doubles it.
+    - .github/actions/layer/action.yml: appends that summary to the job summary.
+    
+    Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+
+diff --git a/.github/actions/layer/action.yml b/.github/actions/layer/action.yml
+index 2f6318fe..6fb5d517 100644
+--- a/.github/actions/layer/action.yml
++++ b/.github/actions/layer/action.yml
+@@ -70,6 +70,14 @@ runs:
+           --env CARGO_PROFILE_DEV_DEBUG=line-tables-only \
+           mineworld-toolchain:ci python3 scripts/ci_layer.py "$LAYER" "${shard[@]}"
+ 
++    # Every failing test of a failed layer, listed in the job summary (scripts/ci_layer.py writes it
++    # on failure and removes any earlier copy when the layer starts). Shows nothing on a green layer.
++    - name: Summarise failing tests
++      if: always()
++      shell: bash
++      run: |
++        if [ -s target/ci-failed-tests.md ]; then cat target/ci-failed-tests.md >> "$GITHUB_STEP_SUMMARY"; fi
++
+     - name: Prune target/ before the cache is saved
+       shell: bash
+       run: |
+diff --git a/scripts/ci_layer.py b/scripts/ci_layer.py
+index 3a9b7c49..8fc42f31 100644
+--- a/scripts/ci_layer.py
++++ b/scripts/ci_layer.py
+@@ -38,6 +38,7 @@ from __future__ import annotations
+ 
+ import json
+ import os
++import re
+ import shlex
+ import shutil
+ import subprocess
+@@ -89,7 +90,7 @@ LAYERS: dict[str, list[list[str]]] = {
+     # suite, nothing may be left behind (ENGINEERING_STANDARDS.md §22, "Test scratch"; QTH-4).
+     "core": [
+         ["cargo", "test", "--workspace", "--no-run"],
+-        ["cargo", "test", "--workspace"],
++        ["cargo", "test", "--workspace", "--no-fail-fast"],
+         ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
+     ],
+     # A documentation-only change (step-14 §16, ARC-48's note of 2026-10-09 for 13x): the only CI
+@@ -550,8 +551,9 @@ def repeat_commands(cargo: list[list[str]]) -> list[list[str]]:
+             out.append(command)
+             continue
+         summary = f"{NIGHTLY_OUT}/repeat{'-doc' if '--doc' in command else ''}.txt"
++        flags = [] if "--no-fail-fast" in command else ["--no-fail-fast"]
+         out.append(["python3", "scripts/ci_repeat.py", "--times", "2", "--summary", summary, "--",
+-                    *command[:2], "--no-fail-fast", *command[2:]])
++                    *command[:2], *flags, *command[2:]])
+     return out
+ 
+ 
+@@ -570,8 +572,61 @@ def commands_of(layer: str, shard: str | None) -> list[list[str]]:
+     return [*cargo, *(command for command in LAYERS[layer] if command[:2] != ["cargo", "test"])]
+ 
+ 
++FAILED_TESTS = ROOT / "target" / "ci-failed-tests.md"
++TEST_FAILED = re.compile(r"^test (.+) \.\.\. FAILED$")
++CARGO_RUNNING = re.compile(r"^\s*(?:Running|Doc-tests)\s+(.*)$")
++
++
++def is_test(command: list[str]) -> bool:
++    """A cargo test run (not a build of its targets): its failure is reported, and the layer goes on."""
++    return "cargo" in command and "test" in command and "--no-run" not in command
++
++
++def stream(command: list[str]) -> tuple[int, list[str]]:
++    """Runs a command, echoing its output as it comes, and returns its exit status and output lines."""
++    process = subprocess.Popen(
++        resolved(command), cwd=ROOT, env={**os.environ, **COMMAND_ENVIRONMENT},
++        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
++    )
++    lines: list[str] = []
++    assert process.stdout is not None
++    for line in process.stdout:
++        print(line, end="", flush=True)
++        lines.append(line.rstrip("\n"))
++    return process.wait(), lines
++
++
++def failures_in(lines: list[str]) -> list[str]:
++    """`binary: test` for every test cargo reports FAILED, in the order it ran them; `binary` is the
++    `Running` line that preceded it."""
++    binary, found = "(no binary named)", []
++    for line in lines:
++        running = CARGO_RUNNING.match(line)
++        if running:
++            binary = running.group(1)
++        failed = TEST_FAILED.match(line)
++        if failed:
++            found.append(f"`{binary}`: `{failed.group(1)}`")
++    return found
++
++
++def write_failure_summary(
++    layer: str, shard: str | None, failed: list[tuple[list[str], int]], failures: list[str]
++) -> None:
++    """The failing commands and tests of a failed layer, as Markdown for the job summary. The workflow's
++    composite action appends it to the job's summary when it exists."""
++    title = f"layer `{layer}`{f' shard {shard}' if shard else ''}"
++    body = [f"### Failing tests: {title}", "", "Commands that failed:"]
++    body += [f"- `{shlex.join(command)}` (exit {status})" for command, status in failed]
++    body += ["", "Tests reported FAILED:"]
++    body += [f"- {failure}" for failure in failures] or ["- (none parsed; see the log)"]
++    FAILED_TESTS.parent.mkdir(parents=True, exist_ok=True)
++    FAILED_TESTS.write_text("\n".join(body) + "\n", encoding="utf-8")
++
++
+ def run(layer: str, shard: str | None = None) -> int:
+     print(f"[ci] layer {layer}{f' shard {shard}' if shard else ''} in {ROOT}", flush=True)
++    FAILED_TESTS.unlink(missing_ok=True)
+     for command in ENVIRONMENT_OF.get(layer, ENVIRONMENT):
+         report(resolved(command))
+     measured = layer in MEASURES_DISK
+@@ -580,23 +635,32 @@ def run(layer: str, shard: str | None = None) -> int:
+     result(layer, "started")
+     started = time.monotonic()
+     commands = commands_of(layer, shard)
++    failed: list[tuple[list[str], int]] = []
++    failures: list[str] = []
+     for command in commands:
+         print(f"[ci] $ {shlex.join(command)}", flush=True)
+         began = time.monotonic()
+         try:
+-            status = subprocess.run(
+-                resolved(command), cwd=ROOT, env={**os.environ, **COMMAND_ENVIRONMENT}
+-            ).returncode
++            status, lines = stream(command)
+         except FileNotFoundError:
+             print(f"[ci] {command[0]}: not found on PATH", flush=True)
+-            status = 127
++            status, lines = 127, []
+         print(f"[ci] exit {status} after {time.monotonic() - began:.1f} s: {shlex.join(command)}", flush=True)
+         if status != 0:
+-            if measured:
+-                disk("after (failed)")
++            failed.append((command, status))
++            failures += failures_in(lines)
++            # A failing `cargo test` does not stop the layer: every later test binary still runs and
++            # reports (F-1), and the layer fails at the end. Any other failure stops it, as before.
++            if not is_test(command):
++                break
++    if failed:
++        if measured:
++            disk("after (failed)")
++        for command, status in failed:
+             print(f"[ci] layer {layer} FAILED at: {shlex.join(command)}", flush=True)
+             result(layer, f"failed at: {shlex.join(command)} (exit {status})")
+-            return status
++        write_failure_summary(layer, shard, failed, failures)
++        return failed[0][1]
+     if measured:
+         disk("after")
+     print(f"[ci] layer {layer} passed: {len(commands)} command(s) in {time.monotonic() - started:.1f} s")
+diff --git a/scripts/ci_shard.py b/scripts/ci_shard.py
+index d6451c0e..77fc25d1 100644
+--- a/scripts/ci_shard.py
++++ b/scripts/ci_shard.py
+@@ -135,14 +135,15 @@ def commands(shard: list[str]) -> list[list[str]]:
+     for unit in shard:
+         if unit not in (LIB_BINS, DOC):
+             targets += ["--test", unit]
++    # --no-fail-fast: one red test binary must not hide the results of the binaries after it (F-1).
+     result: list[list[str]] = []
+     if targets:
+         result += [
+             ["cargo", "test", "--workspace", "--no-run", *targets],
+-            ["cargo", "test", "--workspace", *targets],
++            ["cargo", "test", "--workspace", "--no-fail-fast", *targets],
+         ]
+     if DOC in shard:
+-        result.append(["cargo", "test", "--workspace", "--doc"])
++        result.append(["cargo", "test", "--workspace", "--no-fail-fast", "--doc"])
+     return result
+ 
+ 
+@@ -228,8 +229,15 @@ def self_test() -> int:
+                 ran += [DOC] if "--doc" in command else []
+         check(sorted(ran) == sorted(many), f"{count} shards: the commands run every unit once")
+ 
+-    check(commands([DOC]) == [["cargo", "test", "--workspace", "--doc"]], "a doc-only shard never mixes --doc")
++    check(
++        commands([DOC]) == [["cargo", "test", "--workspace", "--no-fail-fast", "--doc"]],
++        "a doc-only shard never mixes --doc and runs every doctest binary",
++    )
+     check(commands(["x"])[0] == ["cargo", "test", "--workspace", "--no-run", "--test", "x"], "build first")
++    check(
++        all("--no-fail-fast" in command for command in commands(["x"]) if "--no-run" not in command),
++        "every test command of a shard is --no-fail-fast",
++    )
+     for bad in ("0/3", "4/3", "3", "a/b", "1/0", "1,1/3", "1,4/3", ",/3", "1,/3"):
+         try:
+             parse_shard(bad)
