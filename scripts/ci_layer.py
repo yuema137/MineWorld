@@ -48,11 +48,14 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
+import ci_archive  # noqa: E402
+import ci_results  # noqa: E402
 import ci_shard  # noqa: E402  (beside this script; the shards of `core`, ARC-110)
 
 # The declared checks of `.structured-coding/standards.md`, split by layer (ARC-48). Order matters
 # only for speed of the verdict: the cheapest checks first.
 LAYERS: dict[str, list[list[str]]] = {
+    "core-archive": [["python3", "scripts/ci_archive.py", "build"]],
     "fast": [
         ["cargo", "fmt", "--all", "--check"],
         ["python3", "scripts/check_doc_headings.py"],
@@ -81,6 +84,7 @@ LAYERS: dict[str, list[list[str]]] = {
         ["python3", "scripts/ci_stability.py", "--self-test"],
         # The partition of `core` into the test jobs' shards (ARC-110): complete and deterministic.
         ["python3", "scripts/ci_shard.py", "--self-test"],
+        ["python3", "scripts/test_ci_execution.py"],
         ["cargo", "check", "--workspace", "--all-targets"],
         ["cargo", "clippy", "--workspace", "--all-targets", "--all-features", "--", "-D", "warnings"],
         # The code graph's licences, sources and bans (DEP-22, deny.toml); never advisories (ARC-48).
@@ -89,9 +93,9 @@ LAYERS: dict[str, list[list[str]]] = {
     # Building first and running second runs the same tests; it only makes the log say how long the
     # build took and how long the tests did, which is what CI's budget is judged by. After a passing
     # suite, nothing may be left behind (ENGINEERING_STANDARDS.md §22, "Test scratch"; QTH-4).
-    # Its test commands are scripts/ci_shard.py's (DEP-163): every target named, built with `cargo test
-    # --no-run`, run with `cargo nextest run --profile ci` (custom-harness targets and doctests with `cargo
-    # test`). Unsharded, `core` is shard 1/1 of the same partition, so both paths run one command list.
+    # Its test commands are scripts/ci_shard.py's (DEP-163): regular targets run from the per-OS archive
+    # in CI, or build locally, with `cargo nextest run --profile ci`; custom harnesses and doctests use
+    # Cargo. Unsharded, `core` is shard 1/1 of the same partition, so both paths run one command list.
     "core": [
         ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
     ],
@@ -560,7 +564,7 @@ def repeat_commands(cargo: list[list[str]]) -> list[list[str]]:
     return out
 
 
-def commands_of(layer: str, shard: str | None) -> list[list[str]]:
+def commands_of(layer: str, shard: str | None, archive: Path | None = None) -> list[list[str]]:
     """A layer's commands, or shard K/N's of it: ci_shard.py's cargo commands, then the layer's
     non-cargo-test commands in their order."""
     if shard is None and layer == "core":
@@ -571,7 +575,9 @@ def commands_of(layer: str, shard: str | None) -> list[list[str]]:
         return [[*command, "--shard", shard] if command == GODOT_TESTS_COMMAND else command
                 for command in LAYERS[layer]]
     runner = "cargo" if layer == "core-repeat" else "nextest"
-    cargo, account = ci_shard.shard_commands(shard, runner)
+    source = archive if layer == "core" else None
+    units = ci_archive.verify(source)["units"] if source is not None else None
+    cargo, account = ci_shard.shard_commands(shard, runner, source, units)
     print(f"[ci] shard {shard} of {layer}; {account}", flush=True)
     if layer == "core-repeat":
         return repeat_commands(cargo)
@@ -592,7 +598,7 @@ def is_test(command: list[str]) -> bool:
 
 
 def stream(command: list[str]) -> tuple[int, list[str]]:
-    """Runs a command, echoing its output as it comes, and returns its exit status and output lines."""
+    """Echo output as it arrives; retain only failure/status lines for diagnostics."""
     process = subprocess.Popen(
         resolved(command), cwd=ROOT, env={**os.environ, **COMMAND_ENVIRONMENT},
         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
@@ -601,7 +607,9 @@ def stream(command: list[str]) -> tuple[int, list[str]]:
     assert process.stdout is not None
     for line in process.stdout:
         print(line, end="", flush=True)
-        lines.append(line.rstrip("\n"))
+        clean = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", line).rstrip("\r\n")
+        if CARGO_RUNNING.match(clean) or TEST_FAILED.match(clean) or NEXTEST_FAILED.match(clean):
+            lines.append(clean)
     return process.wait(), lines
 
 
@@ -639,9 +647,11 @@ def write_failure_summary(
     FAILED_TESTS.write_text("\n".join(body) + "\n", encoding="utf-8")
 
 
-def run(layer: str, shard: str | None = None) -> int:
+def run(layer: str, shard: str | None = None, archive: Path | None = None) -> int:
     print(f"[ci] layer {layer}{f' shard {shard}' if shard else ''} in {ROOT}", flush=True)
     FAILED_TESTS.unlink(missing_ok=True)
+    if layer == "core":
+        (ROOT / "target/nextest/ci/junit.xml").unlink(missing_ok=True)
     for command in ENVIRONMENT_OF.get(layer, ENVIRONMENT):
         report(resolved(command))
     measured = layer in MEASURES_DISK
@@ -649,7 +659,7 @@ def run(layer: str, shard: str | None = None) -> int:
         disk("before")
     result(layer, "started")
     started = time.monotonic()
-    commands = commands_of(layer, shard)
+    commands = commands_of(layer, shard, archive)
     failed: list[tuple[list[str], int]] = []
     failures: list[str] = []
     for command in commands:
@@ -661,6 +671,12 @@ def run(layer: str, shard: str | None = None) -> int:
             print(f"[ci] {command[0]}: not found on PATH", flush=True)
             status, lines = 127, []
         print(f"[ci] exit {status} after {time.monotonic() - began:.1f} s: {shlex.join(command)}", flush=True)
+        if command[:3] == ["cargo", "nextest", "run"]:
+            try:
+                failures += ci_results.failures(ROOT / "target/nextest/ci/junit.xml")
+            except (OSError, ValueError, KeyError, ci_results.ElementTree.ParseError) as error:
+                print(f"[ci] invalid/missing nextest result: {error}", flush=True)
+                status = status or 2
         if status != 0:
             failed.append((command, status))
             failures += failures_in(lines)
@@ -711,6 +727,14 @@ def main(arguments: list[str]) -> int:
         return prune_cache()
     if arguments == ["--offline-check"]:
         return offline_check()
+    archive = None
+    if "--archive" in arguments:
+        position = arguments.index("--archive")
+        if position + 1 >= len(arguments) or "core" not in arguments:
+            print("ci_layer.py: --archive DIRECTORY requires core", file=sys.stderr)
+            return 2
+        archive = Path(arguments[position + 1]).resolve()
+        arguments = arguments[:position] + arguments[position + 2:]
     shard = None
     if len(arguments) >= 2 and arguments[-2] == "--shard":
         shard, arguments = arguments[-1], arguments[:-2]
@@ -723,14 +747,14 @@ def main(arguments: list[str]) -> int:
             print(f"ci_layer.py: {error}", file=sys.stderr)
             return 2
     if len(arguments) == 2 and arguments[0] == "--list" and arguments[1] in LAYERS:
-        for command in commands_of(arguments[1], shard):
+        for command in commands_of(arguments[1], shard, archive):
             print(shlex.join(command))
         return 0
     # Several layers run in order and the first failure stops the rest: macOS packs its checks into two
     # jobs, because its runners are the scarce ones (ARC-110). A shard applies to the shardable layers.
     if arguments and all(argument in LAYERS for argument in arguments):
         for layer in arguments:
-            status = run(layer, shard if layer in SHARDABLE else None)
+            status = run(layer, shard if layer in SHARDABLE else None, archive)
             if status != 0:
                 return status
         return 0

@@ -23,6 +23,7 @@ longest-processing-time rule: units by descending weight (ties by name), each to
 from __future__ import annotations
 
 import json
+import math
 import subprocess
 import sys
 import tempfile
@@ -142,8 +143,8 @@ def partition(units: list[str], count: int, weights: dict[str, int]) -> list[lis
     return [sorted(shard) for shard in shards]
 
 
-def commands(shard: list[str], runner: str = "nextest") -> list[list[str]]:
-    """The commands that run exactly this shard's units, building first as `core` does.
+def commands(shard: list[str], runner: str = "nextest", archive: Path | None = None) -> list[list[str]]:
+    """Run exactly this shard's units, using an archive or building local targets first.
 
     `runner` is `nextest` (the `core` layer, DEP-163) or `cargo` (the nightly's `core-repeat`, whose flake
     classifier reads `cargo test`'s output). Under nextest, the custom-harness targets and the doctests still
@@ -161,10 +162,21 @@ def commands(shard: list[str], runner: str = "nextest") -> list[list[str]]:
             targets += ["--test", unit]
     # --no-fail-fast: one red test binary must not hide the results of the binaries after it (F-1).
     result: list[list[str]] = []
-    if targets or custom:
+    if archive is not None and runner != "nextest":
+        raise ValueError("archives are only supported by the nextest runner")
+    if archive is None and (targets or custom):
         result.append(["cargo", "test", "--workspace", "--no-run", *targets, *custom])
     if targets:
-        result.append([*NEXTEST, *targets] if runner == "nextest" else ["cargo", *CARGO_TEST, *targets])
+        if archive is not None:
+            filters = ["kind(lib) | kind(bin) | kind(proc-macro)"] if LIB_BINS in shard else []
+            filters += [f"(kind(test) & binary(={unit}))" for unit in shard
+                        if unit not in (LIB_BINS, DOC) and unit not in CUSTOM_HARNESS]
+            result.append(["cargo", "nextest", "run", "--profile", "ci", "--no-fail-fast",
+                           "--archive-file", str(archive / "tests.tar.zst"),
+                           "--extract-to", str(ROOT), "--extract-overwrite",
+                           "-E", " | ".join(filters)])
+        else:
+            result.append([*NEXTEST, *targets] if runner == "nextest" else ["cargo", *CARGO_TEST, *targets])
     if custom:
         result.append(["cargo", *CARGO_TEST, *custom])
     if DOC in shard:
@@ -175,6 +187,8 @@ def commands(shard: list[str], runner: str = "nextest") -> list[list[str]]:
 def is_test_run(command: list[str]) -> bool:
     """A command that runs tests (not a build of them): `cargo test` or `cargo nextest run`, without
     `--no-run`. Its failure is reported and the layer goes on to the next command (F-1)."""
+    if len(command) > 2 and command[1] == "scripts/ci_repeat.py" and "--" in command:
+        return is_test_run(command[command.index("--") + 1:])
     if "--no-run" in command or command[:1] != ["cargo"]:
         return False
     return command[1:2] == ["test"] or command[1:3] == ["nextest", "run"]
@@ -206,11 +220,32 @@ def weigh(paths: list[Path]) -> dict[str, int]:
     files given (one OS's shards). Units under 3 s are left out, as the table leaves them to
     DEFAULT_WEIGHT."""
     totals: dict[str, float] = {}
+    seen: set[tuple[str, str]] = set()
     for path in paths:
-        for suite in ElementTree.parse(path).getroot().iter("testsuite"):
-            unit = unit_of(suite.get("name", ""))
-            seconds = sum(float(case.get("time", "0") or 0) for case in suite.iter("testcase"))
-            totals[unit] = totals.get(unit, 0.0) + seconds
+        root = ElementTree.parse(path).getroot()
+        if root.tag != "testsuites":
+            raise ValueError(f"{path}: expected nextest testsuites")
+        cases = 0
+        for suite in root.findall("testsuite"):
+            binary = suite.get("name")
+            if not binary:
+                raise ValueError(f"{path}: missing binary identity")
+            unit = unit_of(binary)
+            for case in suite.findall("testcase"):
+                name = case.get("name")
+                identity = (binary, name)
+                if not name or identity in seen:
+                    raise ValueError(f"{path}: missing or duplicate test identity {identity}")
+                seen.add(identity)
+                if any(case.find(tag) is not None for tag in ("failure", "error", "skipped")):
+                    raise ValueError(f"{path}: incomplete/failed timing for {identity}")
+                seconds = float(case.attrib["time"])
+                if not math.isfinite(seconds) or seconds < 0:
+                    raise ValueError(f"{path}: invalid duration for {identity}")
+                totals[unit] = totals.get(unit, 0.0) + seconds
+                cases += 1
+        if not cases:
+            raise ValueError(f"{path}: no test records")
     return {unit: round(seconds) for unit, seconds in totals.items() if seconds >= 3}
 
 
@@ -242,17 +277,21 @@ def workspace_units() -> list[str]:
     return units_of(json.loads(output))
 
 
-def shard_commands(text: str, runner: str = "nextest") -> tuple[list[list[str]], str]:
+def shard_commands(
+    text: str, runner: str = "nextest", archive: Path | None = None, units: list[str] | None = None,
+) -> tuple[list[list[str]], str]:
     """Shard K/N's commands (or K,L/N's, their units together) under `runner`, and a one-line account of
     the whole partition for the log."""
     indices, count = parse_shard(text)
-    shards = partition(workspace_units(), count, WEIGHTS)
+    if units is None:
+        units = workspace_units()
+    shards = partition(units, count, WEIGHTS)
     loads = [sum(WEIGHTS.get(unit, DEFAULT_WEIGHT) for unit in shard) for shard in shards]
     account = ", ".join(
         f"{number}/{count}: {len(shard)} units ~{load} s" for number, (shard, load) in enumerate(zip(shards, loads), 1)
     )
     units = sorted(unit for index in indices for unit in shards[index - 1])
-    return commands(units, runner), f"partition by ARC-110 weights: {account}"
+    return commands(units, runner, archive), f"partition by ARC-110 weights: {account}"
 
 
 def plan(count: int) -> int:
@@ -353,8 +392,8 @@ def self_test() -> int:
             "</testsuites>",
             encoding="utf-8",
         )
-        weighed = weigh([junit, junit])
-        check(weighed == {"slow": 85, LIB_BINS: 7}, f"weigh sums per unit over files: {weighed}")
+        weighed = weigh([junit])
+        check(weighed == {"slow": 42, LIB_BINS: 4}, f"weigh sums per unit over files: {weighed}")
     for bad in ("0/3", "4/3", "3", "a/b", "1/0", "1,1/3", "1,4/3", ",/3", "1,/3"):
         try:
             parse_shard(bad)

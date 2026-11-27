@@ -135,7 +135,8 @@ jobs:
   # The default suite (`core`) as weighted shards (docs/DECISIONS.md ARC-110). With walls, walking and
   # bodies (12d) the suite outgrew one 60-minute job on all three OSes, so scripts/ci_shard.py partitions
   # the workspace's test targets by measured weight, deterministically and completely: a new test lands in
-  # exactly one shard. Each shard builds and runs only its own targets, and is capped at 45 min so that
+  # exactly one shard. Each OS builds one nextest archive; shards consume it and keep Cargo-only fallbacks.
+  # Each shard is capped at 45 min so that
   # drift turns a shard red long before the budget is gone (re-weigh at 35 min, ARC-110).
   #
   # Shard counts (ARC-110 re-weigh note, 2026-10-21): the suite tripled to ~8700 s on Windows (~6700 s on
@@ -156,9 +157,39 @@ jobs:
   # `test`'s commands (step-14 §15.5); the whole checkout, whose longest path is 120 characters, far inside
   # Windows' MAX_PATH; .gitattributes checks text out with LF on every platform (step-14 W-3). Runner
   # labels are pinned, never `-latest`, as AC-8's are (DEP-19, step-14 §13.0.3).
+  test-archive:
+    name: test-archive
+    needs: changes
+    if: >-
+      needs.changes.outputs.code == 'true' && needs.changes.outputs.mode == 'full' && (
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && !github.event.pull_request.draft) ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
+       !endsWith(github.ref, '-image') && !endsWith(github.ref, '-scenario') &&
+       !endsWith(github.ref, '-nightly')))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          filter: blob:none
+      - uses: ./.github/actions/layer
+        with:
+          layer: core-archive
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: core-archive-ubuntu-24.04
+          path: artifacts/core-archive
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 2
+          overwrite: true
+
   test-shard:
     name: test (${{ matrix.shard }})
-    needs: changes
+    needs: [changes, test-archive]
     if: >-
       needs.changes.outputs.code == 'true' && needs.changes.outputs.mode == 'full' && (
       github.event_name == 'workflow_dispatch' ||
@@ -178,10 +209,15 @@ jobs:
         with:
           fetch-depth: 0
           filter: blob:none
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: core-archive-ubuntu-24.04
+          path: artifacts/core-archive
       - uses: ./.github/actions/layer
         with:
           layer: core
           shard: ${{ matrix.shard }}
+          archive: artifacts/core-archive
 
   test:
     name: test
@@ -215,9 +251,39 @@ jobs:
 
   # Eight shards: windows-2025 is the slowest of the three (the suite's tests ~1.3x Linux's, ~1.7x
   # macOS's, measured per binary; ARC-110 re-weigh note). Full runs only (ARC-154).
+  test-windows-archive:
+    name: test-windows-archive
+    needs: changes
+    if: >-
+      needs.changes.outputs.code == 'true' && needs.changes.outputs.mode == 'full' && (
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && !github.event.pull_request.draft) ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
+       !endsWith(github.ref, '-image') && !endsWith(github.ref, '-scenario') &&
+       !endsWith(github.ref, '-nightly')))
+    runs-on: windows-2025
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          filter: blob:none
+      - uses: ./.github/actions/native
+        with:
+          layer: core-archive
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: core-archive-windows-2025
+          path: artifacts/core-archive
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 2
+          overwrite: true
+
   test-windows-shard:
     name: test-windows (${{ matrix.shard }})
-    needs: changes
+    needs: [changes, test-windows-archive]
     if: >-
       needs.changes.outputs.code == 'true' && needs.changes.outputs.mode == 'full' && (
       github.event_name == 'workflow_dispatch' ||
@@ -237,10 +303,15 @@ jobs:
         with:
           fetch-depth: 0
           filter: blob:none
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: core-archive-windows-2025
+          path: artifacts/core-archive
       - uses: ./.github/actions/native
         with:
           layer: core
           shard: ${{ matrix.shard }}
+          archive: artifacts/core-archive
 
   test-windows:
     name: test-windows
@@ -280,9 +351,39 @@ jobs:
   # 39635558077; each of four shards projects ~21 min of tests + ~9 min build. The Python workspace moved
   # to the `python` job's matrix (its own macOS job), because it alone takes the better part of an hour.
   # Full runs only (ARC-154).
+  test-macos-archive:
+    name: test-macos-archive
+    needs: changes
+    if: >-
+      needs.changes.outputs.code == 'true' && needs.changes.outputs.mode == 'full' && (
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && !github.event.pull_request.draft) ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
+       !endsWith(github.ref, '-image') && !endsWith(github.ref, '-scenario') &&
+       !endsWith(github.ref, '-nightly')))
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          filter: blob:none
+      - uses: ./.github/actions/native
+        with:
+          layer: core-archive
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: core-archive-macos-26
+          path: artifacts/core-archive
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 2
+          overwrite: true
+
   test-macos-shard:
     name: test-macos (${{ matrix.part }})
-    needs: changes
+    needs: [changes, test-macos-archive]
     if: >-
       needs.changes.outputs.code == 'true' && needs.changes.outputs.mode == 'full' && (
       github.event_name == 'workflow_dispatch' ||
@@ -306,11 +407,16 @@ jobs:
         with:
           fetch-depth: 0
           filter: blob:none
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: core-archive-macos-26
+          path: artifacts/core-archive
       - uses: ./.github/actions/native
         with:
           layer: ${{ matrix.layers }}
           cache: core
           shard: ${{ matrix.shard }}
+          archive: artifacts/core-archive
 
   test-macos:
     name: test-macos

@@ -16,6 +16,10 @@ inputs:
       cache key stays the layer's, so every shard restores the same dependencies.
     required: false
     default: ""
+  archive:
+    description: Directory containing the verified per-OS core archive, or empty for local builds.
+    required: false
+    default: ""
 runs:
   using: composite
   steps:
@@ -52,12 +56,14 @@ runs:
       env:
         LAYER: ${{ inputs.layer }}
         SHARD: ${{ inputs.shard }}
+        ARCHIVE: ${{ inputs.archive }}
       # CARGO_HOME lies outside the checkout: a git dependency Cargo checks out there must not count as
       # compiled from the framework workspace (DECISIONS.md ARC-54 point 2, ARC-66 point 4).
       run: |
         mkdir -p "$HOME/.mineworld-ci-cargo"
         shard=()
         if [ -n "$SHARD" ]; then shard=(--shard "$SHARD"); fi
+        if [ -n "$ARCHIVE" ]; then shard+=(--archive "$ARCHIVE"); fi
         docker run --rm \
           --user "$(id -u):$(id -g)" \
           --volume "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE" \
@@ -82,13 +88,13 @@ runs:
     # (`ci_shard.py --weigh`) and for reading a red run without its log. Absent for layers nextest does not run.
     - name: Name the JUnit artifact
       id: junit
-      if: always()
+      if: always() && (inputs.layer == 'core' || inputs.layer == 'platforms-lock core')
       shell: bash
       env:
-        RAW: junit-${{ runner.os }}-${{ inputs.layer }}-${{ inputs.shard }}
+        RAW: junit-${{ github.job }}-${{ runner.os }}-${{ inputs.layer }}-${{ inputs.shard }}
       run: echo "name=$(printf '%s' "$RAW" | tr ' /,:' '----')" >> "$GITHUB_OUTPUT"
     - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-      if: always()
+      if: always() && (inputs.layer == 'core' || inputs.layer == 'platforms-lock core')
       with:
         name: ${{ steps.junit.outputs.name }}
         path: target/nextest/ci/junit.xml
