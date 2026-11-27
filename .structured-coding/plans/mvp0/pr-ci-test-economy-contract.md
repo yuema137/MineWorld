@@ -276,9 +276,14 @@ replaces "deferred" with impact-selected tests per PR and keeps the full matrix 
   and `python` is byte-identical to E1's.
 - [x] Deterministic validation (local): see 3.5.
 - [ ] LLM logic review: independent red-team pending (coordinator-owned).
-- [ ] Hosted: the PR's own run is `full` (it changes `.github/` and `scripts/ci_*`), so it proves the full path
-  and the self-tests, not an `impact` run. The first `impact` run on a later ordinary PR is the hosted
-  evidence for the new jobs; record it here.
+- [ ] Hosted: the PR's own run is `full` (it changes `.github/` and `scripts/ci_*`); as a draft it ran
+  `changes` (mode=full, correct) and `fast` PASS at `d0c6cb0f` (run 46075364676), whose `fast` layer runs the
+  new self-tests on the hosted runner. Hosted `impact` probe: throwaway PR #541 (one comment line in
+  `authoring/attributes/tests/fidelity.rs`, stacked on this branch, closed unmerged), run 46075867316:
+  `changes` -> mode=impact, 1 shard; `impact-core (1/1)` built the `-p` scope in 174 s and ran 122 tests with
+  nextest (121 pass, 1 FAIL = the known `currency_names` debt), job 7m13s; `test` red for that reason only;
+  `test-windows`, `test-macos` and `removability` passed with their not-selected notes. PASS for the wiring;
+  the final-head full run of this PR after #534 merges remains open.
 
 ### E5 — required check (operator)
 
