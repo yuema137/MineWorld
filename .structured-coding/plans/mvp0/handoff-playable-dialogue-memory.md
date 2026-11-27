@@ -94,8 +94,8 @@ after the wait still discards the trigger); the bound matters only for real time
 - Stop / pacer: the pacer submits with `NEVER` (unbounded lock wait, as before); a cancelled consult waiting for
   the lock leaves through `asyncio.Lock`'s own cancellation; a cancelled send inside the lock releases it in
   `finally`. `_step` asserts `NEVER` cannot expire.
-- Known limitation: the decision-log counter `model_calls` counts a transport attempt that expired in the
-  gateway queue (it reached no backend; the ledger correctly charges nothing). Log replay of a consult that ended
+- Follow-up (red-team #547): a call that expires in the gateway queue now fails with `queue_timeout` and is not
+  counted in `model_calls`; see design §10 PR-A. Known limitation: log replay of a consult that ended
   at the deadline on a late answer does not reproduce wall time (pre-existing class: replay never expires).
 - Edge: a `go`/`sleep` proposal whose submit expires under the lock has already stopped the pacer; nothing is
   sent. Rare (requires expiry between the answer check and the lock) and harmless to the world.

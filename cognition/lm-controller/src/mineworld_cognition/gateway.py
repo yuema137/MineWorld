@@ -99,7 +99,7 @@ class ModelGateway:
         """One call. `timeout_s`, when given, is what is left of the caller's own bound (a consult's absolute
         deadline); the bound used is the smaller of it and `call_timeout_s`, and it covers the wait for the
         slot as well as the backend. A call cut in the backend is charged like a timeout (F-P6-1); a call cut
-        before it reached the backend is `Failed` with reason `timeout` and costs nothing."""
+        before it reached the backend is `Failed` with reason `queue_timeout` and costs nothing."""
         canonical_json(request)
         budget = self._budget
         held = reservation(request)
@@ -128,7 +128,7 @@ class ModelGateway:
         finally:
             budget.reservations.release(seat, held)
         if started is None:
-            return Failed(BackendFailure(reason="timeout"))
+            return Failed(BackendFailure(reason="queue_timeout"))
         if isinstance(answer, BackendFailure):
             budget.ledger.charge(seat, started, calls=1, tokens=0, estimated=False)
             return Failed(answer)

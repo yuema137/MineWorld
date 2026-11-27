@@ -66,8 +66,9 @@ specification (CLAUDE.md §2.1 rule 4: the code was wrong). Two changes to the *
 - **Order** becomes: key-material check → budget pre-check → *the timeout starts* → in-flight slot → recorder →
   backend → charge. The bound is the smaller of `call_timeout_s` and the caller's `timeout_s` (what is left of the
   consult's absolute deadline) and covers the wait for the slot. A call still queued when the bound ends never
-  reaches the recorder or the backend, returns `Failed` with reason `timeout`, and costs **no** call. The bound
-  is checked again once the slot is held, so no backend call begins at or after it.
+  reaches the recorder or the backend, returns `Failed` with reason `queue_timeout` (a new, retryable transport
+  reason that the decision log does not count as a model call), and costs **no** call. The bound is checked
+  again once the slot is held, so no backend call begins at or after it.
 - **Charge.** A call that reached the backend costs exactly one call, with the reported tokens on success and no
   tokens on a failure, a timeout or a **cancellation** from outside, dated when it reached the backend (not
   when it was pre-checked). The cancellation is charged, then re-raised; `CassetteMiss` still propagates and is

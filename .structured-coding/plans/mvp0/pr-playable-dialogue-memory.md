@@ -649,8 +649,20 @@ test. Equivalent under fake clocks: dropping the observation-wait timer (clock r
 **Review.** Gateway callers: seat, log replay, assisted summary via `SummaryBoundaryGateway`, compress summarizer
 (their slot wait is now bounded by `call_timeout_s`; queued expiry → uncharged `Failed`), model spike. Charge
 paths, timeout-vs-sent (post-send answer wait not cut; no re-send except expiry-checked `rate_limited`), pacer
-(`NEVER`) and stop paths reviewed. Known limitations: decision-log `model_calls` counts a call that expired in the
-queue (ledger charges nothing); log replay does not reproduce a late-answer deadline (replay never expires).
+(`NEVER`) and stop paths reviewed. Known limitation: log replay does not reproduce a late-answer deadline
+(replay never expires).
+
+**Red-team follow-ups (review `_reviews/pr547.md`, PASS-WITH-FOLLOWUPS).** (1) A queued call now fails with a new
+`FailureReason` `queue_timeout` (transport, retryable; `backend/model.py`, `failures.py`), and `counters_from`
+excludes it from `model_calls` (now documented as "calls that reached a backend"); it still counts under
+`timeouts`. This closes the earlier limitation, so the live gate may use `model_calls`. (2)
+`test_a_summary_queued_behind_a_consult_past_call_timeout_s_fails_uncharged_instead_of_waiting` drives the
+assisted-summary chain (`sharing(SummaryBoundaryGateway)` → `SummaryGateway`) while a consult holds the only slot:
+after `call_timeout_s` (1 s) the summary returns `Failed(queue_timeout)`, not an exception, reaches no backend,
+costs no call, holds nothing, and the slot is usable afterwards; the pass allowance counts it as asked. The
+counter test gains a queued consult. Mutations: M7 (counter counts `queue_timeout`) and M8 (gateway returns plain
+`timeout`) are both caught. Rerun: targeted suites 202 passed / 2 skipped; real-binary resilience,
+milestone-D fallback and Anthropic adapter tests 24 passed; ruff and strict pyright clean.
 
 ### PR-B (C2–C5)
 

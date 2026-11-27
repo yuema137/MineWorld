@@ -11,7 +11,13 @@ from typing import assert_never
 from mineworld_sdk.wire.ids import EntityKey
 from support import completion, request, run
 
-from mineworld_cognition.backend.model import BackendFailure, Completion, CompletionRequest
+from mineworld_cognition.backend.model import (
+    BackendFailure,
+    Completion,
+    CompletionRequest,
+    Message,
+    Sampling,
+)
 from mineworld_cognition.backend.scripted import ScriptedBackend
 from mineworld_cognition.budget import BudgetPolicy, Ledger, MemoryLedger, SqliteLedger
 from mineworld_cognition.gateway import (
@@ -22,7 +28,9 @@ from mineworld_cognition.gateway import (
     ModelGateway,
     Refused,
 )
+from mineworld_cognition.memory.retention.assisted import Exhausted, SummaryGateway
 from mineworld_cognition.record import Cassette, RecordingBackend, ReplayBackend
+from mineworld_cognition.summary_boundary import SummaryBoundaryGateway
 
 ALICE = EntityKey("alice")
 BOB = EntityKey("bob")
@@ -287,7 +295,7 @@ def test_a_call_that_expires_in_the_queue_never_reaches_the_backend_and_the_next
         third = await asyncio.wait_for(gateway.complete(BOB, request("third"), timeout_s=5), 2)
         return _describe(await first), _describe(queued), _describe(third)
 
-    assert run(session()) == ("completed:alice", "failed:timeout", "completed:third")
+    assert run(session()) == ("completed:alice", "failed:queue_timeout", "completed:third")
     assert backend.started == ["alice", "third"]
     bob = ledger.window(BOB, clock.now(), 3600)
     assert bob.calls == 1  # the third call only: the expired one cost nothing
@@ -350,3 +358,55 @@ def test_a_call_cancelled_in_the_backend_is_charged_once_at_its_start_and_frees_
     bob = ledger.window(BOB, clock.now(), 3600)
     assert (bob.calls, bob.tokens) == (1, 0)
     assert budget.reservations.held(BOB).calls == 0
+
+
+def test_a_summary_queued_behind_a_consult_past_call_timeout_s_fails_uncharged_instead_of_waiting() -> (
+    None
+):
+    # Red-team follow-up on #547: an assisted seat's summary request goes through the router's shared budget
+    # (`ModelGateway.sharing(SummaryBoundaryGateway)`, then the host's `SummaryGateway`) with no caller bound,
+    # so `call_timeout_s` (1 s here) bounds its wait for the only slot, held by a consult. It ends as an
+    # outcome, `Failed(queue_timeout)`, not an exception: it reached no backend, costs no call and holds
+    # nothing, and the pass's own allowance counts it as asked. Before C1 it waited as long as the consult ran.
+    ledger = MemoryLedger()
+    clock = FakeClock()
+    backend = _Held()
+    budget = Budget.of(BudgetPolicy(max_in_flight=1, call_timeout_s=1), ledger, clock)
+    consults = ModelGateway(backend, budget)
+    summaries = SummaryGateway(consults.sharing(SummaryBoundaryGateway), ALICE, calls_left=2)
+    summarize = CompletionRequest(
+        purpose="summarize",
+        messages=(Message(role="user", text="summary"),),
+        sampling=Sampling(temperature_milli=0, max_output_tokens=64, seed=1),
+    )
+
+    consult_done = asyncio.Event()
+
+    async def consult_holding_the_slot() -> None:
+        # A consult in its backend call holds the one slot (its own bound is not what this test is about).
+        async with budget.limiter:
+            await consult_done.wait()
+
+    async def session() -> tuple[str, float, str]:
+        holder = asyncio.create_task(consult_holding_the_slot())
+        await asyncio.sleep(0)
+        began = time.monotonic()
+        queued = await asyncio.wait_for(summaries.complete(summarize), timeout=5)
+        waited = time.monotonic() - began
+        consult_done.set()
+        await holder
+        backend.release.setdefault("after", asyncio.Event()).set()
+        after = await consults.complete(ALICE, request("after"))
+        assert not isinstance(queued, Exhausted)
+        return _describe(queued), waited, _describe(after)
+
+    queued, waited, after = run(session())
+    assert (queued, after) == (
+        "failed:queue_timeout",
+        "completed:after",
+    )  # the slot is usable again
+    assert 0.9 <= waited < 3
+    assert backend.started == ["after"]  # the summary never reached the backend
+    assert ledger.window(ALICE, clock.now(), 3600).calls == 1  # "after" only
+    assert budget.reservations.held(ALICE).calls == 0
+    assert summaries.calls_made == 1
