@@ -120,7 +120,8 @@ pub struct WorldPack {
     decisions: Option<DecisionsFile>,
     /// `world.yaml`'s `settlement:`, already checked (`ARC-105`); `None` when the world does not say.
     settlement: Option<Settlement>,
-    /// Every enabled data owner's context (`ARC-121`), held erased: what its sections were decoded in.
+    /// Every enabled data owner's context (`ARC-121`), held erased: finalized after resolution,
+    /// before configuration checks.
     contexts: Contexts,
     /// Every enabled resolving owner's resolution (`ARC-121` item 3), held erased: what genesis seeds
     /// in place of its sections.
@@ -290,7 +291,7 @@ impl WorldPack {
             resolved: Resolutions::new(),
         };
         check_sections(&pack)?;
-        pack.resolved = resolution::resolve(&pack)?;
+        resolution::finalize(&mut pack)?;
         configure::check_references(&pack)?;
         Ok(pack)
     }
@@ -509,6 +510,14 @@ impl WorldPack {
             contexts: Contexts::new(),
             resolved: Resolutions::new(),
         }
+    }
+
+    /// Publish final contexts and seeds together, only after all owners have resolved and validated.
+    pub(crate) fn install_resolutions(&mut self, resolved: Resolutions) -> Result<(), PackError> {
+        let contexts = resolution::final_contexts(&resolved)?;
+        self.contexts.extend(contexts);
+        self.resolved = resolved;
+        Ok(())
     }
 
     /// The same in-memory pack, with probe resolutions (`crate::load`'s tests).

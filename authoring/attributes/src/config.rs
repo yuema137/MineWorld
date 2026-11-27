@@ -33,4 +33,18 @@ pub struct AttributesConfiguration {
     /// The mask applied to the backend's catalogue, by id. Absent: the backend's default.
     #[serde(default)]
     pub mask: Option<String>,
+    /// People who arrive later (`ARC-128`). Absent: no runtime sampling, and every byte as before.
+    #[serde(default)]
+    pub newcomers: Option<NewcomersConfiguration>,
+}
+
+/// `newcomers:` — the declared people whose attributes are resolved when they arrive, not at genesis.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[schemars(example = serde_json::json!({ "later": ["nadia", "omar"] }))]
+pub struct NewcomersConfiguration {
+    /// Person keys the world declares (`population:`), each listed once. A listed person exists from
+    /// genesis with no attributes; a System admits them at run time (`newcomer-admitted`) and their
+    /// values are drawn then, against the people already there.
+    pub later: Vec<String>,
 }

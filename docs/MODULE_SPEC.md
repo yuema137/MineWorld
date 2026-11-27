@@ -397,13 +397,25 @@ data directory, read, load and run exactly as before.
    `AuthoredSection`; a pack owns one section either way (`ARC-31`), and its seeding obligations are
    unchanged.
 3. **An owner may resolve across subjects before seeding** (`resolves!()`). Once, after every section is
-   decoded and every reference checked and before any genesis fact is seeded, the owner receives every file of
+   decoded and its section references checked, before configuration reference checks and any genesis fact is seeded, the owner receives every file of
    the kinds its section is carried by — each subject's key, kind and tags, and its decoded section if the file
    carries one; never a display name, a `note` or a location — and returns at most one seed per subject. Each
    seed then becomes that subject's genesis facts, in the owner's own vocabulary, exactly where the owner's
    section facts would have been seeded: seeding order is unchanged (`ARC-31` item 4). Refused, naming the
    system: a resolution the owner refuses (`ResolveRefused`, naming the subject when there is one); a seed for
    a key that is not one of the subjects; a seeded fact outside the owner's vocabulary, as for a section.
+   Resolution returns `SubjectResolution<Context, Seed>`: an immutable `Arc<Context>` and a
+   `BTreeMap<EntityKey, Seed>`. The typed `resolve_subjects` takes `Arc<Self::Context>`; an unchanged
+   owner returns that Arc, while an enriching owner constructs a new context without changing declarations
+   already used for section validation. No `Clone` bound is imposed. Every owner resolves from its initial
+   context and own subjects only. All results and final context owners are checked before the loader installs
+   any of them; a refusal publishes neither contexts nor seeds. Nonresolving contexts remain unchanged.
+   `WorldPack::context`, context facts and resolved subject seeds use the same final context. Assembly emits
+   configuration, then final world-level context facts, then subject seeds in existing order. Omitted seeds
+   emit nothing: they never fall back to the initial-context section. Repeated assembly does not resolve again.
+   Public migration (2026-11-22, S30-j0): external `ResolvesSubjects` implementers adopt the Arc input and
+   named result. External erased `ResolvedSeeds` implementers must add `context() -> Arc<dyn OwnerContext>`.
+   Its `as_any` still exposes the seed map; SDK/installed erased dispatch signatures remain unchanged.
 4. **A pack may ship data files for an owner's directory** (`ships_data!("<directory>/<file>.yaml", …)`;
    step-30 Q-S30b-1, ruled 2026-10-15). The files are compiled into the shipping pack from its own crate
    directory and travel with its code and version. They are collected first (item 1) whenever the shipping
@@ -416,6 +428,15 @@ data directory, read, load and run exactly as before.
    decision, `ARC-120`). A file shipped into a directory that **no installed** pack owns is a defect of the build
    and is refused (`UnknownDirectory`, naming the shipping pack and the path). A pack root's files (as opposed to
    its directories) are neither refused nor collected by item 1.
+
+   *Extended 2026-10-26 (S31-b2, `ARC-124` note; `pr-s31b2-notices-attributes.md` §5.1).* A pack's **configuration
+   may yield data files** too: `PackConfiguration::yields` (provided, none by default) returns
+   `YieldedFile { directory, name, text }`, each `<name>.yaml`. Yielded files follow every rule above for shipped
+   files: they are collected right after the configuring pack's shipped files (by directory, then name), with the
+   configuring pack as their origin (`DataSource::SystemPack`); a file for an owner the world does not enable is
+   skipped; a directory no installed pack owns is refused (`UnknownDirectory`), and every refusal names the shown
+   path `configure/<pack>.yaml → <directory>/<name>`. A world whose configurations yield nothing loads exactly as
+   before.
 
 A data directory is a **general** capability of the seam: it names no domain, and the loader treats every
 owner's directories alike.
@@ -1133,7 +1154,10 @@ notices   notices    people   { subscribe: [ <topic> ] }: 0–32 distinct topics
                               `unknown-topic`). Optional: when present it replaces the configuration's
                               defaults.by_tag for this person, and `subscribe: []` means "none". The
                               person's subscriptions: notices on those topics reach their inbox.
-                              Disclosed to the person only (`ARC-115`)
+                              Disclosed to the person only (`ARC-115`). In a world that enables
+                              `attributes`, the section is refused (`subscriptions-are-attributes`):
+                              subscriptions are then the attribute `notices.subscriptions`, written
+                              in `attributes:`, a lock or `roles` (`ARC-124` note 2026-10-26)
 ```
 
 An eighth section, `attributes` (owned by the `attributes` System Pack, carried by people), is specified below
@@ -1334,14 +1358,18 @@ about each living Person observer, so a client formats amounts from the world an
 (`valid_for: { min, max }`, each `"<n>m"`, `"<n>h"` or `"<n>d"`, within 1 minute … 30 days) and `per_day`,
 the most notices one publisher may post on it in any 24 hours of world time (1 … 96). An optional
 `defaults.by_tag` subscribes every person with a tag to listed topics, unless the person's own `notices:`
-section says otherwise. A notice reaches exactly the topic's subscribers at that instant and its publisher;
+section says otherwise. In a world that enables `attributes`, `defaults.by_tag` is refused
+(`subscriptions-are-attributes`; `roles` in a population profile take its place), and the configuration yields
+the vocabulary `notices.topics`, its topic keys sorted (§4.1 "Vocabularies"; `ARC-124` note 2026-10-26). A notice reaches exactly the topic's subscribers at that instant and its publisher;
 it stops being current at its `valid_until`, with no fact stated. Every field is in the generated
 [`docs/reference/configure.md`](reference/configure.md).
 
 A world without `configure:` loads exactly as before the key existed. A save remembers its
 configuration: resuming or replaying it against a World Pack whose configuration differs — changed,
-added or removed — is refused, naming the system (`ConfigurationDrift`). Other content is not compared
-at resume.
+added or removed — is refused, naming the system (`ConfigurationDrift`). Only facts genesis states
+directly (`Causation::WorldGenesis`) are compared; a configuration-typed fact stated by a reaction during
+genesis is derived and is verified by replay, not by the drift check (`ARC-61` note 2026-11-27). Other
+content is not compared at resume.
 
 **Framework keys** (`ARC-61` note). Two keys of `configure:` name no System Pack; each is owned by a
 framework crate, never resolved against the installed set, and never seeded on its own:
@@ -1493,18 +1521,21 @@ Declaring an id that already exists, instead of overriding it, is refused (`Dupl
 wants another value set declares its own attribute (`harbour.ancestry`) and its profile uses that one.
 
 *Vocabularies* (`ARC-122`, `ARC-124`). A `category` or `set` attribute may take its values from a vocabulary: a
-closed set of value ids named `<namespace>.<name>`, declared by its owner either as a `vocabularies/` file —
+closed set of value ids named `<namespace>.<name>`, declared by its owner either as a `vocabularies/` file it
+ships or that a World or Entity Pack writes, or **yielded by its own world configuration** (§3.1 seam item 4,
+`PackConfiguration::yields`; `ARC-124` note 2026-10-26). A yielded file is collected exactly like a file the
+configuring pack ships, in the configuring pack's namespace. `notices` yields its topic vocabulary from the topic
+keys of `configure/notices.yaml`, so the vocabulary is whatever topics the world declares:
 
 ```yaml
-# vocabularies/topics.yaml, shipped by the `notices` System Pack (step-31 §8.5)
+# vocabularies/topics.yaml, yielded by configure/notices.yaml (step-31 §8.5; S31-b2 §5.1): the topic keys, sorted
 format: 1
 vocabularies:
-  topics: [prices.ingredients, prices.fuel, station.departures, news.daily, weather.warnings]
+  topics: [news.daily, prices.ingredients]
 ```
 
-— or from its own world configuration, through its owner interface (`economy.wealth-bands`, the band ids of
-`configure/economy.yaml`, step-31 §7.4). A value outside the vocabulary is refused where it is written
-(`UnknownTopic`, naming the vocabulary and the nearest ids).
+`economy.wealth-bands` (the band ids of `configure/economy.yaml`, step-31 §7.4) takes the same path. A value
+outside the vocabulary is refused where it is written (`UnknownTopic`, naming the vocabulary and the nearest ids).
 
 *Rendering* (`ARC-122`). `label` names the attribute; `phrase` is a template with exactly one placeholder,
 `{value}`; `words` gives per-value words, by default the slug with hyphens turned into spaces. A `quantity`
@@ -1543,6 +1574,40 @@ lock: attributes.lock.yaml         # optional; the lock file, relative to the pa
 - **`salt`** changes `sampled` values only. A world resolved by a tool with a non-zero salt is not the world's
   own population until that salt is written here.
 - A profile the world's required packs do not provide is refused naming the profile (`UnknownProfile`).
+
+*Runtime admissions* (`ARC-128`; S30-j). Optional `newcomers: { later: [nadia, omar] }`
+names predeclared Persons whose attributes are deferred until admission. Unknown/non-Person
+keys are `UnknownPerson`; repeated keys are `DuplicateNewcomer`. No profile is required:
+authored values, locks and defaults remain usable. Genesis resolves only the present
+people; deferred people get neither `traits-stated` nor `attributes-handed`. CLI `attributes
+resolve` lists them as `deferred` without values. This is not runtime entity creation.
+
+The attributes resolver finalizes a complete key-to-Fixed map before context seeding:
+authored/ruled/locked values and restrictions, with authored values taking precedence.
+The existing `attributes-composed` optionally carries `newcomers: { profile, seed, salt,
+deferred }`; absent configuration omits the field byte for byte. One owner Process,
+`attributes-newcomers`, retains this immutable draw context plus the arrived set. Missing
+fixed entries never become empty defaults. A configured/finalized key-set mismatch is
+`newcomers-unresolved` before genesis emission.
+
+An admitting System declares `uses: { admits: true }` in its own `attributes/` data,
+depends on attributes and declares emitting its borrowed `newcomer-admitted` vocabulary.
+It calls `check_newcomer` in validation and `admit_newcomer` after recording its own cause.
+World/Entity Pack files cannot grant Uses. The attributes owner rechecks and draws against
+plain Traits of Persons already present, using current derived values at arrival; it
+never copies owner-held state. It updates arrived immediately, then always emits
+`traits-stated` (even empty), followed by per-owner `attributes-handed`, in the same
+dispatch. Same-generation duplicates are refused. Proposals before arrival are `not-arrived`.
+
+Stratified plain categories use nonnegative integer quota deficits; numeric strata use
+ten profile-decile bins with the same deficit rule. Independent distributions and
+owner-held attributes draw independently. Fixed values never redraw; births are relative
+to arrival. Roles/defaults/coverage checks retain their order. The cause identifies a
+refusal but never changes sampling words. Checked refusal codes are `attributes-uncomposed`,
+`no-newcomers`, `not-an-admitter`, `not-a-newcomer`, `already-arrived`, and
+`newcomer-unsatisfiable`; owner rechecks also reject `unknown-cause`. A skipped validation
+that emits an invalid request causes `FactRefusedByOwner`. A creator that never requests
+admission must be caught by same-revision scenario completeness checks.
 
 *Population profiles* (`ARC-123`, `DEP-68`). A profile is a `populations/` file, versioned with its pack:
 
@@ -1755,14 +1820,20 @@ value is disclosed and named.
 
 | Fact | Owner | When | Payload | Audience |
 | --- | --- | --- | --- | --- |
-| `traits-stated` | `attributes` | genesis, one per person with at least one plain trait | the sorted `(qualified id, value)` pairs; no origin | the holder only (it holds private values); others learn by disclosure, per observer, at observation time |
+| `traits-stated` | `attributes` | genesis for present people with plain traits; every runtime admission, even with no plain values | the sorted `(qualified id, value)` pairs; no origin | the holder only (it holds private values); others learn by disclosure, per observer, at observation time |
+| `newcomer-admitted` | `attributes` (its vocabulary) | a declared admitter requests admission after its own recorded cause | `{ person, because }` | `SystemInternal` |
 | `trait-changed` | `attributes` | an accepted proposal | `{ attribute, from, to, because }` | the holder, and the observers present if the attribute is `perceivable` |
 | `attribute-change-proposed` | `attributes` (its vocabulary) | emitted by a pack that declared the attribute in `proposes:` | `{ person, attribute, to, because }` | none: an internal request |
 | an owner's own facts | that owner | its own rules | its own vocabulary | its own rules |
 
-- **Derived attributes write nothing.** Origins and sources are not saved: the save holds world truth, and
-  provenance is a tool's output. Replay reduces `traits-stated` and `trait-changed` exactly; the sampler runs
-  only at genesis, so a resumed world never re-samples.
+- **Derived attributes write nothing.** Trait facts hold values, not sampling origins or sources.
+  With newcomers enabled, the internal composed context also retains the resolved profile and
+  fixed authored/ruled/locked classifications needed for future draws. The sampler runs at
+  genesis and inside admission dispatches. Replay reexecutes admissions and compares the
+  resulting bytes; snapshot restore never makes a separate draw. Before resume, actual disk
+  genesis is compared against freshly finalized context. Authored/locked/restricted values,
+  profile, seed, salt and deferred-list edits are configuration drift; runtime facts are not
+  genesis configuration. Internal context is never disclosed as a person's traits.
 - **A world without `attributes`** and without owner-declared attributes is byte-identical to the same world
   before attributes existed. Adopting attributes in a reference world moves its digests once, under one
   recorded re-baseline whose reason names the moved columns (S30-g).

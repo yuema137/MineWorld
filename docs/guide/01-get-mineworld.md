@@ -8,8 +8,44 @@ commands in a **terminal**: Terminal on macOS, a terminal window on Linux, or Po
 
 ### Step 1.1 — Get the `mineworld` command
 
-**Do this.** A ready-made download for macOS, Linux and Windows is coming with the first release.
-Until then, build the command from the source code. You need [Git](https://git-scm.com) and
+**Do this.** Get the command in one of two ways. Both end the same way: `mineworld` is on your `PATH`.
+Way 1 downloads a ready-made program from the first release on. Way 2 builds it from the source code, and it
+works today.
+
+**Way 1: download (from the first release on).** Open the
+[latest release](https://github.com/yuema137/MineWorld/releases/latest) and download the archive for your
+computer: `macos-universal.zip` for macOS, `windows-x86_64.zip` for Windows, `linux-x86_64.tar.gz` for 64-bit
+Linux on Intel or AMD, or `linux-arm64.tar.gz` for Linux on arm64. Unpack it in your home folder. The folder
+takes the archive's name, such as `MineWorld-0.1.0-macos-universal`. Then run the block for your system once.
+It adds the folder's `runtime` folder to your `PATH`:
+
+<!-- guide: operator-only -->
+
+```sh
+xattr -dr com.apple.quarantine "$HOME/MineWorld-0.1.0-macos-universal"
+export PATH="$HOME/MineWorld-0.1.0-macos-universal/runtime:$PATH"
+```
+
+On Linux, the same idea, with your archive's folder name:
+
+<!-- guide: operator-only -->
+
+```sh
+export PATH="$HOME/MineWorld-0.1.0-linux-x86_64/runtime:$PATH"
+```
+
+On Windows, in PowerShell:
+
+<!-- guide: operator-only -->
+
+```powershell
+$env:PATH = "$HOME\MineWorld-0.1.0-windows-x86_64\runtime;$env:PATH"
+```
+
+The archive also holds `PLAY.txt`. It shows how to check the download against `SHA256SUMS`, and how to open
+the program the first time, because the program is not signed yet.
+
+**Way 2: build from source (works today).** You need [Git](https://git-scm.com) and
 [Rust](https://rustup.rs). Then run these commands once. The first one goes to your home folder, so the
 source lands in `MineWorld` there. On macOS and Linux:
 
@@ -32,8 +68,9 @@ cargo build --release -p mineworld-cli
 The build takes a few minutes the first time. It makes one file: `target/release/mineworld` on
 macOS and Linux, or `target\release\mineworld.exe` on Windows.
 
-Make a new, empty folder for your worlds, outside the `MineWorld` folder. Open your terminal in it.
-Then let the terminal find `mineworld` by adding its folder to your `PATH`. On macOS and Linux:
+Make a new, empty folder for your worlds, outside the `MineWorld` folder and outside the download folder. Open your
+terminal in it. If you chose Way 1, your `PATH` is already set, so skip the two `PATH` blocks below.
+If you chose Way 2, let the terminal find `mineworld` by adding its folder to your `PATH`. On macOS and Linux:
 
 ```sh
 export PATH="$HOME/MineWorld/target/release:$PATH"

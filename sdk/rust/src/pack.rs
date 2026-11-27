@@ -190,7 +190,8 @@ pub trait SystemPack: System + Default {
     const RESOLVES: bool = false;
 
     /// The pack's resolution over every subject its section is carried by: called once, after every
-    /// section is decoded and every reference checked, before any seeding.
+    /// section is decoded and section references checked, before configuration reference checks
+    /// and any seeding. The result carries the immutable final owner context as well as seeds.
     ///
     /// # Errors
     ///

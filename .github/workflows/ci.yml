@@ -123,6 +123,17 @@ jobs:
       - if: "!cancelled() && needs.changes.outputs.code == 'true'"
         name: Parse the Godot clients' scripts
         run: python3 scripts/ci_gdparse.py
+      # F-RC-7 (pr-fix-any-seat-probe.md): a failed slice-probe check must exit nonzero (the F-13c-5 false
+      # exit 0). The focused regression needs only the scripts-only import above: no server, display or
+      # assets, a few seconds. Its summary line, not the exit code alone, is the verdict.
+      - if: "!cancelled() && needs.changes.outputs.code == 'true'"
+        name: Slice-probe failed-check exit regression
+        run: |
+          log="$RUNNER_TEMP/probe-verdict.log"
+          code=0
+          godot --headless --path clients/3d-spike --script res://tools/test_probe_verdict.gd > "$log" 2>&1 || code=$?
+          cat "$log"
+          [ "$code" -eq 0 ] && grep -qx 'all verdict regression checks pass' "$log"
       # Documentation only: the doc checks on the runner's Python, no toolchain and no container.
       - if: needs.changes.outputs.code == 'false'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

@@ -149,7 +149,7 @@ pub struct ProfileFile {
 }
 
 /// Rows of a conditional table: a leaf, or one level per parent in `given` order with an `otherwise:`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Rows<T> {
     /// The row for every combination below here.
     Leaf(T),
@@ -189,7 +189,7 @@ impl<T> Rows<T> {
 }
 
 /// `normal { mean, p5, p95 }` at the attribute's scale.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NormalParams {
     /// The mean.
     pub mean: i64,
@@ -203,7 +203,7 @@ pub struct NormalParams {
 pub type When = BTreeMap<QualifiedId, BTreeSet<ValueSlug>>;
 
 /// One `adjust` entry: ratios (micro) per value index, where `when` matches.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Adjust {
     /// The condition.
     pub when: When,
@@ -212,7 +212,7 @@ pub struct Adjust {
 }
 
 /// One `mask` entry: only these value indices, where `when` matches.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Mask {
     /// The condition.
     pub when: When,
@@ -221,7 +221,7 @@ pub struct Mask {
 }
 
 /// How one attribute is drawn.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Shape {
     /// A categorical prior: per row, a weight (micro, normalised to exactly 10⁶) per value index.
     Prior {
@@ -259,7 +259,7 @@ pub enum Shape {
 }
 
 /// One attribute's distribution, checked.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Distribution {
     /// The parents, in order.
     pub given: Vec<QualifiedId>,
@@ -274,7 +274,7 @@ pub struct Distribution {
 }
 
 /// What a role does to its target.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RoleAction {
     /// Replaces the value.
     Set(AttributeValue),
@@ -283,7 +283,7 @@ pub enum RoleAction {
 }
 
 /// One role, applied right after its target is resolved (F-S30d-4).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Role {
     /// Tags every matching member carries.
     pub tags: BTreeSet<Tag>,
@@ -295,8 +295,9 @@ pub struct Role {
     pub action: RoleAction,
 }
 
-/// One profile, frozen.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+/// One profile, frozen. It deserializes, so a running world reads it back from its newcomer context
+/// (`pr-s30j-runtime-sampling.md` §5.2); the round trip keeps its digest.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Profile {
     /// Its id.
     pub id: String,

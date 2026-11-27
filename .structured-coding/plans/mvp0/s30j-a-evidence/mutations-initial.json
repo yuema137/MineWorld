@@ -1,0 +1,104 @@
+{
+  "restored_source_sha256": "8b467845a77f1acfad69f81816df5d338db0fc7c3eef2eac515296711e259827",
+  "results": [
+    {
+      "label": "M-j-6",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "mineworld-attributes-model",
+        "--test",
+        "fidelity",
+        "a_thousand_arrivals_preserve_both_profiles_and_reproduce",
+        "--",
+        "--nocapture"
+      ],
+      "returncode": 101,
+      "seconds": 40.259,
+      "outcome": "DISCRIMINATING FAIL"
+    },
+    {
+      "label": "independent-boundary",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "mineworld-attributes-model",
+        "--test",
+        "newcomer_independent",
+        "cumulative_boundary_is_exclusive_at_the_integer_point",
+        "--",
+        "--nocapture"
+      ],
+      "returncode": 101,
+      "seconds": 18.21,
+      "outcome": "DISCRIMINATING FAIL"
+    },
+    {
+      "label": "independent-residents",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "mineworld-attributes-model",
+        "--test",
+        "newcomer_independent",
+        "changing_or_reordering_residents_cannot_change_independent_draws",
+        "--",
+        "--nocapture"
+      ],
+      "returncode": 101,
+      "seconds": 2.174,
+      "outcome": "DISCRIMINATING FAIL"
+    },
+    {
+      "label": "restored-newcomer_independent",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "mineworld-attributes-model",
+        "--test",
+        "newcomer_independent",
+        "--",
+        "--nocapture"
+      ],
+      "returncode": 0,
+      "seconds": 1.973,
+      "outcome": "PASS"
+    },
+    {
+      "label": "restored-fidelity",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "mineworld-attributes-model",
+        "--test",
+        "fidelity",
+        "--",
+        "--nocapture"
+      ],
+      "returncode": 0,
+      "seconds": 14.837,
+      "outcome": "PASS"
+    },
+    {
+      "label": "restored-newcomers",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "mineworld-attributes-model",
+        "--test",
+        "newcomers",
+        "--",
+        "--nocapture"
+      ],
+      "returncode": 0,
+      "seconds": 8.381,
+      "outcome": "PASS"
+    }
+  ]
+}

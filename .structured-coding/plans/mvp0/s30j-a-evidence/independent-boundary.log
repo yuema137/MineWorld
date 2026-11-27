@@ -1,0 +1,21 @@
+   Compiling mineworld-attributes-model v0.1.0 (/Users/yuema137/mineworld-worktrees/recovered-s30j/.recovery/replay/tmp/mineworld-s30j-fidelity-a-recovery/authoring/attributes)
+    Finished `test` profile [optimized + debuginfo] target(s) in 1.52s
+     Running tests/newcomer_independent.rs (/Users/yuema137/mineworld-worktrees/recovered-s30j/.recovery/target-fida/debug/deps/newcomer_independent-1ea77b337287f01d)
+
+running 1 test
+
+thread 'cumulative_boundary_is_exclusive_at_the_integer_point' (2841424) panicked at authoring/attributes/tests/newcomer_independent.rs:232:13:
+assertion `left == right` failed: false threshold346536
+  left: Category(ValueSlug("a"))
+ right: Category(ValueSlug("b"))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test cumulative_boundary_is_exclusive_at_the_integer_point ... FAILED
+
+failures:
+
+failures:
+    cumulative_boundary_is_exclusive_at_the_integer_point
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p mineworld-attributes-model --test newcomer_independent`

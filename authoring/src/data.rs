@@ -493,12 +493,26 @@ pub struct ResolveRefusal {
     pub reason: String,
 }
 
+/// The immutable outcome of one owner's subject resolution.
+///
+/// Return the input context unchanged when no derived data is needed. Otherwise construct a new
+/// context without changing declarations used to decode sections. Both context facts and subject
+/// seeds use this same final context; no `Clone` bound is required on it.
+#[derive(Debug)]
+pub struct SubjectResolution<C, S> {
+    /// The owner's final context, shared with seeding and tool-facing access.
+    pub context: Arc<C>,
+    /// At most one seed per input subject. Omitted subjects emit no section facts.
+    pub seeds: BTreeMap<EntityKey, S>,
+}
+
 /// An owner that resolves across subjects once, before any seeding (`ARC-121` item 3).
 pub trait ResolvesSubjects: SectionInContext {
     /// What one subject's resolution is.
     type Seed: core::fmt::Debug + Send + Sync + 'static;
 
-    /// Once, after every section is decoded and every reference checked, before any seeding: every
+    /// Once, after section decoding and section reference checks, before configuration reference
+    /// checks and any seeding: every
     /// subject of the kinds the section is carried by, in the loader's file order, becomes at most one seed.
     /// A key that is not one of `subjects` is refused by the seam.
     ///
@@ -506,10 +520,10 @@ pub trait ResolvesSubjects: SectionInContext {
     ///
     /// The owner's refusal.
     fn resolve_subjects(
-        context: &Self::Context,
+        context: Arc<Self::Context>,
         configuration: Option<&dyn Any>,
         subjects: &[Subject<'_, Self::Authored>],
-    ) -> Result<BTreeMap<EntityKey, Self::Seed>, ResolveRefusal>;
+    ) -> Result<SubjectResolution<Self::Context, Self::Seed>, ResolveRefusal>;
 
     /// The genesis facts one subject's seed becomes, in this pack's own vocabulary.
     ///
@@ -526,6 +540,9 @@ pub trait ResolvesSubjects: SectionInContext {
 
 /// A resolution, with its type erased, for the loader to seed from.
 pub trait ResolvedSeeds: core::fmt::Debug + Send + Sync {
+    /// The final immutable context used by these seeds and by world-level context facts.
+    fn context(&self) -> Arc<dyn OwnerContext>;
+
     /// The System Pack it belongs to.
     fn owner(&self) -> SystemId;
 
@@ -557,6 +574,10 @@ impl<S: ResolvesSubjects> core::fmt::Debug for HeldSeeds<S> {
 }
 
 impl<S: ResolvesSubjects + 'static> ResolvedSeeds for HeldSeeds<S> {
+    fn context(&self) -> Arc<dyn OwnerContext> {
+        Arc::new(HeldContext::<S>(self.context.clone()))
+    }
+
     fn owner(&self) -> SystemId {
         S::ID
     }
@@ -606,7 +627,7 @@ pub fn resolve_erased<S: ResolvesSubjects + 'static>(
         let authored = match subject.authored {
             None => None,
             Some(content) => Some(
-                (content.owner() == S::ID)
+                (content.owner() == S::ID && content.section() == S::SECTION)
                     .then(|| content.as_any().downcast_ref::<S::Authored>())
                     .flatten()
                     .ok_or_else(|| {
@@ -628,7 +649,7 @@ pub fn resolve_erased<S: ResolvesSubjects + 'static>(
         });
     }
     let configuration = configuration_of::<S>(configuration).map_err(|why| refused(None, why))?;
-    let seeds = S::resolve_subjects(&context, configuration, &typed)?;
+    let SubjectResolution { context, seeds } = S::resolve_subjects(context, configuration, &typed)?;
     let given: BTreeSet<&EntityKey> = subjects.iter().map(|subject| subject.key).collect();
     if let Some(stranger) = seeds.keys().find(|key| !given.contains(key)) {
         return Err(refused(
