@@ -290,13 +290,15 @@ They do not waive frozen scope, spending authority, or required repository merge
 - Parallelize independent ready work within machine and reviewer capacity. Bound work in
   progress. Do not duplicate a worker on a blocked task; resolve its dependency or assign a
   different ready task. Preserve unfinished work before transferring ownership.
-- Operator configuration ruling, 2026-11-23: delegated agents use **GPT-6.1 Sol,
-  medium reasoning**, unless the operator subsequently changes that choice. The
-  configured capacity is ten concurrent subagents, excluding the primary; this
-  is a capacity ceiling, not a requirement to manufacture ten tasks or run ten
-  heavy builds. Preserve the shared heavy-job limits and isolated checkout
-  ownership. Existing workers transfer at a durable checkpoint when a live model
-  change is unavailable. This ruling supersedes older per-lane model suggestions.
+- Operator configuration ruling, 2026-11-27 (supersedes the 2026-11-23 GPT-6.1 Sol
+  ruling): the primary coordinator is Claude Code, and delegated agents are **Claude
+  subagents, preferring Claude Opus 5.5** ("我们继续用 Claude 子 agent 优先用opus 5.5").
+  A lighter model is acceptable only for small, fully specified mechanical tasks.
+  The capacity is ten concurrent subagents, excluding the primary; this is a
+  capacity ceiling, not a requirement to manufacture ten tasks or run ten heavy
+  builds. Preserve the shared heavy-job limits and isolated checkout ownership.
+  Worktrees and durable artifacts live under `/Users/yuema137/mineworld-worktrees/`,
+  never `/tmp`, which the operating system clears on reboot.
 - Validate locally first with the smallest sufficient checks for the change. Follow existing
   shared heavy-job limits. Review ready work promptly once dependencies are satisfied; do
   not wait for GitHub automatic CI to begin review or let ready PRs and issues accumulate.
