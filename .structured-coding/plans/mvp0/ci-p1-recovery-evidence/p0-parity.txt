@@ -1,0 +1,3 @@
+Integrated P0 2adf50427e920dad2284c7e484ae310146bee529 into b191491e72be691a2e97926f0e102781da16f113
+PASS: AST excluding module docstring identical to P1 implementation 3e287fda
+PASS: executable suffix byte-identical

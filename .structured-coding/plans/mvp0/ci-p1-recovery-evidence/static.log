@@ -1,0 +1,37 @@
+$ /Users/yuema137/MineWorld/.venv/bin/python scripts/test_ci_execution.py
+......
+----------------------------------------------------------------------
+Ran 6 tests in 0.004s
+
+OK
+$ /Users/yuema137/MineWorld/.venv/bin/python scripts/ci_shard.py --self-test
+ci_shard self-test: passed
+$ /Users/yuema137/MineWorld/.venv/bin/python scripts/ci_repeat.py --self-test
+[self-test] ok   a passing transcript ran and failed nothing
+[self-test] ok   a failing test is named with its binary
+[self-test] ok   a split FAILED line is named from libtest's failures list
+[self-test] ok   a coloured Running line still names the binary (run 38094541454)
+[self-test] ok   failed targets are read, a harness = false program's included
+[self-test] ok   a Windows path names the binary
+[self-test] ok   a build failure is inconclusive, not a test failure
+[self-test] ok   failed in one sample, passed in two: a flake candidate, its target too
+[self-test] ok   failed in every sample: a failure, not a flake
+[self-test] ok   an inconclusive sample is no evidence
+[self-test] ok   the summary reads back
+[self-test] passed
+$ /Users/yuema137/MineWorld/.venv/bin/python scripts/ci_gdparse.py --self-test
+[self-test] ok   clean: PASS (want PASS)
+[self-test] ok   parse error, exit 0: FAIL (want FAIL)
+[self-test] ok   failed dependency: FAIL (want FAIL)
+[self-test] ok   a null load: FAIL (want FAIL)
+[self-test] ok   crash before the summary: INCONCLUSIVE (want INCONCLUSIVE)
+[self-test] ok   nothing found: INCONCLUSIVE (want INCONCLUSIVE)
+[self-test] ok   warnings only: PASS (want PASS)
+$ /Users/yuema137/MineWorld/.venv/bin/python scripts/check_ci_pins.py
+toolchain pins agree: rust 1.97.1 (rust-toolchain.toml, Cargo.toml, Dockerfile), Debian trixie, every base and copied image pinned by digest, every action by full SHA
+$ /Users/yuema137/MineWorld/.venv/bin/python scripts/check_doc_headings.py
+254 numbered sections across 338 documents, none duplicated
+$ /Users/yuema137/MineWorld/.venv/bin/python scripts/check_decision_ids.py
+258 decision ids, all distinct; index current
+$ /Users/yuema137/MineWorld/.venv/bin/python -m compileall -q scripts/ci_archive.py scripts/ci_results.py scripts/ci_layer.py scripts/ci_shard.py scripts/test_ci_execution.py
+$ git diff --check
