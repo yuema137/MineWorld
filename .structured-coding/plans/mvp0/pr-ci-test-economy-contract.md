@@ -274,7 +274,7 @@ replaces "deferred" with impact-selected tests per PR and keeps the full matrix 
   `areas` inputs), `ci.yml` (`impact-core`, `impact-core-native`, `impact-python`, `impact-godot`; the four
   required gates judge them), ARC-154 dated note. Full-mode commands are unchanged: `--list` of `fast`, `docs`
   and `python` is byte-identical to E1's.
-- [x] Deterministic validation (local): see 3.5.
+- [x] Deterministic validation (local): see 3.6 and 3.7.
 - [ ] LLM logic review: independent red-team pending (coordinator-owned).
 - [ ] Hosted: the PR's own run is `full` (it changes `.github/` and `scripts/ci_*`); as a draft it ran
   `changes` (mode=full, correct) and `fast` PASS at `d0c6cb0f` (run 46075364676), whose `fast` layer runs the
@@ -388,7 +388,25 @@ dates; `Recovered-From:` trailers name the originals).
   ledger). Resolution keeps main's text verbatim and inserts the P1 record as the
   "E1 implementation record" subsection.
 
-### 3.5 E4 departures from the frozen design and local evidence (2026-11-27)
+### 3.5 E1 hosted merge-gate judgement (2026-11-27)
+
+Full run 46072962667 at `ddc4852e` (dispatched once, `milestone: true`). Coordinator-ruled gate for P1: no new
+failures compared with main, and archives built and consumed on all three OSes.
+
+- PASS archives: `test-archive` (Linux, 4.1 GB), `test-macos-archive` (0.93 GB) and `test-windows-archive`
+  (0.86 GB) succeeded. Every core shard ran `cargo nextest run --archive-file … --extract-to <checkout>`
+  on its OS, including `D:\a\MineWorld\MineWorld` on Windows; no provenance mismatch or rebuild of regular
+  targets was seen.
+- Red shards fail only on test assertions that already fail on main and are not touched by P1:
+  `mineworld-acceptance::currency_names` (fixed by #546, now merged), `mineworld-server::seats::
+  a_hosted_request_meets_the_actor_check_and_the_sessions_allocator`, `mineworld-cli::price_reporter::
+  clerk_publishes_and_keepers_follow` (F-S31d-13), and the Linux `python` layer's `clients/agent` pytest
+  cases. Another lane owns seats/pytest. Judgement: no new failures vs main. Gate PASS.
+- Merge of origin/main `4b86c9d9` (with #546) at the next commit: main added a `harness = false` target
+  `newcomers_resume`; `ci_shard --self-test` caught it (the DEP-163 inventory audit working as designed) and
+  it joins `CUSTOM_HARNESS`. No second full run is dispatched for this (coordinator); the final head's
+  `fast` and the PR run are its evidence.
+### 3.6 E4 departures from the frozen design and local evidence (2026-11-27)
 
 Departures (the ruling governs; each is bounded and recorded rather than escalated):
 
@@ -454,7 +472,7 @@ FAILS on main's content (`clients/shared/TRADE.md`, `clients/shared/checks/money
 deferred mode hid, not an E4 regression; since the scan suite joins every Rust selection, every impact PR's
 `test` gate is red until its owner fixes it. Escalated to the coordinator.
 
-### 3.6 E4 red-team review (2026-11-27, BLOCK) — disposition
+### 3.7 E4 red-team review (2026-11-27, BLOCK) — disposition
 
 Review `/Users/yuema137/mineworld-worktrees/_reviews/e4-impact.md` at `44537cf8`. Fixed in the next commit:
 

@@ -46,7 +46,7 @@ CARGO_TEST = ["test", "--workspace", *CARGO_TEST_FLAGS]
 
 # The `harness = false` test targets (DEP-163): their own `main` does not answer nextest's `--list`, so they
 # run under `cargo test`. The self-test fails when the workspace's manifests name a different set.
-CUSTOM_HARNESS = frozenset({"arrival_resolvers_resume", "kill_and_resume", "launcher"})
+CUSTOM_HARNESS = frozenset({"arrival_resolvers_resume", "kill_and_resume", "launcher", "newcomers_resume"})
 
 # Seconds per unit on windows-2025: the wall time between cargo's `Running` lines, summed over the
 # packages sharing the name. Re-measured 2026-10-21 (ARC-110 re-weigh note) from the `core` shard logs of

@@ -4,11 +4,11 @@
 
 ```text
 Design revision:        revision 1 (2026-10-26), DESIGN FROZEN 2026-10-27 (operator approved in the primary session: every question answered as recommended)
-Approved by / evidence: none yet — awaiting the operator's freeze (questions in §13)
+Approved by / evidence: the operator, 2026-10-27 (primary session, 21:11 UTC): §13 answered as recommended
 Implementation base:    origin/main @ 0b2faf2f (after #301 S34-a, #363 S34-b, #368 S34-c1, #462 S33-f)
-Start condition:        this design frozen by the operator
+Start condition:        this design frozen by the operator (met 2026-10-27)
 Execution contract:     §10
-Lifecycle:              DRAFT — never frozen by its author
+Lifecycle:              FROZEN 2026-10-27 (header reconciled 2026-11-27); implementation not merged
 ```
 
 **Dated note, 2026-10-27 (operator ruling Q-S34c3-3; SD-c3-5 in

@@ -5,10 +5,11 @@
 **Ruled 2026-10-27 (operator, primary session):** every question below is answered as recommended.
 
 ```text
-Design revision:        draft 1 (2026-10-26)
+Design revision:        draft 1 (2026-10-26), frozen 2026-10-27
 Author:                 S30-i PR-design session (Opus), worktree /Users/yuema137/mineworld-worktrees/design-s30i,
                         branch docs/pr-design-s30i, planning base origin/main @ 0b2faf2f (#382)
-Approved by / evidence: none yet. Needs the operator's rulings on §15 and a freeze.
+Approved by / evidence: the operator, 2026-10-27 (primary session, 21:11 UTC): §15 answered as recommended;
+                        design frozen
 Implementation base:    main (origin/main at C0); C0 records the commit and the merged prerequisites
 Start condition:        S30-f merged (yes: #373 at 97d43fe3) and S28-c merged (yes: #353 at 7fa73c5d), as step-30
                         §13.3 requires; S28-a, S28-b, S28-d … S28-g also merged; this design frozen; §15 ruled;
@@ -16,7 +17,7 @@ Start condition:        S30-f merged (yes: #373 at 97d43fe3) and S28-c merged (y
 Execution contract:     §13
 Implementer:            Opus-class session (step-30 §13.1, the S30-i row); C6, C7 and C8 may be delegated to
                         Haiku-class sub-agents from this commit plan, each reviewed by the session
-Lifecycle:              DRAFT
+Lifecycle:              FROZEN 2026-10-27 (header reconciled 2026-11-27); not yet implemented
 ```
 
 **Effort:** `mvp0` · **Step:** [`step-30-person-attributes.md`](step-30-person-attributes.md) §§0 item 6, 4.2 item 2,

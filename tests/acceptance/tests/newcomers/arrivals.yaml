@@ -1,0 +1,4 @@
+format: 1
+uses:
+  admits: true
+  proposes: [attributes-newcomers.hair-colour]

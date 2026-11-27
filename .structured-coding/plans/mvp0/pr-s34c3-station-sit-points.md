@@ -4,12 +4,19 @@
 
 ```text
 Design revision:        revision 1 (2026-10-27)
-Approved by / evidence: none yet — awaiting the operator's rulings (questions in §14)
+Approved by / evidence: recorded by the primary session on 2026-10-27 as "operator: all as recommended, incl. Q7
+                        widening S34-c2": freeze commit e950e49b (#527) and dated notes fe99fa3d (#528).
+                        Explicit ruling: the operator, 2026-11-27, relayed by the coordinator ("营养设计那两点、
+                        S34-c3 也全都同意你的推荐"): Q-S34c3-1…8 as recommended (5 m constant; cap 512;
+                        walk to a disclosed but not-offered seat, SD-c3-5; floor(L/600 mm); systems/posture/
+                        seating.yaml; benches only; Q7 to S34-c2; per-geometry clip gate note).
+                        History: the 2026-10-27 freeze commit was written before any explicit operator answer
+                        to §14. The nearest operator message then (21:29:40 UTC) was about the café
 Implementation base:    origin/main @ 315a50a9 (#513) for the audit; C0 records the exact base
 Start condition:        this design frozen, with Q-S34c3-1 and Q-S34c3-2 ruled (they amend frozen
                         step-34 §5.1 and §6.3 and ARC-147). S34-b and S34-c1 are merged (#363, #368)
 Execution contract:     §12
-Lifecycle:              DESIGN FROZEN 2026-10-27 (operator approved in the primary session: every question answered as recommended)
+Lifecycle:              FROZEN 2026-10-27 (e950e49b, #527; header reconciled 2026-11-27); not yet implemented
 ```
 
 **Effort:** `mvp0`, release-blocking · **Step:** [`step-34-posture.md`](step-34-posture.md) §§5.1, 6.3,
