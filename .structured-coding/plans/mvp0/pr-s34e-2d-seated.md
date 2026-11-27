@@ -1084,7 +1084,19 @@ The packet entry is `c7727ba6…`, and the generator scripts are the original te
 ones were lost and cannot be byte-equal (the log carries timestamps). No measured value, target,
 tolerance or test reads these entries; the sources the tests pin are unchanged.
 
-**Packaged root check.** See the next section.
+**Packaged root check: PASS in both modes.** The bundle was built from this branch with
+`package.py assemble --target macos-universal --clients 2d --no-archive`. Assembly started at head
+`02b6fee0`. Every exported client file is unchanged through `e792bd86`: that commit touched only tests,
+plans, CI lists and fixture artifact hashes. The bundle was copied to a root whose path contains a space
+and non-ASCII characters (`…/bundle root 座位/`), and `scripts/check_packaged_seating.py` ran twice:
+
+- **Exported:** the bundle's runtime with `--root`. PASS: 2 seated poses at `window-stools.1`, with the
+  stand observed between them.
+- **`--source-client`:** this checkout, no `--root`. PASS, same result.
+
+In both runs, the pelvis error against the measured stool anchor is 0.00025/0.00026 mm horizontally and
+below 0.000001 mm in height, within the 10 mm tolerance. Without the fix, an exported run is off by
+477.133 mm north and 239.300 mm in height, so the exported PASS exercises `app.gd:159`.
 
 **Godot CI wiring** (small change, done): a new `tools/cli/tests/client_sit_checks.rs` (`#[ignore]`, Godot)
 runs `sit_chain_check.gd`, `sit_pose_check.gd` and `seated_sprite_check.gd`. A check passes only on a
