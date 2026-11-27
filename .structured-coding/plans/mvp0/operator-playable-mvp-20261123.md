@@ -140,6 +140,12 @@ Still to resolve before dependent implementation:
   downloaded or run. The existing local provider path is the first candidate,
   subject to real response/memory and shared-machine performance checks. No
   paid model calls are authorized by this requirement alone.
+  **Ruled 2026-11-27 (operator, Q-D1…Q-D5 as recommended):** design frozen in
+  [`pr-playable-dialogue-memory.md`](pr-playable-dialogue-memory.md) DM-20261127-3 —
+  R1 installed local runtime with local `qwen3.5:4b`; Market Town, LM Alice,
+  operator Vera (`visitor`), 3D Wes (`wanderer`); bounded local live gate (≤ 8
+  calls, $0); PR-A (deadline fix) on `main`, PR-B on the recovered client
+  integration stack after it merges; no merge without the operator.
 - Scope of personal residences, staffed opening hours and sleep advance in this
   first delivery, with concrete implementation designs and review checkpoints.
 

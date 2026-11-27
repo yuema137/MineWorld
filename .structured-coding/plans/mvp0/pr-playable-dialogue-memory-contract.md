@@ -1,102 +1,102 @@
 # Playable dialogue and persistent memory — filled execution contract
 
-Lifecycle: **DRAFT — FREEZE-READY.** Not authorized until the operator freezes
-[`pr-playable-dialogue-memory.md`](pr-playable-dialogue-memory.md) (revision DM-20261127-2). Values marked
-`PENDING Q-Dn` are the recommended answers in that design's §0; they become sourced only when the operator
-answers. The working-rule body below is copied verbatim from
+Lifecycle: **FROZEN** with [`pr-playable-dialogue-memory.md`](pr-playable-dialogue-memory.md) revision
+DM-20261127-3. Approval: operator, 2026-11-27, "同意三个都按推荐冻结" (Q-D1…Q-D5 as recommended), relayed by
+the primary coordinator. The working-rule body below is copied verbatim from
 `.claude/skills/structured-coding/prompts/implementation-working-rules.md` (skill VERSION 0.1.3, blob
-`63fa26b0`, lines 242–1044) and is not replaced by this block. The execution owner still reads
-`prompts/test-ci-gate-rules.md` in full.
+`63fa26b0`, lines 242–1044; verified verbatim by the pre-freeze review) and is not replaced by this block. The
+execution owner also reads `prompts/test-ci-gate-rules.md` in full.
 
 ## Project-specific implementation contract
 
 ```text
 PROJECT / PR:
-  MineWorld MVP-0 — Playable dialogue and persistent contextual memory (lane L3), C1–C5.
+  MineWorld MVP-0 — Playable dialogue and persistent contextual memory (lane L3).
+  Two PRs under one frozen design: PR-A = C1; PR-B = C2–C5.
 
 PRIMARY DESIGN DOC:
-  .structured-coding/plans/mvp0/pr-playable-dialogue-memory.md
+  .structured-coding/plans/mvp0/pr-playable-dialogue-memory.md (§10 holds each PR's ledger)
 
 RELATED / BINDING DOCS:
   CLAUDE.md §§1.1, 2, 3.1–3.4, 4; docs/ENGINEERING_RULES.md; docs/ENGINEERING_STANDARDS.md;
-  docs/ARCHITECTURE.md §§8–9; docs/MODULE_SPEC.md §5 (LM Controller); tools/launch/LAUNCHER.md;
+  docs/ARCHITECTURE.md §§8–9; docs/MODULE_SPEC.md §5 (LM Controller); docs/reference/cognition-toml.md;
+  docs/decisions/ARC-57.md, ARC-59.md, ARC-73.md, ARC-78.md, DEP-58.md; tools/launch/LAUNCHER.md;
   .structured-coding/plans/mvp0/operator-playable-mvp-20261123.md §§1–4;
   .structured-coding/plans/mvp0/{step-17-cognition,step-23-release,step-28-shared-memory}.md;
   .structured-coding/standards.md; dialogue-memory-evidence/integration-audit-20261123.md.
 
 IMPLEMENTATION BASE:
-  C1: origin/main @ 7718d952 or newer main at dispatch (record exact SHA).
-  C2–C5: recovered/integration-d586754a once the client-stack recovery lane publishes it; exact SHA
-  recorded in the design §9 after re-auditing the launcher seams. PENDING Q-D4.
-  Not yet available: the branch does not exist on 2026-11-27.
+  PR-A: origin/main @ 8c971f0f7b469f05d1bf6f21fc933501eb22c404 (or newer main at dispatch; record the SHA).
+  PR-B: dependent on the recovered client integration stack (recovered/integration-d586754a @ e37ce9fd,
+  local only on 2026-11-27). Starts from the main SHA that contains the merged client-stack recovery and
+  merged PR-A; launcher seams re-audited on that SHA and recorded in design §10 before C2.
+  Source: operator ruling Q-D4, 2026-11-27.
 
 APPROVED SCOPE:
-  Design §1 and commits C1–C5 (§5). PENDING freeze.
+  Design §1, §3, commits C1–C5 (§5), live gate §6.
 
 FROZEN INVARIANTS:
-  Design §4 items 1–12, plus:
+  Design §4 items 1–14 and §0 bounded resolutions B1–B3, plus:
   - no LM/provider concept in kernel, System, protocol, World Pack or launcher contracts;
   - world runs with no model and no renderer; core tests use scripted/recorded cognition only;
   - no new cognition framework, database, provider SDK, kernel Person field, client game logic;
   - launcher never downloads a model/runtime and never starts or stops Ollama;
-  - R1 is never described as self-contained. PENDING Q-D1.
-  - profile: Market Town; LM `alice`; human `visitor` (2D/3D solo), both-mode 2D `visitor` +
-    3D `wanderer`; all others rule. PENDING Q-D2.
+  - R1 never described as self-contained (Q-D1);
+  - profile: Market Town; LM alice; human visitor (2D/3D solo); both-mode 2D visitor + 3D wanderer;
+    all others rule (Q-D2).
 
 APPROVED IMPLEMENTATION SEQUENCE:
-  C1 → C2 → C3 → C4 → C5 (live gate inside C5) → terminal CI on exact head.
-  Two PRs under this one design: PR-A = C1 alone on main; PR-B = C2–C5 on the recovered
-  integration base after PR-A merges. Each PR starts in a fresh execution session. PENDING Q-D4.
+  PR-A: C1 → terminal CI on exact head → READY FOR OPERATOR REVIEW.
+  PR-B: C2 → C3 → C4 → C5 (live gate inside C5) → terminal CI on exact head → READY FOR OPERATOR REVIEW.
+  Each PR starts in a fresh execution session.
 
-AUTONOMOUS VALIDATION BUDGET:
+AUTONOMOUS VALIDATION BUDGET (source: operator ruling Q-D3, 2026-11-27):
   - ordinary targeted unit/integration/static tests: allowed; no local full-workspace suite
     (R-LOAD-1: CI on the exact head is the gate);
   - real-process lifecycle runs (scripted backend): each <= 10 min; one shared heavy-job slot;
-  - real LLM calls: local Ollama qwen3.5:4b only, design §6 envelope: <= 8 backend calls total,
-    <= 180 s inference total, <= 20 s per reply, <= 256 output tokens per call, 5 scripted
-    player turns, counted across restarts and failures. PENDING Q-D3.
-  - total real-process wall time across C3–C5: <= 60 min. PENDING Q-D3.
-  - monetary: 0. No cloud/paid endpoint, no download, no model-service start.
+  - real model calls (PR-B C5 only): local Ollama qwen3.5:4b, design §6: <= 8 calls total including
+    the counted warm-up, enforced by a gate ledger (calls_per_wall_hour = 7) plus harness count;
+    <= 180 s inference total; <= 20 s per reply; 256 output tokens per call; 5 scripted player turns;
+  - total real-process wall time across C3–C5: <= 60 min;
+  - monetary: 0. No cloud/paid endpoint, no download, no model-service start;
+  - PR-A: no live model at all;
   - anything beyond these limits: stop with a projection and ask the operator.
 
 REQUIRED LIVE DOCUMENTATION:
-  PRIMARY DESIGN DOC (ledger checkboxes, evidence, deviations).
+  PRIMARY DESIGN DOC (§5 checkboxes, §7 status, §10 ledger, deviations).
 
 CONTEXT HANDOFF / MEMORY FILE:
-  .structured-coding/plans/mvp0/handoff-playable-dialogue-memory.md (created by the execution owner;
-  never a second design authority).
+  .structured-coding/plans/mvp0/handoff-playable-dialogue-memory.md (created by each execution owner;
+  never a second design authority; replaced, not appended, at the PR-A → PR-B boundary).
 
 PR CONTEXT SCOPE / INITIALIZATION / AUTHORITY ORDER / CONTINUITY / COMPACTION / RESUME / CLOSEOUT:
   As in the working-rule body below. One worktree under /Users/yuema137/mineworld-worktrees/ per
   branch, held by one session; never /tmp; never the root checkout.
 
-ENDPOINT AUTHORITY:
-  - implementation + local validation: authorized after freeze.
-      source: PENDING Q-D5 (recommended default; CLAUDE.md §3.1).
-  - semantic commits: authorized, no approval per commit.
-      source: PENDING Q-D5 (working rules §14).
-  - branch push: authorized for the PR branch only.
-      source: PENDING Q-D5 (working rules §21).
-  - PR creation / update: authorized.
-      source: PENDING Q-D5 (working rules §21).
-  - CI repair to review readiness: authorized.
-      source: PENDING Q-D5 (working rules §21; CLAUDE.md §3.4).
+ENDPOINT AUTHORITY (source for each line: operator ruling Q-D5, 2026-11-27):
+  - implementation + local validation: authorized.
+  - semantic commits: authorized, no approval per commit (working rules §14).
+  - branch push: authorized for the PR's own branch only (working rules §21).
+  - PR creation / update: authorized (working rules §21).
+  - CI repair to review readiness: authorized (working rules §21; CLAUDE.md §3.4).
   - merge: explicit operator authorization only; section 22. No source value changes this line.
 
 POST-MERGE SYNCHRONIZATION OWNER:
-  Execution session: this PR document, merge identity, evidence, deviations, remaining issues.
+  Execution session: design §10 ledger, merge identity, evidence, deviations, remaining issues.
   Primary coordinator: operator-playable-mvp-20261123.md, overall.md, progress page.
 
 NORMAL STOP CONDITION:
-  Playable dialogue+memory READY FOR OPERATOR REVIEW — DO NOT MERGE.
-  C1-only dispatch: C1 READY FOR OPERATOR REVIEW as its own PR, then stop.
+  PR-A: C1 READY FOR OPERATOR REVIEW — DO NOT MERGE.
+  PR-B: playable dialogue+memory READY FOR OPERATOR REVIEW — DO NOT MERGE.
 
 STOP CONDITION:
-  PR ready for operator review:
-    implementation complete
-    + required validation complete (including the §6 live gate or its recorded INCONCLUSIVE/FAIL)
-    + PR opened/updated
-    + terminal CI green on exact final HEAD
+  PR-A ready for operator review:
+    C1 implemented + its validation complete + PR opened/updated + terminal CI green on exact final HEAD.
+  PR-B ready for operator review:
+    C2–C5 implemented + required validation complete
+    + live gate run with result PASS, or FAIL/INCONCLUSIVE recorded with "check 2 NOT MET" in the PR body
+      and design §10, followed by the operator choice of design §0 (Q-D3 consequence)
+    + PR opened/updated + terminal CI green on exact final HEAD.
 
 MERGE AUTHORITY:
   NEVER merge without explicit operator approval.
