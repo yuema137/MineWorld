@@ -354,7 +354,10 @@ that change every time; `…` marks a value that changes too.
           "ref": "…",
           "roles": []
         },
-        "view.me.wallet": 5000
+        "view.me.wallet": {
+          "display": "50.00",
+          "minor": 5000
+        }
       }
     },
     {
@@ -490,7 +493,10 @@ that change every time; `…` marks a value that changes too.
           "ref": "…",
           "roles": []
         },
-        "view.me.wallet": 5000
+        "view.me.wallet": {
+          "display": "50.00",
+          "minor": 5000
+        }
       }
     },
     {
@@ -552,7 +558,10 @@ that change every time; `…` marks a value that changes too.
           "ref": "…",
           "roles": []
         },
-        "view.me.wallet": 4750
+        "view.me.wallet": {
+          "display": "47.50",
+          "minor": 4750
+        }
       }
     },
     {
