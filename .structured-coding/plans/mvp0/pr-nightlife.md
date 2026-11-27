@@ -665,7 +665,8 @@ None of the corrections changes an operator ruling; each is a bounded design cor
 Branch / worktree:   mvp0/pr-nightlife-n1 @ /Users/yuema137/mineworld-worktrees/impl-nightlife-n1
                      (the contract names feat/nightlife-n1-shop-hours; the primary's dispatch named
                      mvp0/pr-nightlife-n1 — bounded deviation D-N1-0, name only)
-Implementation base: origin/main 8c971f0f7b469f05d1bf6f21fc933501eb22c404 (= the freeze base; §2.2 seams unchanged)
+Implementation base: origin/main 8c971f0f (freeze base) at start; origin/main c161c120 merged in 2026-11-27
+                     (after #537 merged; 50 commits, none in economy, market-town organizations or §2.2 seams' N1 paths)
 Ledger carriage:     PR #537 (this design, docs-only) was not merged at the start; this PR carries the frozen
                      design and contract byte-identical to 86e65cf6 plus the N1 evidence, so the ledger lives
                      with the code it records. Whichever of #537 / N1 merges second takes the other's text.
@@ -685,7 +686,7 @@ Scope:               N1-C1, N1-C2, N1-C3 (N1-C3's packaged launcher check waits 
 
 | Checkpoint | Commit | State |
 | --- | --- | --- |
-| Frozen design + contract carried | `953f3331` | done |
+| Frozen design + contract carried | `953f3331` (#537 later merged the same bytes; main merged in, no force-push) | done |
 | N1-C1 typed, persistent shop hours | `39e9b0cd` | done |
 | N1-C2 one availability judgement and disclosure | `d102ab5c` | done |
 | N1-C3 Market Town hours, scenario, ARC-364 | (this commit) | implementation, scenario, review done; AC-S35-8 + targeted CLI set pending on the final head; baselines deferred to the primary |

@@ -23,6 +23,10 @@ RUN rustup component add rustfmt clippy
 # Pinned, built from its own lock; installed into the image's CARGO_HOME bin, which is on PATH.
 RUN cargo install --locked cargo-deny@0.20.2 \
     && rm -rf /usr/local/cargo/registry /usr/local/cargo/git
+# The `core` suite's test runner (docs/decisions/DEP-163.md). Pinned, built from its own lock; the same
+# version as .github/actions/native installs on macOS and Windows.
+RUN cargo install --locked cargo-nextest@0.9.148 \
+    && rm -rf /usr/local/cargo/registry /usr/local/cargo/git
 # uv: the Python workspace's one tool (docs/DECISIONS.md DEP-26), copied from its official image and
 # pinned by digest like every base image (scripts/check_ci_pins.py). The image's own python3 (Debian's
 # 3.13) is the interpreter; uv never downloads another.

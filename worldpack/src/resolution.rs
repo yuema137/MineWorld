@@ -16,10 +16,13 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use mineworld_authoring::{ContentKind, ErasedSubject, ResolveRefusal, ResolvedSeeds};
+use mineworld_authoring::{
+    AuthoredConfiguration, ContentKind, ErasedSubject, OwnerContext, ResolveRefusal, ResolvedSeeds,
+};
 use mineworld_contracts::{EntityKey, SystemId, Tags};
 
 use crate::catalog::Capability;
+use crate::content::Contexts;
 use crate::error::PackError;
 use crate::format::{FoundSection, SectionState};
 use crate::read::WorldPack;
@@ -95,14 +98,31 @@ pub(crate) fn refused(system: SystemId, refusal: ResolveRefusal) -> PackError {
 
 /// Read step 10b: every enabled resolving owner's resolution, in `systems:` order. A world with no
 /// resolving owner resolves nothing.
-pub(crate) fn resolve(pack: &WorldPack) -> Result<Resolutions, PackError> {
-    let mut resolutions = Resolutions::new();
-    for owner in pack
+pub(crate) fn finalize(pack: &mut WorldPack) -> Result<(), PackError> {
+    let owners: Vec<_> = pack
         .systems()
         .iter()
         .copied()
         .filter(|owner| owner.resolves())
-    {
+        .collect();
+    finalize_with(pack, &owners, |owner, context, configuration, subjects| {
+        owner.resolve_subjects(context, configuration, subjects)
+    })
+}
+
+/// The closed installed catalog dispatches here; in-crate probes exercise this same lifecycle.
+fn finalize_with(
+    pack: &mut WorldPack,
+    owners: &[Capability],
+    resolve: impl Fn(
+        Capability,
+        Option<&dyn OwnerContext>,
+        Option<&dyn AuthoredConfiguration>,
+        &[ErasedSubject<'_>],
+    ) -> Result<Option<Arc<dyn ResolvedSeeds>>, ResolveRefusal>,
+) -> Result<(), PackError> {
+    let mut resolutions = Resolutions::new();
+    for owner in owners.iter().copied() {
         let carried_by = owner
             .section()
             .map_or(&[][..], |section| section.carried_by);
@@ -113,12 +133,49 @@ pub(crate) fn resolve(pack: &WorldPack) -> Result<Resolutions, PackError> {
             .find(|found| found.owner == owner)
             .map(|found| &*found.configuration);
         let context = pack.context(owner).map(|context| &**context);
-        if let Some(resolved) = owner
-            .resolve_subjects(context, configuration, &subjects)
+        let resolved = resolve(owner, context, configuration, &subjects)
             .map_err(|refusal| refused(owner.id(), refusal))?
-        {
-            resolutions.insert(owner, resolved);
-        }
+            .ok_or_else(|| {
+                refused(
+                    owner.id(),
+                    ResolveRefusal {
+                        subject: None,
+                        reason: "resolving owner returned no resolution".to_owned(),
+                    },
+                )
+            })?;
+        resolutions.insert(owner, resolved);
     }
-    Ok(resolutions)
+    pack.install_resolutions(resolutions)
 }
+
+/// Validate the complete result before either contexts or resolutions can be published.
+/// Nonresolving contexts are not included and remain untouched by installation.
+pub(crate) fn final_contexts(resolved: &Resolutions) -> Result<Contexts, PackError> {
+    let mut contexts = Contexts::new();
+    for (owner, seeds) in resolved {
+        let context = seeds.context();
+        if seeds.owner() != owner.id()
+            || owner
+                .section()
+                .is_none_or(|section| section.name != seeds.section())
+            || context.owner() != owner.id()
+        {
+            return Err(refused(
+                owner.id(),
+                ResolveRefusal {
+                    subject: None,
+                    reason:
+                        "resolution or final context does not belong to the expected owner/section"
+                            .to_owned(),
+                },
+            ));
+        }
+        contexts.insert(*owner, context);
+    }
+    Ok(contexts)
+}
+
+#[cfg(test)]
+#[path = "load/final_context_tests.rs"]
+mod final_context_tests;

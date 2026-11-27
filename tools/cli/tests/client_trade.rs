@@ -81,7 +81,9 @@ impl Variant {
     }
 
     fn usd(name: &str) -> Self {
-        let scratch = mineworld_test_support::scratch!(empty name);
+        // `-pack`: a test names its save and its drive after the same variant, and every scratch
+        // name in this process must be unique.
+        let scratch = mineworld_test_support::scratch!(empty format!("{name}-pack"));
         let dir = scratch.join("market-town");
         copy_dir(Path::new(MARKET_TOWN), &dir);
         Self {
@@ -109,11 +111,12 @@ impl Variant {
             "economy: { wallet: 200000 }",
             "economy: { wallet: 200000, asks: { flowers: 450 } }",
         );
-        // Grace waits beside the visitor in the café, so the drive need not walk.
+        // Grace waits 1 m north of the visitor in the café, so the drive need not walk; 1 m east
+        // would stand her inside the window bench's solid (`bodies-in-solid`).
         edit(
             &grace,
             "  place: workplace\n  position:\n    x: 3000\n    y: -3000",
-            "  place: cafe\n  position:\n    x: 2610\n    y: 600",
+            "  place: cafe\n  position:\n    x: 1610\n    y: 1600",
         );
         edit(
             &v.dir.join("organizations/corner-store.yaml"),
@@ -176,6 +179,21 @@ fn owned(arguments: &[String]) -> Vec<&str> {
     arguments.iter().map(String::as_str).collect()
 }
 
+/// Waits until the server has seen every client connection close, so the next client finds the seat
+/// free; panics after ten seconds.
+async fn seat_released(world: &World) {
+    for _ in 0..200 {
+        if world.status().await["clients"] == json!(0) {
+            return;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    panic!(
+        "a client connection is still open: {}",
+        world.status().await
+    );
+}
+
 /// The last `HUD` report.
 fn hud(lines: &[String]) -> Value {
     tagged(lines, "HUD ")
@@ -226,12 +244,18 @@ async fn the_money_line_is_in_the_worlds_own_currency() {
         (Variant::dinar("trade-e2-dinar"), "KD200.000"),
     ] {
         let save = SaveDir::new("trade-e2");
-        let mut world = World::start(&owned(&hosted(&variant.path(), &save)), None).await;
+        // Both clients take the visitor's seat in turn. A 2D exit that drops its connection would hold
+        // the seat for the default 30 s resume window and refuse the 3D join (`seat occupied`), so no
+        // hold: this test is about the money line, not resume.
+        let mut arguments = hosted(&variant.path(), &save);
+        arguments.extend(["--hold".to_owned(), "0".to_owned()]);
+        let mut world = World::start(&owned(&arguments), None).await;
         let steps = json!([{ "sleep": 1 }, { "hud": true }]);
         let (status, lines) = play(world.address, "visitor", "trade-e2-2d", &steps, &[]).await;
         assert!(status.success(), "the 2D drive ends cleanly");
         let money = hud(&lines)["money"].as_str().expect("money").to_owned();
         assert!(money.contains(expected), "2D: {money} shows {expected}");
+        seat_released(&world).await;
         let (status, lines) = godot3d::play(world.address, "visitor", "trade-e2-3d", &steps, &[]);
         world.kill();
         assert!(
@@ -321,7 +345,7 @@ async fn buying_from_grace_and_a_refused_row_is_still_sent() {
     );
     let save = SaveDir::new("trade-e4-poor");
     let mut world = World::start(&owned(&hosted(&poor.path(), &save)), None).await;
-    let (status, lines) = play(world.address, "visitor", "trade-e4-poor", &steps, &[]).await;
+    let (status, lines) = play(world.address, "visitor", "trade-e4-poor-2d", &steps, &[]).await;
     world.kill();
     assert!(status.success(), "the drive ends cleanly");
     let shown = trade(&lines);
@@ -370,7 +394,12 @@ async fn the_stall_lists_reprices_and_withdraws() {
         !tagged(&lines, "FIELD ").is_empty(),
         "1.5 is not an amount in crowns"
     );
-    let history = facts(&save);
+    // The visitor's own stall: genesis also states a `listed` for every shop price and person ask.
+    let visitor = town["visitor"].clone();
+    let history: Vec<(String, Value)> = facts(&save)
+        .into_iter()
+        .filter(|(_, p)| id(&p["seller"]) == visitor)
+        .collect();
     let types: Vec<&str> = history
         .iter()
         .filter(|(t, _)| ["listed", "price-set", "withdrawn"].contains(&t.as_str()))
@@ -460,7 +489,7 @@ async fn a_world_without_economy_shows_no_trade() {
     let (status, lines) = play(
         world.address,
         "visitor",
-        "trade-e11",
+        "trade-e11-2d",
         &steps,
         &["--world-key=social-cafe"],
     )

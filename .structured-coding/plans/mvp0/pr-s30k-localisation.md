@@ -5,8 +5,8 @@
 **Ruled 2026-10-27 (operator, primary session):** every question below is answered as recommended.
 
 ```text
-Design revision:        revision 1 (2026-10-26), DRAFT. Not frozen. No implementation before an operator ruling on
-                        §15 and a DESIGN FROZEN header written by the primary session on that ruling.
+Design revision:        revision 1 (2026-10-26), frozen 2026-10-27: the operator ruled §15 as recommended
+                        (primary session, 21:11 UTC) and the primary session wrote the DESIGN FROZEN header.
 Author:                 S30-k PR-design session (Opus), worktree /Users/yuema137/mineworld-worktrees/design-s30k,
                         branch docs/pr-design-s30k, planning base origin/main @ 0b2faf2f (#382)
 Proposed split:         two PRs from this one design (Q-S30k-4): S30-k1 the mechanism (§9.1), S30-k2 the zh_Hans
@@ -18,7 +18,7 @@ Execution contract:     §13
 Implementer:            S30-k1: Opus-class session; C5, C6 and C7 may go to Haiku-class sub-agents from this plan,
                         each reviewed by the session. S30-k2: Haiku-class drafting from §5.11's style sheet; an
                         Opus review pass; the operator's spot check (Q-S30k-5)
-Lifecycle:              DRAFT 2026-10-26
+Lifecycle:              FROZEN 2026-10-27 (drafted 2026-10-26; header reconciled 2026-11-27); not yet implemented
 ```
 
 **Effort:** `mvp0` · **Step:** [`step-30-person-attributes.md`](step-30-person-attributes.md) (APPROVED 2026-10-15;

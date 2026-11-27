@@ -28,6 +28,8 @@ import sys
 import tomllib
 from pathlib import Path
 
+from ci_archive import NEXTEST_VERSION
+
 # "FROM image[:tag][@sha256:digest] [AS stage]"; stage-to-stage FROMs ("FROM toolchain AS build") have
 # no registry image and are recognized by naming an earlier stage.
 FROM = re.compile(r"^FROM\s+(?:--platform=\S+\s+)?(?P<image>\S+)(?:\s+AS\s+(?P<stage>\S+))?\s*$", re.I)
@@ -117,6 +119,10 @@ def main() -> int:
     releases = {debian for _, _, debian in rust_tags} | {debian for _, debian in debian_tags}
     if len(releases) > 1:
         problems.append(f"Dockerfile: base images name different Debian releases: {sorted(releases)}")
+    for file in ("Dockerfile", ".github/actions/native/action.yml"):
+        pins = re.findall(r"cargo-nextest@([0-9.]+)", (root / file).read_text(encoding="utf-8"))
+        if pins != [NEXTEST_VERSION]:
+            problems.append(f"{file}: nextest pins {pins} != {NEXTEST_VERSION}")
     problems += unpinned_actions(root)
 
     if problems:

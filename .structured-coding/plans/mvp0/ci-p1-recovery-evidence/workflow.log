@@ -1,0 +1,3 @@
+PASS test: matching OS/trigger/artifact and producer -> shard -> gate dependencies
+PASS test-windows: matching OS/trigger/artifact and producer -> shard -> gate dependencies
+PASS test-macos: matching OS/trigger/artifact and producer -> shard -> gate dependencies

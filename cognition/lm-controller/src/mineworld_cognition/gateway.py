@@ -5,11 +5,16 @@
 1. key material: `canonical_json(request)` — a float raises `KeyMaterialError` (a bug, raised);
 2. budget pre-check against the seat's wall-time windows — over a ceiling, `Refused`, and nothing below
    runs (P5-2);
-3. an in-flight slot (process-wide, first in first out);
-4. the backend (a replay, a recorder around a live backend, a live backend, or a scripted one) within
-   `call_timeout_s`; a cassette miss raises `CassetteMiss`, which is never an outcome;
-5. the charge: one call, and the reported usage (or the estimate, flagged); a failure or a timeout
-   charges the call and no tokens.
+3. the timeout starts: the smaller of `call_timeout_s` and the caller's `timeout_s`, around both the slot
+   and the backend, so a call still queued when it ends never reaches the backend and costs nothing;
+4. an in-flight slot (process-wide, first in first out); the bound is checked again once the slot is held;
+5. the backend (a replay, a recorder around a live backend, a live backend, or a scripted one); a cassette
+   miss raises `CassetteMiss`, which is never an outcome;
+6. the charge, dated when the call reached the backend: one call, and the reported usage (or the estimate,
+   flagged); a failure, a timeout or a cancellation charges the call and no tokens. A cancellation is
+   charged, then raised.
+
+Every exit releases the reservation and the slot it took (ARC-57 dated note 2026-11-27).
 
 `Router.for_tier(tier)` gives the gateway bound to a tier, or None: "no model for this purpose", and
 the controller falls back (P6).
@@ -91,35 +96,46 @@ class ModelGateway:
     async def complete(
         self, seat: EntityKey, request: CompletionRequest, *, timeout_s: float | None = None
     ) -> GateOutcome:
-        """One call. `timeout_s`, when given, is the caller's own bound (a consult deadline); the timeout
-        used is the smaller of it and `call_timeout_s`, so a cut call is charged like a timeout (F-P6-1)."""
+        """One call. `timeout_s`, when given, is what is left of the caller's own bound (a consult's absolute
+        deadline); the bound used is the smaller of it and `call_timeout_s`, and it covers the wait for the
+        slot as well as the backend. A call cut in the backend is charged like a timeout (F-P6-1); a call cut
+        before it reached the backend is `Failed` with reason `queue_timeout` and costs nothing."""
         canonical_json(request)
         budget = self._budget
-        now = budget.clock.now()
         held = reservation(request)
-        refusal = precheck(budget.policy, budget.ledger, budget.reservations, seat, now, held)
+        refusal = precheck(
+            budget.policy, budget.ledger, budget.reservations, seat, budget.clock.now(), held
+        )
         if refusal is not None:
             return Refused(refusal)
-        budget.reservations.hold(seat, held)
         limit = budget.policy.call_timeout_s
         if timeout_s is not None:
             limit = min(limit, timeout_s)
+        budget.reservations.hold(seat, held)
+        started: int | None = None
         try:
-            async with budget.limiter:
-                try:
-                    async with asyncio.timeout(limit):
-                        answer = await self._backend.complete(request)
-                except TimeoutError:
-                    answer = BackendFailure(reason="timeout")
+            async with asyncio.timeout(limit) as bound:
+                async with budget.limiter:
+                    _still_open(bound)
+                    started = budget.clock.now()
+                    answer = await self._backend.complete(request)
+        except TimeoutError:
+            answer = BackendFailure(reason="timeout")
+        except asyncio.CancelledError:
+            if started is not None:
+                budget.ledger.charge(seat, started, calls=1, tokens=0, estimated=False)
+            raise
         finally:
             budget.reservations.release(seat, held)
+        if started is None:
+            return Failed(BackendFailure(reason="queue_timeout"))
         if isinstance(answer, BackendFailure):
-            budget.ledger.charge(seat, now, calls=1, tokens=0, estimated=False)
+            budget.ledger.charge(seat, started, calls=1, tokens=0, estimated=False)
             return Failed(answer)
         usage = answer.usage
         budget.ledger.charge(
             seat,
-            now,
+            started,
             calls=1,
             tokens=usage.input_tokens + usage.output_tokens,
             estimated=usage.estimated,
@@ -137,6 +153,14 @@ class ModelGateway:
 
     def __repr__(self) -> str:
         return f"ModelGateway({self._backend!r})"
+
+
+def _still_open(bound: asyncio.Timeout) -> None:
+    """Raises `TimeoutError` when the bound has passed although the slot was granted: no backend call begins
+    at or after it (the slot's waiter can be woken in the same loop turn the bound ends)."""
+    when = bound.when()
+    if when is not None and asyncio.get_running_loop().time() >= when:
+        raise TimeoutError
 
 
 class Router:
