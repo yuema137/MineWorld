@@ -1,6 +1,6 @@
 # PR design — CI test economy: a full suite that sees every failure, runs once, and is not the only gate
 
-**Lifecycle: DESIGN FROZEN 2026-10-27 (operator approved in the primary session: every question answered as recommended) (2026-10-27). Not frozen. Docs only; no code changes in this PR.**
+**Lifecycle: DESIGN FROZEN 2026-10-27 (operator approved in the primary session: every question answered as recommended). This design PR is docs only; implementation status is recorded separately in the execution contract.**
 Requested by the operator through the coordinator on 2026-10-27: "is running the full milestone suite
 every round necessary, or wasteful? Shard the work and check for over-testing."
 
@@ -378,3 +378,16 @@ seed or world changes**; a test only moves tier or reads a shared save.
   policy; it restores the completeness ARC-110 intended. **Recommend: yes.**
 - **Q-5. Kill-point sampling.** `market_settlement` runs 5 seeded kill points in the gate and 20 in the
   nightly `repeat` group. **Recommend: yes.**
+
+
+## Operator-authorized integration checkpoint — 2026-11-23
+
+P0 implementation/evidence PR #523 is merged at
+`78e49c7fa72c200e7cf9ef661bb15650997d5b40` (approved head `d124baf2`).
+Canonical execution-ledger PR #526 is merged at
+`79c2fc5e362b6ee5776e5b5f4a48bf8a1eeb03b1` (approved head `e7596102`).
+Each passed independent local review and all four required public-head checks
+before normal protected merge. Skipped matrix suites remain unexecuted; this
+checkpoint does not complete P1 hosted acceptance, P2–P5 or the full milestone.
+Immediate next CI work is the separately reviewed P1 candidate's outstanding
+hosted/platform and full-milestone evidence under its existing execution contract.

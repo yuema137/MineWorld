@@ -272,9 +272,11 @@ fn two_d_and_three_d_water_agree() {
         }
         compared += 1;
     }
-    assert_eq!(
-        compared, 3,
-        "social-cafe, lakeside and bodies-yard (16f-b) have both"
+    // social-cafe, lakeside, bodies-yard (16f-b) and market-town (16f-d2) have both today; a world
+    // that gains a second pack is compared without editing this count.
+    assert!(
+        compared >= 4,
+        "social-cafe, lakeside, bodies-yard and market-town have both: {compared}"
     );
 }
 

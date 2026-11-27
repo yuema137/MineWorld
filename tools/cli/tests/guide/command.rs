@@ -87,6 +87,16 @@ pub fn matches(expected: &str, actual: &str) -> Result<(), String> {
         .map_err(|error| error.to_string())
 }
 
+/// `actual` as snapbox's own overwrite would record it against `expected`: the wildcards kept up to the first
+/// line that differs, every line after it literal. Write mode falls back to it (§11.2).
+pub fn snapbox_recorded(expected: &str, actual: &str) -> String {
+    let (actual, _) = Assert::new().normalize(
+        Data::text(actual.to_owned()),
+        Data::text(expected.to_owned()),
+    );
+    actual.render().unwrap_or_default()
+}
+
 /// The address chapter 01 clones. The runner points it at the repository under test (§4.6): the operator's
 /// ruling of 2026-10-18 lets `git clone` read the checked-out copy instead of the network, while the command
 /// itself runs as written.

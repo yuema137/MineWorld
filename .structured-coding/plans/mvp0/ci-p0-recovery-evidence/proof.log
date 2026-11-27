@@ -1,0 +1,102 @@
+[ci] layer proof in /tmp/mineworld-ci-p0-audit/fixture
+[ci] $ cargo test --workspace --no-run --test a --test b
+   Compiling p0-proof v0.1.0 (/private/tmp/mineworld-ci-p0-audit/fixture)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.16s
+  Executable tests/a.rs (target/debug/deps/a-1d9af937b10ee166)
+  Executable tests/b.rs (target/debug/deps/b-1a1f18163e792a02)
+[ci] exit 0 after 0.2 s: cargo test --workspace --no-run --test a --test b
+[ci] $ cargo test --workspace --no-fail-fast --test a --test b
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.00s
+     Running tests/a.rs (target/debug/deps/a-1d9af937b10ee166)
+
+running 1 test
+test fail_a ... FAILED
+
+failures:
+
+---- fail_a stdout ----
+
+thread 'fail_a' (13772999) panicked at tests/a.rs:2:15:
+intentional a
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    fail_a
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--test a`
+     Running tests/b.rs (target/debug/deps/b-1a1f18163e792a02)
+
+running 1 test
+test fail_b ... FAILED
+
+failures:
+
+---- fail_b stdout ----
+
+thread 'fail_b' (13773001) panicked at tests/b.rs:2:15:
+intentional b
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    fail_b
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--test b`
+error: 2 targets failed:
+    `--test a`
+    `--test b`
+[ci] exit 101 after 0.4 s: cargo test --workspace --no-fail-fast --test a --test b
+[ci] $ cargo test --workspace --no-fail-fast --doc
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.00s
+   Doc-tests p0_proof
+
+running 1 test
+test src/lib.rs - marker (line 1) ... FAILED
+
+failures:
+
+---- src/lib.rs - marker (line 1) stdout ----
+Test executable failed (exit status: 101).
+
+stderr:
+
+thread 'main' (13773079) panicked at src/lib.rs:3:1:
+doctest sentinel
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+
+failures:
+    src/lib.rs - marker (line 1)
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+
+error: doctest failed, to rerun pass `--doc`
+error: 1 target failed:
+    `--doc`
+[ci] exit 101 after 0.2 s: cargo test --workspace --no-fail-fast --doc
+[ci] $ /Library/Developer/CommandLineTools/usr/bin/python3 -c 'from pathlib import Path; Path("after-tests").write_text("reached")'
+[ci] exit 0 after 0.0 s: /Library/Developer/CommandLineTools/usr/bin/python3 -c 'from pathlib import Path; Path("after-tests").write_text("reached")'
+[ci] layer proof FAILED at: cargo test --workspace --no-fail-fast --test a --test b
+[ci] layer proof FAILED at: cargo test --workspace --no-fail-fast --doc
+PASS: real Cargo two failing binaries + failing doctest; subsequent command reached; first failure 101 retained; summary includes all failures
+[ci] layer proof in /tmp/mineworld-ci-p0-audit/fixture
+[ci] $ /Library/Developer/CommandLineTools/usr/bin/python3 -c 'raise SystemExit(7)'
+[ci] exit 7 after 0.0 s: /Library/Developer/CommandLineTools/usr/bin/python3 -c 'raise SystemExit(7)'
+[ci] layer proof FAILED at: /Library/Developer/CommandLineTools/usr/bin/python3 -c 'raise SystemExit(7)'
+PASS: non-test failure stops with exit 7 and replaces previous failure summary
+[ci] layer proof in /tmp/mineworld-ci-p0-audit/fixture
+[ci] $ /Library/Developer/CommandLineTools/usr/bin/python3 -c pass
+[ci] exit 0 after 0.0 s: /Library/Developer/CommandLineTools/usr/bin/python3 -c pass
+[ci] layer proof passed: 1 command(s) in 0.0 s
+PASS: successful rerun removes stale failure summary
+PASS: core-repeat has exactly one no-fail-fast flag
+{
+  "ci_layer.py": "2afa010d43d797ff20ed3578c2f28b710aa61f1977d0e1f641413629a2569c2f",
+  "ci_shard.py": "5d76c15cb290be01bfdcc24903f77a8eda7bf89a9d6025d52703a4043b86c122"
+}
