@@ -35,6 +35,7 @@ from mineworld_cognition.controller.consult import (
     NewestState,
     consult,
 )
+from mineworld_cognition.controller.deadline import Expiry
 from mineworld_cognition.controller.failures import FailureRecord
 from mineworld_cognition.controller.log import (
     Counters,
@@ -146,7 +147,7 @@ def _record_one(index: int, gateway: ModelGateway, submits: list[str]) -> Decisi
         clock=lambda: 0.0,
         sleep=_no_sleep,
         policies=_policies(),
-        limits=ConsultLimits(deadline_s=20.0, max_calls=5),
+        limits=ConsultLimits(expiry=Expiry(20.0), max_calls=5),
     )
     result: ConsultRecord = run(
         consult(

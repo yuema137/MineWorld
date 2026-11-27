@@ -37,6 +37,7 @@ from mineworld_cognition.controller.consult import (
     NewestState,
     consult,
 )
+from mineworld_cognition.controller.deadline import Expiry
 from mineworld_cognition.controller.persona import Persona
 from mineworld_cognition.controller.prompt import Trigger
 from mineworld_cognition.controller.retry import BoundRetry, RetryRegistry
@@ -344,7 +345,7 @@ async def _replay_one(gateway: ModelGateway, logged: DecisionRecord) -> ConsultR
         clock=lambda: REPLAY_CLOCK_S,
         sleep=_no_sleep,
         policies=_bundled(),
-        limits=ConsultLimits(deadline_s=REPLAY_DEADLINE_S, max_calls=5),
+        limits=ConsultLimits(expiry=Expiry.after(REPLAY_CLOCK_S, REPLAY_DEADLINE_S), max_calls=5),
     )
     return await consult(
         ConsultInput(
