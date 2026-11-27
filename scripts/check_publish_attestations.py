@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 """Offline regression for publish.yml's attestation command boundary, not cryptographic verification.
 
-Run the real shell block against a fixed producer contract. No gh executable, token or network
-is used. Hosted A-R9 remains the owner of CLI/API and real signed-attestation integration.
+Run the real shell block against the producer contract read from release.yml's `attest` steps (R-b is the
+source of truth for which release asset carries which attestation), so the two workflows cannot drift
+apart while this test stays green. Only the asset names of a release are fixed here. No gh executable,
+token or network is used. Hosted A-R9 remains the owner of CLI/API and real signed-attestation integration.
 """
 
 from __future__ import annotations
 
+from fnmatch import fnmatch
 import json
 import os
 from pathlib import Path
@@ -24,6 +27,29 @@ ARCHIVES = (
 )
 SBOM = "MineWorld-0.1.0-sbom.spdx.json"
 SPDX = "https://spdx.dev/Document/v2.3"
+ASSETS = (*ARCHIVES, SBOM, "SHA256SUMS")
+# release.yml's attest steps by name, and the predicate each one produces.
+PRODUCER_STEPS = (("Provenance attestations", "provenance"), ("SBOM attestations", SPDX))
+
+
+def producer_subjects(release: str) -> list[tuple[str, str]]:
+    """(asset, predicate) for every attestation release.yml's attest steps make, from their subject-path globs."""
+    subjects = []
+    for step, predicate in PRODUCER_STEPS:
+        parts = release.split(f"      - name: {step}\n", 1)
+        if len(parts) != 2 or "subject-path: |\n" not in parts[1].split("      - name:", 1)[0]:
+            raise SystemExit(f"publish-attestations: FAIL: release.yml has no '{step}' step with a subject-path list")
+        listing = parts[1].split("      - name:", 1)[0].split("subject-path: |\n", 1)[1]
+        patterns = []
+        for line in listing.splitlines():
+            if not line.startswith(" " * 12) or not line.strip():
+                break
+            patterns.append(line.strip().rsplit("/", 1)[-1])
+        for pattern in patterns:
+            if not any(fnmatch(name, pattern) for name in ASSETS):
+                raise SystemExit(f"publish-attestations: FAIL: release.yml '{step}' subject {pattern} names no release asset")
+        subjects += [(name, predicate) for name in ASSETS if any(fnmatch(name, p) for p in patterns)]
+    return subjects
 
 
 def attestation_block(workflow: str) -> str:
@@ -33,10 +59,7 @@ def attestation_block(workflow: str) -> str:
     return textwrap.dedent(body).strip()
 
 
-def run_case(block: str, event: str, missing: tuple[str, str] | None) -> list[str]:
-    # Producer contract: raw SBOM has provenance; only archives have SPDX predicates.
-    subjects = [(name, "provenance") for name in (*ARCHIVES, SBOM, "SHA256SUMS")]
-    subjects += [(name, SPDX) for name in ARCHIVES]
+def run_case(block: str, subjects: list[tuple[str, str]], event: str, missing: tuple[str, str] | None) -> list[str]:
     expected = []
     for name, predicate in subjects:
         argv = ["attestation", "verify", name, "--repo", "yuema137/MineWorld"]
@@ -50,7 +73,7 @@ def run_case(block: str, event: str, missing: tuple[str, str] | None) -> list[st
         folder = Path(scratch)
         assets = folder / "assets"
         assets.mkdir()
-        for name in (*ARCHIVES, SBOM, "SHA256SUMS"):
+        for name in ASSETS:
             (assets / name).touch()
         log = folder / "calls.jsonl"
         # The shell function intercepts every gh call, including unexpected commands. It delegates
@@ -76,7 +99,7 @@ def run_case(block: str, event: str, missing: tuple[str, str] | None) -> list[st
     label = f"{event}, missing={missing}"
     if missing is None:
         if result.returncode or sorted(calls) != sorted(expected):
-            return [f"{label}: expected all ten restricted verification calls; rc={result.returncode}, calls={calls}"]
+            return [f"{label}: expected all {len(expected)} restricted verification calls; rc={result.returncode}, calls={calls}"]
     else:
         failed_call = expected[subjects.index(missing)]
         if result.returncode == 0 or not calls or calls[-1] != failed_call:
@@ -87,15 +110,17 @@ def run_case(block: str, event: str, missing: tuple[str, str] | None) -> list[st
 def main() -> int:
     workflow = (ROOT / ".github/workflows/publish.yml").read_text(encoding="utf-8")
     block = attestation_block(workflow)
-    missing_cases = [(name, "provenance") for name in (*ARCHIVES, SBOM, "SHA256SUMS")]
-    missing_cases += [(name, SPDX) for name in ARCHIVES]
+    subjects = producer_subjects((ROOT / ".github/workflows/release.yml").read_text(encoding="utf-8"))
     failures = []
+    cases = 0
     for event in ("release", "workflow_dispatch"):
-        for missing in (None, *missing_cases):
-            failures.extend(run_case(block, event, missing))
+        for missing in (None, *subjects):
+            failures.extend(run_case(block, subjects, event, missing))
+            cases += 1
     for failure in failures:
         print(f"publish-attestations: FAIL: {failure}")
-    print(f"publish-attestations: {'FAILED' if failures else 'PASS'} (22 offline cases; real A-R9 NOT RUN)")
+    print(f"publish-attestations: {'FAILED' if failures else 'PASS'} ({cases} offline cases, subjects from release.yml; "
+          "real A-R9 NOT RUN)")
     return bool(failures)
 
 

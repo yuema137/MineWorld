@@ -615,3 +615,35 @@ ci_layer.py gains one check declaration. Existing shared-script size/integration
 in the backlog audit remains separate; this correction adds no release policy to that script.
 Raw logs and the review-content SHA-256 manifest are in `/tmp/mineworld-pr524-closeout/`;
 this tracked section preserves the observations and their limits beyond those temporary files.
+
+## 16. Recovery, integration with R-b and review follow-ups (2026-11-27)
+
+### 16.1 Recovery after the `/tmp` loss
+
+The §15 correction commit `cc5c298d` was lost when `/tmp` was wiped before it was pushed. It was
+reconstructed by replaying the producer commands in the Codex rollout as `5925e0d7`; `publish.yml`,
+`check_publish_attestations.py`, `ci_layer.py` and the pre-closeout ledger match the recorded
+`review-content.json` SHA-256 values. **Lost and not recoverable** (they were never committed, and §15.3's
+`/tmp/mineworld-pr524-closeout/` no longer exists): `regression.log`, `mutations.log`, `validation.json`,
+`final-state.json`, `correction.patch`, and the review-content manifest file itself. §15.3's tracked
+observations remain the record of those runs.
+
+### 16.2 Integration with R-b (#529) — merge order
+
+`87765453` merged `main` `7718d952` (clean). `6a74ab15` merged #529's head `e9733bde`, resolving the known
+overlap: `scripts/ci_release.py` takes R-b's file, a strict superset of R-d's (only the `self_test()`-only
+call and the usage string differ); `ci_layer.py` keeps one shared `--self-test` followed by R-d's four
+guards; `ARC-79.md` keeps both notes, R-b then R-d. `91c5621d` merged #529's later head `15f91e46`. **#529
+merges first, then this PR**; until then this PR's diff against `main` includes #529 (step-23 §13.6).
+
+### 16.3 Red-team follow-ups (review 2026-11-27, PASS-WITH-FOLLOWUPS)
+
+- [x] **F-2:** `check_publish_attestations.py` no longer hard-codes the producer contract. It reads the
+  subject-path globs of `release.yml`'s `Provenance attestations` and `SBOM attestations` steps and matches
+  them against the release's asset names (the only fixed list). Mutations, each restored afterwards: SHA256SUMS
+  removed from provenance → FAILED (20 cases); raw SBOM added to the SPDX subjects → FAILED (24 cases); step
+  renamed → FAIL naming the missing step. Unmutated: PASS (22 cases).
+- [x] **F-3:** the stale `ci_release.py` docstring sentence saying R-b's commands "are added beside these" is
+  removed.
+- [ ] Open, milestone, operator authorization required: an R-b dry-run dispatch green through Windows, and
+  real A-R9 verification on it (step-23 §13.6).
