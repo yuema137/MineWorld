@@ -292,15 +292,46 @@ ruled with S34-c3's freeze) widen S34-c2. Every prerequisite is merged: S33-b #3
 
 - C1 — data: `world.yaml` (`posture`), the five place files (`sit-points:`, bench `facing`), the depiction
   file, `ARC-147` and `ARC-172` notes, this ledger.
-  - [ ] Implementation · [ ] Validation (`mineworld-posture` `worlds`, `shipped`) · [ ] Review
+  - [x] Implementation (`11c0bb27`) · [x] Validation: `mineworld-posture` `worlds` 2/2 and `shipped` 3/3 PASS on the C1 tree (the generic test now covers Lakeside: it loads under S34-b's check, every point is within reach of a solid, removability holds) · [x] Review: every point traced to the table and a solid; bench facings corrected only where the geometry forbids the authored side (BC-c2-1); no code changed
 - C2 — tests: `tools/cli/tests/lakeside_sit_points.rs` (world points = table; one depiction per point; no
   fallback; clearance and pelvis), the contested fixture in the posture branch, `client_sit_rule.rs` text.
-  - [ ] Implementation · [ ] Validation · [ ] Review
+  - [x] Implementation (`8018d593`; AC-b-7's helper also strips `posture` and `sit-points:`, BC-c2-6) · [x] Validation: see the log · [x] Review: the test reads place files as text (an independent oracle), names no value the System computes; mutations M-c2-1/2 red
 - C3 — Lakeside re-baseline (`scripts/baselines.txt` `[world lakeside]` only) and any Lakeside golden the
   change moves.
-  - [ ] Implementation · [ ] Validation · [ ] Review
+  - [x] Implementation: `[world lakeside]` only, from one local long record of `8018d593` (Darwin/arm64,
+    `ci_parity.py record --profile long`, 2 687 s; Python 3.12, since the slot's `/usr/bin/python3` 3.9 lacks
+    `tomllib`); `baseline write` was run on a scratch copy and only Lakeside's six keys were copied over, with
+    a `reason S34-c2` line. `doorways-only-30d-seed7.txt` did not move (BC-c2-6).
+    · [x] Validation: `baseline check` of the record against the new file reports no Lakeside difference.
+    The same record differs from main's committed sections for bodies-yard, market-town and social-cafe too
+    (bodies-yard has no posture, so this is main's drift since those were last recorded). Those sections are
+    untouched (AC-c-7 holds for this PR: bodies-yard's data is unchanged); that drift is left to main's next
+    re-record. A 30-day seed-7 Lakeside run: `sat-down 45`, `stood-up 45`, `faults 0`.
+    · [x] Review: only Lakeside's section changed (`git diff scripts/baselines.txt`: 7+/6−); the reason line
+    says that main's drift is folded in, as S33-b's did.
 
 **Validation log.** (filled below as runs complete)
+
+- **BC-c2-6 (AC-b-7 in `lakeside_bodies.rs`).** `without_bodies_only_the_doorways_moved` FAILED on the C1
+  tree (day-1 facts 2 507 vs the fixture's 2 502): removing `bodies` left `posture` and its sit points in,
+  which S33-b's recording (before posture) does not describe. Fixed in the test, not the fixture: a new
+  `without_bodies_or_posture` also removes `posture` and every `sit-points:` (I-c-2), so the evidence
+  recorded at `30b7c521` still applies unchanged. NW-3's comparison keeps `without_bodies` (posture on both
+  sides).
+
+| Check (tree) | Verdict | Evidence |
+| --- | --- | --- |
+| `cargo test -p mineworld-posture --test worlds --test shipped` (C1) | PASS | 2 + 3 passed |
+| `cargo test -p mineworld-cli --test lakeside_sit_points` (C2) | PASS | 3 passed |
+| `--test lakeside_bodies` (C2) | PASS | 4 passed (AC-b-7 after BC-c2-6) |
+| `--test milestone_e --test furnishings --test layout --test needs_sections --test sleep_sections --test newsstand --test activity_length` (C1 + tests) | PASS | 7, 5, 4, 6, 2, 6, 1 passed |
+| `--test ac13_clients` | INCONCLUSIVE | 3 ignored (need Godot/the clients; not run) |
+| `--test price_reporter` `clerk_publishes_and_keepers_follow` | FAIL, pre-existing | same failure ("no keeper moved away", 6 vs 0) at base `origin/main @ 7718d952` with this PR's changes stashed; it reads Social Café and Market Town only. Not this PR's; reported |
+| `cargo test -p mineworld-cli --test client_sit_rule -- --ignored` (Godot 4.7, C2) | PASS | 2D and 3D both `SEATED 102 7 long-table.3`, `SEATED 103 7 long-table.3`; nobody at 100/101 |
+| M-c2-1: `pier-bench.2` moved to y 700 (into the bench) | PASS (red) | all three `lakeside_sit_points` tests red; load refused `bodies-fixed-point-in-solid`; "0 mm from the solid (450, 300, 3550, 750)"; reverted |
+| M-c2-2: depiction `tree-bench-east.3` deleted | PASS (red) | "square/tree-bench-east.3: no depiction"; one-to-one assertion red; reverted |
+| `cargo fmt --all -- --check`; `cargo clippy -p mineworld-cli --test lakeside_sit_points --test lakeside_bodies --test client_sit_rule -D warnings` | PASS | clean |
+| 3D `--seat` probe (`ci_godot.py slice --world=lakeside --seat`) | NOT RUN | needs a windowed Godot and a server; the depiction binding it reads is pinned by `lakeside_sit_points`; left to the clients-probes CI layer |
 
 ## 12. Operator questions (each with a recommended answer)
 
