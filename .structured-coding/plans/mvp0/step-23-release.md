@@ -658,6 +658,26 @@ None of the four blocks an MVP-0 acceptance criterion; MVP-0's acceptance does n
   itch app installs and opens it on one OS, Zenodo shows a record with a DOI (or QR-9 rules candidates out).
 - **Adversarial:** A-R9, A-R10.
 
+## 13.6 Merge order and pre-tag checklist (recorded 2026-11-27, red-team review of #529 / #524)
+
+Merge order is a hard dependency, not a preference:
+
+- [ ] **#529 (R-b) merges before #524 (R-d).** #524's head contains #529's head and resolves their overlap in
+  `scripts/ci_release.py`, `scripts/ci_layer.py` and `docs/decisions/ARC-79.md`; merged the other way round,
+  #529 would conflict with `main`.
+- [ ] **#524 (R-d) is merged before any real tag.** R-b's `verify-tag` runs `ci_release.py citation` on a real
+  tag (`release.yml`, citation step, tag runs only), and `CITATION.cff` arrives with R-d. Until R-d merges, a
+  real tag fails at that step by design (R-d owns `CITATION.cff`). Dry runs are unaffected.
+
+Before the next real tag (not required before either merge; each needs operator authorization):
+
+- [ ] A `release.yml` dry-run dispatch (`workflow_dispatch`, `draft: true`) on the merged R-b + R-d `main`
+  that is green through the Windows bundle and smoke legs (review F-1: the Windows `tar` fix of #529 has only
+  POSIX-seam evidence; run 40587709153 shows the defect, not the fix).
+- [ ] Real A-R9 attestation verification (`gh attestation verify`, provenance and SPDX) against that draft.
+- [ ] Operator-side items of §13.5 (itch page and key, `itch` Environment, Zenodo) before the first live
+  publish.
+
 ---
 
 # 14. Adversarial criteria (fixed before measuring)
@@ -1316,6 +1336,17 @@ D-Ra-4; C4's 3D half and C6 wait for the rulings.
 | 2026-10-26 | Operator size ruling: (1) one shared Godot runtime — delivered in full by #419 (S23-RT); (2) every character base colour ships at 1024², overriding Q-S26-5 — the town body's albedo role now takes the cast's cap (`DEP-162` dated note, PR `fix/pack-size-1024`). Measured after, `3d.pck` / archive: macOS universal 236.4 / 344.6 MB, Linux x86_64 236.4 / 312.1 MB, Windows x86_64 236.4 / 322.2 MB, all under the hard limits (250 / 400). Linux and Windows archives use the macOS server as a stand-in, so they are upper bounds | `DEP-162`; `package.py assemble` budget lines |
 
 ## 18.7 RL-b's head checked against MS-Ra-1 and MS-Ra-2 (2026-10-10)
+
+**Dated correction, 2026-11-22:** PR #530 is merged as
+`b457a94d9a1ace6a39005de683cc393886e19288`, reviewed head `4cd160bb`.
+The historical tools dependency below is now repaired by a runtime-owned physics
+diagnostic explicitly preloaded by both consumers. Current `tools/*` exclusion
+remains intact; the older recommendation not to exclude the whole directory is
+superseded. Real exported baseline/fixed regression, local independent review and
+exact-head fast/removability checks passed. Supplemental full link used a cached
+server and is not complete release provenance. This closes the narrow dependency
+defect, not the remaining integrated launcher/windowed/cross-platform acceptance.
+See `pr-fix-packaged-physics-probe.md` for the approved merge and evidence boundary.
 
 A detached scratch worktree at `origin/mvp0/pr-rl-b-3d-budget @ 8f0853c` ("RL-b final re-measure on the
 ruled head"), under `/Users/yuema137/mineworld-worktrees/scratch-s23-ra/rlb`; nothing written in

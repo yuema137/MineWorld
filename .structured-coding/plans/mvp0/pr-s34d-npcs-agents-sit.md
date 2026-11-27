@@ -4,12 +4,12 @@
 
 ```text
 Design revision:        revision 1 (2026-10-26), DESIGN FROZEN 2026-10-27 (operator approved in the primary session: every question answered as recommended)
-Approved by / evidence: none yet — awaiting the operator's freeze (questions in §14)
+Approved by / evidence: the operator, 2026-10-27 (primary session, 21:11 UTC): §14 answered as recommended
 Implementation base:    origin/main @ 0b2faf2f (#382)
-Start condition:        this design frozen. S34-c1 is merged (#368). S34-c2 (Lakeside) is not required to
-                        start: Lakeside joins every test of this PR by discovery when it lands (Q-S34d-3)
+Start condition:        this design frozen (met 2026-10-27). S34-c1 is merged (#368). S34-c2 (Lakeside) is not
+                        required to start: Lakeside joins every test of this PR by discovery when it lands (Q-S34d-3)
 Execution contract:     §12
-Lifecycle:              DRAFT — not frozen
+Lifecycle:              FROZEN 2026-10-27 (header reconciled 2026-11-27); not yet implemented
 ```
 
 **Dated note, 2026-10-27 (operator ruling Q-S34c3-3; SD-c3-5 in

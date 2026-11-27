@@ -33,8 +33,8 @@ func choose(observation, point: String) -> Dictionary:
 	_walking = {}
 	var offer := _offer_for(observation, point)
 	var reason: Variant = offer.get("unavailable_reason")
-	# A point the frame offers nothing for (out of reach of the observation) is walked to as well;
-	# the newest offer is read once the walk ends.
+	# A disclosed point outside the server's offer window still supplies a walk destination
+	# (Q-S34c3-3). No client distance test substitutes for that server answer.
 	if offer.is_empty() or reason == "too_far_away":
 		var at: Variant = _disclosed_at(observation, point)
 		if at != null:

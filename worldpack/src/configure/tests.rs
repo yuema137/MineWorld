@@ -656,6 +656,62 @@ fn the_comparator_refuses_changed_removed_and_added_configuration() {
     assert_eq!(added.saved, "nothing");
 }
 
+/// S31-b2 (operator ruling 2026-10-27): a configuration-typed fact a system stated while genesis was
+/// reduced — caused by another genesis fact, not by genesis itself — is not compared, since assembly
+/// never re-states it; a configuration-typed fact genesis stated is still compared.
+#[test]
+fn the_comparator_ignores_facts_stated_by_reactions_during_genesis() {
+    let genesis = |configuration| {
+        seeded_pack(configuration)
+            .assemble()
+            .expect("assembles")
+            .facts
+    };
+    let owners = BTreeMap::from([(
+        <Configured as mineworld_contracts::Event>::EVENT_TYPE,
+        Probe::ID,
+    )]);
+    let step = |step: u32| {
+        vec![found(
+            Capability::Presence,
+            serde_json::json!({ "step": step }),
+        )]
+    };
+    let mut save = saved(&genesis(step(5)));
+    let first = save[0].id();
+    let reacted = saved(&genesis(step(7)))
+        .into_iter()
+        .find(|fact| *fact.event_type() == <Configured as mineworld_contracts::Event>::EVENT_TYPE)
+        .expect("the configuration fact, not the initial arrival");
+    save.push(EventEnvelope::new(
+        EventId::from_raw(99),
+        WorldTime::EPOCH,
+        reacted.payload().clone(),
+        Causation::Event(first),
+        reacted.visibility().clone(),
+        Provenance::new(Probe::ID),
+    ));
+    assert_eq!(
+        compare(&save, &genesis(step(5)), &owners),
+        Ok(()),
+        "a reaction's fact is not configuration"
+    );
+
+    let mut stated = saved(&genesis(step(5)));
+    stated.push(EventEnvelope::new(
+        EventId::from_raw(99),
+        WorldTime::EPOCH,
+        reacted.payload().clone(),
+        Causation::WorldGenesis,
+        reacted.visibility().clone(),
+        Provenance::new(Probe::ID),
+    ));
+    let drift = compare(&stated, &genesis(step(5)), &owners).expect_err("genesis stated it");
+    assert_eq!(drift.system, Probe::ID);
+    assert!(drift.saved.contains(r#"{"step":7}"#), "{drift:?}");
+    assert_eq!(drift.here, "nothing");
+}
+
 /// IA-4 (a) through the hosts' own entry point (R-IA-1, M-IA4d): `WorldPack::check_configuration`
 /// builds its filter, assembles the pack and maps the drift. An unchanged configuration is accepted; a
 /// changed and an added one are each `ConfigurationDrift` naming the probe. (A configuration removed

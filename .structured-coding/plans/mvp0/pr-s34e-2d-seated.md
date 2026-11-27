@@ -4,11 +4,11 @@
 
 ```text
 Design revision:        revision 1 (2026-10-26), DESIGN FROZEN 2026-10-27 (operator approved in the primary session: every question answered as recommended)
-Approved by / evidence: operator ruling 2026-10-27 (§13), recorded in legacy commit 6736d63e; recovery dispatch 2026-11-22
+Approved by / evidence: the operator, 2026-10-27 (primary session, 21:11 UTC): §13 answered as recommended; S34-B amendment approved 2026-11-22 (§13)
 Implementation base:    origin/main @ 0b2faf2f (after #301 S34-a, #363 S34-b, #368 S34-c1, #462 S33-f)
-Start condition:        met; recovery from reviewed local base listed in §12
+Start condition:        this design frozen by the operator (met 2026-10-27)
 Execution contract:     §10
-Lifecycle:              LOCAL REVIEW READY; execution closed pending coordinator integration (recovery closeout below)
+Lifecycle:              FROZEN 2026-10-27; implementation rebuilt after the /tmp loss and published 2026-11-27 (§12, last sections); not merged
 ```
 
 **Dated note, 2026-10-27 (operator ruling Q-S34c3-3; SD-c3-5 in
@@ -987,3 +987,73 @@ retains that actual executable checkpoint. Final test comparator SHA and all
 191 retained evidence hashes are recorded outside the bundle. No re-export or
 repeat broad suite is required for the test-only correction. The reviewer will
 record the final source commit and doorway supplement in its external report.
+
+### Reconstruction after the /tmp loss — 2026-11-27
+
+The reviewed S34-e branch, its tests and its evidence under `/tmp` were lost. This section records how
+the PR was rebuilt; nothing above it is rewritten. Owner: the S34-e execution lane, worktree
+`mineworld-worktrees/impl-s34e-seated`, branch `mvp0/pr-s34e-seated`, from `recovered/client-703aa8dc`
+(`ff4e41e3`) merged with `origin/main` @ `8c971f0f` (F-RC-7 merged as #532; clean merge). Scope,
+invariants, acceptance and the approved S34-B amendment are unchanged.
+
+**Sources.** The recovered stack (`59b442cc`, `301e3c28`, `eacb816d`, `ff4e41e3`; see the recovery
+notes in `recovered-client/.recovery/RECOVERY.md`) supplied the shipped GDScript (token-exact against the
+exported package), this ledger (byte-exact) and the Café depictions. The original implementation thread
+(Codex rollout `01a20603-a6c6-…` under the account-4 session store, which the first recovery did not
+search) holds every command input and every apply-patch file change of the C1–C6 work. It was replayed
+in order into an isolated scratch clone of `003d3543` under a write-restricting `sandbox-exec` profile:
+apply-patch changes applied strictly, every recorded shell/Python/heredoc/`rustfmt` command re-run with
+`/tmp` paths remapped; `cargo`, `gh` and non-generator Godot runs stubbed. The measurement generators
+were re-run for real: `measure.py`, `surfaces.py`, `placements.py`, `stage-engine.py` (imported model
+caches from the F-RC-7 checkout `pub-frc7`, source-hash checked by the script), the Godot 4.7.2
+`engine.gd` measurement, `close-engine.py`, `freeze-legacy.gd` (against the pre-amendment shared rule as
+it stood at that point of the replay) and `author-approved.py`, which writes both Café depiction files and
+`seat-surfaces.json` in one step.
+
+**Byte-level verification of the replay.**
+
+| Check | Result |
+| --- | --- |
+| Legacy snapshot manifest | SHA256 `8fa5745c…` = recorded |
+| Regenerated `ENGINE-B-PACKET.md` | SHA256 `c7727ba6…` = the approved packet: every engine-measured anchor and height reproduced; engine log again reports 3 models, 9 seats, 11 imported, 0 fallbacks |
+| `social-cafe.yaml`, `market-town.yaml` (same generator as the fixture) | byte-identical to the recovered copies taken from the package |
+| `app.gd`, `people.gd`, `seating.gd`, `intents.gd`, `presentation.gd`, `walker.gd`, `interact.gd`, 2D `seat_check.gd`, both 3D seating files, 3D PRESENTATION, `client_rules.rs` | byte-identical to the recovered commit |
+| Lost files vs the recorded 003d3543..703aa8dc stat | `client_2d_sit.rs` 242, `sit_point_depictions.rs` 177, `seat-surfaces.json` 3490, `sit_pose_check.gd` 94, `sit_chain_check.gd` 148, `client_sit_rule.rs` +348/−16 (364), 2D PRESENTATION +11/−1, shared README +4/−1, ARC-145 +20, ARC-147 +14: all equal |
+| Saved partial oracles | `client_2d_sit.rs` lines 1–160 and `client_sit_rule.rs` lines 1–100 identical |
+
+**What is recovered-exact vs redone.**
+
+- *Recovered exact (replayed):* `tools/cli/tests/{client_2d_sit,sit_point_depictions,client_sit_rule}.rs`,
+  `tools/cli/tests/fixtures/seat-surfaces.json` (re-measured; the generator is byte-verified above),
+  `clients/shared/checks/{sit_pose_check,sit_chain_check}.gd`, `clients/2d/PRESENTATION.md`,
+  `clients/shared/README.md`, the ARC-145 and ARC-147 notes.
+- *Original comments restored:* `sit_rule.gd`, `sit_chain.gd`, 3D `checks/seat_check.gd`,
+  `seated_sprite.gd`, `harness/sitting.gd`, `harness/seated_sprite_check.gd`. The recovered versions were
+  token-exact with reconstructed comments; the replay differs from them in comment lines only.
+- *Regenerated, not exact:* `tests/fixtures/observations/sitting/posture-{social-cafe,market-town}.json`.
+  The raw recordings were lost; `client_2d_sit` was re-run with `S34E_RECORD_DIR` on this head and the
+  original projection script applied unchanged except for its dated provenance sentence. Structure
+  equals the original (4 frames per world, 861 lines each); raw SHA256 is recorded in each file's `about`.
+  `clients/shared/checks/sit_pose_check.gd.uid` is a new uid (the original was never exported).
+- No expected value, tolerance or assertion was written by hand; nothing was weakened.
+
+**Validation on this tree** (base `b793698b` plus the working-tree changes committed next; Godot 4.7.2,
+through `cast-slots/with-slot.sh`, own target dir):
+
+| Check | Result |
+| --- | --- |
+| `client_2d_sit -- --ignored` (live, hosted, both worlds; also the recording run) | PASS, 2 tests, 30.39 s, no script error |
+| `client_sit_rule -- --ignored` (recorded/generated cross-client comparator, actual 2D and 3D nodes) | PASS, 3 tests, 79.47 s |
+| `sit_point_depictions` (independent oracle, 47 rows) | PASS, 2 tests |
+| `mineworld-acceptance --test client_rules` | PASS, 13 tests |
+| `sit_chain_check.gd`, `sit_pose_check.gd`, `seated_sprite_check.gd` | PASS each (the first chain run parsed before the shared project's class cache existed; rerun after `--import`: PASS) |
+| `check_client_rules.py`, `check_doc_headings.py`, `check_decision_ids.py`, `rustfmt --check`, `git diff --check` | PASS |
+| `scripts/check_packaged_seating.py`, mutations X-e-1…7 and the axis mutations, full suites | NOT RUN (export-scale cost; mutations were recorded in the original evidence and not repeated) |
+
+Coordination: no world golden was re-recorded; the two posture fixtures are this PR's own files. No file
+of S34-c2 or S34-d1 is touched. The stacked startup/launcher commits touch none of this PR's files.
+
+First PR CI (`fast`, head `4214f42d`) FAIL at `cargo fmt --all --check`: `client_rules.rs` (a recovered,
+replay-identical file) wrapped one `for` header differently under CI rustfmt 1.9.0. Fixed by `cargo fmt`
+(formatting only); local `cargo fmt --all --check` and `cargo clippy -p mineworld-cli -p
+mineworld-acceptance --all-targets --all-features -D warnings` PASS before the push.

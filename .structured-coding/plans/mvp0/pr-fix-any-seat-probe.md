@@ -484,3 +484,55 @@ Release gates (fresh server provenance, platform/windowed/both-mode/full release
 
 Evidence-only commit: staged this ledger alone; final `git diff --check` PASS and
 `python3 scripts/check_doc_headings.py` PASS (254 sections / 337 documents). No executable edits.
+
+### Publication checkpoint — 2026-11-27
+
+Primary coordinator dispatch (operator: push everything reviewable forward) authorizes push, PR
+open/update and CI repair for this branch; merge, tag and release dispatch remain NOT authorized.
+Independent exact-head review PASS on `003d3543` was recorded by the coordinator
+(`handoff-coordinator.md` §F-RC-7); its `/tmp` review file and all `/tmp` evidence above
+(`/tmp/mineworld-any-seat-probe`, `/tmp/mineworld-any-seat-final-evidence`) were lost on reboot, so the
+packaged rows above are historical evidence for PCK `8b261348…` built from `6254f2a9`, not re-run here.
+
+Merge, not rebase (S34-e stacks on this branch): merge commit `506e5be1` brings origin/main `02b17504`
+into `003d3543`; no conflicts. Main changed none of this PR's paths since base `4cd160bb`
+(only `.github/actions/layer/action.yml` among client/CI paths).
+
+Local checks on merged executable head `506e5be1` (worktree `mineworld-worktrees/pub-frc7`,
+Godot 4.7.2, one cast slot): `git diff --check origin/main HEAD` PASS;
+`python3 scripts/check_doc_headings.py` PASS (255 sections / 337 documents);
+`python3 scripts/ci_godot.py --self-test` PASS; `godot --headless --path clients/3d-spike --editor --quit`
+rc 0, no script/parse errors (PASS); `godot --headless --path clients/3d-spike --script
+res://tools/test_probe_verdict.gd` rc 0, `all verdict regression checks pass` (its `FAIL:` lines are
+the regression's deliberate injected failures) PASS. Packaged link runs NOT re-run (not cheap; no PCK
+/server change since `6254f2a9`). Remote CI on the exact final head is recorded in the PR.
+Open limitations unchanged: cached-server exact-head provenance unproven; Lakeside cases are augmented
+diagnostics, not shipped-world proof; release gates remain open.
+
+### Red-team review disposition — 2026-11-27 (PR #532)
+
+Independent red-team review of head `47e7f078` (= merge `506e5be1` + ledger): PASS-WITH-FOLLOWUPS, no
+blocking defect (coordinator copy `mineworld-worktrees/_reviews/frc7.md`, outside the repository).
+
+- F-1 (medium) FIXED in this PR at coordinator direction: nothing in CI ran `tools/test_probe_verdict.gd`.
+  `.github/workflows/ci.yml` `fast` now runs it right after `ci_gdparse.py` (which leaves the 3D project
+  scripts-only imported): `godot --headless --path clients/3d-spike --script res://tools/test_probe_verdict.gd`,
+  PASS only on exit 0 AND the exact summary line `all verdict regression checks pass`. No new workflow, job or
+  script. Local: YAML loads; the step's shell run verbatim (RUNNER_TEMP set to the worktrees directory, one cast
+  slot) printed the summary and returned 0 — PASS on this worktree's full import; the CI scripts-only import is
+  proven only by the remote `fast` run on the final head.
+- F-2 (low) OPEN LIMITATION: every `/tmp` evidence artifact (bundle, prepare/provenance/log-hash JSON, client
+  logs, untracked driver scripts) is lost; the ledger hashes can no longer be checked against bytes, and the
+  cached server's exact-head provenance was never proven. Packaged rows are historical. Nightly
+  `ci_godot.py slice` / release gates (fresh server provenance, windowed, both-mode, cross-platform) stay open.
+- F-3 (low) OPEN LIMITATION: Lakeside takes `_route_check` before the new link routing, so alba/bruno prove only
+  that the unchanged route passes on the new PCK. New any-seat routing is exercised on social-cafe and
+  market-town (café-shaped) only; do not generalise the claim to other depiction shapes.
+- F-4 (low) OPEN LIMITATION: two failure classifiers — the GDScript collector (`slice_probe_verdict.gd`) also
+  matches `[FAIL]`, `OUT OF RANGE` summaries, `CONVERSATION CHECK FAILED (` and `CAST CHECK FAILED (`, which
+  Python `judge_probe` (`scripts/ci_godot.py`) does not. Divergence is only stricter (a Python-PASS run may exit
+  1); `ci_godot.py` judges by verdict lines, not exit status. Vocabulary changes must update both.
+- F-5 (info) noted, no change: `_first_room_place` reads `depiction.doors()` where `_room` reads
+  `SliceDoors.rows`; ancestry bound 7 vs `_cross`'s eight-place bound; `no-summary` child guard is weak.
+- Inherited size debt (`slice_probe.gd` ~1393, `slice_probe_world.gd` ~1792 lines) remains open, not grown
+  materially here; a split of the multi-mode probe files should be scheduled separately.

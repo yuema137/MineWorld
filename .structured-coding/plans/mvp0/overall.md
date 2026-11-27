@@ -1687,3 +1687,129 @@ finding against the S2 gate in §2, not a style note.
   off; their obligations are met procedurally.
 - Synchronization owner for parent-document updates after a merge: the planning session, per
   the skill default. The implementation session owns updating its own PR document.
+
+
+## Operator requirement recorded 2026-11-22 — intent to a playable world
+
+The operator clarified the product destination during the Codex handover: anyone should be
+able to compose worlds, objects and interactions, structured memories, and strategies using
+MineWorld infrastructure, supported by rich playable demonstrations. Onboarding must ultimately
+accept a few sentences or a simple Markdown brief and let an agent build and launch a playable
+world in one user-facing step. This makes the creator experience in `docs/VISION.md` §5 an
+explicit end-to-end product goal.
+
+This entry records the requirement; it is not a DESIGN FROZEN implementation contract and does
+not silently amend the approved MVP-0 release scope. A subsequent design must define the input
+contract, supported world capabilities, installation and generation path, failure recovery,
+resource/spending limits, and measurable acceptance. Its evidence must include at least two
+materially different briefs, generated artifacts, a real server/client interaction, persistence
+and restart, elapsed time, and manual interventions. Existing executable guide checks and
+recorded model-free MCP play sessions are prerequisites, not proof of agent-authored worlds.
+The coordinator must explicitly resolve release placement when that design is reviewed.
+
+## Operator ruling recorded 2026-11-22 — S30-j runtime fidelity A
+
+The operator approved “采用 A，按推荐修改并审查验收契约” for F-S30j-10.
+The bounded runtime acceptance amendment is recorded in step-30 §16.4 and the
+S30-j PR ledger §16. It preserves independent-draw production semantics and fixed
+inputs, keeps balance tolerances for eligible stratified attributes-owned rows,
+and requires direct independent-draw correctness/invariance checks with retained
+full discrepancy diagnostics and historical FAIL evidence. This is neither a
+release-scope reduction nor an automatic acceptance PASS. The amendment subsequently
+passed independent design and final review at executable/test head `7628805f`, with
+final documentation head `22e34273`. Targeted local tests and four discriminating
+mutations passed; original failed evidence remains unchanged. Cross-platform digest
+comparison and other recorded integration gates remain open; S30-j stays release-blocking.
+
+## Operator delivery target recorded 2026-11-22 — first MVP within two days
+
+The operator requests the first MVP within two days (target: 2026-11-24 evening,
+America/Los_Angeles), with timely updates to the existing progress page and tangible
+playable output. This establishes priority and target, not a waiver of approved
+MVP scope or unexecuted acceptance. The coordinator must distinguish local reviewed
+implementation, public PR/merge state, actual playable artifacts and full acceptance.
+
+The immediate checkpoint is an honestly labelled local macOS 2D/3D candidate, followed
+by integration, persistence and hands-on acceptance. A previously built exact-source
+`bcee3173` candidate already passed packaged 2D/3D/both smoke and a saved-history replay,
+but its review found an exported 2D resource-root omission causing a 477 mm seat-pose
+error and a separate unresolved windowed-click failure. Those concrete delivery defects
+are the active packaging lane's priority. Existing complete-MVP obligations remain;
+the evidence does not yet justify a guaranteed full-scope two-day delivery claim.
+Unproven CI P3 performance work must not displace these playable-delivery repairs.
+
+Confirmed delivery checkpoint: PR #530 merged at 2026-11-23T05:01:29Z (November22
+Pacific), merge `b457a94d9a1ace6a39005de683cc393886e19288`, after explicit operator
+approval of reviewed head `4cd160bb`. The runtime diagnostic export dependency is
+closed; current tools exclusion is preserved. This is one completed repair PR,
+not full release or MVP acceptance. Step-23 §18.7 and the repair PR ledger record
+the same result. Remaining local stacks and playable validation continue separately.
+
+### November 23 actual play feedback and playable-MVP reconciliation
+
+The local trial artifact subsequently completed its bounded graphical/pose/replay
+checks at source `703aa8dc` (export `e3f20718`), but actual operator play exposed
+startup feedback and living-world integration gaps. The successful scripted
+checks above do not establish meaningful resident behavior or complete gameplay.
+The operator's clarified first-MVP loop and current audit are recorded in
+[the playable-MVP reconciliation](operator-playable-mvp-20261123.md). It records
+requirements and draft implementation amendments, not a new blanket design freeze.
+
+Current repairs: truthful startup UI; packaged town-controller activation; private
+local-host clock capability. Operator explicitly approved reuse of existing
+getrandom for that capability. Demo requirements: USD 10,000 initial new-player
+assets, realistic configured item prices, **2000 kcal/day configurable**, persistent
+contextual resident memory and the shopping/consumption/save-resume player loop.
+Existing hunger units and template replies do not satisfy those new requirements
+by relabeling. Social Cafe remains a removal witness; Market Town's richer actual
+packaged play must be validated. Shop hours, personal residence semantics and
+single-player sleep advance have explicit design gaps in the reconciliation.
+Update 2026-11-27: shop hours (PR N1) and single-player `sleep-until` advance
+(PR N2) are DESIGN FROZEN in [`pr-nightlife.md`](pr-nightlife.md) (operator ruling
+Q-L1 … Q-L5 as recommended; private residences deferred). N1 can start on main;
+N2 follows N1, and its packaged client commit waits for launcher prerequisites P1–P3.
+
+Operator also requests a future scalability/hosting plan for hundreds/thousands
+of residents while retaining clean code and measured performance. Section7 of
+the reconciliation records cost domains, proposed experiments, local-to-hosted
+deployment stages and upgrade triggers. No unsupported capacity number, hosted
+infrastructure purchase or new heavy benchmark is authorized by that roadmap.
+
+
+## Operator-authorized backlog integration checkpoint — 2026-11-23
+
+Five PRs merged after explicit operator authorization, independent review and
+required checks: #521 water corpus test (`2d93776d`), #522 system-version
+expectations (`1fe14a51`), #523 Cargo failure reporting/evidence (`78e49c7f`),
+#525 guide recording boundary validation (`02b17504`), and #526 canonical CI
+execution ledger (`79c2fc5e`). Targeted local evidence is retained separately
+from remote checks; skipped full matrices are not suite passes.
+
+These merges close bounded backlog work. They do not complete playable MVP
+acceptance. Release #498/#524/#529, actual startup performance, final exported
+living-world trial, and the proposed nutrition/dialogue/nightlife work remain
+open at their documented boundaries. Next ready delivery work is startup
+measurement/packaging validation followed by the existing integration trial;
+nutrition engine design is independently reviewed before operator freeze.
+
+## Dialogue + memory design frozen — 2026-11-27
+
+Operator ruling 2026-11-27 ("同意三个都按推荐冻结"): Q-D1…Q-D5 of
+[`pr-playable-dialogue-memory.md`](pr-playable-dialogue-memory.md) answered as recommended; design
+DM-20261127-3 is DESIGN FROZEN with its contract
+[`pr-playable-dialogue-memory-contract.md`](pr-playable-dialogue-memory-contract.md). R1 local runtime
+(installed Python + local `qwen3.5:4b`, rule-only fallback); Market Town profile (LM Alice, human Vera, 3D
+Wes); bounded local live gate (≤ 8 calls, ≤ 180 s inference, $0). Delivery is two PRs: PR-A (C1, absolute
+consult deadline and gateway accounting, `ARC-57` dated note) on `main` @ `8c971f0f`; PR-B (C2–C5: profile,
+supervised cognition child, corrected-recall acceptance, package and live gate) after the recovered client
+integration stack (`e37ce9fd`) and PR-A merge. Bounded resolutions B1–B3 (`--fresh` deletes the world's
+cognition store; per-user cognition profile; cross-platform CI with a Mac-only live gate) are recorded in the
+design §0 and may be overruled by the operator. Operator check 2 stays open until PR-B's live gate passes.
+
+## Nutrition engine design frozen — 2026-11-27
+
+Operator rulings 2026-11-27 ("同意三个都按推荐冻结"; "营养设计那两点、S34-c3 也全都同意你的推荐"): Q-FE-1…Q-FE-6 and
+C-FE-2 of [`step-fe-food-energy.md`](step-fe-food-energy.md) answered as recommended. PR FE-a
+([`pr-fe-a-food-energy-engine.md`](pr-fe-a-food-energy-engine.md), contract
+[`pr-fe-a-contract.md`](pr-fe-a-contract.md)) is DESIGN FROZEN on `main` @ `24dbc3bf`. Market Town content
+PR FE-b stays blocked on its own design and freeze.

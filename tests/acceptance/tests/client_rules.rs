@@ -847,7 +847,9 @@ const SITTING_DIR: &str = "clients/shared/sitting/";
 /// The component types the posture System Pack declares: every `component_type = "…"` line of its source.
 fn posture_component_types(root: &Path) -> Vec<String> {
     let mut types = Vec::new();
-    for entry in std::fs::read_dir(root.join("systems/posture/src")).expect("the posture source reads") {
+    for entry in
+        std::fs::read_dir(root.join("systems/posture/src")).expect("the posture source reads")
+    {
         let path = entry.expect("a directory entry").path();
         if path.extension().is_none_or(|extension| extension != "rs") {
             continue;

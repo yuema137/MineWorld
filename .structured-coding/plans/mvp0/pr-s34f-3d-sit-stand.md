@@ -4,12 +4,15 @@
 
 ```text
 Design revision:        revision 2 (2026-10-26), DESIGN FROZEN 2026-10-27 (operator approved in the primary session: every question answered as recommended) — R2: recorded mocap replaces code-built clips (§15)
-Approved by / evidence: none yet — awaiting the operator's freeze (questions in §14)
+Approved by / evidence: the operator, 2026-10-27 (primary session, 21:11 UTC): §14 answered as recommended,
+                        including the CMU mocap licence exception, whose recommendation was conditional on the
+                        operator reading http://mocap.cs.cmu.edu/faqs.php; committing CMU-derived clips waits
+                        for the operator's confirmation of that reading (not recorded as of 2026-11-27)
 Audit base:             origin/main @ 0b2faf2f (after #462 S33-f, #368 S34-c1, #363 S34-b, #301 S34-a)
 Start condition:        S34-e merged (the shared walk-then-sit chain in clients/shared/sitting/, and the
                         2D half of AC-S34-8); #460 (16f-d2) merged or this branch rebased on it (§2.3)
 Execution contract:     §12
-Lifecycle:              DRAFT — not frozen. Only the operator freezes this design.
+Lifecycle:              FROZEN 2026-10-27 (header reconciled 2026-11-27); not yet implemented
 ```
 
 **Effort:** `mvp0`, release-blocking · **Step:** [`step-34-posture.md`](step-34-posture.md) §§8.2, 8.3, 9.1,

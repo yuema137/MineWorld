@@ -13,11 +13,13 @@ use super::mirror;
 use super::page;
 use super::page_run::{Environment, Outcome, Report, run_page};
 use super::report::{Summary, Verdict};
+use super::rewrite::{self, Mode, Rewrite};
 
 /// Runs the guide at `guide` (a folder holding `features.toml` and the pages) against the repository `repo`,
 /// which holds the committed folders `equals` names and the generated `docs/reference`. `label` names the
-/// scratch folders, so two runs in one process never share one.
-pub fn run(label: &str, guide: &Path, repo: &Path) -> Summary {
+/// scratch folders, so two runs in one process never share one. In `Mode::Write` the console blocks whose output
+/// differs are re-recorded into their pages and mirrors before the guards read them (§11.2).
+pub fn run(label: &str, guide: &Path, repo: &Path, mode: Mode) -> Summary {
     let mut summary = Summary::default();
     let features = match read_features(guide) {
         Ok(features) => features,
@@ -37,7 +39,7 @@ pub fn run(label: &str, guide: &Path, repo: &Path) -> Summary {
             return summary;
         }
     };
-    run_pages(label, &pages, &features, repo, &mut summary);
+    run_pages(label, guide, &pages, &features, repo, mode, &mut summary);
     guard_pages(guide, &pages, repo, &mut summary);
     check_features(label, &features, &mut summary);
     summary
@@ -112,9 +114,11 @@ const INDEX: [&str; 2] = ["README.md", "README.zh-CN.md"];
 /// and inherits its pending state (§5, §8.1).
 fn run_pages(
     label: &str,
+    guide: &Path,
     pages: &[Listed],
     features: &Features,
     repo: &Path,
+    mode: Mode,
     summary: &mut Summary,
 ) {
     // The reader's home folder, one per run: chapter 01 clones MineWorld into it, and later pages copy from
@@ -124,6 +128,7 @@ fn run_pages(
         features,
         repo,
         home: &home,
+        mode,
     };
     let mut folders: BTreeMap<String, PathBuf> = BTreeMap::new();
     let mut carries: BTreeMap<String, Option<String>> = BTreeMap::new();
@@ -169,9 +174,64 @@ fn run_pages(
             }
         };
         let (reports, carry) = run_page(&name, &parsed, &folder, &environment, carried);
+        write_back(guide, &name, path, &source, &reports, summary);
         folders.insert(name.clone(), folder);
         carries.insert(name, carry);
         record(reports, summary);
+    }
+}
+
+/// Write mode (§11.2): writes the page's re-recorded console blocks into the page file, and into its mirror where
+/// the mirror's block was the English block byte for byte. Each written page is listed in the summary; a mirror
+/// block left as it was is listed too, and the mirror guard then fails on it for a person to translate.
+fn write_back(
+    guide: &Path,
+    name: &str,
+    path: &Path,
+    source: &str,
+    reports: &[Report],
+    summary: &mut Summary,
+) {
+    let rewrites: Vec<Rewrite> = reports
+        .iter()
+        .filter_map(|report| match &report.outcome {
+            Outcome::Rewritten(lines) => Some(Rewrite {
+                line: report.line,
+                lines: lines.clone(),
+            }),
+            _ => None,
+        })
+        .collect();
+    if rewrites.is_empty() {
+        return;
+    }
+    let mirror_path = guide.join(format!("{name}.zh-CN.md"));
+    let mirror_source = fs::read_to_string(&mirror_path).ok();
+    let written = rewrite::apply(source, mirror_source.as_deref(), &rewrites).and_then(|done| {
+        fs::write(path, &done.page).map_err(|error| error.to_string())?;
+        if let Some(mirror) = &done.mirror {
+            fs::write(&mirror_path, mirror).map_err(|error| error.to_string())?;
+        }
+        Ok(done)
+    });
+    match written {
+        Err(reason) => summary
+            .checks
+            .push((format!("rewrite of {name}"), Verdict::Fail(reason))),
+        Ok(done) => {
+            for rewrite in &rewrites {
+                let mirrored = if done.mirror_skipped.contains(&rewrite.line) {
+                    "not mirrored: the mirror's block differed"
+                } else if mirror_source.is_some() {
+                    "mirrored"
+                } else {
+                    "no mirror"
+                };
+                summary
+                    .rewritten
+                    .push(format!("page {name} line {} ({mirrored})", rewrite.line));
+            }
+        }
     }
 }
 
@@ -182,7 +242,7 @@ fn record(reports: Vec<Report>, summary: &mut Summary) {
         let place = format!("page {} line {} step {step}", report.page, report.line);
         summary.blocks += 1;
         match report.outcome {
-            Outcome::Passed => summary.passed += 1,
+            Outcome::Passed | Outcome::Rewritten(_) => summary.passed += 1,
             Outcome::Pending(feature) => {
                 summary
                     .not_run

@@ -1,13 +1,13 @@
 extends SceneTree
-## The 2D seated drawing over a fixture pack, headless (S34-e AC-e-3, AC-e-4):
-##   godot --headless --path clients/2d --script res://scripts/harness/seated_sprite_check.gd
-## Crop with and without a stature, a seated sheet and a four-view figure; prints PASS or each FAIL.
+
+## Deterministic drawing regression: real people nodes, an in-memory atlas with opaque rows,
+## and no external art. Exercises crop geometry, gaze, gait suppression and restoration.
 const People := preload("res://scripts/scene/people.gd")
 const Town := preload("res://scripts/town.gd")
 const PlanProjection := preload("res://scripts/projection.gd")
 var failures := 0
 
-## A one-figure pack: a white 40 x 500 frame anchored at (20, 100), optionally with a seated sheet.
+
 class FixturePack:
 	extends RefCounted
 	var with_height := true
@@ -36,7 +36,7 @@ class FixturePack:
 			"walk": {} if four_views else sheet}
 		if with_seated:
 			var seated := sheet.duplicate()
-			seated["seat_height_m"] = 0.40
+			seated["seat_height_m"] = 0.4
 			views["seated"] = seated
 		return views
 
@@ -56,7 +56,7 @@ func _run() -> void:
 		var people := People.new()
 		root.add_child(people)
 		people.setup(PlanProjection.new("plan", 50.0), pack, Town.new(), world)
-		# One standing person at the origin, settled, before the seat is given.
+		# A synthetic observed person starts standing; all seating goes through the production API.
 		people._people["1"] = people._make("1", Vector2.ZERO, "")
 		var person: Dictionary = people._people["1"]
 		person["still_s"] = 1.0

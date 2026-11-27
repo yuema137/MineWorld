@@ -1,0 +1,10 @@
+Base: ce69e9e5210c1ca11ed8637b943cc72aea38d5a0
+Final local head: 2adf50427e920dad2284c7e484ae310146bee529
+Source clone: /tmp/mineworld-recover-ci-p0
+PASS: committed AST excluding module docstring identical
+PASS: source from from __future__ onward byte-identical
+PASS: only scripts/ci_layer.py changed
+PASS: git diff --check
+PASS: clean clone
+Executable AST SHA256: 47dc1556934e07f607875b3d3ee8d3d13b17bd7f2f0af75fc3025ff751db8c77
+No executable retest or remote CI run performed; inherited bounded proof remains applicable to unchanged executable payload.
