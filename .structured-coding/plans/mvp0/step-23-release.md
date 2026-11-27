@@ -1317,6 +1317,17 @@ D-Ra-4; C4's 3D half and C6 wait for the rulings.
 
 ## 18.7 RL-b's head checked against MS-Ra-1 and MS-Ra-2 (2026-10-10)
 
+**Dated correction, 2026-11-22:** PR #530 is merged as
+`b457a94d9a1ace6a39005de683cc393886e19288`, reviewed head `4cd160bb`.
+The historical tools dependency below is now repaired by a runtime-owned physics
+diagnostic explicitly preloaded by both consumers. Current `tools/*` exclusion
+remains intact; the older recommendation not to exclude the whole directory is
+superseded. Real exported baseline/fixed regression, local independent review and
+exact-head fast/removability checks passed. Supplemental full link used a cached
+server and is not complete release provenance. This closes the narrow dependency
+defect, not the remaining integrated launcher/windowed/cross-platform acceptance.
+See `pr-fix-packaged-physics-probe.md` for the approved merge and evidence boundary.
+
 A detached scratch worktree at `origin/mvp0/pr-rl-b-3d-budget @ 8f0853c` ("RL-b final re-measure on the
 ruled head"), under `/Users/yuema137/mineworld-worktrees/scratch-s23-ra/rlb`; nothing written in
 `impl-rl-b`. Scratch-only additions: the 3D presets of §18.3, the P-2 override, the P-5 setting. RL-b's
