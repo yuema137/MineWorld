@@ -2,11 +2,13 @@
 //! it reduces, and what it offers and discloses.
 
 use std::collections::BTreeSet;
+use std::sync::Arc;
 
 use mineworld_attributes_model::{
-    AttributeOwner, AttributeValue, AttributesComposed, AttributesHanded, QualifiedId,
+    AttributeOwner, AttributeValue, AttributesComposed, AttributesHanded, Labels, QualifiedId,
     RunningCatalogue, ValueSlug, disclose_owned,
 };
+use mineworld_authoring::ProviderContexts;
 use mineworld_contracts::{
     ActionIntent, ComponentRecord, EntityId, EntityType, Event, EventEnvelope, EventTypeId,
     LifecycleState, Rejection, RejectionCode, SystemId,
@@ -37,8 +39,13 @@ use crate::judge::{
 pub const BIOGRAPHICAL: &[EventTypeId] = &[];
 
 /// Public, time-limited notices on declared topics, delivered to subscribers.
+///
+/// The perception provider holds the composition's label packs for `notices.subscriptions` (S30-k,
+/// `ARC-129`): immutable presentation data, never state. The installed system holds nothing.
 #[derive(Default)]
-pub struct NoticesSystem;
+pub struct NoticesSystem {
+    labels: Option<Arc<Labels>>,
+}
 
 impl SystemIdentity for NoticesSystem {
     const ID: SystemId = SystemId::from_static("notices");
@@ -53,6 +60,12 @@ impl SystemPack for NoticesSystem {
     mineworld_sdk::configures!();
     mineworld_sdk::owns_section!();
     mineworld_sdk::ships_data!("attributes/subscriptions.yaml");
+
+    fn provider_in(contexts: &ProviderContexts<'_>) -> Self {
+        Self {
+            labels: Labels::from_contexts(contexts),
+        }
+    }
 }
 
 /// The attribute this pack owns (step-30 §9.6 N-2).
@@ -432,7 +445,12 @@ impl PerceptionProvider for NoticesSystem {
         if let Some(held) = held {
             let record = DisclosedSubscriptions {
                 topics: held.topics().to_vec(),
-                attributes: disclose_owned::<Self>(world, observer, subject),
+                attributes: disclose_owned::<Self>(
+                    world,
+                    observer,
+                    subject,
+                    self.labels.as_deref(),
+                ),
             };
             disclosed.push(ComponentRecord::new::<Subscriptions>(
                 subject,

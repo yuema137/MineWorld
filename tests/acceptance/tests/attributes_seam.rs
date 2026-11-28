@@ -233,7 +233,9 @@ fn world() -> (World, EntityId, EntityId) {
     ])
     .expect("the catalogue builds");
     let mut world = World::new();
-    world.install(AttributesSystem).expect("attributes");
+    world
+        .install(AttributesSystem::default())
+        .expect("attributes");
     world
         .install(EarlyBird)
         .expect("the reader depends on attributes");

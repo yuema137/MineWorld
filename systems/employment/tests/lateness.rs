@@ -120,7 +120,7 @@ fn penalize(town: &mut Town, actor: &str, employee: &str, amount: u64, id: u64) 
 }
 
 fn disclosed(world: &World, person: EntityId) -> DisclosedEmployment {
-    let records = EmploymentSystem.discloses(&world.read(), person, person);
+    let records = EmploymentSystem::default().discloses(&world.read(), person, person);
     serde_json::from_value(records[0].payload().clone()).expect("the disclosed record")
 }
 
@@ -143,7 +143,7 @@ fn by_default_lateness_is_a_complaint_and_moves_no_money() {
         "deduction is off"
     );
     assert!(
-        EmploymentSystem
+        EmploymentSystem::default()
             .offers(&town.world.read(), town.id("alice"), None)
             .is_empty()
     );
@@ -214,7 +214,7 @@ fn with_a_manager_the_boss_decides_and_the_refusals_come_in_order() {
         "nothing automatic"
     );
 
-    let offers = EmploymentSystem.offers(&town.world.read(), town.id("alice"), None);
+    let offers = EmploymentSystem::default().offers(&town.world.read(), town.id("alice"), None);
     let offered: Vec<Penalize> = offers
         .iter()
         .map(|offer| {
@@ -229,7 +229,7 @@ fn with_a_manager_the_boss_decides_and_the_refusals_come_in_order() {
         ]
     );
     assert!(
-        EmploymentSystem
+        EmploymentSystem::default()
             .offers(&town.world.read(), town.id("bob"), None)
             .is_empty(),
         "only to the manager"
@@ -269,7 +269,7 @@ fn with_a_manager_the_boss_decides_and_the_refusals_come_in_order() {
         "a lateness is penalized once"
     );
     assert_eq!(
-        EmploymentSystem
+        EmploymentSystem::default()
             .offers(&town.world.read(), town.id("alice"), None)
             .len(),
         1,

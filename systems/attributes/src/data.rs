@@ -7,6 +7,7 @@ use std::any::Any;
 use mineworld_attributes_model::backend::BackendFile;
 use mineworld_attributes_model::config::AttributesConfiguration;
 use mineworld_attributes_model::declaration::{AttributesFile, VocabulariesFile};
+use mineworld_attributes_model::labels::LabelFile;
 use mineworld_attributes_model::lock::LockFile;
 use mineworld_attributes_model::mask::MaskFile;
 use mineworld_attributes_model::profile::ProfileFile;
@@ -42,6 +43,9 @@ pub(crate) const BACKENDS_DIRECTORY: DataDirectory = DataDirectory::from_static(
 /// `masks/`: which of a backend's attributes exist in a world (`ARC-126`).
 pub(crate) const MASKS_DIRECTORY: DataDirectory = DataDirectory::from_static("masks");
 
+/// `labels/`: label packs, one file per locale (S30-k, `ARC-129`); never stated as a fact.
+pub(crate) const LABELS_DIRECTORY: DataDirectory = DataDirectory::from_static("labels");
+
 impl OwnsData for AttributesSystem {
     const DIRECTORIES: &'static [DataDirectory] = &[
         ATTRIBUTES_DIRECTORY,
@@ -50,6 +54,7 @@ impl OwnsData for AttributesSystem {
         LOCKS_DIRECTORY,
         BACKENDS_DIRECTORY,
         MASKS_DIRECTORY,
+        LABELS_DIRECTORY,
     ];
     type File = DataFile;
     type Context = AttributesContext;
@@ -70,6 +75,8 @@ impl OwnsData for AttributesSystem {
             BackendFile::deserialize(deserializer).map(|file| DataFile::Backend(Box::new(file)))
         } else if directory == MASKS_DIRECTORY {
             MaskFile::deserialize(deserializer).map(|file| DataFile::Mask(Box::new(file)))
+        } else if directory == LABELS_DIRECTORY {
+            LabelFile::deserialize(deserializer).map(|file| DataFile::Labels(Box::new(file)))
         } else {
             Err(D::Error::custom(format!(
                 "attributes owns no directory '{directory}'"

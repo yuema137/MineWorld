@@ -54,8 +54,8 @@ pub mod __private {
     pub use mineworld_authoring::{
         AuthoredConfiguration, AuthoredContent, AuthoredSection, DataDirectory, DataOrigin,
         DataRefusal, Decode, DecodeConfiguration, DecodeIn, ErasedSubject, OwnerContext, OwnsData,
-        PackConfiguration, ResolveRefusal, ResolvedSeeds, ShippedData, data_context,
-        decode_data_file, resolve_erased,
+        PackConfiguration, ProviderContexts, ResolveRefusal, ResolvedSeeds, ShippedData,
+        data_context, decode_data_file, resolve_erased,
     };
     pub use mineworld_contracts::{EventTypeId, SystemId};
     pub use mineworld_kernel::{KernelError, System, SystemIdentity, SystemVersion, World};

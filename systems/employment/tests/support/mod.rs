@@ -59,7 +59,7 @@ pub fn providers() -> [&'static dyn PerceptionProvider; 5] {
         &MovementSystem,
         &ItemSystem,
         &InventorySystem,
-        &EmploymentSystem,
+        Box::leak(Box::new(EmploymentSystem::default())),
     ]
 }
 
@@ -72,7 +72,7 @@ pub fn compose(with_employment: bool) -> World {
     world.install(InventorySystem).expect("inventory");
     if with_employment {
         world
-            .install(EmploymentSystem)
+            .install(EmploymentSystem::default())
             .expect("employment installs after inventory and presence");
     }
     world

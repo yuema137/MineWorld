@@ -65,12 +65,12 @@ fn ordinary_refusals_and_private_admission_do_not_leak_fixed_context() {
         "not-arrived"
     );
     assert!(
-        AttributesSystem
+        AttributesSystem::default()
             .discloses(&world.read(), dev.entity_id(), nadia.entity_id())
             .is_empty()
     );
     assert!(
-        AttributesSystem
+        AttributesSystem::default()
             .discloses(&world.read(), nadia.entity_id(), nadia.entity_id())
             .is_empty()
     );
@@ -81,7 +81,8 @@ fn ordinary_refusals_and_private_admission_do_not_leak_fixed_context() {
         result.events()[2].visibility(),
         &Visibility::Entities([nadia.entity_id()].into())
     );
-    let disclosed = AttributesSystem.discloses(&world.read(), dev.entity_id(), nadia.entity_id());
+    let disclosed =
+        AttributesSystem::default().discloses(&world.read(), dev.entity_id(), nadia.entity_id());
     let json = serde_json::to_string(&disclosed).unwrap();
     for private in [
         "deferred",

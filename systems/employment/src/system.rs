@@ -18,7 +18,11 @@ use mineworld_sdk::interactions;
 use serde_json::Value;
 
 use mineworld_attributes_model::value::BoundedText;
-use mineworld_attributes_model::{AttributeOwner, AttributeValue, QualifiedId, disclose_owned};
+use mineworld_attributes_model::{
+    AttributeOwner, AttributeValue, Labels, QualifiedId, disclose_owned,
+};
+use mineworld_authoring::ProviderContexts;
+use std::sync::Arc;
 
 use crate::action::Penalize;
 use crate::codec;
@@ -37,8 +41,13 @@ pub const BIOGRAPHICAL: &[EventTypeId] = &[Hired::EVENT_TYPE, LateForShift::EVEN
 pub const SECOND_MANAGER: RejectionCode = RejectionCode::from_static("second-manager");
 
 /// Jobs, and work as being there.
+///
+/// The perception provider holds the composition's label packs for `employment.occupation` (S30-k,
+/// `ARC-129`): immutable presentation data, never state. The installed system holds nothing.
 #[derive(Debug, Default, Clone, PartialEq)]
-pub struct EmploymentSystem;
+pub struct EmploymentSystem {
+    labels: Option<Arc<Labels>>,
+}
 
 impl SystemIdentity for EmploymentSystem {
     const ID: SystemId = SystemId::from_static("employment");
@@ -54,6 +63,12 @@ impl SystemPack for EmploymentSystem {
     mineworld_sdk::owns_section!();
     mineworld_sdk::interactions!();
     mineworld_sdk::ships_data!("attributes/occupation.yaml");
+
+    fn provider_in(contexts: &ProviderContexts<'_>) -> Self {
+        Self {
+            labels: Labels::from_contexts(contexts),
+        }
+    }
 }
 
 /// `employment.occupation` (S30-f §5.10, the named exception of step-30 §9.4): projected from the held
@@ -453,7 +468,7 @@ impl PerceptionProvider for EmploymentSystem {
                 let disclosed = DisclosedEmployment::new(
                     employment.clone(),
                     lateness::late_staff(world, subject),
-                    disclose_owned::<Self>(world, observer, subject),
+                    disclose_owned::<Self>(world, observer, subject, self.labels.as_deref()),
                 );
                 vec![ComponentRecord::new::<Employment>(
                     subject,

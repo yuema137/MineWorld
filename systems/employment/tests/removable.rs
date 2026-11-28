@@ -121,7 +121,7 @@ fn a_world_enabling_employment_without_inventory_is_refused_naming_inventory() {
     let mut world = World::new();
     world.install(PresenceSystem).expect("presence");
     world.install(ItemSystem).expect("item");
-    match world.install(EmploymentSystem) {
+    match world.install(EmploymentSystem::default()) {
         Err(KernelError::SystemDependencyMissing { system, dependency }) => {
             assert_eq!(system, EmploymentSystem::ID);
             assert_eq!(dependency, InventorySystem::ID);

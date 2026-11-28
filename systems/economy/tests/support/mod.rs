@@ -209,7 +209,7 @@ pub fn providers() -> [&'static dyn PerceptionProvider; 6] {
         &ItemSystem,
         &InventorySystem,
         &EconomySystem,
-        &EmploymentSystem,
+        Box::leak(Box::new(EmploymentSystem::default())),
     ]
 }
 
@@ -303,7 +303,7 @@ impl Town {
         }
         if packs.employment {
             world
-                .install(EmploymentSystem)
+                .install(EmploymentSystem::default())
                 .expect("employment installs after inventory and presence");
         }
     }

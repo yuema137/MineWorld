@@ -87,7 +87,10 @@ pub fn text(words: &str) -> NoticeBody {
 }
 
 pub fn providers() -> [&'static dyn PerceptionProvider; 2] {
-    [&PresenceSystem, &NoticesSystem]
+    [
+        &PresenceSystem,
+        Box::leak(Box::new(NoticesSystem::default())),
+    ]
 }
 
 /// How a café is assembled: its configuration text (or none), its sections, and its people's tags.
@@ -205,10 +208,12 @@ impl Cafe {
         let mut world = World::new();
         world.install(PresenceSystem).expect("presence");
         world
-            .install(NoticesSystem)
+            .install(NoticesSystem::default())
             .expect("notices, with no dependency");
         if attributes.is_some() {
-            world.install(AttributesSystem).expect("attributes");
+            world
+                .install(AttributesSystem::default())
+                .expect("attributes");
         }
         let mut keys = BTreeMap::new();
         let place = world
