@@ -69,7 +69,7 @@ uses `/`. Unknown keys are ignored with a warning, so a newer pack degrades rath
   the disclosed doorway. A sprite without one is placed by its anchor. A file with only `file` is a
   texture (`texture:*` roles). `height_m`, optional, is the real height the image was normalized to;
   the scripted checks use it to confirm a sprite is drawn at its intended size (step-13 AC-W12), and
-  nothing else reads it.
+  the seated fallback uses it to locate the hip line.
 - **Directional sprites** are four ids sharing a base: `<base>_front`, `<base>_front_b`, `<base>_back`,
   `<base>_back_b` (two stride poses per view). A role bound to a base resolves to whichever exist; a
   sprite with no `_back` is shown from the front only, and with no `_b` pose the gait is a bob only.
@@ -100,6 +100,16 @@ uses `/`. Unknown keys are ignored with a warning, so a newer pack degrades rath
   up or down the screen keeps the side it had. Example: the default pack's `cast_vera-lindgren_walk`
   is `art/cast/vera-lindgren_walk.webp`, 5 rows × 13 columns, rendered by
   `cast.py walk-sheets` from the 3D client's own `Stand` and `Walk` poses.
+- **Seated sheet** (S34-e). Optional `<base>_seated` is a one-column atlas with the walk
+  sheet's five named views, an `anchor` at the floor under the pelvis and `seat_height_m`
+  naming the surface it was rendered on. The client selects the disclosed facing and raises
+  the image by `(depicted height − sheet height) × projection pixels per metre`.
+  Without a seated sheet it crops the standing frame at the hip, 0.530 × `height_m` above
+  the floor anchor (Drillis and Contini 1966, via Winter, fourth edition, Fig. 4.1). When
+  stature is absent, 0.530 × the frame's opaque height supplies that offset. The cropped
+  hip lies on the depicted seat surface. Plain shapes remain unchanged at the pelvis.
+  No gait, bob or rock plays while seated. Names, participation markers, Zz and price tags
+  follow the changed figure height; standing restores the prior travel facing.
 - **`sets`** — `ARC-14`'s variants. A set's `roles` override the set it `extends`; a role bound
   nowhere in the chain is unbound (§6). `default_set` names the set used without `--variant`.
 

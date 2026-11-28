@@ -634,9 +634,30 @@ place's tags and the point's key. YAML's JSON subset, read by the shared sit dec
 | `unless` | optional: tags the place must not carry (`ARC-179`), so a point of a room tagged `[station]` is not bound to the ticket office or the platform off it, which carry `station` too |
 | `seat_height_m` | the drawn seat's surface above the floor; a seated body's own seat rests on it (`Human.sit_on`), and `--seat` measures it against the drawn seat within 20 mm |
 | `seat_offset_m` | signed: the pelvis is drawn at the point's `at` moved this far **against** its facing — positive back onto a bench behind a point in front of it, negative forward onto a chair in front of a point behind it (Q-S34c-2) |
+| `seat_displacement_m` | format 2 only: `{east, north}` in place-local metres, added to the selected point position; independent of facing and mutually exclusive with `seat_offset_m` |
 | `prop` | the key of the furnishing whose seat it is (`body: furnishings`) |
 | `group` | the point's group, as the world will state it |
 | `fallback` | `{"at": {"x", "y"}, "facing"}`, the point's position (mm, the place's frame) and facing (millidegrees), for the shared rule's fallback branch while the world discloses no sit points (Q-S33f-1 (A)); S34-c copies them into the world's place files and removes them here |
+
+
+**Format 2 drawing anchors (S34-B, approved 2026-11-22).** Both clients load formats 1 and 2.
+A vector is a dictionary containing exactly finite numeric (non-boolean) `east` and `north` values;
+null, missing/extra axes, strings, nonfinite values, coordinates beyond the drawable numeric range,
+scalar/vector mixtures, and vectors in format 1 reject the whole file with a file/point diagnostic.
+Unknown formats are rejected. Scalar validation and arithmetic are otherwise unchanged: the scalar
+helper remains `pelvis(at, facing, offset)`, and omitted scalar offset/height still default to 0.45 m.
+Disclosed position/facing override fallback; absent both positions, no pose is drawn. `pose_of` has
+one unchanged return shape. The 3D client still does not draw undepicted seats; 2D draws those at the
+disclosed position. This representation changes drawing only, never world positions or interaction reach.
+
+The Café rows use independently measured central seat drawing anchors. Their `seat_height_m` is the
+measured visual surface above the floor, including the round stool's approximately 0.6893 m top.
+`tools/cli/tests/fixtures/seat-surfaces.json` records model/source hashes, selected mesh triangles,
+engine placement measurements and independent targets. Tests compare both horizontal axes and
+height within 10 mm and require selected-triangle support; the tolerance measures drawing-coordinate
+reproducibility, not anatomy. Lakeside's 29 scalar rows retain their exact outputs, including the
+bakery's intentional 60 mm calibration. S34-f retains body/foot/armrest/contact checks. Asset/import
+changes require remeasurement, not recalculation of the oracle from the offsets under test.
 
 **The shared decision.** Where the place discloses `sit-points`, a person is drawn seated iff their disclosed
 `posture-state` names a point. Otherwise a person is drawn seated at the nearest fallback point within 0.40 m

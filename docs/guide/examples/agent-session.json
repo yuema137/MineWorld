@@ -73,7 +73,10 @@
           "ref": "…",
           "roles": []
         },
-        "view.me.wallet": 5000
+        "view.me.wallet": {
+          "display": "50.00",
+          "minor": 5000
+        }
       }
     },
     {
@@ -209,7 +212,10 @@
           "ref": "…",
           "roles": []
         },
-        "view.me.wallet": 5000
+        "view.me.wallet": {
+          "display": "50.00",
+          "minor": 5000
+        }
       }
     },
     {
@@ -271,7 +277,10 @@
           "ref": "…",
           "roles": []
         },
-        "view.me.wallet": 4750
+        "view.me.wallet": {
+          "display": "47.50",
+          "minor": 4750
+        }
       }
     },
     {
