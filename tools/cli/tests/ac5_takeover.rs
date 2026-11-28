@@ -21,7 +21,7 @@ use std::collections::BTreeSet;
 use std::path::Path;
 use std::time::Duration;
 
-use market::{MARKET_TOWN, MarketCopy, Town};
+use market::{MARKET_TOWN, Town};
 use mineworld_server::{ClosingReason, ServerFrame, TookOver};
 use serde_json::{Value, json};
 use support::{Client, SaveDir, Server, join_frame, run_command, talk};
@@ -194,12 +194,17 @@ fn own_components(observation: &mineworld_server::WireObservation) -> Vec<(Strin
 
 #[tokio::test]
 async fn a_player_takes_alice_from_her_controller_and_she_is_the_same_person() {
-    // Buying is a step here, not the subject: the café must sell at midnight, as before shop hours.
-    let pack = MarketCopy::always_open("ac5-takeover-pack");
     fixture::assert_quiet_in(
         &Path::new(MARKET_TOWN).join("people"),
-        0,
-        3_600,
+        // The world begins at 07:00 (ARC-371), when the café is open (ARC-364). Boundaries at 07:00
+        // itself are the genesis agenda, not a later wake; the half hour after it is quiet, and this
+        // test lasts seconds of wall time at the town's scale.
+        mineworld_worldpack::WorldPack::read(MARKET_TOWN)
+            .expect("reads")
+            .begins()
+            .seconds()
+            + 1,
+        1_799,
         "ac5_takeover.rs",
     );
     let town = Town::read(Path::new(MARKET_TOWN));
@@ -207,7 +212,7 @@ async fn a_player_takes_alice_from_her_controller_and_she_is_the_same_person() {
     let save = SaveDir::new("ac5-takeover");
     let command = [
         "server",
-        pack.path(),
+        MARKET_TOWN,
         "--agent",
         "alice",
         "--save",

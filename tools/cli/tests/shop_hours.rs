@@ -5,7 +5,7 @@
 //!          hours (café 05:30–22:00, store 06:00–23:00, newsstand 06:00–18:00); no `sold` at a shop
 //!          outside its hours; a sale before the evening close and a breakfast after the morning
 //!          opening; N1-I7 — at most one refused `buy` `shop-closed` per shop per closed interval, and
-//!          nobody enters a closed shop more than once a night; at least one resident sleeps, wakes and
+//!          nobody enters a closed shop more than once per closed interval; at least one resident sleeps, wakes and
 //!          starts a shift present
 //! resume   a Market Town save created from the pack without hours (what a binary before N1 saved)
 //!          resumes under the pack with hours: hours are content, not configuration (`ARC-61` item 7),
@@ -120,8 +120,17 @@ fn run_with(pack: &Path, days: u64, save: &Path, decisions: Option<&str>) -> Str
     headless::stdout(&output)
 }
 
+/// The instant the shop last closed before `at`, a closed instant (minute steps; at most a day back).
+fn closed_since(hours: &Hours, at: i64) -> i64 {
+    let mut since = at;
+    while since > at - DAY && !open(hours, since - 60) {
+        since -= 60;
+    }
+    since
+}
+
 /// No `sold` at a shop outside its hours, and N1-I7: at most one refused `buy` `shop-closed` per shop
-/// per closed interval, nobody entering a closed shop more than once a night. Returns the shop sales as
+/// per closed interval, nobody entering a closed shop more than once per closed interval. Returns the shop sales as
 /// (instant, place).
 fn keeps_hours(
     what: &str,
@@ -143,7 +152,7 @@ fn keeps_hours(
         );
     }
     // The run report aggregates refusals by code (not by shop), so the bound is the aggregate of
-    // N1-I7: three shops, each closed from midnight to opening on day 0 and once per night after.
+    // N1-I7: three shops, each closed at most once a night and once more at the run's edges.
     // Every refused-buy line must end in its count, so a changed report format fails loudly here.
     let rejected: Vec<(&str, u64)> = headless::lines(printed, "requests   buy rejected")
         .into_iter()
@@ -165,16 +174,17 @@ fn keeps_hours(
         if let Some(Some(hours)) = shops.get(&place)
             && !open(hours, at)
         {
-            // A night is named by the day it ends on: 12:00 to the next 12:00.
-            let night = (at + 12 * HOUR).div_euclid(DAY);
+            // Keyed by the closed interval itself — the instant the shop last closed — so a lunch closure
+            // and the night after it are two intervals (N1-I7: once per closed interval).
+            let closed_at = closed_since(hours, at);
             *closed_entries
-                .entry((id_of(&entered["person"]), place, night))
+                .entry((id_of(&entered["person"]), place, closed_at))
                 .or_default() += 1;
         }
     }
     println!(
         "{what}: {} shop sales; shop-closed refusals {refused}; entries into closed shops \
-         (person, place, night) {closed_entries:?}",
+         (person, place, closed since) {closed_entries:?}",
         sales.len()
     );
     assert!(
@@ -183,7 +193,7 @@ fn keeps_hours(
     );
     assert!(
         closed_entries.values().all(|count| *count <= 1),
-        "{what}: nobody walks into a closed shop more than once a night: {closed_entries:?}"
+        "{what}: nobody walks into a closed shop more than once per closed interval: {closed_entries:?}"
     );
     sales
 }

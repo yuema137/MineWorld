@@ -26,7 +26,7 @@ use std::path::Path;
 use std::time::{Duration, Instant};
 
 use futures_util::future::join_all;
-use market::{MARKET_TOWN, MarketCopy, Town};
+use market::{MARKET_TOWN, Town};
 use mineworld_contracts::{ActionResult, EntityId, Rejection};
 use mineworld_server::{RefusalCode, ServerFrame, TookOver, WireObservation};
 use serde_json::{Value, json};
@@ -199,14 +199,13 @@ async fn record(
 
 #[tokio::test(flavor = "multi_thread")]
 async fn four_players_in_one_world_meet_the_same_alice() {
-    // Buying is a step here, not the subject: the café must sell at midnight, as before shop hours.
-    let pack = MarketCopy::always_open("ac7-many-players-pack");
+    // The world begins at 07:00 (ARC-371), when the café sells (ARC-364).
     let town = Town::read(Path::new(MARKET_TOWN));
     let alice = town.id("alice");
     let save = SaveDir::new("ac7-many-players");
     let mut server = Server::start(&[
         "server",
-        pack.path(),
+        MARKET_TOWN,
         "--town",
         "--agent",
         "alice",
@@ -544,7 +543,7 @@ async fn four_players_in_one_world_meet_the_same_alice() {
     drop(players);
     drop(as_alice);
     server.kill();
-    let (replayed, printed) = run_command(&["replay", pack.path(), "--save", save.path()]);
+    let (replayed, printed) = run_command(&["replay", MARKET_TOWN, "--save", save.path()]);
     assert!(replayed.success(), "the save verifies: {printed}");
     println!("AC-7: one instance {instance}; four players; the save replays");
 }
