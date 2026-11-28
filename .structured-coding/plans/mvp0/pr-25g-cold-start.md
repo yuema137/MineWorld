@@ -692,7 +692,8 @@ stdlib only; registered with the scripts' self-tests in `fast` (`scripts/ci_laye
       `git-lfs.exe`; `winget` on `windows-2025`; `walk` on Corner Shop as `ben`; the server's shutdown lines; the
       release workflow's final name and artifact names (R-b).
 - [ ] AD-1 … AD-10, each with its run URL.
-- [ ] One green PRE-MERGE run of A and B on all three OS; per-chapter times recorded in §14; the budget met or a
+- [ ] One green PRE-MERGE run of A and B on all three OS — **not reached**: run 2's guide phase is green on all
+      three, substitutes red on guide defects (§14), B INCONCLUSIVE (no release run). Original item: per-chapter times recorded in §14; the budget met or a
       material stop with the numbers.
 - [ ] After merge (operator): one dispatch on `main`; that run is the acceptance evidence.
 
@@ -731,7 +732,34 @@ stdlib only; registered with the scripts' self-tests in `fast` (`scripts/ci_laye
 - **Spend.** The coordinator's dispatch of 2026-11-27: GitHub Actions minutes on this public repository are free; at most
   two cold-start runs. This replaces the contract's "cold-start/** pushes or dispatches" line for this session.
 - **Local evidence:** §12 C1–C5.
-- **Pre-merge run 1:** push of 77dc16c0 to `cold-start/25g-first`, run `46119663095`. Result: pending.
+- **Pre-merge run 1** (claim: from a clean runner the guide passes with the reader's binary on three OS): push of
+  77dc16c0 to `cold-start/25g-first`, run `46119663095`. `clean` + `assert-clean` PASS on all three (`cargo`, `rustc`,
+  `rustup`, `godot`, `uv`, `git-lfs`, `~/.cargo`, `~/.rustup` absent). Guide: 201 blocks, **170 passed**, 21 pending
+  (all operator-only), 10 other-OS, on Linux, macOS and Windows. Verdict FAIL for two harness defects only: (1) the
+  link guards resolved links from the harness copy, which holds only `docs/guide` (fixed in 8c06236b: a cold-start
+  run guards the clone's own `docs/guide`, §4.7 rule 9); (2) the Windows summary died printing `→` through the
+  console code page (fixed: UTF-8 stdout). Layer B: INCONCLUSIVE on all three, "no successful release run on main"
+  (F-25g-6 still holds). Classification: FAIL (harness), guide semantics PASS.
+- **Mistaken trigger:** run `46121766150` started on 07bd2aab (ledger only) because the fix commit had not been made;
+  cancelled within a minute. Not counted as evidence.
+- **Pre-merge run 2:** push of 8c06236b, run `46121819126` (PRE-MERGE: the clone moved to 8c06236b and was built
+  again; every leg's summary says so). Guide phase **PASS on all three OS**: every `cold-start:` gate PASS (clone is
+  the harness commit, the clone's `docs/guide` equals the pages read, the reader's binary, expectation, snapshots).
+  Times (machine): Linux page 01 4:48 (build block 4:31), zero to Corner Shop **5:01**; macOS 7:19 (build 6:55),
+  **7:24**; Windows 11:40 (build 10:16, winget LFS + rustup 1:23), **11:48** — all within the 60-minute budget
+  (AC-25g-2 shape, pre-merge). Substitutes FAIL, for real guide defects the check exists to find:
+  - 06.2 (all OS): the page's expected server lines are stale — the server now prints `[world] time scale 1 (by
+    default)` after the first line, and the town line says `cadence 5 wall s`, not `pace 5 wall s`. 06.3 was then
+    NOT COVERED ("the 06.2 server did not start").
+  - 14.2 (all OS): the page expects `listening on` right after the first line; with `--save` the server first prints
+    `[mineworld] created saves/agent/world.sqlite: …`. 14.10 then failed as a consequence ("grant not new": no first
+    grant was recorded).
+  - 14.3 / 14.4–14.7 on macOS: `uv sync` chose the image's CPython 3.15, and `python-fcl==0.7.0.11` has wheels only
+    up to cp314 (F-25g-7). On Linux and Windows 14.3 and the recorded MCP session PASSED (9.4 s, 11.1 s).
+  - Fix in this PR (bounded, guide text only): 06.2's lines re-recorded from run 2's actual output (both languages);
+    14.2 gains a `...` between the first line and `listening on`. **Not re-run:** the two-run budget is spent, so these
+    page edits are unverified by a cold-start run; the default guide test does not run operator-only blocks.
+- **Budget used:** two full runs plus one cancelled start; roughly 2 × (3 harness + 3 A + 3 short B) jobs.
 - **Machine note:** the local disk reached 100 % during validation (`No space left on device` in a scratch folder);
   this session removed only its own finished target folder (`_targets/fix-client-leave`).
 
@@ -750,6 +778,10 @@ stdlib only; registered with the scripts' self-tests in `fast` (`scripts/ci_laye
   must say where the pack comes from, or the bundle ships it.
 - **F-25g-5 (S25 guide):** README's quick start installs Git LFS and runs `git lfs pull`; chapter 01 does neither.
   The two front doors disagree on prerequisites (Q-25g-2).
+- **F-25g-7 (Python workspace / S25 guide):** on `macos-26`, `uv sync` in a fresh clone picks the image's CPython 3.15,
+  and `python-fcl==0.7.0.11` (uv.lock) has no cp315 wheel, so chapter 14.3 fails for a reader whose newest Python is
+  3.15. Owner decision: pin the workspace's interpreter (`requires-python` upper bound or `.python-version`) or have
+  14.3 say `uv sync --python 3.12`. Not changed here (a dependency/ownership decision outside 25g).
 - **F-25g-6 (R-b):** at read time the dry run `40447534966` had `bundle (linux-x86_64)` failed and no artifact;
   B's first evidence needs a green run.
 

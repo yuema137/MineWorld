@@ -38,12 +38,13 @@ corner-shop is a valid World Pack.
 ```console
 $ mineworld server corner-shop --town
 [mineworld] Corner Shop (corner-shop) — 11 system(s), 3 seat(s)
+[world] time scale 1 (by default)
 [mineworld] listening on http://127.0.0.1:7878 (ws://127.0.0.1:7878/ws), protocol [..]
 [mineworld] 8 entities, 11 system(s), seats: ana, ben, cai
 [mineworld] world instance [..]
 [mineworld] invite [..] — join with: 127.0.0.1:7878 seat=ana invite=[..]
 ...
-[mineworld] hold 30 s, time scale 1, request budget 10/s burst 20 per seat, 3 seat(s) driven in-server (town: seed 0, pace 5 wall s)
+[mineworld] hold 30 s, time scale 1, request budget 10/s burst 20 per seat, 3 seat(s) driven in-server (town: seed 0, cadence 5 wall s)
 ```
 
 **你应该看到**有一行以 `[mineworld] invite` 开头。`invite` 后面那一长串就是 invite 码，玩家要用它才能加入。

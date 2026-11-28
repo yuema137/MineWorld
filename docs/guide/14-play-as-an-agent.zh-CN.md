@@ -48,6 +48,7 @@ corner-shop is a valid World Pack.
 ```console
 $ mineworld server corner-shop --packs packs --town --agent ana --grant ben --save saves/agent
 [mineworld] Corner Shop (corner-shop) — [..]
+...
 [mineworld] listening on http://127.0.0.1:7878 (ws://127.0.0.1:7878/ws), protocol [..]
 ...
 [mineworld] grant ben [..] — join with: 127.0.0.1:7878 seat=ben invite=[..]

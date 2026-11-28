@@ -47,6 +47,7 @@ while nobody plays her. `--save` keeps the world's record, so you can read it la
 ```console
 $ mineworld server corner-shop --packs packs --town --agent ana --grant ben --save saves/agent
 [mineworld] Corner Shop (corner-shop) — [..]
+...
 [mineworld] listening on http://127.0.0.1:7878 (ws://127.0.0.1:7878/ws), protocol [..]
 ...
 [mineworld] grant ben [..] — join with: 127.0.0.1:7878 seat=ben invite=[..]
