@@ -427,6 +427,8 @@ Departures (the ruling governs; each is bounded and recorded rather than escalat
   **Recommendation:** accept the conservative rule now (it is safe and already removes macOS/Windows and
   most of the matrix from typical PRs), and schedule the pack map as P4b after P2 (the long tier) lands,
   since P2 cuts the same pack-change PRs' wall time by ~40 % first.
+  **Operator ruling 2026-11-27: "CI 按推荐"** (CI as recommended): the conservative rule is standing rule 3;
+  the recorded test -> pack map is scheduled as P4b after P2.
 - D-E4-3. Hub paths (`kernel`, `contracts`, ...) are not a special "gate tier" rule; rule 2's reverse
   dependents reach the same set. `Cargo.lock`, the root manifest and the toolchain pin are `full`, not
   "gate tier", per the operator brief ("unknown/global changes fall back to full"). The long tier (P2) is
