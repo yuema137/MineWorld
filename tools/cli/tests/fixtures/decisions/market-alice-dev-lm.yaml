@@ -1,0 +1,10 @@
+# An operator decision list for `--decisions` (P6 §5.9) used only by `tools/cli/tests/correction_memory.rs`:
+# Market Town with TWO seats on the language model, so that one cognition process holds both in one memory home
+# (`[memory] sharing = "home"`, the default) and the test can show that shared storage is not shared knowledge
+# (pr-playable-dialogue-memory.md §4.3, §5 C4). Alice runs the café counter; Dev starts in the park, out of
+# her place. While no LM process holds a seat, its fallback `rule` drives it in the server (`server --town`).
+models:
+  lm: { fallback: rule }
+assign:
+  - { seat: alice, model: lm }
+  - { seat: dev, model: lm }
