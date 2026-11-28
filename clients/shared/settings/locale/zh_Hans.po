@@ -832,6 +832,9 @@ msgstr "钱不够"
 msgid "reason.out-of-stock"
 msgstr "已售完"
 
+msgid "reason.shop-closed"
+msgstr "店铺已打烊"
+
 msgid "reason.cannot-carry"
 msgstr "你拿不下了"
 

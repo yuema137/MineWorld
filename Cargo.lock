@@ -1122,6 +1122,7 @@ dependencies = [
  "mineworld-persistence",
  "mineworld-presence",
  "mineworld-rule-controller",
+ "mineworld-schedule",
  "mineworld-sdk",
  "mineworld-test-support",
  "mineworld-worldpack",
