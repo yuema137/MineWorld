@@ -175,6 +175,16 @@ pub enum PackError {
         /// The value as written.
         value: u32,
     },
+    /// `world.yaml`'s `begins:` is not a time of day "HH:MM" (`DECISIONS.md` `ARC-371`).
+    #[error(
+        "{path}: begins is {value:?}; it must be a time of day \"HH:MM\", from \"00:00\" to \"23:59\""
+    )]
+    Begins {
+        /// The `world.yaml` that states the value.
+        path: PathBuf,
+        /// The value as written.
+        value: String,
+    },
     /// `world.yaml`'s `mineworld:` range does not admit the framework this build is
     /// (`DECISIONS.md` `ARC-53`). Refused rather than run: the author said which frameworks the world
     /// is for, and this is not one of them.

@@ -67,7 +67,14 @@ perceive_from(cursor)                                     opt-in, before connect
                                                           kept from before. Every rejoin, reconnect's
                                                           included, continues from perceived_cursor
 leave_world()                                             give the seat up and end the connection;
-                                                          the server answers `closing` "left"
+                                                          the server answers `closing` "left".
+                                                          Also done for you when the node leaves the
+                                                          tree (Quit, window close, the end of a
+                                                          scripted run): it sends `leave` and waits up
+                                                          to LEAVE_WAIT_MSEC (1 s) for the close, so
+                                                          the seat is free at once, not held 30 s for
+                                                          a resume. A crash or kill still drops and
+                                                          is held (#543)
 disconnect_from_world(reason := "…")                      drop the socket
 is_seated() -> bool                                       whether requests may be submitted
 world_instance() -> String                                which running world this is

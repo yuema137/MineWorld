@@ -56,7 +56,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use mineworld_authoring::{EntityClasses, OwnerContext};
-use mineworld_contracts::{EntityKey, EntityType, SystemId};
+use mineworld_contracts::{EntityKey, EntityType, SystemId, WorldTime};
 use mineworld_packages::{Compatibility, Composition, LicencePolicy, License, PackRoots, Version};
 use serde::de::DeserializeOwned;
 
@@ -117,6 +117,8 @@ pub struct WorldPack {
     licence_policy: LicencePolicy,
     /// `world.yaml`'s `hosting: time_scale`, if stated (`ARC-69` item 9): host pacing, never read by a pack.
     hosting_time_scale: Option<NonZeroU32>,
+    /// `world.yaml`'s `begins:`, the genesis instant of a world this pack creates (`ARC-371`); 0 when unstated.
+    begins: WorldTime,
     decisions: Option<DecisionsFile>,
     /// `world.yaml`'s `settlement:`, already checked (`ARC-105`); `None` when the world does not say.
     settlement: Option<Settlement>,
@@ -130,6 +132,31 @@ pub struct WorldPack {
 
 /// The largest scale a World Pack may state: a day in 24 hours (`ARC-69` item 5).
 const DAY_LENGTH_SCALE: u32 = 24;
+
+/// The genesis instant `world.yaml`'s `begins:` states (`ARC-371`): a strict "HH:MM" on day 0, refused by
+/// name otherwise; local midnight when unstated.
+fn begins(manifest_path: &Path, manifest: &WorldManifest) -> Result<WorldTime, PackError> {
+    let Some(text) = manifest.begins.as_deref() else {
+        return Ok(WorldTime::EPOCH);
+    };
+    let refused = || PackError::Begins {
+        path: manifest_path.to_path_buf(),
+        value: text.to_owned(),
+    };
+    let (hours, minutes) = text.split_once(':').ok_or_else(refused)?;
+    let two_digits = |part: &str| part.len() == 2 && part.bytes().all(|b| b.is_ascii_digit());
+    if !two_digits(hours) || !two_digits(minutes) {
+        return Err(refused());
+    }
+    let (hours, minutes): (i64, i64) = (
+        hours.parse().map_err(|_| refused())?,
+        minutes.parse().map_err(|_| refused())?,
+    );
+    if hours >= 24 || minutes >= 60 {
+        return Err(refused());
+    }
+    Ok(WorldTime::from_seconds(hours * 3_600 + minutes * 60))
+}
 
 /// The day-length scale a `world.yaml` states under `hosting:`, checked to lie in 1 to 24 (`ARC-69` item 9).
 fn hosting_time_scale(
@@ -171,6 +198,7 @@ impl WorldPack {
         let manifest_path = root.join(MANIFEST);
         let manifest: WorldManifest = parse(&manifest_path, "world")?;
         let hosting_time_scale = hosting_time_scale(&manifest_path, &manifest)?;
+        let begins = begins(&manifest_path, &manifest)?;
 
         check_pack_id(&root, &manifest.world.id)?;
         if let Some(range) = &manifest.mineworld {
@@ -285,6 +313,7 @@ impl WorldPack {
             classes,
             licence_policy,
             hosting_time_scale,
+            begins,
             decisions: manifest.decisions,
             settlement: manifest.settlement,
             contexts,
@@ -402,6 +431,12 @@ impl WorldPack {
         &self.seats
     }
 
+    /// The instant a world this pack creates begins at: `world.yaml`'s `begins:` on day 0 (`ARC-371`),
+    /// local midnight when unstated. A saved world keeps the instant it was created at.
+    pub const fn begins(&self) -> WorldTime {
+        self.begins
+    }
+
     /// The time scale this world's `world.yaml` states for a host (`hosting: time_scale`, `ARC-69` item 9),
     /// if it states one. Host pacing: the world's state, and every rule, is the same at any scale.
     pub fn hosting_time_scale(&self) -> Option<NonZeroU32> {
@@ -505,6 +540,7 @@ impl WorldPack {
             classes: EntityClasses::default(),
             licence_policy: LicencePolicy::default(),
             hosting_time_scale: None,
+            begins: WorldTime::EPOCH,
             decisions: None,
             settlement: None,
             contexts: Contexts::new(),

@@ -15,6 +15,9 @@ First pre-alpha. Packaged clients for macOS, Windows and Linux are not yet publi
 - Food energy: a world may choose `hunger_model: food-energy`, so hunger is a kcal reserve (2000 kcal per world
   day by default, configurable per world and per actor class) that food refills by its kcal per serving
   (#555).
+- A world may state the time of day it begins, `begins: "HH:MM"` in `world.yaml`; Market Town, Social Café and
+  Lakeside now begin at 07:00, with residents rested and ready for breakfast. A save keeps the start it was
+  created with (#564).
 
 ### Changed
 

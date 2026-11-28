@@ -29,12 +29,13 @@ reason fix-activity-double-draw #274 (operator ruling 2026-10-18, F-S27b-5, ARC-
 reason milestone F re-record (2026-10-20, one re-record for the step): every key re-recorded from the nightly long record of main f92e3cad (parity-long-mac, run 39407548463, Darwin/arm64; verdict PASS), after TW-e's calendar in social-cafe (ARC-269), LE-a's genesis rows, economy SystemVersion 3, S35's sleep and needs content, S29's station and S34-c1's posture with its sit points; no number edited by hand
 reason S33-b #395: Lakeside gets bodies (step-33 F-S33-3) and its doorways move to 400 mm (12d SD-D3); every key moves; recorded from a local long record of f3dd14a3 (merge with main fa214d54, Darwin/arm64). Main's bodies/movement fix e9d51bd3 (after milestone F) is folded in; only [world lakeside] is written, the other worlds' drift since milestone F is main's and is left to main's next re-record
 reason S34-c2: Lakeside enables `posture` with 29 sit points (pier, square, bakery, halt), so `sit` is offered and residents sit; the pier and square bench furnishings turn to the side their points use (Q-S34c3-7); every key moves; recorded from a local long record of 8018d593 (base main 7718d952, Darwin/arm64, 2 687 s). Main had already drifted from every world's section before this PR (bodies-yard, which has no posture, moves too); that drift is folded into Lakeside's keys here, and only [world lakeside] is written; the other worlds are left to main's next re-record
-summary-300 364 df224d5371d2ab54cc0088fca9df4ac91a98e66b38fda4ac4caa641b9dfe3754
-summary-1000 1088 136d834044b5acb4ccd16f23262d107e03c3ee2ae3f83f7e074cf57acda99bad
-summary-300s 363 5c7c20af32be0d0e8308efdc599f22523c25d625e5efe5155bf732572fdb28f6
-facts-300s 6515 44b3962fc766257dc721517c4ccfa56015229c056e7df87fd927e56d50713506
-journal-300s 4214 39c9fed28c34cafdd890f19d1bd0485072686ce674e07f2e49e559f24657acaf
-sealed-300s 131 418f1894dc0824772a32a28dce992e5f2cae47b83d86586d1a349b2eb0f9fce2
+reason world-begins #564 (ARC-371, operator ruling 2026-11-27 "新世界早上 7 点开始"): the world begins at 07:00, so genesis and every later fact move; recorded from a long-profile record of e12492b3 (merge with main 8745f572, after #557 bodies v8; lakeside only, ci_parity record --root, Darwin/arm64) and written by ci_parity baseline write
+summary-300 364 9f1a2b1f4375760ce217864513db9e2152329e289419dc1536e1afa8de8c99e1
+summary-1000 1088 35d608295fdc3cf00985ed65ca1a9d600a67d377ae4d1e8993e988196e973ef7
+summary-300s 363 4db833f4709e5f78ba5973027c2c21dc2109be3b10449d9cd95bb5378bc5f06d
+facts-300s 6824 407f35da55e272989cad094c8d514cf6890feb09d88b26933d1e55707f8ae64f
+journal-300s 4394 8e0d32e51eb74c81e5f588d6fb51bdd0bf210cfc6bc6dd80a297cc0668303a3b
+sealed-300s 131 463dc0344e9add2241034ac9faa2ce2d8a907fd708e2aca37c281f025dc82893
 [world market-town]
 reason 13c #162: journal-300s re-recorded on main 9f853e1 (after #153, #157, #159); journal bytes moved in every world, summaries and facts did not (F-13c-impl-3)
 reason FG-a: re-recorded on mvp0/pr-fg-a eadc5df. Summaries and facts-300s were stale on main 6306977 (nightly issue #170, walking towns) and now equal that commit's own record; journal-300s moves at its genesis row only, which carries the composition (relationships v3, conversation v4, acquaintance-forgotten declared); no fact or summary moved by FG-a (pr-fg-a FA-1, F-FGA-16)
@@ -54,12 +55,14 @@ reason fix-activity-double-draw #274 merged with main b1969ca9 (after WE-a #189,
 reason milestone F re-record (2026-10-20, one re-record for the step): every key re-recorded from the nightly long record of main f92e3cad (parity-long-mac, run 39407548463, Darwin/arm64; verdict PASS), after TW-e's calendar in social-cafe (ARC-269), LE-a's genesis rows, economy SystemVersion 3, S35's sleep and needs content, S29's station and S34-c1's posture with its sit points; no number edited by hand
 reason N1 #552 (ARC-364, operator ruling Q-L1; coordinator 2026-11-27): Market Town's three shops author daily hours, so genesis shop-opened carries them and every key moves; recorded from a long-profile record of 9af926e7 (merge with main 29401a26; Darwin/arm64, ci_parity record --root of a root holding only worlds/market-town + entities + presentation, 1401 s) and written by ci_parity baseline write; the keys also absorb main's Market Town drift since the milestone F re-record; no other world written
 reason N1 #552 merged with main a2be71e4 (after FE-a #555, needs v2): re-recorded again from a long-profile record of ae34d202 (Market Town only, --root, Darwin/arm64, 1674 s) by ci_parity baseline write
-summary-300 401 65c429438ea92530d4689a0bf69e92b03ec3f00c39a5fcbe9e47af254a6edda2
-summary-1000 1127 0264a9eb8b398a7e8db960b4fdf4ec7dbbe494dda70385c123baa4890e35ff45
-summary-300s 400 a357530de048ec3c365b809be200e7535b361afb87da517eb8b9cf785df19894
-facts-300s 6032 0bb704b806f1441bcaab56fdd183ecdef8069557bc3a60fe7fd18bae5c843b62
-journal-300s 4170 b825bc574967107388156e6ce3f205143c04c07ba97807d64782991abddf6974
-sealed-300s 263 6867e8ea43c3499df6771db83f989c716e3d6eaaf8a72dc8c874323fb31d0965
+reason world-begins #564 (ARC-371, operator ruling 2026-11-27 "新世界早上 7 点开始"): the world begins at 07:00, so genesis and every later fact move; recorded from a long-profile record of e12492b3 (merge with main 8745f572, after #557 bodies v8; market-town only, ci_parity record --root, Darwin/arm64) and written by ci_parity baseline write
+reason world-begins #564 follow-up: Market Town's residents begin rested at 07:00 (needs hunger 510, tiredness 0); re-recorded from a long-profile record of 27665e68 (market-town only, --root, Darwin/arm64) by ci_parity baseline write
+summary-300 401 0481bb30f3b646b24fa99ac95736b66e9206c2a021e708584d89abc7756cb2f8
+summary-1000 1127 3f91a50fb689eb1f64e13b514f96ac0454e59ab4bf1b3f39aaa7d0db70e49b90
+summary-300s 400 a5f23d5b9b8d204d99313f1f3c51356d01606588ddaa2fce3d4b7f1372c4ce74
+facts-300s 10560 ab2fa7ab48fdba48174a5f0fb94a0a74615da79a3e78e2fe31fb8e58c6f73123
+journal-300s 7361 29b1db9b7b2bf8e91b57c2c971c7e70cd976061996d8f16b48ce63437b6b3da0
+sealed-300s 262 eb55d78fc1250998e4d7f96a174aa7036b357fca83a2720724ecf023bce99cb0
 [world social-cafe]
 reason 13c #162: journal-300s re-recorded on main 9f853e1 (after #153, #157, #159); journal bytes moved in every world, summaries and facts did not (F-13c-impl-3)
 reason FG-a: re-recorded on mvp0/pr-fg-a eadc5df. Summaries and facts-300s were stale on main 6306977 (nightly issue #170, walking towns) and now equal that commit's own record; journal-300s moves at its genesis row only, which carries the composition (relationships v3, conversation v4, acquaintance-forgotten declared); no fact or summary moved by FG-a (pr-fg-a FA-1, F-FGA-16)
@@ -75,9 +78,10 @@ reason S26-a #206 merge with main e51ffc0 (after P6a #236, S27-b #241; Q-S26a-5,
 reason 12d #171 merged after S26-a #206: bodies, persona and appearance together; all six keys re-recorded from the CI long record of 12d's merge with main 9884c64 (scratch nightly run 39129402348, commit 572d1ce, Linux/x86_64; Linux/arm64, Darwin/arm64 and Windows/x86_64 equal); bodies-yard did not move
 reason fix-activity-double-draw #274 (operator ruling 2026-10-18, F-S27b-5, ARC-151): the paced rule's offered band no longer draws the actions the rule decides by name (leave, join, accept, decline, invite, talk, walk), so members leave once per decision, not twice; median activity 60 minutes again, as before S27-b; all six keys moved; bodies-yard unchanged; re-recorded from a local long record of the merge with main 44f050e3 (after 12d #171; 51f6f08, Darwin/arm64); still starts activities (group-activity-started 9579 in the 300-day run)
 reason milestone F re-record (2026-10-20, one re-record for the step): every key re-recorded from the nightly long record of main f92e3cad (parity-long-mac, run 39407548463, Darwin/arm64; verdict PASS), after TW-e's calendar in social-cafe (ARC-269), LE-a's genesis rows, economy SystemVersion 3, S35's sleep and needs content, S29's station and S34-c1's posture with its sit points; no number edited by hand
-summary-300 360 fcdb6960ff54fc08225bedc21781756f739e7245278ff4892ef59446bc8ea255
-summary-1000 1085 dba38006f0013153dc8a33ae746aeb6f33b3e36ae05add7fe72915cc3afa8b8c
-summary-300s 359 208e7d200effe21a39c6740f93f26860d7a14ee3468e0f97c917c095429fb422
-facts-300s 10422 2fa212f51a947b8cbf46d8f508f8ab5d328760ad048756dae4b4c1697df85dba
-journal-300s 7713 7ec5c9671045366f341b84bcf1c4bfeb039d1c34f57d19678f16499140050a0e
-sealed-300s 189 5384ec11c4a1da5647c791613acd284a7433da2f577753dac1e9dc6f2649e10d
+reason world-begins #564 (ARC-371, operator ruling 2026-11-27 "新世界早上 7 点开始"): the world begins at 07:00, so genesis and every later fact move; recorded from a long-profile record of e12492b3 (merge with main 8745f572, after #557 bodies v8; social-cafe only, ci_parity record --root, Darwin/arm64) and written by ci_parity baseline write
+summary-300 362 c12fd6ea918878e97b9cdc78cd428941ced533a9c566c4117471f8952e6f9d68
+summary-1000 1086 1dbfa45bf7ca58453f85cc30c903cde3f819bfd6516352ba2de87190af0690b5
+summary-300s 361 2f167cd338a4aeee91b29e9bdcb8a6679dc8a194854a1ae37b68dfc4aef6dbdc
+facts-300s 9408 a4b2cc4b20273b16b925b20c80f3b0eb7f67298fcf2fdec108f148ddcf40ac0c
+journal-300s 6464 efd84d1fdd32cadee792db553162bdc298df49bbc14c7163148c456428906c73
+sealed-300s 186 2dec00e90f41b14c694c2d5f10b2f923af8c2c05039d44e09cf3dce4a011cd7b

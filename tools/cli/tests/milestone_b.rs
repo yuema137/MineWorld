@@ -287,7 +287,15 @@ async fn alice_and_bob_know_each_other_share_an_activity_and_survive_a_restart_w
     // world's clock runs on from the save's head (step-09 §4.3.7). Checked first, for the hour of the
     // day that follows the head: a routine edited into it fails here, by name, not as a mystery below.
     let head_at = Tables::read(&killed).head_instant();
-    fixture::assert_quiet(head_at, 3_600, "milestone_b.rs (hosting the killed save)");
+    // The boundaries at the head instant itself (07:00: the world begins then, ARC-371) were committed
+    // before the kill; the half hour after it is quiet.
+    // (Was an hour from midnight; 07:00 + 30 min is the quiet span a 07:00 world has. At the pack's scale 12
+    // that is 150 s of wall time; this test runs for seconds — ac5_takeover asserts its own end instant.)
+    fixture::assert_quiet(
+        head_at + 1,
+        1_799,
+        "milestone_b.rs (hosting the killed save)",
+    );
     let save = killed.to_str().expect("path");
     let command = ["server", PACK, "--save", save];
     let mut first = Server::start(&command).await;

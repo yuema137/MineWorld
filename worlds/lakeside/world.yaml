@@ -42,6 +42,10 @@ requires:
 # every pack comes after what it depends on. `fishing` (third-party) depends on presence and inventory,
 # so it comes last. Leave it out, with every place's `fishing:` section, and the lake is only scenery:
 # `fish` is offered to nobody and nothing else changes (AC-2).
+# The world begins at 07:00 on day 0, not at midnight (ARC-371; operator ruling 2026-11-27): a new
+# world opens on a morning, with its shops about to sell. A saved world keeps the start it was created with.
+begins: "07:00"
+
 systems:
   - presence
   - movement
