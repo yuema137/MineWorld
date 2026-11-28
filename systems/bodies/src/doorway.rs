@@ -23,7 +23,7 @@ use mineworld_contracts::{Millimetres, PlaceId};
 use mineworld_kernel::WorldRead;
 use mineworld_movement::Passages;
 
-use crate::entry::nearest_free;
+use crate::entry::nearest_free_within;
 use crate::footprint::{Footprint, Placed};
 use crate::geometry::{
     GAP, LATTICE, NUDGED_MAX, PERSON_RADIUS, Point, Room, TOLERANCE, distance2, segment_clear_of,
@@ -123,10 +123,12 @@ pub(crate) fn give_way(
                     .iter()
                     .all(|footprint| !footprint.within(p, PERSON_RADIUS.value()))
                 && clear_of_solids(room, from, p)
-                && starts.from(room, p)
+                && starts.from(p)
         };
-        let to = nearest_free(room, from, &|p| aside(p) && off_the_threshold(p, doors))
-            .or_else(|| nearest_free(room, from, &aside))?;
+        let to = nearest_free_within(room, from, reach, &|p| {
+            aside(p) && off_the_threshold(p, doors)
+        })
+        .or_else(|| nearest_free_within(room, from, reach, &aside))?;
         now[index] = to;
         moved.push((index, to));
     }

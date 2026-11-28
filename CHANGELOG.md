@@ -18,6 +18,8 @@ First pre-alpha. Packaged clients for macOS, Windows and Linux are not yet publi
 
 ### Changed
 
+- Saves of worlds with bodies made by earlier builds no longer load: bodies is now version 8, and a version-7 save is
+  refused by name. Keep the previous build to play them (#557).
 - Saves of worlds that enable `needs` made by earlier builds no longer load: keep the previous build to play
   them (#555).
 - The MCP surface exposes one `act` tool instead of five, which halves the tool list size (#261).
@@ -26,6 +28,8 @@ First pre-alpha. Packaged clients for macOS, Windows and Linux are not yet publi
 
 ### Fixed
 
+- A person who steps aside for a walker, or is nudged, is never left in a gap too tight for the route planner, from
+  which every later walk was refused `no-route` (#557).
 - `run --save` and `server --save` create a new save only after the world has assembled and begun, so a world
   refused while loading no longer leaves an empty save that the next launch fails to resume (#555).
 - The café's chairs, stools and ledge are solids; 3D people no longer walk through them (#292).

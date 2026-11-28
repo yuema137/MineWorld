@@ -164,7 +164,7 @@ pub(crate) fn stride(
             fallback,
             walls,
         )
-        .and_then(|nudged| nudged.startable(room, &starts))
+        .and_then(|nudged| nudged.startable(&starts))
         {
             Ok(nudged) => Tried {
                 candidate: Candidate {
@@ -414,8 +414,8 @@ impl Nudged {
     /// This pass when every person it moved stands where a route can start ([`Starts`]); otherwise
     /// the pass fails like any other, and the caller degrades to blocked at first contact: a nudge
     /// never leaves a body where no route can start (Q-S34d1-3).
-    pub(crate) fn startable(self, room: &Room, starts: &Starts) -> Result<Self, ()> {
-        if self.moved.iter().all(|(_, at)| starts.from(room, *at)) {
+    pub(crate) fn startable(self, starts: &Starts<'_>) -> Result<Self, ()> {
+        if self.moved.iter().all(|(_, at)| starts.from(*at)) {
             Ok(self)
         } else {
             Err(())
