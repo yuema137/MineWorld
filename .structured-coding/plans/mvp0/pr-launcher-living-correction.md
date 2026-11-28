@@ -1,22 +1,22 @@
 # Packaged launcher living-world correction
 
-## DESIGN FROZEN — not yet: awaiting the operator's explicit freeze (ratification)
+## DESIGN FROZEN — 2026-11-27 (operator ratification)
 
 ```text
 Design revision:        revision 1 (2026-11-23, recovered as e37ce9fd); publication notes 2026-11-27
-Approved by / evidence: PARTIAL. The operator approved the getrandom reuse on 2026-11-23 in the Codex coordination
-                        session, verbatim "同意复用现有 getrandom 库" (relayed by the coordinator; recorded in
-                        handoff-coordinator.md "November 23 continued execution"). The design itself has only an
-                        agent plan PASS (delivery_review) and final source PASS (review_sol). Record the operator's
-                        exact freeze words and date here when given.
-Operator decisions:     D1 ratify this design as a bounded correction to S23/ARC-78 hosting;
-                        D2 merge with the exported-bundle World-tab check NOT RUN (see Publication), or require it
-                           first (it is planned as C2's packaged item in pr-launcher-solo.md)
-Implementation base:    fix/startup-loading-ui (PR #548), itself on #544 + main; branch fix/launcher-living-world (PR #549)
-Lifecycle:              DRAFT — awaiting operator freeze; implementation exists (recovered) and is under review
+Approved by / evidence: the operator, 2026-11-27, relayed by the primary coordinator:
+                        "启动器按推荐；启动加载和启动器设计冻结，接受慢 8 秒，3D 实跑放到里程碑"
+                        ("launcher as recommended; startup-loading and launcher designs frozen; accept 8 s slower;
+                        3D real runs go to the milestone"). The getrandom reuse was approved separately on 2026-11-23:
+                        "同意复用现有 getrandom 库" (handoff-coordinator.md "November 23 continued execution").
+Operator rulings:       D1 ratified as a bounded correction to S23/ARC-78 hosting.
+                        D2 the exported-bundle World-tab check is DEFERRED to the milestone trial (and to
+                           pr-launcher-solo.md C2's packaged item); it remains NOT RUN here, never counted as a pass.
+Implementation base:    fix/startup-loading-ui (PR #548), on main after #544; branch fix/launcher-living-world (PR #549)
+Lifecycle:              FROZEN (2026-11-27); implementation complete, under review
 ```
 
-### Execution contract (filled; binding once frozen)
+### Execution contract (filled; binding)
 
 ```text
 Owner / worktree:       one session; /Users/yuema137/mineworld-worktrees/impl-launcher-living, branch fix/launcher-living-world
