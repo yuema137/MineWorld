@@ -390,9 +390,15 @@ def _watch_stdin(stopper: Stopper) -> None:
     """A daemon thread that reads standard input to its end, then stops serving (§1 of the spec). A thread, not the
     event loop's reader: Windows' proactor loop cannot watch a pipe that way."""
 
+    # The raw descriptor, never `sys.stdin.buffer`: a daemon thread blocked inside a buffered read holds the
+    # reader's lock, and the interpreter aborts at exit when it cannot take that lock (found in a packaged run).
+    descriptor = sys.stdin.fileno()
+
     def watch() -> None:
-        stream = sys.stdin.buffer
-        while stream.read(4096):
+        try:
+            while os.read(descriptor, 4096):
+                pass
+        except OSError:
             pass
         stopper.stop("standard input closed")
 

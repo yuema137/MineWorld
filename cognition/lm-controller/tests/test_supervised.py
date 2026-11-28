@@ -179,6 +179,21 @@ def test_a_supervised_run_writes_only_status_lines_on_stdout_and_names_its_reaso
     for printed in (missing, many, uninvited):
         assert "planted-invite-4c1e" not in printed.stdout + printed.stderr
 
+    # A supervisor's pipe still open when the process ends on a reason: it exits with its status, never with
+    # an interpreter abort from the stdin watcher (a packaged run's SIGABRT, design §10 PR-B finding F-B1).
+    held = subprocess.Popen(
+        _command(*common, "--assignment", tmp_path / "absent.json"),
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        env=environment,
+    )
+    code = held.wait(timeout=60)
+    assert code == 3, (code, held.stderr.read() if held.stderr else "")
+    if held.stdin is not None:
+        held.stdin.close()
+
     # Without --supervised the supervisor's flags are refused, and the standalone command is unchanged.
     alone = subprocess.run(
         _command("--config", config, "--store-dir", store),

@@ -790,3 +790,73 @@ line by line for §§1–4 of `cognition-supervised.md` and LAUNCHER.md §10. EO
 child; stdout pipe drained on its own thread (a full pipe never blocks the child); stop order cognition → server;
 `Drop` covers error paths; only owned handles killed. Watch loop does not spin on a closed pipe. Remaining: a status
 line could be split across reads only past 512 bytes, which is refused by design.
+
+#### C4 — corrected memory and controller substitution (sub-lane, cherry-picked)
+
+Delegated sub-lane commits `a37be20e` / `81c2b9a6` (worktree `impl-dialogue-b-c4`), cherry-picked here as
+`0b2b1a5f` (harness shared through `tools/cli/tests/support/cognition.rs`; `milestone_d.rs` 875 → 586 lines) and
+`13caef35` (`tools/cli/tests/correction_memory.rs` + `correction/{mod,people,evidence}.rs`, scripted model
+`tests/correction_cognition.py`, MCP driver `clients/agent/tests/correction_mcp_player.py`, fixture
+`fixtures/decisions/market-alice-dev-lm.yaml`, `python` layer entry in `scripts/ci_layer.py`).
+
+- [x] Implementation: Market Town, `alice` on `lm`, player `visitor`; runtime nonce code + initial place; leave and
+  rejoin; correction (new place, same code); unrelated line; another resident acting; graceful stop (server stdin
+  EOF, cognition SIGINT) and restart on the same save + store; the current place-and-code question (questions never
+  contain the answers). Positioning: `--town --solo --time-scale 3600` with plain clients holding `alice` and
+  `visitor` from genesis, then `POST /admin/clock {"time_scale":12}` at 07:00; Alice observed at (6000, 8000)
+  before any cognition process exists (no model call). Isolation: a second LM seat (`dev`) in the same home is told
+  a private code by Erin; it never appears in Alice's shown memory. Rule → human → LM and MCP-agent → LM keep
+  Alice's EntityId and history; holdings change only through her own non-`talk` requests.
+- [x] Validation (sub-lane, then re-run here on `13caef35`): `cargo test -p mineworld-cli --test correction_memory
+  -- --ignored --exact she_answers_with_the_corrected_place_after_a_restart` PASS (1 passed, 21.8 s; sub-lane 3/3
+  runs); `cargo test -p mineworld-cli --test milestone_d -- --include-ignored` → `she_remembers_across_the_two_views`
+  and `the_world_runs_with_alice_unplugged` PASS; `record_the_milestone_d_cassette` failed at its own
+  `MINEWORLD_MILESTONE_D_RECORD` check (operator-run test selected by `--include-ignored` by mistake; no model was
+  contacted). Gate harness dry run (scripted, `MINEWORLD_CORRECTION_GATE_DRY=1`) PASS with 7 ledger calls (sub-lane).
+  Mutations (sub-lane): M1 retrieval drops the correction → caught; M2 recent-recall seat filter removed → caught
+  (Alice no longer knew the code); M3 scripted model picks the oldest place → caught. Existing ownership cited, not
+  duplicated: `test_home_isolation::test_a_seat_view_shows_none_of_a_home_mates_rows`, `ac5_takeover.rs`.
+- [x] Review: shown prompt and citations read from the decision log; access predicates via the second seat;
+  restart identity via the home's `created` marker; oracle provenance = the scripted model reads only shown lines.
+  Findings recorded: (1) T3 ("someone I know arrived") fired twice in the dry run (Vera's walk to the counter, Wes
+  after the restart) where §6's table expected once, so the gate expects 7 ledger calls + 1 warm-up = exactly the cap
+  of 8 (no spare; still within Q-D3, nothing raised); (2) the rule fallback may buy/eat for Alice between holders;
+  (3) a null-store restart once re-answered an old line, the retained store never did (timing-dependent, recorded
+  only). `--fresh` making the old nonce unrecallable is the launcher case
+  `fresh_deletes_this_worlds_store_and_keeps_the_profile_and_other_worlds` (the store is gone) plus B1.
+
+#### C5 — package, observe, live gate
+
+**Implementation.**
+
+- [x] `scripts/package.py`: `COGNITION_FILES` ship `runtime/decisions/market-town-alice-lm.yaml` and
+  `runtime/cognition-profile.template.toml`; `check_contents` fails an active template line; two self-test cases.
+  `packaging/PLAY.txt` (EN + zh-CN mirror) "Talking with Alice (optional; requires a local runtime)". These landed in
+  commit `858bef5d` with C2/C3 (bounded: one staging). `package.py` 1309 → 1331 lines (+22): existing size debt, no
+  new responsibility beyond shipping two files and checking one.
+- [x] Finding F-B1 (fixed): in a packaged run the supervised process ended with `SIGABRT` ("could not acquire lock for
+  `<stdin>` at interpreter shutdown") because the stdin watcher was a daemon thread blocked in a buffered read. Fix:
+  read the raw descriptor (`os.read`). Regression in `test_supervised.py` (an open pipe at a degraded exit → exit 3);
+  mutation back to `sys.stdin.buffer.read` → caught.
+
+**Validation (package, macOS universal, built from `858bef5d`, Godot 4.7.2).**
+
+| Check | Result |
+| --- | --- |
+| `python3 scripts/package.py --self-test` | PASS 55 cases (incl. template inactive / active template refused) |
+| `package.py assemble --no-archive` | PASS; bundle 518 MB; `runtime/decisions/…`, `runtime/cognition-profile.template.toml` present; template has 0 active lines |
+| `package.py smoke` (2d, 3d, both; headless; profile ignored) | PASS steps 1, 2, 4, 5, 4+5, 6 ×3; step 2 (archive sums) and 3 (AC-8 record) NOT RUN as before |
+| Packaged 2D played, per-user profile (paths with a space and `世界`), manifest stale after a commit | PASS (missing-prerequisite path): `degraded(runtime_mismatch)` before the server; server started **without** `--decisions`; client played; ordered stop; launcher exit 0 |
+| Packaged 2D + 3D played (visitor 2D, wanderer 3D), fresh manifest, replay-mode configuration with an empty cassette | `cognition: ready` (store holds `instance`, `<instance>/`, ledger, assignment); first client closed → server and 3D client kept running; last closed → server graceful, launcher exit 0. The child then died on the empty cassette's `CassetteMiss` (a test-configuration choice: replay must miss loudly) and exposed F-B1; logged `degraded(child_exited)`, world kept playing. Store 256 KB, save 6.1 MB |
+| Rendered dialogue in the exported windows | NOT RUN: any reply there needs a model call, and Q-D3's 8 calls belong to the §6 gate; the protocol path to both clients is owned by `speech_both_ways.rs`/Milestone D |
+
+**Live gate (§6) — pre-registered before the run.** Claim: the local model, through the shipped controller, answers
+turn 7 with the corrected place and the original code from shown, cited memory after a real restart. Owner: Gate 1
+(real LLM). Command: `MINEWORLD_CORRECTION_GATE_OUT=<dir> cargo test -p mineworld-cli --test correction_memory --
+--ignored --exact the_bounded_live_gate --nocapture` on the final executable head, one slot, local Ollama
+`qwen3.5:4b` at `http://127.0.0.1:11434/v1`, `structured_output="none"`, `reasoning="off"`, `max_in_flight=1`,
+`max_calls=1`, `consult_deadline_s=20`, `greet_cooldown_s=86400`, gate ledger `calls_per_wall_hour=7`,
+`tokens_per_wall_day=30000`, warm-up counted, stop at 8. Expected calls 7 + 1 (C4 finding 1). PASS rubric and judges
+exactly §6 (machine (a)(c)(e); reviewer (b)(d)(f); then operator). Evidence destination:
+`.structured-coding/plans/mvp0/dialogue-memory-evidence/live-gate-<date>/`. FAIL/INCONCLUSIVE ⇒ "check 2 NOT MET"
+and the §0 operator choice; no rerun for a better answer.
