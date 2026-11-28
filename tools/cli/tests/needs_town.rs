@@ -314,6 +314,9 @@ struct Rhythm {
 }
 
 fn rhythm(run: &Run, measured: &Measured) -> Rhythm {
+    // Nights and days are the calendar's, counted from the midnight of genesis (a world may begin at its
+    // authored time of day, `ARC-371`): day 0 is the partial day genesis falls in.
+    let midnight = run.genesis - run.genesis.rem_euclid(DAY);
     let none = Vec::new();
     let people = &measured.seated;
     let person_days = i64::try_from(people.len()).expect("fits") * run.days;
@@ -322,8 +325,11 @@ fn rhythm(run: &Run, measured: &Measured) -> Rhythm {
             .iter()
             .map(|person| {
                 let sleeps = measured.sleeps.get(person).unwrap_or(&none);
-                (0..run.days)
-                    .filter(|day| asleep_at(sleeps, run.genesis + day * DAY + hour * HOUR))
+                // Every instant at `hour` inside the run: exactly `days` of them, whatever its start.
+                (0..=run.days)
+                    .map(|day| midnight + day * DAY + hour * HOUR)
+                    .filter(|at| (run.genesis..run.genesis + run.days * DAY).contains(at))
+                    .filter(|at| asleep_at(sleeps, *at))
                     .count() as i64
             })
             .sum();
@@ -373,6 +379,7 @@ fn verdict(what: &str, holds: bool, numbers: &str) -> bool {
 
 fn smoke(world: &str, seats: usize) -> bool {
     let run = run(world, 3, 7, "needs-town-smoke");
+    let midnight = run.genesis - run.genesis.rem_euclid(DAY);
     let measured = measure(&run);
     let mut holds = verdict(
         &format!("{world}: seated people with needs"),
@@ -383,11 +390,11 @@ fn smoke(world: &str, seats: usize) -> bool {
     for person in &measured.seated {
         let sleeps = measured.sleeps.get(person).unwrap_or(&none);
         let nights: Vec<bool> = (1..run.days)
-            .map(|day| asleep_at(sleeps, run.genesis + day * DAY + 3 * HOUR))
+            .map(|day| asleep_at(sleeps, midnight + day * DAY + 3 * HOUR))
             .collect();
         let meals: Vec<usize> = (0..run.days)
             .map(|day| {
-                let (from, to) = (run.genesis + day * DAY, run.genesis + (day + 1) * DAY);
+                let (from, to) = (midnight + day * DAY, midnight + (day + 1) * DAY);
                 measured.meals.get(person).map_or(0, |meals| {
                     meals
                         .iter()
@@ -407,7 +414,7 @@ fn smoke(world: &str, seats: usize) -> bool {
         .facts
         .iter()
         .filter(|fact| fact.event_type().as_str() == "deduction-unpaid")
-        .filter(|fact| fact.at().seconds() >= run.genesis + DAY)
+        .filter(|fact| fact.at().seconds() >= midnight + DAY)
         .count();
     holds &= verdict(
         &format!("{world}: no buy refused, no deduction unpaid on days 2–3"),

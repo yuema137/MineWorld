@@ -83,3 +83,41 @@ fn an_unknown_key_in_the_hosting_block_is_refused() {
         "a block that is not a time scale is not silently accepted"
     );
 }
+
+/// `begins:` (`ARC-371`): the genesis instant a world is created at. Absent, midnight; `"07:00"`, 25 200 s;
+/// and genesis really happens there — the loaded world's facts are stamped with it.
+#[test]
+fn begins_states_the_genesis_instant_and_absent_is_midnight() {
+    let absent = Scratch::world("begins-absent", "").read().expect("reads");
+    assert_eq!(absent.begins(), mineworld_contracts::WorldTime::EPOCH);
+    let pack = Scratch::world("begins-seven", "begins: \"07:00\"\n")
+        .read()
+        .expect("reads");
+    assert_eq!(pack.begins().seconds(), 7 * 3_600);
+    let loaded = pack.load(pack.begins()).expect("loads at its start");
+    assert!(
+        loaded
+            .genesis()
+            .iter()
+            .all(|fact| fact.at().seconds() == 25_200),
+        "every genesis fact is at 07:00 of day 0"
+    );
+}
+
+/// A `begins:` that is not a strict "HH:MM" is refused at load, naming the file and the key.
+#[test]
+fn a_malformed_begins_is_refused_by_file_and_key() {
+    for value in ["\"7:00\"", "\"24:00\"", "\"07:60\"", "\"morning\""] {
+        let text = format!("begins: {value}\n");
+        let refusal = Scratch::world("begins-malformed", &text)
+            .read()
+            .expect_err("malformed");
+        let message = refusal.to_string();
+        assert!(
+            matches!(refusal, PackError::Begins { .. })
+                && message.contains("world.yaml")
+                && message.contains("begins"),
+            "{value}: {message}"
+        );
+    }
+}

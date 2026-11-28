@@ -131,7 +131,9 @@ fn list_file(name: &str, contents: &str) -> (mineworld_test_support::Scratch, St
 /// posture moved the café. Re-captured at the milestone fd-1026 run (40403074977, head 30021293; its
 /// Windows output of this test matches the local capture byte for byte): the merges since milestone F
 /// (among them S29's station places, LE, S35 N-f/N-g's doorways and give-way) moved the café; the
-/// golden already differed at b13b8ade, before S35 N-f merged.
+/// golden already differed at b13b8ade, before S35 N-f merged. Re-captured by PR world-begins (ARC-371,
+/// 2026-11-27): Social Café now begins at 07:00, so every day's count moves; captured from this build's
+/// own `run` on the merge with main 8745f572.
 #[test]
 fn with_no_decision_list_run_prints_what_the_base_printed() {
     let (ok, stdout, stderr) =

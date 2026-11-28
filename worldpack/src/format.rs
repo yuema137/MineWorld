@@ -106,6 +106,12 @@ pub struct WorldManifest {
     /// controller, ignored by `run`.
     #[serde(default)]
     pub hosting: Option<Hosting>,
+    /// The time of day the world begins, "HH:MM" on a 24-hour clock, quoted: genesis is that instant of day 0
+    /// (`DECISIONS.md` `ARC-371`). Absent, "00:00", local midnight. Every host that creates a world begins it
+    /// there; a saved world keeps the start it was created with.
+    #[serde(default)]
+    #[schemars(regex(pattern = r"^([01][0-9]|2[0-3]):[0-5][0-9]$"))]
+    pub begins: Option<String>,
     /// The decision list: a file of this pack, such as decisions.yaml, saying which decision model
     /// drives each seat. Absent, every seat is driven by the rule model.
     ///
