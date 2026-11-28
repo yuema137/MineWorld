@@ -18,6 +18,9 @@ First pre-alpha. Packaged clients for macOS, Windows and Linux are not yet publi
 
 ### Changed
 
+- On macOS the packaged clients render through Vulkan (MoltenVK) instead of Godot's Metal driver. A first
+  launch with a cold shader cache now reaches the 3D first view in about 47 s instead of about 164 s; the
+  picture is unchanged (`DEP-164`, #PRNUM).
 - The packaged 2D launcher plays Market Town as the visitor instead of Carol. An existing 2D save resumes with
   Carol driven by the town; `seat = "carol"` in `runtime/launch.toml` keeps playing her. A packaged 2D or 3D
   run started alone is now a single-player (`--solo`) world. 2D + 3D and smoke runs are not. Smoke checks
