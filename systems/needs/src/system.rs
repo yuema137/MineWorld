@@ -259,10 +259,16 @@ fn fed(
             let by = u32::from(*hunger).saturating_mul(count);
             Ok(needs.fed(by, at, &rates(&found)))
         }
-        Some(Nourishment::FoodEnergy { energy_kcal, .. }) if *energy_kcal > 0 => needs
-            .energized(*energy_kcal, count, at, found.energy_kcal_per_day)
-            .map(Some)
-            .ok_or_else(|| backward(&ItemsConsumed::EVENT_TYPE)),
+        // A unitless person meets no food-energy kind (genesis refuses the mix), and writes nothing if it
+        // ever did; only a reserve read before its instant is the fault named here.
+        Some(Nourishment::FoodEnergy { energy_kcal, .. })
+            if *energy_kcal > 0 && matches!(needs.hunger(), Hunger::FoodEnergy(_)) =>
+        {
+            needs
+                .energized(*energy_kcal, count, at, found.energy_kcal_per_day)
+                .map(Some)
+                .ok_or_else(|| backward(&ItemsConsumed::EVENT_TYPE))
+        }
         _ => Ok(None),
     }
 }

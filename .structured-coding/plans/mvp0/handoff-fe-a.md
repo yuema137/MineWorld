@@ -16,3 +16,6 @@ BUDGET:                R-LOAD-1: one test target at a time via cast-slots/with-s
 CURRENT CHECKPOINT:    see the design's C0–C4 checkboxes (authoritative)
 STOP CONDITION:        READY FOR OPERATOR REVIEW — DO NOT MERGE
 ```
+
+**State 2026-11-27:** C0–C4 + review fixes committed; PR #555 open; READY FOR OPERATOR REVIEW pending CI on the
+final head (see PR). Next action for any resumed session: verify CI on the PR head; do not merge.

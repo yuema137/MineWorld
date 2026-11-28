@@ -640,3 +640,20 @@ final head, recorded separately from local results. Review starts while CI runs.
   (controllers), dialogue PR-A (cognition deadline), S34-e (clients), CI. Any edit to a file those lanes own is
   listed here and in the PR body.
 - **C0** committed (docs only); evidence in C0 above.
+- **C1–C4** committed (`43a93fd5`, `b9726b74`, `2c930100`, `13b6a238`); evidence in each commit's items above.
+- **E7 independent review** (separate read-only agent, 2026-11-27, on `13b6a238`): verdict **READY**, no BLOCKER or
+  MAJOR. Dispositions: MINOR tests — added three configuration negatives to `tools/cli/tests/food_energy.rs`
+  (daily use only in an actor-scoped entry → `needs-energy-daily-use-required`; a shadowed `hunger_asleep_per_hour`
+  → `needs-model-parameter-conflict`; `hunger_model` under `actor` → refused at decode): `--test food_energy` 6
+  passed (the cases are inside one test). MINOR code — `system.rs::fed` now matches a food-energy person before
+  `energized`, so `needs-reserve-read-before-stored` names only backward time. INFO kept as recorded debt: the
+  `KCAL_MAX` 100 000 bound is restated in `needs.gd`, `food_energy.py` and `situation.py` (each reader checks the
+  wire independently); `validate_authored`'s base-entry check reads the section's own entries only (needs has no
+  reference lists); `Box<str>` fields in `InvalidGenesisContent` (recorded in C1).
+- **CHANGELOG** cites #555.
+- **Readiness.** PR #555; CI `fast` green on `2c930100` and `13b6a238`; final head recorded in the PR and the
+  handoff (a commit cannot carry its own hash). Open items: E6 windowed 2D/3D launches INCONCLUSIVE (headless row
+  builders of both clients PASS on the real recording); food-energy kill/resume INCONCLUSIVE (close/reopen and
+  run-split resume PASS); clients show no per-item serving row. Lifecycle: **READY FOR OPERATOR REVIEW — DO NOT
+  MERGE**; context CLOSED / AWAITING OPERATOR ACTION. Post-merge sync owner: this session for this document; the
+  primary coordinator for step/overall/progress page.

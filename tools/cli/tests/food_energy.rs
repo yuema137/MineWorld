@@ -146,6 +146,24 @@ fn model_contradictions_in_configure_are_refused_by_name() {
             "needs-energy-daily-use-required",
             "the file",
         ),
+        (
+            "energy-only-scoped",
+            "parameters:\n  - { hunger_model: food-energy }\n  - { actor: person, energy_kcal_per_day: 2000 }\n",
+            "needs-energy-daily-use-required",
+            "the file",
+        ),
+        (
+            "energy-shadowed-asleep-rate",
+            "parameters:\n  - { hunger_asleep_per_hour: 20 }\n  - { hunger_model: food-energy, energy_kcal_per_day: 2000 }\n",
+            "needs-model-parameter-conflict",
+            "parameters[0]",
+        ),
+        (
+            "scoped-model",
+            "parameters:\n  - { actor: person, hunger_model: food-energy }\n",
+            "hunger_model",
+            "needs.yaml",
+        ),
     ] {
         let pack = food_energy(
             &format!("food-energy-{case}"),
