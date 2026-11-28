@@ -972,10 +972,19 @@ System Pack is not enabled has no such adapter.
 A status is `{ operation, seat, until, state: "running" | "ended", outcome?, reason? }`. The outcomes:
 `woke` (the adapter's state ended — the alarm, or any wake, including the sleeper's own `wake`),
 `cancelled`, `disconnected` (the sleeper's connection left, dropped, was kicked or released, or lagged —
-`reason: "lagged"`), `stopped` (a graceful stop, or `reason: "not_yet_executable"`), `interrupted` (the
-process ended during it; recorded at the next start, and nothing resumes) and `failed` (the save could not be
-written). **In this build an admitted advance moves no time**: it is recorded and ends at once
-`stopped { not_yet_executable }` (pr-nightlife N2-C2; the loop is N2-C3's).
+`reason: "lagged"`), `stopped` (a graceful stop, or nothing left that could ever end the state), `interrupted` (the process ended
+during it; recorded at the next start, and nothing resumes) and `failed` (the save could not be written).
+
+An admitted advance answers `running` at once and runs on the world thread in slices (at most 128 instants or
+10 ms each), every other command served between two: it visits, in the ordinary order, every instant at which
+the world's queue or an in-server controller is due, up to the adapter's horizon, with the scale, cadences and
+speech windows unchanged, and stops at the first completed instant at which the state no longer holds — never
+later. Each input is committed before anything is published; each slice ends with the ordinary sweep and one
+`clock` frame, whose `at` is the last completed instant and whose `time_scale` is unchanged. When the sleeper's
+stream is half full the next slice waits for a sweep to drain it, so a client that stops reading holds the night
+back rather than being released; one released `lagged` anyway ends it `disconnected { lagged }`. A `submit`
+from the sleeper's own connection is dispatched at the instant reached; a `wake` ends the advance `woke` there.
+After any end the clock runs on from the instant reached at the scale it had; no wall time is folded in.
 
 While an advance runs, a `join` and any other connection's `submit` are refused `advance_in_progress`
 (§5.5); `POST /admin/clock`, and a kick or release of anyone but the sleeper, are `409 advance_in_progress`;

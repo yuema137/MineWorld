@@ -174,6 +174,31 @@ impl WorldRuntime {
         }
     }
 
+    /// How deep a connection's stream is — its waiting perceived facts and its queued frames, whichever is
+    /// fuller against its bound — and whether that has reached half the bound (pr-nightlife N2-I13). Reads
+    /// only, and never waits: a full channel is read from its free capacity (D-N2-6).
+    pub(super) fn stream_depth(
+        &self,
+        subscription: SubscriptionId,
+        perceived_bound: usize,
+        frame_bound: usize,
+    ) -> (usize, bool) {
+        let Some(subscriber) = self
+            .subscribers
+            .iter()
+            .find(|subscriber| subscriber.subscription == subscription)
+        else {
+            return (0, false);
+        };
+        let waiting = subscriber
+            .perceiving
+            .as_ref()
+            .map_or(0, |perceiving| perceiving.pending.len());
+        let queued = subscriber.observations.max_capacity() - subscriber.observations.capacity();
+        let half = waiting * 2 >= perceived_bound.max(1) || queued * 2 >= frame_bound.max(1);
+        (waiting.max(queued), half)
+    }
+
     /// Records that a request submitted on this connection has been dispatched.
     pub(super) fn acted(&mut self, subscription: SubscriptionId, action: ActionId) {
         if let Some(subscriber) = self

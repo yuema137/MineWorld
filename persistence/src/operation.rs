@@ -108,8 +108,6 @@ pub enum AdvanceOutcome {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum EndReason {
-    /// This build admits an advance but does not yet run one (`stopped`; pr-nightlife N2-C2 only).
-    NotYetExecutable,
     /// The sleeper's perceived stream fell behind its bound (`disconnected`; N2-I13).
     Lagged,
 }

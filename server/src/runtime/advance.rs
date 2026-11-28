@@ -17,8 +17,8 @@
 //!
 //! The host knows the adapter's trait (`mineworld_sdk::advance`), never what sleep is. While an advance
 //! runs, every command that could seat, drive or re-pace another seat is refused `advance_in_progress`;
-//! the sleeper's departure ends it `disconnected`; a stop ends it `stopped`. This build admits an
-//! advance and ends it at once `stopped { not_yet_executable }`: it moves no time (N2-C2).
+//! the sleeper's departure ends it `disconnected`; a stop ends it `stopped`. The night itself runs in
+//! slices, each one command on the world thread (`advance/slice.rs`).
 
 use std::time::Instant;
 
@@ -122,14 +122,17 @@ pub(super) struct Running {
     operation: OperationId,
     seat: EntityKey,
     /// The sleeper.
-    #[expect(dead_code, reason = "read by the N2-C3 loop")]
     observer: EntityId,
     /// The sleeper's connection: its departure ends the advance.
     subscription: SubscriptionId,
-    #[expect(dead_code, reason = "read by the N2-C3 loop")]
     stop: &'static dyn AdvanceStop,
-    #[expect(dead_code, reason = "read by the N2-C3 loop")]
     occurrence: StopIdentity,
+    /// The last completed instant, once one is.
+    cursor: Option<mineworld_contracts::WorldTime>,
+    /// Waiting for a sweep to drain the sleeper's stream before the next slice (N2-I13, D-N2-6).
+    awaiting_sweep: bool,
+    /// What it did, for the operator's line when it ends.
+    progress: slice::Progress,
 }
 
 impl Running {
@@ -178,9 +181,9 @@ impl WorldRuntime {
             return Err(AdvanceRefusal::WorldStopped);
         }
         self.advancing = Some(running);
-        // N2-C2: the loop is N2-C3's. Admitted, recorded, and ended before any instant is visited —
-        // never a false `woke`.
-        self.end_advance(AdvanceOutcome::Stopped, Some(EndReason::NotYetExecutable));
+        // The clock is held at its reading: from here the advance alone moves it (N2-I12).
+        self.clock.hold_at(Instant::now(), self.clock.now());
+        self.post_slice();
         self.advance_status(request.operation)
             .ok_or(AdvanceRefusal::WorldStopped)
     }
@@ -220,14 +223,26 @@ impl WorldRuntime {
             subscription,
             stop,
             occurrence,
+            cursor: None,
+            awaiting_sweep: false,
+            progress: slice::Progress::default(),
         })
     }
 
-    /// Ends the running advance, if any, with `outcome`, at the world's instant. The clock keeps its scale.
+    /// Ends the running advance, if any, with `outcome`, at the world's instant. The clock runs on from the
+    /// instant reached, at the scale it had, with no wall time folded in (N2-I10), and is announced.
     pub(super) fn end_advance(&mut self, outcome: AdvanceOutcome, reason: Option<EndReason>) {
         let Some(running) = self.advancing.take() else {
             return;
         };
+        let wall = Instant::now();
+        self.clock.hold_at(wall, self.world.world().now());
+        self.clock.release_at(wall);
+        self.announced.send_replace(self.clock_state(wall));
+        println!(
+            "[world] advance {} ended {outcome:?}: {}",
+            running.operation, running.progress
+        );
         let ended = OperationEvent::AdvanceEnded {
             operation: running.operation,
             outcome,
@@ -338,6 +353,8 @@ impl WorldRuntime {
         Ok(())
     }
 }
+
+mod slice;
 
 #[cfg(test)]
 mod parity;

@@ -628,7 +628,7 @@ consult bells 85801
 consult watch 85801
   answered 303 Accepted { events: [] }
 consult nudger 85802
-  answered 304 Accepted { events: [EventId(299)] }
+  answered 304 Accepted { events: [] }
 fact 1 {"id":"1","at":82831,"event_type":"chimed","subjects":["2"],"participants":[],"place":null,"caused_by":{"action":"2"},"payload":{"event_type":"chimed","schema_version":1,"payload":[123,125]},"visibility":"public","provenance":{"emitted_by":"probe-rest","controller_decision":"2"}}
 fact 2 {"id":"2","at":82831,"event_type":"chimed","subjects":["3"],"participants":[],"place":null,"caused_by":{"action":"3"},"payload":{"event_type":"chimed","schema_version":1,"payload":[123,125]},"visibility":"public","provenance":{"emitted_by":"probe-rest","controller_decision":"3"}}
 fact 3 {"id":"3","at":82843,"event_type":"chimed","subjects":["3"],"participants":[],"place":null,"caused_by":{"action":"4"},"payload":{"event_type":"chimed","schema_version":1,"payload":[123,125]},"visibility":"public","provenance":{"emitted_by":"probe-rest","controller_decision":"4"}}
@@ -927,5 +927,7 @@ fact 295 {"id":"295","at":85771,"event_type":"chimed","subjects":["2"],"particip
 fact 296 {"id":"296","at":85771,"event_type":"chimed","subjects":["3"],"participants":[],"place":null,"caused_by":{"action":"297"},"payload":{"event_type":"chimed","schema_version":1,"payload":[123,125]},"visibility":"public","provenance":{"emitted_by":"probe-rest","controller_decision":"297"}}
 fact 297 {"id":"297","at":85783,"event_type":"chimed","subjects":["3"],"participants":[],"place":null,"caused_by":{"action":"298"},"payload":{"event_type":"chimed","schema_version":1,"payload":[123,125]},"visibility":"public","provenance":{"emitted_by":"probe-rest","controller_decision":"298"}}
 fact 298 {"id":"298","at":85795,"event_type":"chimed","subjects":["3"],"participants":[],"place":null,"caused_by":{"action":"299"},"payload":{"event_type":"chimed","schema_version":1,"payload":[123,125]},"visibility":"public","provenance":{"emitted_by":"probe-rest","controller_decision":"299"}}
-fact 299 {"id":"299","at":85802,"event_type":"rose","subjects":["1"],"participants":[],"place":null,"caused_by":{"action":"304"},"payload":{"event_type":"rose","schema_version":1,"payload":[123,34,110,117,100,103,101,100,34,58,116,114,117,101,125]},"visibility":"public","provenance":{"emitted_by":"probe-rest","controller_decision":"304"}}
-reached 85802
+fact 299 {"id":"299","at":85807,"event_type":"chimed","subjects":["3"],"participants":[],"place":null,"caused_by":{"action":"300"},"payload":{"event_type":"chimed","schema_version":1,"payload":[123,125]},"visibility":"public","provenance":{"emitted_by":"probe-rest","controller_decision":"300"}}
+fact 300 {"id":"300","at":85809,"event_type":"roused","subjects":["1"],"participants":[],"place":null,"caused_by":{"action":"304"},"payload":{"event_type":"roused","schema_version":1,"payload":[123,125]},"visibility":"public","provenance":{"emitted_by":"probe-rest","controller_decision":"304"}}
+fact 301 {"id":"301","at":85809,"event_type":"rose","subjects":["1"],"participants":[],"place":null,"caused_by":{"event":"300"},"payload":{"event_type":"rose","schema_version":1,"payload":[123,34,110,117,100,103,101,100,34,58,116,114,117,101,125]},"visibility":"public","provenance":{"emitted_by":"probe-rest","controller_decision":"304"}}
+reached 85809

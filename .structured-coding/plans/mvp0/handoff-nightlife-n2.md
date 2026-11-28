@@ -14,8 +14,8 @@ Contract:            pr-nightlife-contract.md "Contract N2"; endpoint = PR READY
 
 - N2-C1: committed (e0f22c7b); re-checked after merging origin/main 805498ce (D-N2-8).
 - N2-C2: committed (advance contract, lifecycle, durable identity; no loop).
-- N2-C3: next. D-N2-6 (non-blocking queue check) is recorded; freeze the oracle fixture first.
-- N2-C4: not started.
+- N2-C3: committed; PR opened for red-team on C1–C3.
+- N2-C4: next (clients/shared/host, 2D app/HUD, 3D needs HUD; Gate2 in a heavy slot).
 - Cargo target is deleted after each test cycle (coordinator rule, 2026-11-28): expect a cold rebuild.
 
 ## Next action

@@ -572,17 +572,22 @@ behave as N2-I8 … I14 in both reference clients.
    shared with `consult`), `server/src/{hosted,seats}.rs` (earliest due without mutation), `runtime/world.rs`
    (`HostClock` hold and re-anchor), `runtime/delivery.rs` (queue-depth query for N2-I13), runtime tests.
 3. **Implementation.**
-   - [ ] **First**, freeze the ordinary-host oracle trace (injected wall clock ticking at every due instant) as a
-         fixture from the current code; never compute expectations with the new loop.
-   - [ ] Loop per N2-I5; slices per N2-I7 with self-posted continuation (N2-I12); delivery per N2-I13;
-         durable-before-publish; cancel stops only (N2-I10); re-anchor per N2-I10.
-   - [ ] Ordinary `tick_at` semantics unchanged (its jitter-skip behaviour remains).
-4. **Validation.** [ ] oracle parity (N2-I6) on a Market Town night with strides, schedule boundaries, wages, a
-   purchase and same-instant ties; [ ] early wake at 02:00 by talk stops there; [ ] alarm at target; [ ] mutation
-   checks: a jump to morning and `now = horizon` must each fail parity/early-wake; [ ] cancel/disconnect/shutdown
-   between slices; [ ] a `Sweep` between slices neither consults nor advances; [ ] a sleeper `wake` between slices
-   ends the advance `woke` at the boundary instant; [ ] cancel leaves the sleeper asleep and submits nothing;
-   [ ] scale unchanged; [ ] fault mid-advance not retried; [ ] sleeper queue high-water mark recorded.
+   - [x] **First**, freeze the ordinary-host oracle trace (injected wall clock ticking at every due instant) as a
+         fixture from the current code; never compute expectations with the new loop. → commit 75645621, before
+         any loop code; `runtime/advance/{town,parity}.rs`, `fixtures/night-{whole,nudged}.txt` (D-N2-12).
+   - [x] Loop per N2-I5; slices per N2-I7 with self-posted continuation (N2-I12); delivery per N2-I13;
+         durable-before-publish; cancel stops only (N2-I10); re-anchor per N2-I10. → `runtime/advance/slice.rs`;
+         `HostClock::{hold_at, release_at}`; `Command::AdvanceSlice` on a `WeakSender`; `stream_depth` (D-N2-6).
+   - [x] Ordinary `tick_at` semantics unchanged (its jitter-skip behaviour remains). → `tick_at` now calls
+         `step_to(now)`, the same consult-then-advance it ran inline; oracle and all hosted tests unchanged.
+4. **Validation.** [x] oracle parity (N2-I6) — on the synthetic night (D-N2-12), plus the Market Town night through
+   the binary for behaviour and speed; [x] early wake stops there (a kernel-instant wake between consults: the
+   oracle's instant exactly); [x] alarm at target (Market Town: 07:00:00 = 111 600 s reached); [x] mutation
+   checks: a jump to the horizon (M2) and skipping the kernel's instants (M3) and checking the wake only at slice
+   end (M4) each FAIL parity; [x] cancel/disconnect/shutdown between slices (cancel and disconnect tested; shutdown
+   ends `stopped` in `run`, C2); [x] a `Sweep` between slices neither consults nor advances; [x] a sleeper `wake`
+   between slices ends the advance `woke` at the boundary instant; [x] cancel leaves the sleeper asleep and submits
+   nothing; [x] scale unchanged; [x] fault mid-advance not retried; [x] sleeper queue high-water mark recorded.
 5. **Acceptance.** Visited instants equal the oracle's, in order; final instant = first completed wake instant;
    cursor never ahead of durable history. **Speed (F14):** a Market Town 23:00 → 07:00 night (scale 12; at ordinary
    pace 40 wall minutes) completes in ≤ 60 wall seconds in a release build on the reference Mac, recorded with
@@ -593,7 +598,8 @@ behave as N2-I8 … I14 in both reference clients.
 7. **Commands/evidence.** `cargo test -p mineworld-server` filtered to runtime/advance; focused CLI hosted cadence
    tests. Record fixture hash, visited-instant count, wall vs world time. NOT RUN.
 8. **Boundary.** [ ] independent red-team review (missed stride, horizon skip, first wake, same instant, join race,
-   durability); [ ] runtime.rs growth reviewed — orchestration lives in `advance.rs`; [ ] diff/ledger.
+   durability) — PR-level, requested on opening; [x] runtime.rs growth reviewed — orchestration lives in
+   `advance/slice.rs`; [x] diff/ledger.
 
 ### N2-C4 — both clients and real recovery
 
@@ -906,6 +912,11 @@ Cargo target:        /Users/yuema137/mineworld-worktrees/_targets/nightlife-n2 (
 | D-N2-9 | Wire spelling of the C2 refusals | every existing wire code is `snake_case` (`RefusalCode`, `fast_forward_solo_only`, `world_stopped`); the admin bearer check answers every permission failure `401 unauthorized` after 500 ms (`PROTOCOL.md` §11.1) | the design's kebab names are written `snake_case` (`not_solo`, `other_controller_connected`, …); `unauthenticated` **is** the existing `401 unauthorized` — no second code. `advance_in_progress` is a new `RefusalCode` (WS) and a `409` (admin) |
 | D-N2-10 | The instant on operation records and `interrupted` | the world may advance in memory past its last commit when nothing fires; a restart resumes at the committed instant | records carry `world.now()`; coherence requires non-decreasing instants **except** at an `interrupted` end, which states the durable instant the world resumed at (could be earlier than the start record's). Revisions never decrease |
 | D-N2-11 | The external agent adapter (`clients/agent`) and `advance_in_progress` | its join-refusal vocabulary is a closed `Literal`; an unknown code maps to `protocol_violation` (`player.py::_join_code`) | not extended in N2 (out of scope; an outside agent seated in a solo world already refuses the advance by N2-I3). Follow-up if an agent may join a sleeping solo world mid-advance |
+| D-N2-12 | Where the oracle runs (N2-I6) | the Market Town composition and its hosted adapter (`tools/cli/src/hosted.rs`) exist only in the `mineworld` binary, which has no injected wall clock; `mineworld-server` tests drive `new_at`/`tick_at` but compose no pack | **Bounded deviation:** exact parity is proved in `mineworld-server` on a synthetic night (stub rest Process with a horizon, hosted probes on two cadences scheduling kernel work, 120 same-instant fact ties, an early wake at a kernel instant), byte for byte against the frozen ordinary-host fixture; the Market Town night is proved through the binary for behaviour (07:00 alarm, residents' strides and processes, scale unchanged) and speed, not parity. The loop and the ordinary tick share one step (`step_to`), so Market Town parity reduces to visiting the same instants, which the synthetic test and mutations M2–M4 pin. Raise if Market Town byte parity is required: it needs a test-only driven host in the binary |
+| D-N2-13 | Order of the wake check | a sleeper's own `wake` between slices must end it at the boundary (N2-I12) | the occurrence is checked at the start of every slice as well as after every instant; the sleeper's `submit` during an advance is dispatched at `world.now()` |
+| D-N2-14 | No horizon and nothing due | the trait allows `horizon = None`; with nothing scheduled the loop could not move | ends `stopped` (nothing could ever end the state) — never `woke` while it holds; a seat that stays due without being consulted moves the cursor one second, never spins |
+| D-N2-15 | `EndReason::NotYetExecutable` | C2's placeholder only; never in a shipped save | removed with the branch (no compatibility debt, `CLAUDE.md` §4 rule 12); the pinned-bytes test now pins `disconnected/lagged` |
+| D-N2-16 | Speed build | contract: release build; the workspace's `dev` profile is `opt-level = 1` with debug assertions (`ARC-30`) | measured in the `dev` profile through the binary — a stricter bound than release — so no release build was spent |
 | D-N2-8 | Main merged into the branch (2026-11-27, after the disk-full stop) | `origin/main` 805498ce: #564 (worlds begin at their authored time, Market Town 07:00, ARC-371) and #568 | merged cleanly; C1 targets re-run on the merge (evidence below); C1's frozen two-day summary and pre-N2 fixture re-checked against the 07:00 start |
 
 ### N2-C1 evidence (local, macOS arm64, 2026-11-27)
@@ -949,3 +960,21 @@ under the 500 review line); `control.rs` +40 (the N2-I12 guard). `persistence/sr
 operations now share `append_lazy`/`lazy_rows` (no duplicated SQL). Two `#[expect(dead_code)]` fields on `Running`
 (the adapter, occurrence and sleeper) are read by C3's loop and go with it. No new dependency beyond the server's
 use of the workspace's own `mineworld-sdk` (D-N2-7).
+
+### N2-C3 evidence (local, macOS arm64, 2026-11-28)
+
+| Check | Result |
+| --- | --- |
+| Oracle frozen first (commit 75645621, ordinary host only); re-frozen once from the ordinary host when the nudge became a kernel-instant wake so that M3 could fail (`night-nudged` now ends 85 809) | sha256 `a25e1d85…` (whole, 719 facts, 781 consults, 120 same-instant fact ties) |
+| `cargo test -p mineworld-server --lib advance` (parity 7, admission/lifecycle 8) | PASS 15/15 |
+| Mutations: M2 next instant = horizon; M3 kernel instants skipped; M4 wake checked only at slice end | each FAIL parity (caught) |
+| `cargo test -p mineworld-server -p mineworld-persistence` (all targets) | PASS |
+| `cargo test -p mineworld-cli --test advance` — Market Town `--town --solo`, Carol by the `sleep-until` offer 23:01 → 07:00:00 | PASS; **1.13 s wall** for 2 392 instants in 104 slices (40 wall minutes at 12×), high-water 0, 0 yields; a second run 1.15 s / 1 987 instants; an earlier run woke at 06:21 (a resident's talk — a real early wake, ended `woke` there) |
+| `cargo test -p mineworld-cli --test host_clock --test sleep_until --test admin --test server_command` | PASS |
+| clippy `-D warnings` (server, persistence, cli), fmt | PASS |
+| Remote CI | pending (PR opened on C3) |
+
+Maintainability (§7): `runtime.rs` 533 → 553 (`step_to` extraction, the continuation field, the submit instant);
+the loop is `runtime/advance/slice.rs` (241 lines with docs); `advance.rs` 364. Test support
+`advance/town.rs` is test-only. Finding for review: a sleeper's client that stops reading stalls the advance
+indefinitely (D-N2-6 by design: never released for speed); cancel or disconnect ends it.

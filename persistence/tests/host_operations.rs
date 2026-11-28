@@ -132,13 +132,13 @@ fn the_bytes_of_each_record_are_pinned() {
         revision: WorldRevision::from_raw(97),
         event: OperationEvent::AdvanceEnded {
             operation: OperationId::from_raw(0xabc),
-            outcome: AdvanceOutcome::Stopped,
-            reason: Some(EndReason::NotYetExecutable),
+            outcome: AdvanceOutcome::Disconnected,
+            reason: Some(EndReason::Lagged),
         },
     };
     assert_eq!(
         String::from_utf8(encode(&record).expect("encodes")).expect("utf-8"),
-        r#"{"at":111600,"revision":97,"event":{"advance_ended":{"operation":"00000000000000000000000000000abc","outcome":"stopped","reason":"not_yet_executable"}}}"#
+        r#"{"at":111600,"revision":97,"event":{"advance_ended":{"operation":"00000000000000000000000000000abc","outcome":"disconnected","reason":"lagged"}}}"#
     );
 }
 

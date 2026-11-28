@@ -281,33 +281,30 @@ fn a_held_seat_refuses_until_its_hold_ends() {
         now,
     );
     let admitted = advance(&mut solo, request(1, "sleeper", "keyed")).expect("admitted");
-    assert_eq!(
-        ended(&admitted),
-        Some((AdvanceOutcome::Stopped, Some(EndReason::NotYetExecutable)))
-    );
+    assert_eq!(ended(&admitted), None, "running");
 }
 
-/// This build admits, records `advance-started`, moves no time, and ends `stopped { not_yet_executable }`;
-/// a repeated operation with the same payload answers that without running again, and one with another
-/// payload is refused.
+/// An admitted advance records `advance-started` and runs; a repeated operation with the same payload answers
+/// its status without starting again, and one with another payload is refused. With nothing due and no
+/// horizon nothing could ever end it, so its first slice ends it `stopped` — never a false `woke` — having
+/// moved no time.
 #[test]
-fn an_admitted_advance_moves_no_time_and_a_repeat_is_idempotent() {
+fn an_admitted_advance_runs_once_and_a_repeat_is_idempotent() {
     let mut solo = host(None, true, true);
     let _sleeper = seat(&mut solo, "sleeper", 1);
     let before = solo.world.world().now();
-    let status = advance(&mut solo, request(7, "sleeper", "keyed")).expect("admitted");
-    assert_eq!(
-        ended(&status),
-        Some((AdvanceOutcome::Stopped, Some(EndReason::NotYetExecutable))),
-        "never a false woke"
-    );
-    assert_eq!(solo.world.world().now(), before, "no time moved");
-    assert_eq!(solo.operations.len(), 2, "started, then ended");
+    let running = advance(&mut solo, request(7, "sleeper", "keyed")).expect("admitted");
+    assert_eq!(ended(&running), None, "running");
     assert_eq!(
         advance(&mut solo, request(7, "sleeper", "keyed")),
-        Ok(status.clone())
+        Ok(running.clone())
     );
-    assert_eq!(solo.operations.len(), 2, "a repeat records nothing");
+    assert_eq!(solo.operations.len(), 1, "a repeat records nothing");
+    solo.advance_slice();
+    let status = solo.advance_status(op(7)).expect("known");
+    assert_eq!(ended(&status), Some((AdvanceOutcome::Stopped, None)));
+    assert_eq!(solo.world.world().now(), before, "no time moved");
+    assert_eq!(solo.operations.len(), 2, "started, then ended");
     assert_eq!(
         advance(&mut solo, request(7, "awake", "keyed")),
         Err(AdvanceRefusal::OperationConflict)

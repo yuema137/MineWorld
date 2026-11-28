@@ -4,8 +4,10 @@
 //!
 //! ```text
 //! rest  { until }   the actor rests: a `resting` Process ending at `until`; its end states `rose`
+//! rise { }          the actor ends its own rest at once, stating `rose` (a sleeper's own `wake`)
 //! chime { }         defers a public `chimed` 30 s ahead (kernel entries between consults, and ties)
-//! nudge { target }  ends the target's rest at once, stating `rose`
+//! nudge { target }  defers `roused` about the target 7 s ahead; when it fires, the rest ends and `rose` is
+//!                   stated — an early end at a kernel instant that is neither a consult nor the horizon
 //! ```
 //!
 //! Everything the world does goes through the kernel's own pipeline; the save is the record compared.
@@ -19,23 +21,29 @@ use std::time::{Duration, Instant};
 
 use mineworld_contracts::{
     Action, ActionIntent, ActionRecord, ActionRequest, ActionTypeId, EntityId, EntityKey,
-    EntityType, Event, EventEnvelope, EventId, EventSchemaVersion, EventTypeId, ProcessTypeId,
-    Rejection, SystemId, Visibility, WorldTime,
+    EntityType, Event, EventEnvelope, EventSchemaVersion, EventTypeId, ProcessTypeId, Rejection,
+    SystemId, Visibility, WorldTime,
 };
 use mineworld_kernel::{
     Emission, KernelError, Process, ProcessKind, ProcessStart, System, SystemDeclaration,
     SystemIdentity, SystemVersion, World, WorldRead, WorldView,
 };
-use mineworld_persistence::{Creation, Durability, PersistenceBackend, PersistentWorld, SqliteBackend};
+use mineworld_persistence::{
+    Creation, Durability, PersistenceBackend, PersistentWorld, SqliteBackend,
+};
 use mineworld_sdk::advance::{AdvanceStop, StopIdentity, register_stops};
 use serde::{Deserialize, Serialize};
 
 use super::super::WorldRuntime;
+use super::{AdvanceRequest, AdvanceStatus};
+use crate::host::Command;
 use crate::host::{HostConfig, HostedWorld, SeatRoster, Seated, TimeScaleChoice};
 use crate::hosted::{HostedAnswer, HostedBinding, HostedController};
 use crate::perception::EventPerception;
 use crate::protocol::{PerceivedJoin, SessionId, WireObservation};
 use crate::seats::JoinRequest;
+use mineworld_persistence::OperationId;
+use tokio::sync::mpsc;
 
 // ---------------------------------------------------------------------------------------------
 // The stub system and its adapter
@@ -55,6 +63,14 @@ struct RestUntil {
 
 impl Action for RestUntil {
     const ACTION_TYPE: ActionTypeId = ActionTypeId::from_static("rest");
+    const OWNER: SystemId = Rest::ID;
+}
+
+#[derive(Serialize, Deserialize)]
+pub(super) struct Rise {}
+
+impl Action for Rise {
+    const ACTION_TYPE: ActionTypeId = ActionTypeId::from_static("rise");
     const OWNER: SystemId = Rest::ID;
 }
 
@@ -82,6 +98,18 @@ impl Event for Chimed {
     const OWNER: SystemId = Rest::ID;
     const SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(1);
 }
+
+#[derive(Serialize, Deserialize)]
+struct Roused {}
+
+impl Event for Roused {
+    const EVENT_TYPE: EventTypeId = EventTypeId::from_static("roused");
+    const OWNER: SystemId = Rest::ID;
+    const SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(1);
+}
+
+/// How long after a nudge the sleeper is roused.
+const ROUSE: i64 = 7;
 
 #[derive(Serialize, Deserialize)]
 struct Rose {
@@ -120,16 +148,22 @@ impl System for Rest {
     fn declaration(&self) -> SystemDeclaration {
         SystemDeclaration::of::<Self>()
             .providing::<RestUntil>()
+            .providing::<Rise>()
             .providing::<Chime>()
             .providing::<Nudge>()
             .emitting::<Chimed>()
+            .emitting::<Roused>()
             .emitting::<Rose>()
+            .subscribing_to::<Roused>()
     }
 
     fn validate(&self, world: &WorldRead<'_>, intent: &ActionIntent) -> Result<(), Rejection> {
         let kind = intent.action_type();
         if *kind == RestUntil::ACTION_TYPE && resting_of(world, intent.actor()).is_some() {
             return Err(Rejection::Busy);
+        }
+        if *kind == Rise::ACTION_TYPE && resting_of(world, intent.actor()).is_none() {
+            return Err(Rejection::PreconditionFailed);
         }
         if *kind == Nudge::ACTION_TYPE
             && intent
@@ -165,10 +199,33 @@ impl System for Rest {
             )?;
             return Ok(Vec::new());
         }
+        if *kind == Rise::ACTION_TYPE {
+            let process = resting_of(&world.read(), intent.actor())
+                .map(Process::id)
+                .expect("validated");
+            world.end_process::<Resting>(process)?;
+            return Ok(vec![
+                Emission::new::<Rose>(encode(&Rose { nudged: false }), Visibility::Public)
+                    .about(vec![intent.actor()]),
+            ]);
+        }
         let target = intent.target().expect("validated");
-        let process = resting_of(&world.read(), target)
-            .map(Process::id)
-            .expect("validated");
+        world.defer(
+            WorldTime::from_seconds(world.at().seconds() + ROUSE),
+            Emission::new::<Roused>(encode(&Roused {}), Visibility::Public).about(vec![target]),
+        )?;
+        Ok(Vec::new())
+    }
+
+    fn react(
+        &self,
+        world: &mut WorldView<'_, Self>,
+        event: &EventEnvelope,
+    ) -> Result<Vec<Emission>, KernelError> {
+        let target = event.subjects()[0];
+        let Some(process) = resting_of(&world.read(), target).map(Process::id) else {
+            return Ok(Vec::new());
+        };
         world.end_process::<Resting>(process)?;
         Ok(vec![
             Emission::new::<Rose>(encode(&Rose { nudged: true }), Visibility::Public)
@@ -233,7 +290,11 @@ pub(super) fn register() {
 /// What every probe of one town consulted: the seat, the instant, and what became of its request.
 pub(super) type Log = Rc<RefCell<Vec<String>>>;
 
-fn request<A: Action + Serialize>(actor: EntityId, target: Option<EntityId>, action: &A) -> ActionRequest {
+pub(super) fn request<A: Action + Serialize>(
+    actor: EntityId,
+    target: Option<EntityId>,
+    action: &A,
+) -> ActionRequest {
     let record = ActionRecord::<Vec<u8>>::new::<A>(encode(action));
     match target {
         Some(target) => ActionRequest::new(actor, record).with_target(target),
@@ -258,7 +319,9 @@ impl HostedController for Probe {
         if after < self.origin {
             return WorldTime::from_seconds(self.origin);
         }
-        WorldTime::from_seconds(self.origin + ((after - self.origin) / self.period + 1) * self.period)
+        WorldTime::from_seconds(
+            self.origin + ((after - self.origin) / self.period + 1) * self.period,
+        )
     }
 
     fn decide(&mut self, observation: &WireObservation) -> Option<ActionRequest> {
@@ -319,6 +382,8 @@ pub(super) struct Night {
     pub(super) sleeper: Seated,
     pub(super) save: PathBuf,
     pub(super) base: Instant,
+    /// The world thread's own channel, as `WorldHost::spawn` gives it: the slices the advance posts.
+    commands: (mpsc::Sender<Command>, mpsc::Receiver<Command>),
 }
 
 /// How the night is set up.
@@ -410,7 +475,10 @@ pub(super) fn night(save: &Path, setup: Setup) -> Night {
         ..HostConfig::default()
     };
     let base = Instant::now();
-    let mut runtime = WorldRuntime::new_at(hosted, Arc::new(config), base).expect("starts");
+    let (sender, receiver) = mpsc::channel(256);
+    let mut runtime = WorldRuntime::new_at(hosted, Arc::new(config), base)
+        .expect("starts")
+        .continuing_through(sender.downgrade());
     let since = runtime.head;
     let sleeper = runtime
         .join(
@@ -428,6 +496,7 @@ pub(super) fn night(save: &Path, setup: Setup) -> Night {
         sleeper,
         save: save.to_path_buf(),
         base,
+        commands: (sender, receiver),
     }
 }
 
@@ -452,7 +521,11 @@ impl Night {
     pub(super) fn next_due(&self) -> Option<i64> {
         let kernel = self.runtime.world.world().next_instant();
         let hosted = self.runtime.table.earliest_due();
-        [kernel, hosted].into_iter().flatten().min().map(WorldTime::seconds)
+        [kernel, hosted]
+            .into_iter()
+            .flatten()
+            .min()
+            .map(WorldTime::seconds)
     }
 
     /// The trace a comparison reads: every consult and answer, every fact the save holds, in order, and the
@@ -468,13 +541,68 @@ impl Night {
                 String::from_utf8(fact.bytes).expect("json")
             ));
         }
-        lines.push(format!("reached {}", self.runtime.world.world().now().seconds()));
+        lines.push(format!(
+            "reached {}",
+            self.runtime.world.world().now().seconds()
+        ));
         lines
     }
 
-    /// The newest fact this world recorded.
-    pub(super) fn head(&self) -> Option<EventId> {
-        self.runtime.head
+    /// Reads everything waiting on the sleeper's stream, as a client that keeps up does. Returns how many
+    /// frames it read.
+    pub(super) fn drain(&mut self) -> usize {
+        let mut read = 0;
+        while self.sleeper.streams().observations.try_recv().is_ok() {
+            read += 1;
+        }
+        read
+    }
+
+    /// Serves the world thread's queue as its loop would, for at most `slices` slices: each posted slice runs;
+    /// when none is posted, the ticker's sweep runs, which may post the next. The sleeper's client reads
+    /// between commands when `reading`.
+    pub(super) fn pump(&mut self, reading: bool, slices: usize) {
+        let mut run = 0;
+        let mut idle = 0;
+        while run < slices && self.runtime.advancing.is_some() && idle < 3 {
+            if reading {
+                self.drain();
+            }
+            match self.commands.1.try_recv() {
+                Ok(Command::AdvanceSlice) => {
+                    run += 1;
+                    idle = 0;
+                    self.runtime.advance_slice();
+                }
+                Ok(_) => {}
+                Err(_) => {
+                    idle += 1;
+                    self.runtime.tick_at(self.base);
+                }
+            }
+        }
+    }
+
+    /// Runs the advance `operation` by hand — the slices the world thread would post to itself — reading the
+    /// sleeper's stream between slices when `reading`, until it ends or `slices` have run. Returns the
+    /// instants it completed, as the oracle returns the ones it ticked.
+    pub(super) fn advanced(
+        &mut self,
+        operation: u128,
+        reading: bool,
+        slices: usize,
+    ) -> AdvanceStatus {
+        let asked = AdvanceRequest {
+            operation: OperationId::from_raw(operation),
+            seat: EntityKey::new("sleeper").expect("a key"),
+            until: "rest".to_owned(),
+        };
+        let status = self.runtime.request_advance(asked).expect("admitted");
+        assert_eq!(status.ended, None, "running");
+        self.pump(reading, slices);
+        self.runtime
+            .advance_status(OperationId::from_raw(operation))
+            .expect("known")
     }
 }
 
