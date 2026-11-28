@@ -40,18 +40,17 @@
 
 mod support;
 
-use std::collections::BTreeSet;
-use std::io::{BufRead, BufReader, Read};
 use std::net::TcpListener;
 use std::path::{Path, PathBuf};
-use std::process::{Child, Command, Stdio};
-use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use mineworld_contracts::EntityId;
 use mineworld_server::{ServerFrame, WorldSummary};
-use mineworld_test_support::process;
 use serde_json::{Value, json};
+use support::cognition::{
+    Cognition, Program, actor_of, cited, decisions, id_of, perceived, recall_names, repository,
+    seat_taken, spoken, store_rows, write_seats,
+};
 use support::{
     Client, INVITE, SaveDir, Server, may_talk_to, own_history, run_command, tagged, talk,
 };
@@ -90,94 +89,26 @@ enum Model {
     Recording { base_url: String, model: String },
 }
 
-fn repository() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
-}
-
-/// The workspace's own interpreter, started directly so that killing the child kills the process that
-/// holds Alice's socket (a killed `uv run` could leave its child behind; R-P7-3).
-fn interpreter() -> PathBuf {
-    // `uv run` names the environment it activated; otherwise the workspace's default, `.venv`.
-    let venv =
-        std::env::var_os("VIRTUAL_ENV").map_or_else(|| repository().join(".venv"), PathBuf::from);
-    let python = if cfg!(windows) {
-        venv.join("Scripts").join("python.exe")
-    } else {
-        venv.join("bin").join("python")
-    };
-    assert!(
-        python.is_file(),
-        "{} is missing: run `uv sync --locked` at the repository root first (the python layer does)",
-        python.display()
+/// Alice's cognition process for one phase of the run (shared start-up: `support::cognition`).
+fn start_cognition(directory: &Path, server: &Server, model: &Model, phase: u32) -> Cognition {
+    let config = write_config(
+        directory,
+        &format!("ws://{}/ws", server.address),
+        model,
+        phase,
     );
-    python
-}
-
-/// One cognition process, its output kept in memory for the planted-key scan.
-struct Cognition {
-    child: Child,
-    output: Arc<Mutex<Vec<String>>>,
-}
-
-impl Cognition {
-    fn start(directory: &Path, server: &Server, model: &Model, phase: u32) -> Self {
-        let config = write_config(
-            directory,
-            &format!("ws://{}/ws", server.address),
-            model,
-            phase,
-        );
-        let mut command = Command::new(interpreter());
-        match model {
-            Model::Scripted => command
-                .arg(repository().join("cognition/lm-controller/tests/milestone_d_cognition.py")),
-            Model::Recording { .. } => command.args(["-m", "mineworld_cognition"]),
-        };
-        command
-            .arg("--config")
-            .arg(&config)
-            .current_dir(directory)
-            .env("MINEWORLD_INVITE", INVITE)
-            .env(PLANTED_KEY_ENV, PLANTED_KEY)
-            .env("PYTHONUNBUFFERED", "1")
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
-        let mut child = command.spawn().expect("the cognition process starts");
-        let output = Arc::new(Mutex::new(Vec::new()));
-        drain(child.stdout.take().expect("stdout"), &output);
-        drain(child.stderr.take().expect("stderr"), &output);
-        Self { child, output }
-    }
-
-    fn output(&self) -> Vec<String> {
-        self.output.lock().expect("sound").clone()
-    }
-
-    fn kill(&mut self) {
-        let killed = process::kill(&mut self.child);
-        assert!(
-            killed.killed(),
-            "the cognition process was killed, not finished: {:?}",
-            self.output()
-        );
-    }
-}
-
-impl Drop for Cognition {
-    fn drop(&mut self) {
-        let _ = self.child.kill();
-        let _ = self.child.wait();
-    }
-}
-
-fn drain(pipe: impl Read + Send + 'static, sink: &Arc<Mutex<Vec<String>>>) {
-    let sink = Arc::clone(sink);
-    std::thread::spawn(move || {
-        for line in BufReader::new(pipe).lines().map_while(Result::ok) {
-            eprintln!("[milestone-d cognition] {line}");
-            sink.lock().expect("sound").push(line);
-        }
-    });
+    let program = match model {
+        Model::Scripted => Program::Script(
+            repository().join("cognition/lm-controller/tests/milestone_d_cognition.py"),
+        ),
+        Model::Recording { .. } => Program::Module,
+    };
+    Cognition::start(
+        directory,
+        &program,
+        &config,
+        &[(PLANTED_KEY_ENV, PLANTED_KEY)],
+    )
 }
 
 /// `cognition.toml` (P6 §5.13). The backend's address is the sink this test listens on in the
@@ -213,41 +144,6 @@ fn write_config(directory: &Path, server: &str, model: &Model, phase: u32) -> Pa
 fn sink_url(directory: &Path) -> String {
     let port = std::fs::read_to_string(directory.join("sink.port")).expect("the sink's port");
     format!("http://127.0.0.1:{}/v1", port.trim())
-}
-
-/// `mineworld decisions … --json`, the assignment the cognition process reads (P6 §5.9 step 3).
-fn write_seats(directory: &Path) {
-    let decisions = repository().join(DECISIONS);
-    let (status, json) = run_command(&[
-        "decisions",
-        support::PACK,
-        "--decisions",
-        decisions.to_str().expect("UTF-8"),
-        "--json",
-    ]);
-    assert!(status.success(), "mineworld decisions --json ran");
-    std::fs::write(directory.join("seats.json"), json).expect("seats.json is written");
-}
-
-/// Waits until Alice's seat is held by the cognition process: its resume file is written after the
-/// welcome (P6 §5.10).
-async fn seat_taken(store: &Path, cognition: &mut Cognition) {
-    let resume = store.join("alice.resume");
-    let deadline = Instant::now() + REPLY_PATIENCE;
-    while !resume.is_file() {
-        if let Some(status) = cognition.child.try_wait().expect("waitable") {
-            panic!(
-                "the cognition process ended ({status}): {:?}",
-                cognition.output()
-            );
-        }
-        assert!(
-            Instant::now() < deadline,
-            "Alice's seat was not taken within {REPLY_PATIENCE:?}: {:?}",
-            cognition.output()
-        );
-        tokio::time::sleep(Duration::from_millis(100)).await;
-    }
 }
 
 /// A protocol client on the visitor's seat, tagged as the window it stands for (as `AC-13`'s harness is).
@@ -303,27 +199,6 @@ async fn reply(client: &mut Client, alice: EntityId, already: usize, store: &Pat
     }
 }
 
-/// Waits until Alice's decision log holds `acted` consults that acted: a reply reaches the visitor as soon
-/// as the world accepts it, and the consult is logged just after, so a kill must wait for the log.
-async fn logged(store: &Path, acted: usize) {
-    let deadline = Instant::now() + REPLY_PATIENCE;
-    let count = || {
-        std::fs::read_to_string(store.join("alice.decisions.jsonl"))
-            .unwrap_or_default()
-            .lines()
-            .filter_map(|line| serde_json::from_str::<Value>(line).ok())
-            .filter(|line| line["kind"] == "decision" && line["record"]["outcome"] == "acted")
-            .count()
-    };
-    while count() < acted {
-        assert!(
-            Instant::now() < deadline,
-            "{acted} acted consults were not logged"
-        );
-        tokio::time::sleep(Duration::from_millis(50)).await;
-    }
-}
-
 /// Watches the window for `SILENCE` and returns how many lines it heard from Alice.
 async fn lines_from(client: &mut Client, alice: EntityId, watch: Duration) -> usize {
     let until = Instant::now() + watch;
@@ -356,170 +231,6 @@ async fn say(client: &mut Client, visitor: EntityId, alice: EntityId, words: &st
     facts.iter().map(|id| id.raw()).collect()
 }
 
-/// The facts a Person perceived, as `mineworld perceived --json` exports them from the save (the
-/// offline half of the stream the cognition process reads; `ARC-43`).
-fn perceived(save: &str, person: &str) -> Vec<Value> {
-    let (status, out) = run_command(&[
-        "perceived",
-        support::PACK,
-        "--save",
-        save,
-        "--person",
-        person,
-        "--json",
-    ]);
-    assert!(status.success(), "mineworld perceived ran");
-    out.lines()
-        .map(|line| serde_json::from_str(line).expect("one PerceivedEvent per line"))
-        .collect()
-}
-
-fn id_of(value: &Value) -> u64 {
-    value
-        .as_str()
-        .and_then(|text| text.parse().ok())
-        .unwrap_or_else(|| panic!("an id: {value}"))
-}
-
-/// The `spoke` facts in `facts`, as (event id, speaker, listener, utterance, causing action).
-fn spoken(facts: &[Value]) -> Vec<(u64, String, String, String, Option<u64>)> {
-    facts
-        .iter()
-        .filter(|fact| fact["event_type"] == "spoke")
-        .map(|fact| {
-            let body = &fact["payload"]["payload"];
-            (
-                id_of(&fact["id"]),
-                body["speaker"]["entity"]
-                    .as_str()
-                    .expect("a speaker")
-                    .to_owned(),
-                body["listener"]["entity"]
-                    .as_str()
-                    .expect("a listener")
-                    .to_owned(),
-                body["utterance"].as_str().expect("words").to_owned(),
-                fact["caused_by"].get("action").map(id_of),
-            )
-        })
-        .collect()
-}
-
-/// The actor of the request the save journaled for `action` (`input.dispatch.intent.actor`).
-fn actor_of(save: &str, action: u64) -> String {
-    let file = Path::new(save).join("world.sqlite");
-    let connection = rusqlite::Connection::open(file).expect("the save opens");
-    let entry: Vec<u8> = connection
-        .query_row(
-            "SELECT entry FROM journal WHERE action_id = ?1",
-            [i64::try_from(action).expect("small")],
-            |row| row.get(0),
-        )
-        .expect("the action is journaled");
-    let entry: Value = serde_json::from_slice(&entry).expect("a JSON journal entry");
-    entry["input"]["dispatch"]["intent"]["actor"]
-        .as_str()
-        .expect("a request's actor")
-        .to_owned()
-}
-
-/// Alice's memory: the home's creation marker, her cursor, and her held records as (rowid, event id), in the
-/// order she took them. Since S28-a the file is a memory home of schema 4 (`memory/home/`, `ARC-109`): her rows
-/// are her seat's `meta` and `access` rows, each `access` row naming a shared `fact` record. The marker
-/// (`home_meta.created`, `ARC-152`) is written once when the home is created and never again, so it is what
-/// tells a resumed home from one a replay rebuilt with the same rows. Opened for writing, never written: a home
-/// a SIGKILL left with a hot journal can only be read once SQLite has rolled that journal back, which a
-/// read-only connection may not do. Since S28-f the home is the process's, one per world instance, at
-/// `<store>/<instance>/memory.sqlite` (`[memory] sharing = "home"`, `pr-s28f-home-wiring.md` §5.4).
-fn store_rows(store: &Path) -> (String, Option<u64>, Vec<(i64, u64)>) {
-    let homes: Vec<_> = std::fs::read_dir(store)
-        .expect("the store directory")
-        .map(|entry| entry.expect("a store entry").path().join("memory.sqlite"))
-        .filter(|path| path.is_file())
-        .collect();
-    let [home] = homes.as_slice() else {
-        panic!("one memory home under the store, found {homes:?}");
-    };
-    let connection = rusqlite::Connection::open(home).expect("Alice's memory opens");
-    let created: String = connection
-        .query_row(
-            "SELECT value FROM home_meta WHERE key = 'created'",
-            [],
-            |row| row.get(0),
-        )
-        .expect("the home has its creation marker");
-    let cursor: String = connection
-        .query_row(
-            "SELECT m.value FROM meta m JOIN seats s ON s.seat = m.seat \
-             WHERE s.key = 'alice' AND m.key = 'cursor'",
-            [],
-            |row| row.get(0),
-        )
-        .expect("Alice's seat has a cursor row");
-    let mut statement = connection
-        .prepare(
-            "SELECT a.rowid, f.event_id FROM access a JOIN fact f ON f.event_key = a.event_key \
-             JOIN seats s ON s.seat = a.seat WHERE s.key = 'alice' ORDER BY a.rowid",
-        )
-        .expect("the access and fact tables");
-    let rows = statement
-        .query_map([], |row| {
-            Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
-        })
-        .expect("rows")
-        .map(|row| {
-            let (rowid, id) = row.expect("a row");
-            (rowid, id.parse().expect("a numeric event id"))
-        })
-        .collect();
-    (
-        created,
-        (!cursor.is_empty()).then(|| cursor.parse().expect("a numeric cursor")),
-        rows,
-    )
-}
-
-/// The decision lines of Alice's log (`controller/log.py`).
-fn decisions(store: &Path) -> Vec<Value> {
-    let text = std::fs::read_to_string(store.join("alice.decisions.jsonl")).expect("the log");
-    text.lines()
-        .map(|line| serde_json::from_str::<Value>(line).expect("JSON"))
-        .filter(|line| line["kind"] == "decision")
-        .collect()
-}
-
-/// Every Event ID a consult's memory section cites (`MemorySection.citations()`).
-fn cited(consult: &Value) -> BTreeSet<u64> {
-    let mut ids = BTreeSet::new();
-    for line in consult["input"]["memory"]["lines"]
-        .as_array()
-        .expect("lines")
-    {
-        for range in line["citation"]["ranges"].as_array().expect("ranges") {
-            ids.extend(id_of(&range["first"])..=id_of(&range["last"]));
-        }
-    }
-    ids
-}
-
-/// Whether a recall (a shown token such as `[#12]` or `[#10-14]`, or a bare id) names `id`.
-fn recall_names(recall: &str, id: u64) -> bool {
-    let inner = recall.trim_start_matches('[').trim_end_matches(']');
-    inner.split(',').any(|range| {
-        let range = range.trim_start_matches('#');
-        let (first, last) = range.split_once('-').unwrap_or((range, range));
-        match (first.parse::<u64>(), last.parse::<u64>()) {
-            (Ok(first), Ok(last)) => (first..=last).contains(&id),
-            _ => false,
-        }
-    })
-}
-
-/// The bytes of every file under `directory` contain `needle`?
-fn anywhere(directory: &Path, needle: &[u8]) -> Option<PathBuf> {
-    support::file_containing(directory, needle)
-}
-
 /// What the run left for a reviewer, and the ids the assertions need.
 struct Run {
     directory: SaveDir,
@@ -535,7 +246,7 @@ async fn she_remembers(model: &Model) -> Run {
     let save = root.join("save");
     let save = save.to_str().expect("UTF-8").to_owned();
     let store = root.join("store");
-    write_seats(&root);
+    write_seats(&root, support::PACK, DECISIONS);
     let sink = TcpListener::bind("127.0.0.1:0").expect("a sink for the backend's address");
     sink.set_nonblocking(true).expect("non-blocking");
     std::fs::write(
@@ -547,8 +258,8 @@ async fn she_remembers(model: &Model) -> Run {
     // ── Step 1: the world and Alice's cognition. ────────────────────────────────────────────
     let mut server =
         Server::start(&["server", support::PACK, "--save", &save, "--hold", HOLD]).await;
-    let mut cognition = Cognition::start(&root, &server, model, 1);
-    seat_taken(&store, &mut cognition).await;
+    let mut cognition = start_cognition(&root, &server, model, 1);
+    seat_taken(&store, "alice", &mut cognition).await;
 
     // ── Step 2: the 2D window speaks to her. ────────────────────────────────────────────────
     let (mut two_d, visitor, world_2d) = window(&server, "2d").await;
@@ -559,7 +270,7 @@ async fn she_remembers(model: &Model) -> Run {
 
     // ── Step 3: Alice's seat decides and replies. ───────────────────────────────────────────
     let reply_2d = reply(&mut two_d, alice, 0, &store).await;
-    logged(&store, 1).await;
+    support::cognition::logged(&store, "alice", 1).await;
     println!("2D: the visitor said {FROM_THE_2D_WINDOW:?}; Alice answered {reply_2d:?}");
     walk_to(&mut two_d, visitor, AT_THE_DOOR).await;
     two_d.disconnect().await;
@@ -571,7 +282,7 @@ async fn she_remembers(model: &Model) -> Run {
         killed.killed(),
         "the server was killed, not finished: {killed:?}"
     );
-    let (created_before, cursor_before, rows_before) = store_rows(&store);
+    let (created_before, cursor_before, rows_before) = store_rows(&store, "alice");
     let cursor_before =
         cursor_before.expect("Alice's store had ingested something before the kill");
     if let Model::Recording { .. } = model {
@@ -579,8 +290,8 @@ async fn she_remembers(model: &Model) -> Run {
     }
     let mut server =
         Server::start(&["server", support::PACK, "--save", &save, "--hold", HOLD]).await;
-    let mut cognition = Cognition::start(&root, &server, model, 2);
-    seat_taken(&store, &mut cognition).await;
+    let mut cognition = start_cognition(&root, &server, model, 2);
+    seat_taken(&store, "alice", &mut cognition).await;
 
     // ── Step 5: the 3D window walks in from the door and speaks. ────────────────────────────
     let (mut three_d, visitor_again, world_3d) = window(&server, "3d").await;
@@ -598,7 +309,7 @@ async fn she_remembers(model: &Model) -> Run {
     walk_to(&mut three_d, visitor, AT_THE_COUNTER).await;
     let line_3d = say(&mut three_d, visitor, alice, FROM_THE_3D_WINDOW).await;
     let reply_3d = reply(&mut three_d, alice, 1, &store).await;
-    logged(&store, 2).await;
+    support::cognition::logged(&store, "alice", 2).await;
     println!("3D: the visitor said {FROM_THE_3D_WINDOW:?}; Alice answered {reply_3d:?}");
     three_d.disconnect().await;
     cognition.kill();
@@ -613,23 +324,23 @@ async fn she_remembers(model: &Model) -> Run {
     }
 
     // ── The evidence, read from the save, the store and the log. ────────────────────────────
-    let facts = spoken(&perceived(&save, "visitor"));
+    let facts = spoken(&perceived(support::PACK, &save, "visitor"));
     let alice_text = alice.to_string();
     let visitor_text = visitor.to_string();
     let find_line = |ids: &[u64]| {
         facts
             .iter()
-            .find(|fact| ids.contains(&fact.0))
+            .find(|fact| ids.contains(&fact.id))
             .unwrap_or_else(|| panic!("a spoke among the facts {ids:?}"))
             .clone()
     };
     let visitor_2d = find_line(&line_2d);
     let visitor_3d = find_line(&line_3d);
-    assert_eq!(visitor_2d.3, FROM_THE_2D_WINDOW);
-    assert_eq!(visitor_3d.3, FROM_THE_3D_WINDOW);
+    assert_eq!(visitor_2d.words, FROM_THE_2D_WINDOW);
+    assert_eq!(visitor_3d.words, FROM_THE_3D_WINDOW);
     let from_alice: Vec<_> = facts
         .iter()
-        .filter(|fact| fact.1 == alice_text && fact.2 == visitor_text)
+        .filter(|fact| fact.speaker == alice_text && fact.listener == visitor_text)
         .collect();
     assert_eq!(
         from_alice.len(),
@@ -638,21 +349,21 @@ async fn she_remembers(model: &Model) -> Run {
     );
     let (alice_2d, alice_3d) = (from_alice[0], from_alice[1]);
     assert!(
-        alice_2d.0 > visitor_2d.0 && alice_2d.0 < visitor_3d.0,
+        alice_2d.id > visitor_2d.id && alice_2d.id < visitor_3d.id,
         "her first reply answers the 2D line"
     );
     assert!(
-        alice_3d.0 > visitor_3d.0,
+        alice_3d.id > visitor_3d.id,
         "her second reply answers the 3D line"
     );
     assert_eq!(
-        (alice_2d.3.as_str(), alice_3d.3.as_str()),
+        (alice_2d.words.as_str(), alice_3d.words.as_str()),
         (reply_2d.as_str(), reply_3d.as_str())
     );
 
-    let log = decisions(&store);
+    let log = decisions(&store, "alice");
     for (fact, words) in [(alice_2d, &reply_2d), (alice_3d, &reply_3d)] {
-        let action = fact.4.expect("Alice's line was caused by a request");
+        let action = fact.action.expect("Alice's line was caused by a request");
         assert_eq!(
             actor_of(&save, action),
             alice_text,
@@ -668,11 +379,11 @@ async fn she_remembers(model: &Model) -> Run {
     }
 
     // ── Step 6: the 3D reply was decided from the 2D lines, and cites them. ─────────────────
-    let two_d_ids = (visitor_2d.0, alice_2d.0);
+    let two_d_ids = (visitor_2d.id, alice_2d.id);
     let consult = log
         .iter()
-        .find(|consult| id_of(&consult["input"]["trigger"]["event"]) == visitor_3d.0)
-        .unwrap_or_else(|| panic!("a consult on the 3D line {}: {log:?}", visitor_3d.0));
+        .find(|consult| id_of(&consult["input"]["trigger"]["event"]) == visitor_3d.id)
+        .unwrap_or_else(|| panic!("a consult on the 3D line {}: {log:?}", visitor_3d.id));
     assert_eq!(consult["record"]["outcome"], "acted");
     let context = cited(consult);
     for id in [two_d_ids.0, two_d_ids.1] {
@@ -695,7 +406,7 @@ async fn she_remembers(model: &Model) -> Run {
     );
 
     // Step 4's second half: the store resumed from its cursor rather than being re-ingested.
-    let (created_after, cursor_after, rows_after) = store_rows(&store);
+    let (created_after, cursor_after, rows_after) = store_rows(&store, "alice");
     assert_eq!(
         created_after, created_before,
         "the home's creation marker is the one it had before the kill: the store resumed, it was not \
@@ -723,7 +434,7 @@ async fn she_remembers(model: &Model) -> Run {
         );
     }
     assert_eq!(
-        anywhere(&root, PLANTED_KEY.as_bytes()),
+        support::file_containing(&root, PLANTED_KEY.as_bytes()),
         None,
         "the planted key is in no file"
     );
@@ -861,15 +572,15 @@ async fn the_world_runs_with_alice_unplugged() {
         "the server was killed at the end: {killed:?}"
     );
 
-    let facts = spoken(&perceived(&save, "visitor"));
-    let words: Vec<&str> = facts.iter().map(|fact| fact.3.as_str()).collect();
+    let facts = spoken(&perceived(support::PACK, &save, "visitor"));
+    let words: Vec<&str> = facts.iter().map(|fact| fact.words.as_str()).collect();
     assert_eq!(
         words,
         [FROM_THE_2D_WINDOW, FROM_THE_3D_WINDOW],
         "the visitor's two lines are recorded, and they are the only lines spoken"
     );
-    assert!(facts.iter().any(|fact| line_2d.contains(&fact.0)));
-    assert!(facts.iter().any(|fact| line_3d.contains(&fact.0)));
+    assert!(facts.iter().any(|fact| line_2d.contains(&fact.id)));
+    assert!(facts.iter().any(|fact| line_3d.contains(&fact.id)));
     let (status, _) = run_command(&["inspect", &save, "--last", "0"]);
     assert!(status.success(), "mineworld inspect resolves every cause");
 }
