@@ -61,6 +61,13 @@ pub struct Base {
     /// Go to sleep where the world allows it, in a world with `needs` (`ARC-286`).
     #[schemars(range(min = 0, max = 1_000))]
     pub sleep: u32,
+    /// Sit on a free seat within reach, in a world with `posture` (S34-d1 SD-d-4): a way of staying.
+    #[schemars(range(min = 0, max = 1_000))]
+    pub sit: u32,
+    /// Walk to a free seat out of reach, in a world with `posture` (S34-d1 SD-d-4): a short walk.
+    #[serde(rename = "seek-seat")]
+    #[schemars(range(min = 0, max = 1_000))]
+    pub seek_seat: u32,
 }
 
 /// The tags that make a place a role (§5.4): the first role whose tags intersect a place's tags names it.
@@ -240,6 +247,10 @@ impl Settings {
                 commute: 1_000,
                 penalize: 600,
                 sleep: 1_000,
+                // Set once by the operator's ruling of 2026-11-27 on Q-S34d1-2 ("坐姿按推荐"): `sit` as
+                // `sleep`, `seek-seat` above `approach`; `stay-seated` weighs as `sit`. Not tuned after.
+                sit: 1_000,
+                seek_seat: 400,
             },
             roles: Roles {
                 home: tags(&["residential"]),

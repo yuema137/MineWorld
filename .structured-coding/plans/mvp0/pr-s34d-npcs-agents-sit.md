@@ -9,7 +9,9 @@ Implementation base:    origin/main @ 0b2faf2f (#382)
 Start condition:        this design frozen (met 2026-10-27). S34-c1 is merged (#368). S34-c2 (Lakeside) is not
                         required to start: Lakeside joins every test of this PR by discovery when it lands (Q-S34d-3)
 Execution contract:     §12
-Lifecycle:              FROZEN 2026-10-27 (header reconciled 2026-11-27); not yet implemented
+Lifecycle:              FROZEN 2026-10-27 (header reconciled 2026-11-27). S34-d1: PR #551, all rulings applied
+                        (§13); AC-d-4 an accepted follow-up; WAITS for the S34-b route-around amendment, then
+                        re-measures ASRB-1 and re-records baselines. S34-d2: not started
 ```
 
 **Dated note, 2026-10-27 (operator ruling Q-S34c3-3; SD-c3-5 in
@@ -338,6 +340,128 @@ evidence in §13.
   reverted, each recorded in §13.
 - [ ] Review: bodies-yard's and Lakeside's baseline sections untouched; the re-baseline reason names this PR.
 
+#### Package run on the merged head, and two regressions escalated
+
+`cargo test -p mineworld-cli --no-fail-fast` (local, Darwin/arm64, head 6a0264ed = C5 + baselines + merge of
+origin/main 29401a26; `fast` CI on the same head: success, run 46085752994): 114 targets pass, 3 fail.
+
+- `guide` `the_guide_in_this_repository_runs_green` — **unrelated, environment**: page 12's `cp` reads
+  `repo-guide-home/MineWorld/entities/modern-goods`, which chapter 01's clone step creates, and that step is
+  PENDING ("waits for operator-only") in a local run. No guide page or entity changed here.
+- `market_town` `market_town_lives_three_hundred_days_then_the_same_seed_is_the_same_market` — **FAIL caused
+  by this PR's trajectories, root cause outside S34-d1 (Q-S34d1-3)**: "erin idle in days 121-150". Evidence
+  (release build, seed 7, `--save`): at t 8 000 610 (day 92) Erin gives way to Alice on the street and is
+  nudged to (1100, 2300), between the terrace table's top edge (y 2020) and the planter at y 2561; from there
+  every `walk-to` is rejected `no-route` for the rest of the run (3 075 rejections by day 125; the base run of
+  7718d952 has 786 in 300 days and no idle bucket). No sit point is within 18 m; nobody sits near her. The
+  defect is bodies/movement's (a give-way nudge leaves a person where no route can start); the rest band
+  only changes who is where when. *Recommendation:* a separate bodies/movement fix PR (the nudge must not end
+  where `route_in` cannot start, or the planner must start from the nearest admissible point), landed before
+  S34-d1; S34-d1 then re-runs this test unchanged. Not fixed here: it is another pack's ownership and outside
+  §1's scope.
+- `price_reporter` `clerk_publishes_and_keepers_follow` — **FAIL caused by this PR's trajectories (Q-S34d1-4)**:
+  5 keeper price moves "away from the suggestion" (e.g. 132 → 121 while the newest posted suggestion is 143).
+  The test's oracle takes the newest notice Carol posted; a keeper prices from the suggestion on its own
+  `notice-board` record (`price/mod.rs` `suggestion`), which can lag the newest posting. With people sitting
+  instead of walking on, keepers' boards are refreshed on a different schedule. Not diagnosed further
+  within S34-d1's budget. *Recommendation:* the price-reporter owner decides whether the oracle should use
+  the keeper's own board (the controller's real input) or whether board delivery must be tightened; S34-d1
+  does not tune the rest band to make this pass.
+
+The two runs used for this diagnosis: `_scratch/s34d1/mt150` (this head, release) and a detached base build of
+7718d952 (`_scratch/s34d1-base`, removed afterwards); logs under `/Users/yuema137/mineworld-worktrees/_scratch/s34d1/`.
+
+#### Operator ruling 2026-11-27 on Q-S34d1-1 … Q-S34d1-4, and the one ruled measurement
+
+The operator, relayed by the coordinator: **"坐姿按推荐"** (sitting: as recommended). Applied as recommended:
+
+- **Q-S34d1-1:** the smallest SD-d-3 revision — a seated person who is staying (no agenda, or at its place)
+  holds the consult on the same draw 16 below `SITS_BELOW`, before the walking roll (`rest.rs` `band`,
+  `seated` reads my own `posture-state` by slug). No new constant or draw index. A seated person also seeks no
+  seat (`choose`), which closes the gap that the "not offered" row opened for a seated observer.
+- **Q-S34d1-2:** base weights set once — `sit: 1000` (as `sleep`), `seek-seat: 400` — and a third motivated
+  option, `Choice::StaySeated` ("stay-seated"), weighted like `sit`, offered only seated where my day keeps me
+  and no commute presses. Measured once; no further tuning.
+- **Q-S34d1-3 (Erin stuck, `market_town`):** not in this PR. Owned by a separate bodies/movement fix PR the
+  coordinator dispatches; the `market_town` failure is recorded as that PR's.
+- **Q-S34d1-4 (`price_reporter`):** not in this PR. Goes to a small economy PR with F-S31d-13; the failure is
+  recorded as that PR's.
+
+Validation (local, Darwin/arm64): `cargo test -p mineworld-rule-controller -p mineworld-motivated` 95 + 56
+passed (one new test each: seated-and-staying holds the consult on 16-48 of 64 seeds and seeks no seat; a
+seated person where the day keeps them is offered `StaySeated` and no `Sit`/`SeekSeat`); clippy clean. The one
+ruled measurement, `posture_life -- --include-ignored` (8 passed, 598 s):
+
+| Run (30 days, pace 900; 5 days, pace 60) | seed 7 | seed 11 |
+| --- | --- | --- |
+| social-cafe rule 900 | 92 %; 732 spells; median 3 consults; bobbing 0 | 92 %; 745; 3; 0 |
+| social-cafe motivated 900 | 0 %; 88 spells; median 7 consults | 0 %; 84; 7 |
+| social-cafe rule 60 | 84 %; median 4; bobbing 0 | 90 %; 4; 0 |
+| market-town rule 900 | 85 %; 534; 3; 0 | 85 %; 520; 3; 0 |
+| market-town motivated 900 | 0 %; 88; 7 | 0 %; 84; 7 |
+| renamed-seats rule 900 / motivated | 88 % / 0 % (88 spells) | 87 % / 0 % (84 spells) |
+| one-seat rule 900 / motivated | 72 % / 0 % (71 spells) | 68 % / 0 % (62 spells) |
+
+| Criterion | Result after the ruling |
+| --- | --- |
+| AC-d-1, AC-d-2, AC-d-3, AC-d-5 zero bobbing, AC-d-6 | **PASS** |
+| AC-d-5 median ≥ 2 consults | **PASS** (3 at pace 900, 4 at pace 60; 7 for motivated) — asserted again |
+| AC-d-4 motivated seen seated ≥ 50 % | **FAIL** — 0 of 300 samples; the motivated model now sits (84-88 spells per 30 days, median 7 consults) but none of those spells covers a whole hour 09:00-18:00. Reported, not tuned; stays printed as ESCALATED |
+
+The Social Café 30-day decisions golden and `docs/reference` re-captured again (`sit accepted 732`, `stand`
+none). The Social Café and Market Town long-run baselines in this branch are from the pre-ruling head and are
+stale: the merge with main @ 2026-11-28 takes main's `scripts/baselines.txt` whole (N1 #552 re-recorded Market
+Town), and both towns are re-recorded from this PR's head once the storage question below is settled.
+
+#### Storage finding (coordinator request 2026-11-27): ASRB-1 over budget with #557; cannot fit inside the frozen design
+
+Verified locally on a throwaway merge of this head (18f389d5) with `origin/fix/give-way-nudge-routable` (#557,
+fe0468fe) and main (a8a74659): `cargo test -p mineworld-cli --test market_town` — Erin no longer idles, ASRB-3
+30-day save 22.7 MiB (bound 48), **ASRB-1 300-day save 96.8 MiB (101 449 728 B) over the 96 MiB bound**,
+ASRB-2 0.274 MiB/day (bound 0.28).
+
+Which facts add the bytes (market-town seed 7, 300 days, base 7718d952 vs the ruled head, `run` summary):
+facts 1 527 856 → 1 623 248 (+95 392, +6.2 %): `arrived` +62 802, `walk-step` requests +53 476, `stopped-short`
++17 518, `walk-to`/`walk-started`/`walk-ended` +8 386 each, `person-entered-place` +6 026, `gave-way` +4 896,
+`sit`/`sat-down`/`stood-up` +5 066 each. Posture's own facts are ~10 % of the growth; the rest is walking and
+being stopped short by seated (anchored) people. A seated, staying person's held consult records nothing.
+
+Two experiments, not committed (each a full 300-day release save, same merge):
+- skip a seat that another person's disclosed `posture-state` names (an occupancy inference, against
+  I-S34-4): 101 056 512 B = 96.4 MiB (−0.38 MiB);
+- seek only seats within 5 m (changes SD-d-3 step 2): 100 917 248 B = 96.2 MiB (−0.51 MiB); `walk-to`
+  barely moves (116 278 → 115 526), so seat-seeking walks are not the main cost.
+
+No fact this PR emits restates state; the repeated `stopped-short` of walkers blocked by a sitter (S34-b
+Q-S34b-3: stopped short, not routed around) is the visible redundancy, and it is bodies/movement's. It cannot
+fit 96 MiB without changing a frozen contract. Options for the operator: (a) ASRB-1 to 98 MiB (+2 %); (b)
+movement/bodies record a blocked walker's `stopped-short` once per walk rather than per stride (bodies' fact,
+not S34-d1's; size unmeasured); (c) route walkers around a sitter (revises S34-b Q-S34b-3).
+
+#### Merge with main after S34-c2 (#553), FE-a (#555) and N1 (#552)
+
+Lakeside now installs posture and joins every `posture_life` run by discovery (Q-S34d-3): short profile,
+rule 100 % seen seated, motivated 20 %, median 3-4 consults, zero bobbing, invariants hold. The no-posture
+fixtures were re-recorded with main's controllers (this PR's `cognition/rule-controller` and
+`cognition/motivated` checked out from origin/main for the recording, then restored): Social Café unchanged,
+Market Town moved by N1's shop hours, Lakeside added. Golden re-captured (`sit accepted 765`). `decisions`,
+`reference`, `posture_life` (short) pass locally.
+
+#### Operator ruling 2026-11-27: "存档选 C，AC-d-4 后续处理"
+
+- **AC-d-4 — accepted follow-up.** The motivated model is not seen seated in the 09:00-18:00 hour samples
+  (0 % after the ruled weights, 84-88 spells per 30 days). Recorded as an accepted follow-up: the criterion
+  is not loosened; `posture_life` keeps printing it as ESCALATED and does not assert it.
+- **Storage — option C.** Walkers route around seated people instead of stopping short: a separate S34-b
+  amendment and bodies/movement PR by the movement lane. #551 merges after it; then this PR re-measures the
+  300-day Market Town save against the unchanged 96 MiB bound (ASRB-1) and re-records the Social Café and
+  Market Town long-run baselines. Until then `scripts/baselines.txt` is main's for both towns.
+- Lifecycle consequence: #551 is complete apart from those two post-amendment steps.
+- Merged main bdb83457 (#566 paced reply window) cleanly. Re-run locally: `mineworld-rule-controller` 98 and
+  `mineworld-motivated` 56 passed; `mineworld-cli` `decisions` (golden unchanged by #566), `reference`,
+  `posture_life` (short), `activity_length` pass. `social_composition` fails 2 tests expecting `bodies v7`
+  where main's #557 bumped bodies to v8 — main's own drift, no file of this PR involved.
+
 #### C5 — Docs
 - [ ] Implementation: dated notes on `ARC-147` (NPCs sit through a rest band; why no stillness gate) and on
   `ARC-151` (`sit`, `stand` decided by name); the rule controller's module docs.
@@ -433,7 +557,212 @@ POST-MERGE SYNC OWNER:  the implementation session owns this file's ledger; the 
 
 ## 13. Evidence ledger
 
-(empty until implementation)
+### S34-d1 (branch `mvp0/pr-s34d1`, base `origin/main @ 7718d952` #531, 2026-11-27)
+
+Execution contract as §12, with these sourced updates: implementer is a Claude Opus 5.5 subagent (operator
+ruling 2026-11-27, CLAUDE.md §3.4), worktree `impl-s34d1` (not `s34d1`); per-PR CI runs `fast` only and the
+relevant tests run locally (operator CI policy 2026-11-27; ARC-154), so §8's "CI on the commit's head" items
+are local runs, each through `cast-slots/with-slot.sh` with this worktree's own `CARGO_TARGET_DIR`.
+
+**Audit against main @ 7718d952 (the design audited 0b2faf2f).** Every row of §2 still holds, with these
+changes: posture still offers one `sit` per point (S34-c3 not merged), so the dated note's "not offered" row
+is reachable only through a hand-built observation, and is covered there (C2, C3 unit tests); Lakeside still
+does not install posture (S34-c2 not merged), so the discovered posture worlds are Social Café and Market Town.
+
+**Bounded deviation D-d1-1 — posture is read by slug, not through its crate.**
+- Previous assumption (SD-d-3 last bullet): "the crate gains a dependency on `mineworld-posture`, as it has on
+  `mineworld-sleep`".
+- Audit evidence: `systems/posture/Cargo.toml` depends on `mineworld-bodies`, which depends on `mineworld-item`
+  (`systems/bodies/Cargo.toml`), a market pack (`ARC-35` note 2026-10-07: item, inventory, item-transfer,
+  economy, employment, consumption). `ARC-35` check 2 forbids any normal dependency path from `rule-controller`
+  to a market pack. `needs` is read by slug for the same reason (`needs.rs` module docs).
+- Corrected implementation: `rest.rs` reads `sit-points` (component slug) and the `sit`/`stand` offers by slug
+  and JSON, as `needs.rs` reads `needs` and `place-shape`. No new dependency in either controller crate.
+- Validation: the C2/C3 unit tests build those records by slug; no `mineworld-posture` edge from
+  `cognition/*` (`cargo metadata` unchanged for both crates).
+
+**Bounded deviation D-d1-2 — the no-posture comparison is a recorded base fixture.** AC-d-6 asks the
+no-posture variant's summary to equal "the same world's run on this PR's base". A test cannot run the base
+binary, so C1 recorded each posture world's no-posture summary (seed 7, 3 days, pace 900) on the base, before
+any controller change, as `tools/cli/tests/fixtures/posture_life/<world>-seed-7-3-days.txt`
+(`MINEWORLD_WRITE_NO_POSTURE=1`), and `a_world_without_posture_decides_as_before` compares against it (rules
+§25: expected values captured before the change). A later PR that moves a world's posture-free behaviour
+re-records it with its reason, like any golden.
+
+**Bounded deviation D-d1-3 — I-S34-2's facing is checked at the sit.** pr-s34a BC-2: I-S34-2 binds place and
+position, and facing may change while seated (a turn does not stand a person up). The checker holds facing
+equal to the point's facing at every `sat-down`, and place and position after every request. X-d-7's planted
+journal sits facing away from the point and is named (`posture::tests::a_sit_facing_away_from_the_point_is_named`).
+
+#### C0 — Design
+- [x] Implementation: merged as #501 (`c5cab206`), frozen by the 2026-10-27 banner (#527 freeze, #528 dated notes).
+- [x] Validation: N/A here — the merged design's checks ran on #501/#528.
+- [x] Review: the scope matches step §14.2's S34-d row (reviewed at freeze).
+
+#### C1 — The measurement, before any controller change
+- [x] Implementation: `tools/cli/tests/posture_life.rs` (world discovery by `systems:`; the runs of SD-d-6;
+  `posture_life_short` 3 days + 1 at pace 60, default; `posture_life_long` 30 days + 5 at pace 60,
+  `#[ignore]`d per Q-S34d-6; AC-d-1/AC-d-2 asserted; measures printed); `tools/cli/tests/posture/mod.rs` (the
+  journal reader and checker, with five planted-journal unit tests); `tools/cli/tests/variants/mod.rs`
+  (`renamed_seats`, `one_seat`, `no_posture`); `a_world_without_posture_decides_as_before` and its two base
+  fixtures (D-d1-2); `mineworld-posture` as a dev-dependency of `mineworld-cli` (decode posture's facts with
+  its own types). No production code.
+- [x] Validation (local, base binary of 7718d952 + test-only files, Darwin/arm64):
+  `cargo test -p mineworld-cli --test posture_life` 7 passed, 1 ignored (116 s);
+  `-- --ignored posture_life_long` 1 passed (641 s). **PASS** for AC-d-1 and AC-d-2 on every base run. The
+  baseline, recorded before any controller change (Q-S34-11, SD-d-2):
+
+  | Run (30 days at pace 900; 5 days at pace 60) | seed 7: samples showing seating; spells (by `stand`); median consults; bobbing | seed 11 |
+  | --- | --- | --- |
+  | social-cafe, default, 900 | 27/300 (9 %); 50 (9); 2.00; 4 | 22/300 (7 %); 52 (7); 1.00; 5 |
+  | social-cafe, motivated, 900 | 0/300; 0 spells | 0/300; 0 spells |
+  | social-cafe, default, 60 | 7/50 (14 %); 147 (45); 2.00; 21 | 7/50 (14 %); 151 (37); 2.00; 19 |
+  | market-town, default, 900 | 7/300 (2 %); 11 (2); 2.00; 1 | 6/300 (2 %); 13 (3); 1.00; 0 |
+  | market-town, motivated, 900 | 0/300; 0 spells | 0/300; 0 spells |
+  | market-town, default, 60 | 5/50 (10 %); 67 (13); 2.00; 8 | 2/50 (4 %); 81 (20); 2.00; 10 |
+  | renamed-seats (of market-town), default, 900 | 7/300 (2 %); 11 (2); 2.00; 1 | 6/300 (2 %); 13 (3); 1.00; 0 |
+  | renamed-seats, motivated, 900 | 0/300; 0 spells | 0/300; 0 spells |
+  | renamed-seats, default, 60 | 4/50 (8 %); 57 (12); 2.00; 6 | 3/50 (6 %); 72 (15); 2.00; 6 |
+  | one-seat (of market-town), default, 900 | 1/300 (0 %); 8 (1); 1.00; 1 | 7/300 (2 %); 8 (1); 3.00; 0 |
+  | one-seat, motivated, 900 | 0/300; 0 spells | 0/300; 0 spells |
+  | one-seat, default, 60 | 1/50 (2 %); 32 (8); 2.00; 4 | 2/50 (4 %); 41 (14); 2.00; 5 |
+
+  It confirms F-d-1 (seen seated in 2-9 % of daytime hours; the motivated model never sits) and F-d-2
+  (bobbing in every world, worst at the hosted pace: 19-21 spells per 5 days in Social Café). Social Café seed
+  7 at pace 900 reproduces audit 15 (50 spells, 9 ended by `stand`).
+- [x] Review: no world, place or key in the test or the variants (worlds found by `systems:`, seats by
+  `seats:`, sit points by their section); the checker's expected positions and facings come from the run's
+  own `place-sit-points` facts, never from posture's code; the reader decodes with the owners' published
+  types, as `social::decoded` does.
+
+#### C2 — The rule controller's rest band
+- [x] Implementation: `cognition/rule-controller/src/rest.rs` (new: `seats`, `sit_point`, `available_sit`,
+  `seat_to_seek`, `choose`, `request`, `band`; `SITS_BELOW = 50`, `REST_DRAW = 16`; public so the motivated
+  model reads the same rule); `paced.rs` (`DECIDED_BY_NAME` 10 → 12 with `sit` and `stand` by slug; the band
+  called after the social bands and before the offered band, with `staying = no agenda or at the agenda's
+  place`, `waiting` included; draw table row 16); `lib.rs` (module and test registration);
+  `rest_tests.rs` (new). No `Cargo.toml` change (D-d1-1). No existing constant changed (I-d-2).
+- [x] Validation (local, Darwin/arm64): `cargo test -p mineworld-rule-controller` 94 passed (7 new in
+  `rest_tests`: an available seat is sat on by its own offer on 16-48 of 64 seeds; out of reach the nearest
+  free seat is walked to, ties by key; a seat **not offered** is walked to (the dated note's row); a seat
+  refused `TargetUnavailable`, `PermissionDenied`, `Busy` or `NoSupportedInteraction` is never chosen and
+  the band takes no part; walking or away from my day rests nowhere; without posture the band takes no part;
+  the paced rule never submits a chance `stand` over 64 seeds × 8 consults). `offered_tests.rs` and
+  `paced_tests.rs` pass unchanged. `cargo clippy -p mineworld-rule-controller -p mineworld-motivated -p
+  mineworld-cli --all-targets -- -D warnings` clean.
+- [x] Review: the band reads the observation only — disclosed sit points and posture's verdict on each
+  offer; the one distance it computes ranks candidate seats for the walk (I-S34-4 allows reading `at`; reach
+  and occupancy are never computed); no key, place or world in code or tests; the band takes no draw unless a
+  seat is offered or disclosed, so a world without posture decides as before (AC-d-6, checked in C4).
+
+#### C3 — The motivated model's two options
+- [x] Implementation: `options.rs` (`Choice::Sit(index)`, `Choice::SeekSeat(Seat)` — the seat itself
+  rather than its key, so the request needs no second lookup; built from `rest::choose`, only where my day
+  keeps me and no commute presses; `sit` and `stand` left out of `Offered`; names `sit`, `seek-seat`; base
+  weights); `settings.rs` (`Base::sit = 300`, `Base::seek_seat = 250`, serialized `seek-seat`);
+  `parameters.rs` (`OPTIONS` 13 → 15, `set_base`); `considerations.rs` (`Sit` takes `stay`'s `Rested`,
+  `SeekSeat` takes `wander`'s `LeisureHour` without the weather); `seat_tests.rs` (new). No `Cargo.toml`
+  change.
+- [x] Validation (local): `cargo test -p mineworld-motivated` 55 passed (5 new: a seat in reach is one `Sit`
+  option and never an `Offered` one, and some seed sits; a seat out of reach or not offered is one
+  `SeekSeat`, nearest first; a taken seat gives no option and a seated person's `stand` is never submitted
+  over 256 seeds; a decision list with `sit: 0` and `seek-seat: 0` makes nobody sit or walk to the seat;
+  without posture no seat option appears). "The parameters test lists 15 options": no test enumerates
+  `OPTIONS`; the generated reference (`docs/reference/decisions.md`, the schema) carries the two new
+  weights, regenerated in C4.
+- [x] Review: no world data in the defaults; options appear only where a seat is offered or disclosed; the
+  base weights are the design's literals (300 = `stay`, 250 = `wander`), set before measuring.
+
+#### C4 — Thresholds on, re-baselines, mutations
+- [x] Implementation: `posture_life.rs` checks AC-d-3 … AC-d-5 per run (`Measured::misses`; one-seat is
+  held to AC-d-5 only, §6; a run with no spell has no median) and AC-d-6 (`a_world_without_posture_decides_as_before`).
+  **AC-d-4 and AC-d-5's median were missed and are escalated (Q-S34d1-1, Q-S34d1-2 below), not tuned**: they
+  are printed as `ESCALATED` and not asserted until ruled; AC-d-1, AC-d-2, AC-d-3, AC-d-5's zero bobbing and
+  AC-d-6 are asserted. The scratch name of each run carries model and days (the two profiles ran at once and
+  collided on the first attempt — a test defect, fixed). The Social Café 30-day decisions golden re-captured
+  locally (not from CI: per-PR CI runs `fast` only); `docs/reference/decisions.md` and
+  `schema/decisions.schema.json` regenerated (`mineworld reference --out docs/reference`: the two weights).
+- [x] Validation (local, Darwin/arm64, working tree = 090c6410 + this commit's files):
+  `cargo test -p mineworld-cli --test posture_life --test decisions --test reference -- --include-ignored`
+  all pass (posture_life 8 passed in 550 s, the long set included). The after numbers (30 days at pace 900; 5
+  at pace 60):
+
+  | Run | seed 7: seen seated; spells (by `stand`); median consults; bobbing | seed 11 |
+  | --- | --- | --- |
+  | social-cafe, default, 900 | 239/300 (79 %); 1160 (0); 1.00; 0 | 221/300 (73 %); 1075 (0); 1.00; 0 |
+  | social-cafe, motivated, 900 | 0/300; 0 spells | 0/300; 0 spells |
+  | social-cafe, default, 60 | 37/50 (74 %); 2239 (0); 1.00; 0 | 35/50 (70 %); 2203 (0); 1.00; 0 |
+  | market-town, default, 900 | 211/300 (70 %); 776 (0); 1.00; 0 | 199/300 (66 %); 736 (0); 1.00; 0 |
+  | market-town, motivated, 900 | 0/300; 0 spells | 0/300; 0 spells |
+  | market-town, default, 60 | 40/50 (80 %); 2233 (0); 1.00; 0 | 34/50 (68 %); 2113 (0); 1.00; 0 |
+  | renamed-seats, default, 900 | 195/300 (65 %); 806 (0); 1.00; 0 | 199/300 (66 %); 718 (0); 1.00; 0 |
+  | renamed-seats, motivated, 900 | 0/300; 0 spells | 0/300; 0 spells |
+  | renamed-seats, default, 60 | 40/50 (80 %); 2218 (0); 1.00; 0 | 32/50 (64 %); 2147 (0); 1.00; 0 |
+  | one-seat, default, 900 | 141/300 (47 %); 482 (0); 1.00; 0 | 154/300 (51 %); 446 (0); 1.00; 0 |
+  | one-seat, motivated, 900 | 0/300; 0 spells | 0/300; 0 spells |
+  | one-seat, default, 60 | 28/50 (56 %); 1206 (0); 1.00; 0 | 24/50 (48 %); 1209 (0); 1.00; 0 |
+
+  | Criterion | Result |
+  | --- | --- |
+  | AC-d-1, AC-d-2 (invariants after every request, every run, both profiles) | **PASS** |
+  | AC-d-3 (rule seen seated ≥ 50 %, every world and renamed-seats) | **PASS** (65-79 %) |
+  | AC-d-4 (motivated seen seated ≥ 50 %) | **FAIL — escalated, Q-S34d1-2** (0 %, no spell at all) |
+  | AC-d-5 zero bobbing, pace 900 and 60 | **PASS** (0 `stand` requests in 23 000 spells) |
+  | AC-d-5 median spell ≥ 2 consults | **FAIL — escalated, Q-S34d1-1** (1 consult in every run) |
+  | AC-d-6 no-posture variants equal the base record | **PASS** |
+
+  Planted mutations, each run against the tests named, each **red** as expected, then reverted
+  (`git checkout`; the tree re-verified clean before the commit):
+  - X-d-1 (`sit`, `stand` out of `DECIDED_BY_NAME`): `posture_life_short` red — AC-d-5, 2-45 bobbing spells
+    per run in every world, pace 900 and 60.
+  - X-d-2 (the band also takes `TargetUnavailable`): `rest_tests::a_taken_crowded_forbidden_or_busy_seat_is_never_chosen` red.
+  - X-d-3 (the band reads only keys containing `-`, i.e. the authored naming): `posture_life_short` red —
+    AC-d-3, renamed-seats 0 of 30 samples, both seeds; every authored world still passed.
+  - X-d-4 (the band takes its draw and holds the consult without posture): `a_world_without_posture_decides_as_before`
+    red (market-town moved against its base record).
+  - X-d-7 (the checker skips facing): owned by `posture::tests::a_sit_facing_away_from_the_point_is_named`
+    (C1). X-d-5, X-d-6 belong to S34-d2.
+- [x] Long-run baselines: `scripts/baselines.txt` `[world market-town]` and `[world social-cafe]` re-recorded
+  with a `reason S34-d1` line, from a local long record of 92fda43c (`/opt/homebrew/bin/python3.12 -I
+  scripts/ci_parity.py record --binary target/release/mineworld --profile long`, Darwin/arm64, 2 785 s; then
+  `baseline write` to a copy and only those two sections spliced in; `baseline check` then reports neither of
+  them). In the same record bodies-yard and Lakeside differ from their committed sections in every key; neither
+  installs posture and the rest band is inert there (AC-d-6), so that is main's drift since their last
+  re-record, left untouched and to main's next re-record (as S33-b did).
+- [x] Review: bodies-yard's and Lakeside's baseline sections untouched; the decisions golden diff is
+  posture's: `sit accepted 50 → 1160`, `stand accepted 9 → 0`, and every count downstream of the walks a
+  sitter no longer takes (consults 81 235 → 86 639, more facts per day); no `sit` is ever rejected, because
+  the band attempts only available offers.
+
+**Escalation (contract §12: AC-d-4 and AC-d-5 missed after C4; numbers reported, nothing tuned).**
+
+- **Q-S34d1-1 — the rule's spells last one consult (AC-d-5 median).** Cause, from `paced.rs`: a seated
+  person is consulted again one pace later; the rest band does not decide for a seated person (SD-d-3: "it
+  never decides `stand`"), so the consult falls to the walking roll — approach (30), a doorway (12, or up to
+  60 on a street of several doors) and wander (23) out of 100 — and the agenda, and any walk stands them up
+  (`stood-up { moved }`). Nobody bobs (zero `stand` requests), but half the spells end at the first consult.
+  *Recommendation:* the smallest revision inside SD-d-3's band — a seated person who is staying (no agenda,
+  or at its place) holds the consult on the same draw 16 below `SITS_BELOW`, before the walking roll; no new
+  constant, no new draw index, no posture change. Expected median ≈ 2 consults; measured after the ruling.
+  *Alternative:* revise AC-d-5 to "zero bobbing" only.
+- **Q-S34d1-2 — the motivated model never sits (AC-d-4).** Cause, from `score.rs` `select`: a consult draws
+  among the choices within `top_band` (100 ‰) of the best score; `sit` (300 × `Rested` ≤ 1 000) and
+  `seek-seat` (250 × `LeisureHour`) are below 90 % of `approach` (350) and of the agenda (900) whenever those
+  are offered, so they are almost never drawable — as `stay` is not. The motivated runs moved only by the
+  removal of a chance `stand` (none happened). *Recommendation:* the operator sets the two base weights
+  once (for example `sit: 1000` as `sleep`, and `seek-seat: 400` above `approach`), with Q-S34d1-1's "a
+  seated, staying person stays" as a third motivated option weighted like `sit`; then measure once and
+  record, without further tuning. *Alternative:* accept AC-d-4 as a follow-up, leaving the motivated model
+  seat-capable but rarely seated.
+
+#### C5 — Docs
+- [x] Implementation: dated notes on `ARC-147` (NPCs sit through a rest band; why no stillness gate; the
+  measured before and after; the two escalations) and `ARC-151` (`sit`, `stand` decided by name); the rule
+  controller's README paragraph; `rest.rs` module docs and `paced.rs`'s draw table (row 16) and rung order.
+- [x] Validation: `python3 -I scripts/check_doc_headings.py` (256 sections, none duplicated) and
+  `python3 -I scripts/check_decision_ids.py` (257 ids, index current) PASS.
+- [x] Review: the notes state the measured baseline and after numbers from this ledger; the README stays
+  orientation-only and links the record.
 
 ## 14. Operator questions (each with a recommended answer)
 

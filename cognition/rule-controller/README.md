@@ -57,6 +57,11 @@ invites a sleeper. Every threshold is data in the `needs` block of `rule`'s para
 ([`docs/MODULE_SPEC.md`](../../docs/MODULE_SPEC.md) §5.1), so a town of night owls needs no code. In a world
 without those packs it decides exactly as before.
 
+It sits down, in a world with the `posture` pack (`src/rest.rs`;
+[`ARC-147`](../../docs/decisions/ARC-147.md)). Staying where its day keeps it, it takes a free seat within
+reach, or walks to the nearest free one, and it never stands up on a whim: it gets up by setting off
+somewhere. Without `posture` it decides exactly as before.
+
 It can also price what it sells (`src/price/`; [`ARC-117`](../../docs/decisions/ARC-117.md)). By default it
 never changes a price. Give `rule` (or `motivated`) a `pricing:` block and a shopkeeper moves its asks a small
 step toward the suggested price on its notice board, or by its own stock, always within bounds set by each

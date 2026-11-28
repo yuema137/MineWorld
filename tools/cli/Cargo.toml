@@ -68,6 +68,9 @@ mineworld-sleep = { path = "../../systems/sleep" }
 mineworld-needs = { path = "../../systems/needs" }
 # station_visit reads each station place's floor from bodies' own `place-shaped` facts (S29-a C6).
 mineworld-bodies = { path = "../../systems/bodies" }
+# posture_life reads sat-down, stood-up and the sit points a world was authored with by posture's own types
+# (S34-d1 SD-d-1).
+mineworld-posture = { path = "../../systems/posture" }
 # Every test's saves and pack copies are scratch removed when the test ends (DEP-29).
 mineworld-test-support = { workspace = true }
 # The save-format refusal test (SR ASR-8) marks a save as format 2 directly, as an older build's file
