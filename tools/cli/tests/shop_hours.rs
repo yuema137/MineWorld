@@ -237,6 +237,19 @@ fn market_town_shops_keep_their_hours_through_a_night_and_residents_still_eat() 
         "evening {evening}, breakfast {breakfast}"
     );
 
+    // The town begins at 07:00 after a night's sleep (ARC-371; people/*.yaml `needs:`): nobody is so
+    // tired that they go back to bed before the evening (with the midnight levels, 700 tiredness at 07:00, the
+    // first resident fell asleep at 16:30 of day 0; with the morning levels, at 22:15).
+    let genesis = facts.first().expect("a genesis").at().seconds();
+    let morning_naps: Vec<i64> = of(&facts, "fell-asleep")
+        .map(|fact| fact.at().seconds())
+        .filter(|at| (genesis..genesis - genesis.rem_euclid(DAY) + 20 * HOUR).contains(at))
+        .collect();
+    assert!(
+        morning_naps.is_empty(),
+        "asleep before 20:00 of the first day: {morning_naps:?}"
+    );
+
     // Home → sleep → wake → work: someone wakes on day 1 and starts a shift present after it.
     let woke: BTreeMap<u64, i64> = of(&facts, "woke")
         .filter(|fact| fact.at().seconds() >= DAY)

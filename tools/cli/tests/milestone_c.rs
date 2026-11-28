@@ -239,6 +239,8 @@ async fn alice_works_earns_buys_and_bob_sees_the_shelf_change_across_a_restart()
         &Path::new(MARKET_TOWN).join("people"),
         // The boundaries at the head instant itself were committed before the save stopped; the half
         // hour after it is quiet.
+        // (Was an hour from midnight; 07:00 + 30 min is the quiet span a 07:00 world has. At the pack's scale 12
+        // that is 150 s of wall time; this test runs for seconds — ac5_takeover asserts its own end instant.)
         head_at + 1,
         1_799,
         "milestone_c.rs (hosting the 2-day save)",

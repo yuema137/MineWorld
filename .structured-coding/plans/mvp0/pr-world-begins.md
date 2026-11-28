@@ -103,3 +103,18 @@ the counter before buying, the 3D one does not. **Follow-up for the client lane*
 
 (Digests changed in every key; Bodies Yard not written.) Heavy time used ≈ 2 h 40 min wall in slots, of which
 ≈ 1 h queued behind other lanes.
+
+### Red-team review (`_reviews/pr564.md`, PASS-WITH-FOLLOWUPS) — disposition
+
+| Finding | Disposition |
+| --- | --- |
+| F1 mechanism unratified; ARC-371 said "accepted" | ARC-371 status: **proposed, awaiting operator ratification of the mechanism**; questions for the operator: (1) a top-level `world.yaml` key `begins:`; (2) `begins` is not a configuration fact (no drift; old saves keep their start); (3) `HostConfig::epoch` now means the genesis instant |
+| F2 resume untested | `tools/cli/tests/begins_resume.rs`: a midnight save resumed by `run` under the 07:00 pack keeps genesis 0 and its facts, journal, snapshots and sealed blocks equal 2 uninterrupted midnight days; hosted by `server` under the 07:00 pack, its clock goes on from the head (day 1, 00:00), and `replay` under the 07:00 pack verifies. PASS |
+| F3 genesis needs are midnight levels | Content, in the owner's section: Market Town's 12 people author `needs: { hunger: 510, tiredness: 0 }` — the step-35 midnight levels carried through 7 h asleep at `configure/needs.yaml`'s rates (hunger +30/h asleep, rest 125/h). Evidence: with the midnight levels the first resident fell asleep at 16:30 of day 0; with the morning levels at 22:15. Guard: `shop_hours.rs` asserts nobody falls asleep before 20:00 of day 0 (fails with the midnight levels). Social Café and Lakeside have no `needs`. `needs`' code defaults keep their documented meaning ("a person at midnight") |
+| F4 quiet window halved | Explained: a 07:00 world's quiet span is 07:00 → 07:30 (Erin); at scale 12 that is 150 s wall; the tests run for seconds. `ac5_takeover` now asserts its world instant at the end is inside the window (a slow run fails by name); comments in `milestone_b/c`; `restart.rs`'s window (stale "00:00 for 5 h") now reads the pack's `begins` |
+| F5 `shop_hours` lunch rationale hypothetical | It is exercised: `residents_meet_a_lunchtime_closure…` closes the café 12:00–14:00 in a copy |
+| F6 Social Café facts/journal −10 %/−16 % | Sealing-boundary churn, not activity: two 300-day saves of the same build, midnight vs 07:00 — history 1 129 034 vs 1 128 630 facts (−0.04 %), talk 91 512 vs 91 535, walk-to 112 009 vs 111 945; sealed blocks 187 vs 186, so the live tail (`facts-300s`, `journal-300s` count only unsealed rows) differs in length |
+| F7 stale docs | `people/alice.yaml` fixture note (both towns) rewritten for 07:00; CHANGELOG entry; PR body updated. Guide §8.2 left as is (optional; its pages run their own worlds) |
+| F8 third HH:MM parser; `epoch` naming | Recorded as follow-up (a contracts-level time-of-day type); not changed here |
+
+Market Town's baselines move again (needs content); re-recorded below after this commit.

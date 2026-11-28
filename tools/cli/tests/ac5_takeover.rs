@@ -290,6 +290,17 @@ async fn a_player_takes_alice_from_her_controller_and_she_is_the_same_person() {
     // controller answering Bob would be a fourth (`talk` is not a biographical fact, so the
     // biography alone would not show it).
     let status = server.status().await;
+    // The quiet half hour checked above is this claim's precondition: a slow run that outlived it fails
+    // here, by name, rather than as a mysterious extra revision.
+    let quiet_until = mineworld_worldpack::WorldPack::read(MARKET_TOWN)
+        .expect("reads")
+        .begins()
+        .seconds()
+        + 1_800;
+    assert!(
+        status["at"].as_i64().is_some_and(|at| at < quiet_until),
+        "the test ran past its quiet window ({quiet_until} s): {status}"
+    );
     assert_eq!(
         status["revision"],
         json!(head + 3),
