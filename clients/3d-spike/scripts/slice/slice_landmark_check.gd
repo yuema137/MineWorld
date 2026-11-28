@@ -126,7 +126,7 @@ func _shot(pos: Vector3, yaw_deg: float, pitch_deg: float, mode: String) -> Imag
 	_view.follow()
 	for i in 3:
 		await probe.get_tree().process_frame
-	await RenderingServer.frame_post_draw
+	await _drawn()
 	var img := _sv.get_texture().get_image()
 	img.convert(Image.FORMAT_RGB8)
 	return img
@@ -325,7 +325,7 @@ func _frame(eye: Vector3, bearing: float, pitch: float, mode: String) -> Image:
 	_view.follow()
 	for i in 3:
 		await probe.get_tree().process_frame
-	await RenderingServer.frame_post_draw
+	await _drawn()
 	var img := _sv.get_texture().get_image()
 	img.convert(Image.FORMAT_RGB8)
 	return img
