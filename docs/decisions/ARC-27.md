@@ -114,3 +114,14 @@ runs every installed in-process model twice and across a kill-and-resume against
 `Draw` and `mix` moved verbatim from `paced.rs` to `mineworld-decision`, salt included; the rule
 controller, `rule`, is the first model and the default, and with no decision list every seat is `rule`
 and every byte as before. The lattice, `RUN_STEP` and everything above are unchanged.
+
+**Note, 2026-11-27 (operator-ruled bounded correction; `fix/paced-reply-window`).** The answer window is
+**`[t − P, t)`**, not `(t − P, t]`: a line heard at `h` is answered at consult `t` only if `t − P ≤ h < t`.
+In a hosted world a player's line is stamped with the world's current instant, which is the instant of a
+consult that has already run on that tick (`server/src/runtime.rs` `tick_at`: consult, then advance, then
+sessions); under `(t − P, t]` such a line fell on the open boundary of the next window and was never answered
+(the `mineworld-launch` living probe's Bob reply, about one run in two). Under `[t − P, t)` every line lies in
+exactly one window whether it was applied before or after the consult at its own instant, so *answer once*
+still holds with no record. In a headless run no line is ever stamped at another seat's consult instant
+(item 2: no two seats share an instant), so the two windows select the same lines and no run's bytes change.
+The 75-in-100 answer chance (`ANSWERS`) is unchanged.
