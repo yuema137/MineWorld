@@ -46,6 +46,15 @@ const SHOT_SAVE := Vector2i(960, 540)
 const SHOT_QUALITY := 0.85
 
 var probe: SliceProbe
+
+## How long a check waits for a frame the window never draws before it stops with a named INCONCLUSIVE,
+## and how many process frames must have passed undrawn as well. On macOS Godot draws nothing while no
+## window can draw (covered, minimised, the display asleep; the loading lane's finding, #560), so
+## `frame_post_draw` never fires: unbounded, the wait hung the check until the test's 60-minute limit
+## (`client_far_field` three_d_landmark_closes_the_west_view, 2026-11-27). A draw that is only slow (a cold
+## pipeline compile) delays the process frames too, so it never reaches the frame count.
+const UNDRAWN_LIMIT_MS := 120_000
+const UNDRAWN_FRAMES := 600
 var _view: SliceFarFieldView
 var _sv: SubViewport
 var _cam: Camera3D
@@ -199,10 +208,31 @@ func _render(pos: Vector3, yaw_deg: float, pitch_deg: float, mode: String) -> Im
 	_view.follow()
 	for i in 3:
 		await probe.get_tree().process_frame
-	await RenderingServer.frame_post_draw
+	await _drawn()
 	var img := _sv.get_texture().get_image()
 	img.convert(Image.FORMAT_RGB8)
 	return img
+
+
+## Waits for the next drawn frame, or stops the run with `INCONCLUSIVE window not drawing` when the window
+## has drawn nothing for `UNDRAWN_LIMIT_MS` and `UNDRAWN_FRAMES` process frames (see the constants).
+func _drawn() -> void:
+	var state := {"drawn": false}
+	var mark := func() -> void: state["drawn"] = true
+	RenderingServer.frame_post_draw.connect(mark, CONNECT_ONE_SHOT)
+	var began := Time.get_ticks_msec()
+	var frames := 0
+	while not state["drawn"]:
+		await probe.get_tree().process_frame
+		frames += 1
+		var waited := Time.get_ticks_msec() - began
+		if frames >= UNDRAWN_FRAMES and waited >= UNDRAWN_LIMIT_MS:
+			print("INCONCLUSIVE window not drawing: %d process frames in %d s without a drawn frame (covered, minimised or the display asleep); the check stops"
+				% [frames, waited / 1000])
+			probe.get_tree().quit(3)
+			# The quit takes effect at the end of this frame; nothing after it runs.
+			await probe.get_tree().process_frame
+			return
 
 
 # --- the arithmetic ------------------------------------------------------------------------------
