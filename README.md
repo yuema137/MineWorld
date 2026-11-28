@@ -176,14 +176,15 @@ Next come regions linked by train, then markets and institutions, one pack at a 
 
 ## What you can play today
 
-Market Town is the default world. A new game starts at 07:00.
+Market Town is the default world in 2D. 3D starts in Social Café until its Market Town passes a start-time check. A new
+game starts at 07:00.
 
 - The town lives in the packaged build too: people go to work, eat, go home and sleep, run by simple rules.
 - Shops keep hours. The café sells from 05:30 to 22:00, the corner store from 06:00 to 23:00. After closing,
   the server refuses a purchase and says why.
 - Both clients show a loading screen with its progress.
 - On macOS the 3D client draws through Vulkan (MoltenVK). Its first start takes about 47 seconds.
-- Quit one client and open the other right away. Your seat is free at once, and you carry on in the same world.
+- Quit one client and open the other right away. Your seat is free at once.
 - A world can count food energy in kilocalories (the `needs` engine).
 
 Being built:
