@@ -989,7 +989,8 @@ the pack carries upstream's), D-h-9 (the demo stays at `worlds/matraix-demo` and
 | --- | --- | --- | --- | --- | --- |
 | h1 | C0 | (this commit) | [x] | [x] | [x] |
 | h1 | C1 | (next commit) | [x] | [x] | [x] |
-| h1 | C2 … C7 | | [ ] | [ ] | [ ] |
+| h1 | C2 | (this commit) | [x] | [x] | [x] |
+| h1 | C3 … C7 | | [ ] | [ ] | [ ] |
 | h2 | C0 … C3 | | [ ] | [ ] | [ ] |
 | h3 | C0 … C4 | | [ ] | [ ] | [ ] |
 
@@ -1022,6 +1023,19 @@ the refused provenance sample now says `elsewhere`); a mapping never targets an 
 "not a `core` attribute this backend removes", tested with `core.stature`) nor a mapped target ("both kept and
 mapped", tested); the default backend's path is untouched (`mapping` is `None` for `mineworld`; `keeps` empty).
 
+**h1-C2 (2026-11-28).** `scripts/check_optional_packs.py` (standard library; names no pack): `--self-test` 9/9
+planted cases PASS (a word in a forbidden file fails naming `src/lib.rs:2`; allowed paths pass; a missing or
+slash-less listed path, an unknown key, a wrong pack name, a capitalised word, unparsable text and an empty check
+each fail); `scan` on the tree: "0 optional pack(s); 5312 tracked files free of their words", exit 0; `run --binary`
+and `without` with no pack: nothing to do, exit 0. `uv run ruff check` / `ruff format --check` clean;
+`ci_changes.py --self-test` 44 PASS; `test_ci_execution.py` 6 PASS; doc headings and decision ids PASS. Wired into
+`fast` (`scan`, `--self-test`). `without` reuses `scripts/ci_removability.py::checkout_without` (the 3D
+removability job's throwaway checkout) instead of a second copy of it.
+
+Review (C2): fails closed (malformed JSON, unknown keys, missing paths, unreadable files, a failing or differing
+check are each a failure); `run` executes only the commands a tracked `.optional.yaml` lists, replacing the word
+`mineworld` by the given binary; the script's own text names no pack (its docstring cites "the S30-h design").
+
 ### Mutations
 
 | Id | Planted | Red test | Restored |
@@ -1038,6 +1052,18 @@ F-S30h-1 … F-S30h-13 (§3.3), recorded at design time.
   configurations; the old refused-mapping sample in `backend/tests.rs` replaced (a `mapping:` is now a file stem);
   a `type Views` alias replaces an `allow(clippy::type_complexity)`. The branch name gains `-2` because the old
   branch holds the snapshot.
+- **D-h1-2 (bounded).** `.optional.yaml` is written in YAML's JSON-compatible form and read with Python's `json`:
+  the checks run with the bare `python3` of `fast` (no PyYAML there), and a hand-written YAML subset parser would be
+  new infrastructure for one file. The file stays valid YAML; it carries no comments.
+- **D-h1-3 (bounded, sequencing).** With no optional pack on the tree, `run` and `without` have nothing to do, so
+  their CI wiring lands with the first pack: `run --binary` in `core` with C5 (when the declared checks exist and the
+  binary's path in the sharded `core` jobs is confirmed), the nightly `without` job with C7 (AC-h1-8's dispatch).
+- **F-h1-1 (finding, for C3/C4).** §5.12's `populations/matraix-world-priors.yaml` is "the upstream node's `prior`",
+  which lives only in the graph `full_dag.json` (M-h-13), and Q-S30h-9 does not commit the graph. So `import.py
+  --check` cannot regenerate the priors file from `.upstream/` alone. Proposed bounded resolution at C4: the
+  priors file is generated from the graph fetched at the pinned commit and committed; `--check` verifies it only
+  when the graph is supplied (`--graph <file>`, the nightly's fetch), and otherwise checks its digest recorded in
+  `overlay.yaml`. Recorded before C3; escalated if a reviewer reads Q-S30h-9 as forbidding it.
 
 ---
 

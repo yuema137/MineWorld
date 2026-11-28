@@ -17,8 +17,8 @@ Heavy jobs: /Users/yuema137/mineworld-worktrees/cast-slots/with-slot.sh
 | --- | --- |
 | C0 base and ledger | done |
 | C1 engine: `keeps`, `mapping`, `map`, upstream provenance | done, validated locally (§16) |
-| C2 optional-pack check | next |
-| C3 verbatim import and tool | not started |
+| C2 optional-pack check | done (fast: scan, self-test; run/without wiring with C5/C7, D-h1-3) |
+| C3 verbatim import and tool | next (read F-h1-1 first) |
 | C4 overlay, mask, mapping, priors | not started |
 | C5 fixtures, declared checks, sizes | not started |
 | C6 specification sync, `DEP-69` | not started |
@@ -31,5 +31,6 @@ Heavy jobs: /Users/yuema137/mineworld-worktrees/cast-slots/with-slot.sh
 
 ## Next step
 
-C2 per §9.1: `scripts/check_optional_packs.py` (`scan`, `--self-test`, `run`, `without`), wired into
-`scripts/ci_layer.py`; no pack named in the script.
+C3 per §9.1: a read-only partial clone of the upstream at the pinned commit in a scratch directory (never run its
+code), the verbatim files into `.upstream/`, `.tools/import.py` and its tests. Read §16 F-h1-1 (priors need the
+uncommitted graph) and D-h1-2 (no PyYAML in `fast`: the overlay must be read by the standard library too).
