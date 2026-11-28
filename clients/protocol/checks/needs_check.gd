@@ -54,12 +54,12 @@ func _event(event_type: String, payload: Dictionary, id: String) -> Dictionary:
 
 
 func _own_needs() -> void:
-	var ana := _observation([{"component_type": "needs", "payload": {"hunger": 640, "tiredness": 120,
+	var ana := _observation([{"component_type": "needs", "schema_version": 1, "payload": {"hunger": 640, "tiredness": 120,
 		"words": {"hunger": "hungry", "tiredness": "ok"}, "asleep": false}}])
 	_claim("own needs in the words map's order", Needs.own_needs(ana), [
 		{"need": "hunger", "word": "hungry", "level": 640},
 		{"need": "tiredness", "word": "ok", "level": 120}])
-	var third := _observation([{"component_type": "needs", "payload": {"hunger": "x", "tiredness": 300,
+	var third := _observation([{"component_type": "needs", "schema_version": 1, "payload": {"hunger": "x", "tiredness": 300,
 		"words": {"hunger": "peckish", "tiredness": "sleepy", "thirst": "peckish", "odd": 5}}}])
 	_claim("a level that is not a number reads -1; a word that is not text is skipped; a third need reads",
 		Needs.own_needs(third), [
@@ -191,6 +191,8 @@ func _food_energy() -> void:
 		{"need": "hunger", "word": "ok", "level": 250},
 		{"need": "tiredness", "word": "tired", "level": 700}])
 	_claim("an unknown schema reads nothing", Needs.own_needs(_energy_frame(3, _good_reserve())), [])
+	_claim("a record with no schema_version reads nothing (never a deficit bar)",
+		Needs.own_needs(_energy_frame(null, _good_reserve())), [])
 	_claim("an unknown model reads nothing", Needs.own_needs(_energy_frame(2, _good_reserve(), "kilojoule")), [])
 	var tiredness_only := [{"need": "tiredness", "word": "tired", "level": 700}]
 	var broken := {

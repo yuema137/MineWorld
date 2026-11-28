@@ -320,7 +320,9 @@ fn copy_family(from: &Path, to: &Path) {
 /// Its configured fact differs in shape, so the drift check names `needs` first; a save whose
 /// configuration matches but whose `needs` is version 1 is refused as outdated. A closed save and a
 /// crash-tail WAL family (scratch copies) keep every committed fact, journal row, snapshot, sealed
-/// block and manifest entry through the refusal.
+/// block and manifest entry through the refusal. These families are this build's saves with the needs
+/// version aged in the manifest — the only way to get a crash tail; the real earlier-build save is the
+/// next test's.
 #[test]
 fn an_earlier_builds_needs_save_is_refused_and_left_as_it_was() {
     let town = read(Path::new(MARKET_TOWN)).expect("reads");
@@ -392,4 +394,73 @@ fn an_earlier_builds_needs_save_is_refused_and_left_as_it_was() {
         after.assert_same_history(&before, "a refused earlier-build save");
         assert_eq!(after.manifest.instance, before.manifest.instance);
     }
+}
+
+const COMMUTE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/worlds/commute-town");
+const PRE_FE_SAVE: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/tests/fixtures/pre-fe-save/world.sqlite"
+);
+
+/// The world `fixtures/pre-fe-save/world.sqlite` was saved from (its SOURCE.md): commute-town with `needs`
+/// configured, thresholds stated.
+fn pre_fe_world(name: &str) -> headless::Scratch {
+    let scratch = fresh(name).within("commute-town");
+    needs_fixture::copy_tree(Path::new(COMMUTE), &scratch);
+    let manifest = scratch.join("world.yaml");
+    let text = std::fs::read_to_string(&manifest)
+        .expect("reads")
+        .replace("\r\n", "\n");
+    let text = text.replacen(
+        "configure:\n  - economy\n  - employment\n",
+        "configure:\n  - economy\n  - employment\n  - needs\n",
+        1,
+    );
+    assert!(
+        text.contains("  - employment\n  - needs\n"),
+        "configure lists needs"
+    );
+    std::fs::write(&manifest, text).expect("writes");
+    std::fs::write(
+        scratch.join("configure/needs.yaml"),
+        "parameters:\n  - { thresholds: [400, 600, 900] }\n",
+    )
+    .expect("writes");
+    scratch
+}
+
+/// C-FE-2 / §3.7 on a **real** earlier-build save (`fixtures/pre-fe-save`, written by `d252338e`): the
+/// binary refuses it by the configuration drift on `needs` — the first applicable error — and every
+/// committed row and the manifest stay as they were (on a scratch copy; the fixture is never opened).
+#[test]
+fn a_save_written_before_fe_a_is_refused_by_drift_on_needs_and_left_as_it_was() {
+    let world = pre_fe_world("food-energy-pre-fe-world");
+    let saves = fresh("food-energy-pre-fe-save");
+    let save = saves.join("save");
+    std::fs::create_dir_all(&save).expect("writable");
+    std::fs::copy(PRE_FE_SAVE, save.join("world.sqlite")).expect("copied");
+    let before = Tables::read(&save);
+    let output = mineworld(&[
+        "run",
+        world.to_str().expect("a path"),
+        "--headless",
+        "--seed",
+        "4",
+        "--days",
+        "1",
+        "--save",
+        save.to_str().expect("a path"),
+    ]);
+    let said = format!("{}{}", stderr(&output), stdout(&output));
+    assert!(!output.status.success(), "refused: {said}");
+    for part in [
+        "the world's configuration differs from the save's",
+        "system 'needs'",
+        "needs-interactions-configured",
+    ] {
+        assert!(said.contains(part), "{part:?} missing from: {said}");
+    }
+    let after = Tables::read(&save);
+    after.assert_same_history(&before, "a refused pre-FE-a save");
+    assert_eq!(after.manifest.instance, before.manifest.instance);
 }

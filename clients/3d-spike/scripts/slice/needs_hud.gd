@@ -12,6 +12,8 @@ extends Node
 const BAR_X := 300.0
 const BAR_Y_OFFSET := 7.0
 const BAR_SIZE := Vector2(292, 8)
+## The least space between a row's text and its bar.
+const BAR_GAP := 16.0
 ## The brightness of the night view while I am asleep (the view dims; no time skip, step §6.5).
 const ASLEEP_BRIGHTNESS := 0.6
 
@@ -166,7 +168,9 @@ func _show_bar(index: int, level: int, maximum: int, line: Label) -> void:
 		_hud.add_child(bar)
 		_bars[index] = bar
 	var shown := _bars[index] as ProgressBar
-	shown.position = Vector2(BAR_X, line.position.y + BAR_Y_OFFSET)
+	# Beside the row's text, never over it: a reserve row ("… 1849 / 2000 kcal …") is wider than a word row.
+	var text_end := line.position.x + line.get_minimum_size().x + BAR_GAP
+	shown.position = Vector2(maxf(BAR_X, text_end), line.position.y + BAR_Y_OFFSET)
 	shown.max_value = maximum
 	shown.value = level
 	shown.visible = true

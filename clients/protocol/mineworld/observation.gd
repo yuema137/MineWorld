@@ -146,9 +146,9 @@ func component_value(id: String, component_type: String) -> Variant:
 
 
 ## The schema version a disclosed component's envelope states, read before its payload is decoded
-## (`ARC-370`): a whole number, `1` for an envelope that states none (every recording and frame before
-## versions mattered to a reader), or `-1` when the component was not disclosed or the version is not a
-## whole number. A reader decodes only the schemas it knows.
+## (`ARC-370`): a whole number, or `-1` when the component was not disclosed, its envelope states no
+## version (the wire always states one), or the version is not a whole number. A reader decodes only the
+## schemas it knows, so a record of unknown shape is never read as an older one.
 func component_schema(id: String, component_type: String) -> int:
 	var components: Variant = entity(id).get("components", [])
 	if typeof(components) != TYPE_ARRAY:
@@ -156,7 +156,7 @@ func component_schema(id: String, component_type: String) -> int:
 	for record in components:
 		if typeof(record) == TYPE_DICTIONARY \
 				and String(record.get("component_type", "")) == component_type:
-			var version: Variant = record.get("schema_version", 1)
+			var version: Variant = record.get("schema_version", -1)
 			if typeof(version) == TYPE_INT:
 				return version
 			if typeof(version) == TYPE_FLOAT and version == floorf(version):

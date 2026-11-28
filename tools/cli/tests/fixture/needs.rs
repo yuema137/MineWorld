@@ -187,3 +187,8 @@ pub fn food_energy(name: &str, world: &Path, copy: FoodEnergyCopy) -> Scratch {
     }
     scratch
 }
+
+/// Copies a whole world directory: what a caller keeps beyond a scratch guard's life.
+pub fn copy_tree(from: &Path, to: &Path) {
+    copy_dir(from, to);
+}

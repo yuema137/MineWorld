@@ -367,3 +367,29 @@ async fn record_market_town_food_energy() {
     }
     panic!("no seat was told a food-energy reserve at 06:00");
 }
+
+/// The synthetic food-energy copy the recorder above reads, written to `MINEWORLD_COPY_TO` and kept: the
+/// world FE-a's windowed 2D/3D launches (E6) are played in (design §4 Fixtures row). Run by hand.
+#[test]
+#[ignore = "writes the E6 world copy; run by hand with MINEWORLD_COPY_TO=<dir>"]
+fn export_food_energy_copy() {
+    let to = std::env::var_os("MINEWORLD_COPY_TO")
+        .expect("set MINEWORLD_COPY_TO to an absent directory");
+    let to = Path::new(&to);
+    assert!(
+        !to.exists(),
+        "{}: refuse to write over a directory",
+        to.display()
+    );
+    let scratch = needs_fixture::food_energy(
+        "needs-fixture-food-energy-export",
+        Path::new(MARKET),
+        needs_fixture::FoodEnergyCopy {
+            daily_kcal: 2_000,
+            initial_kcal: 1_500,
+            whole_currency: false,
+        },
+    );
+    needs_fixture::copy_tree(&scratch, to);
+    println!("copied {}", to.display());
+}

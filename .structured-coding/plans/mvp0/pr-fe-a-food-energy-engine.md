@@ -560,9 +560,9 @@ full-workspace run.
    U kcal a day." omitted whole above 160 bytes; `triggers.py` unchanged. Recorder `record_market_town_food_energy`.
    **Deviation (bounded, recorded as a limitation):** clients show no per-item serving row — no view shows per-item
    nourishment today, and the agent schema of §3.8 excludes it; serving reaches controllers and the record.
-4. **Validation:** [ ] E6 actual 2D and 3D scenes (initial, after caloric food, after zero-kcal drink, after restart)
-   in en and zh_Hans — **INCONCLUSIVE, not run** (windowed launches and screenshots not performed in this session;
-   both clients' row builders were run headless on the real recording instead, below); [x] row probes equal
+4. **Validation:** [x] E6 actual 2D and 3D scenes (initial, after caloric food, after zero-kcal drink, after restart)
+   in en and zh_Hans — first left INCONCLUSIVE (not run); run after the red-team review, PASS: see "E6 run" in §9.1
+   (16 stills in `fe-evidence/e6/`); [x] row probes equal
    hand-written literals; [x] malformed/non-integer/negative/bool/unknown/missing v2 → no energy row, no fallback;
    [x] schema-1 rows and no-needs prompt golden unchanged; [x] reserve change alone triggers no LM consult;
    [x] `python3 scripts/check_client_rules.py` passes unmodified.
@@ -592,7 +592,7 @@ full-workspace run.
    `uv run --locked pytest cognition/lm-controller/tests/test_needs_prompt.py cognition/lm-controller/tests/test_needs_triggers.py`;
    ruff/pyright on touched Python per `.structured-coding/standards.md`.
 8. **Boundary:** fact rendering + typed adapters + actual client evidence; no UI redesign or model claim.
-   [x] Implementation [~] Validation (E6 windowed launches INCONCLUSIVE) [x] Independent review (self; the E7
+   [x] Implementation [x] Validation (E6 run after the red-team review, §9.1) [x] Independent review (self; the E7
    readiness review is a separate agent): no client, agent or prompt computes kcal, a rate or a threshold; no
    client names a need (R7); no transport change. Size: `models.py` 1 680 → 1 683 lines (new code in
    `food_energy.py`); `needs.gd` +80; `observation.gd` +18 (shared file, S34-e lane: one additive function).
@@ -657,3 +657,32 @@ final head, recorded separately from local results. Review starts while CI runs.
   run-split resume PASS); clients show no per-item serving row. Lifecycle: **READY FOR OPERATOR REVIEW — DO NOT
   MERGE**; context CLOSED / AWAITING OPERATOR ACTION. Post-merge sync owner: this session for this document; the
   primary coordinator for step/overall/progress page.
+- **Red-team review** (`/Users/yuema137/mineworld-worktrees/_reviews/pr555.md`, on `d11d5c51`): BLOCK on readiness
+  (E6 not run, §7) plus two minors. Dispositions:
+  - **E6 run (PASS), 2026-11-27, Godot 4.7.2, macOS Metal, windowed, through `with-slot.sh`.** World: the synthetic
+    food-energy Market Town copy written by the new ignored `needs_fixtures::export_food_energy_copy` (2 000 kcal/day,
+    1 500 at genesis). Server `mineworld server <copy> --solo --time-scale 1 --save <dir>`; seat `alice`, who holds a
+    croissant (350 kcal synthetic) and coffee (0 kcal). 2D: `clients/2d` `--drive=steps --capture` (panels shown; a
+    1600×2000 settings window so the column reaches the needs panel). 3D: `res://scenes/slice.tscn --slice-market
+    --frames`. Each locale: initial → eat → drink → server stopped and restarted on the same save → reconnect. Rows
+    seen (en; zh_Hans the same numbers): `Hunger: fine — 1499 / 2000 kcal (2000 kcal a day)` → after the croissant
+    `1849` → after the zero-kcal coffee unchanged (`1849`/`1848`, seconds of drain) → after restart `1847–1849`;
+    tiredness row and bar intact; both drives "PASS". **Finding fixed:** in 3D the longer reserve row ran under the
+    bar at the fixed `BAR_X`; `needs_hud.gd::_show_bar` now places the bar after the row's text
+    (`maxf(BAR_X, text end + 16)`), re-shot. The 2D bar is the panel's existing one, filled by the owner's value on the
+    owner's maximum. Stills: `fe-evidence/e6/{2d,3d}-{en,zh}-{01-initial,02-after-croissant,03-after-zero-kcal-coffee,04-after-restart}.jpg`
+    (PNG captures converted to 1200-px JPEG, quality 60). Logs and the drive scripts:
+    `/Users/yuema137/mineworld-worktrees/_targets/impl-fe-a/e6/` (not tracked).
+  - **Minor 1:** `observation.gd::component_schema` reads a missing `schema_version` as `-1` (unknown), so a version-less
+    record is never read as schema 1; `needs_check.gd`'s two hand-built frames now state schema 1, and a new claim pins
+    that a version-less food-energy record reads nothing. `needs_check` 0 failures; R7 PASS.
+  - **Minor 2:** a **real** pre-FE-a save, `tools/cli/tests/fixtures/pre-fe-save/world.sqlite` (110 KB, written by
+    `d252338e`'s binary; provenance and sha256 in its `SOURCE.md`; `.gitignore` admits it as it admits the format-2/3
+    saves), is refused by the new binary by name — "the world's configuration differs from the save's: system 'needs'
+    (… needs-interactions-configured …)" — with history and manifest unchanged
+    (`food_energy::a_save_written_before_fe_a_is_refused_by_drift_on_needs_and_left_as_it_was`). The WAL-family case
+    stays on an aged save of this build (documented in that test).
+  - **Minor 4 (Python gate skipped remotely):** the `python` matrix runs on full runs only (`ci.yml`, ARC-154); local
+    pytest/ruff/pyright are recorded above, the remote gate is not claimed.
+  - Validation: `cargo test -p mineworld-cli --test food_energy` 7 passed; `--test needs_rows_parity -- --ignored` 1
+    passed; clippy on cli tests clean; `check_client_rules.py` PASS.
