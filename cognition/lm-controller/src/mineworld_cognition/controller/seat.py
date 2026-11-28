@@ -210,12 +210,9 @@ class SeatRunner:
         self._last_line: dict[EntityId, EventId] = {}
         self._consult_count = 0
         self._records: list[DecisionRecord] = []
-        self._runner_counts = {
-            "breaker_trips": 0,
-            "stale_triggers": 0,
-            "handbacks": 0,
-            "scope_defects": 0,
-        }
+        self._runner_counts = dict.fromkeys(
+            ("breaker_trips", "stale_triggers", "handbacks", "scope_defects"), 0
+        )
         self._asked: Asked | None = None
         self._felt: Felt | None = None
         """How I felt at the newest observation the `feeling` trigger compared (S35 N-e)."""
@@ -726,7 +723,9 @@ class SeatRunner:
     # ── Ending ────────────────────────────────────────────────────────────────────────────────────
 
     def _counters(self) -> Counters:
-        return counters_from(self._records).model_copy(update=self._runner_counts)
+        return counters_from(self._records).model_copy(
+            update={**self._runner_counts, "superseded_triggers": self._pending.superseded}
+        )
 
     def _close(self) -> None:
         # A seat refused before its store was opened (D-P6b-21) has no directory to write its counters into.

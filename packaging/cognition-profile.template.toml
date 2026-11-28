@@ -1,0 +1,47 @@
+# MineWorld — conversation profile TEMPLATE. This file is never read where it ships.
+#
+# Conversation with residents needs a language model on THIS computer and a MineWorld source checkout's
+# Python environment ("requires local runtime"; it is not part of this download). Without it, the game
+# plays normally and every resident follows its routine.
+#
+# To turn conversation on (macOS paths shown; the launcher's guide, LAUNCHER.md §10, has the details):
+#   1. In a MineWorld source checkout:            uv sync --locked
+#   2. Write the runtime manifest:                .venv/bin/python -m mineworld_cognition \
+#                                                     --write-runtime-manifest /ABSOLUTE/PATH/manifest.json
+#   3. Write a cognition configuration (the checkout's cognition/lm-controller/examples/local.toml is one),
+#      with a local model service you have installed and started yourself (e.g. Ollama, model qwen3.5:4b).
+#   4. Copy THIS file to your MineWorld folder as cognition/profile.toml
+#        macOS:   ~/Library/Application Support/MineWorld/cognition/profile.toml
+#        Windows: %APPDATA%\MineWorld\cognition\profile.toml
+#        Linux:   ~/.local/share/MineWorld/cognition/profile.toml
+#      then remove the leading "# " from the lines below and fill in your absolute paths.
+#   5. Start the game. Its log (logs/<run>-launch.log) says "cognition: ready" when Alice is listening.
+#
+# To turn conversation off again, delete cognition/profile.toml. Updating the checkout (git pull, uv sync)
+# turns it off until you write the manifest again (step 2). Starting a world over with --fresh also deletes
+# that world's memories. Every value is one double-quoted string; a comment is a whole line.
+#
+# [2d]
+# world = "market-town"
+# seat = "visitor"
+# cognition-python = "/ABSOLUTE/PATH/TO/MineWorld/.venv/bin/python"
+# cognition-config = "/ABSOLUTE/PATH/TO/cognition.toml"
+# cognition-manifest = "/ABSOLUTE/PATH/TO/manifest.json"
+# cognition-decisions = "runtime/decisions/market-town-alice-lm.yaml"
+#
+# [3d]
+# world = "market-town"
+# seat = "visitor"
+# cognition-python = "/ABSOLUTE/PATH/TO/MineWorld/.venv/bin/python"
+# cognition-config = "/ABSOLUTE/PATH/TO/cognition.toml"
+# cognition-manifest = "/ABSOLUTE/PATH/TO/manifest.json"
+# cognition-decisions = "runtime/decisions/market-town-alice-lm.yaml"
+#
+# [both]
+# world = "market-town"
+# seat-2d = "visitor"
+# seat-3d = "wanderer"
+# cognition-python = "/ABSOLUTE/PATH/TO/MineWorld/.venv/bin/python"
+# cognition-config = "/ABSOLUTE/PATH/TO/cognition.toml"
+# cognition-manifest = "/ABSOLUTE/PATH/TO/manifest.json"
+# cognition-decisions = "runtime/decisions/market-town-alice-lm.yaml"

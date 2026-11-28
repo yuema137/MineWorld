@@ -384,6 +384,13 @@ LAYERS["python"] = [
         "cargo", "test", "-p", "mineworld-cli", "--test", "milestone_d", "--",
         "--ignored", "--exact", "she_remembers_across_the_two_views",
     ],
+    # Dialogue+memory C4 (pr-playable-dialogue-memory.md §5): the corrected-memory scenario through the real server,
+    # the real cognition process (scripted model) and the MCP agent; ignored in `core` for the same reason. Its
+    # operator-run live gate (`the_bounded_live_gate`) never runs in CI.
+    [
+        "cargo", "test", "-p", "mineworld-cli", "--test", "correction_memory", "--",
+        "--ignored", "--exact", "she_answers_with_the_corrected_place_after_a_restart",
+    ],
     # S31-d AC-d-11: the price clerk on a scripted LM (the real cognition process) and on `price-reporter`
     # post the same kind of notice, in two worlds; ignored in `core` for the same reason as Milestone D.
     ["cargo", "test", "-p", "mineworld-cli", "--test", "price_reporter_lm", "--", "--ignored"],

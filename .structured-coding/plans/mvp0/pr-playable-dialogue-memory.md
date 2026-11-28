@@ -369,17 +369,17 @@ preflight, manifest writer); `runtime/cognition-profile.template.toml`; `runtime
 the R1 decision record. No new TOML parser, no shell command interface.
 
 **Implementation.**
-- [ ] Profile read from the per-user folder with the existing parser; partial/unknown/duplicate keys fail by name.
-- [ ] Assignment resolution with the same decisions file as the server; LM seat ≠ human seat; exactly one LM seat.
-- [ ] Store creation, `--fresh` deletion of `saves/<world>/` and `cognition/<world>/`, smoke scratch store;
+- [x] Profile read from the per-user folder with the existing parser; partial/unknown/duplicate keys fail by name.
+- [x] Assignment resolution with the same decisions file as the server; LM seat ≠ human seat; exactly one LM seat.
+- [x] Store creation, `--fresh` deletion of `saves/<world>/` and `cognition/<world>/`, smoke scratch store;
   cognition-side `instance` binding.
-- [ ] `--preflight`, `--write-runtime-manifest` and supervised overrides in `supervised.py`; loopback check.
-- [ ] Specs (§3.4) and decision record written with the code.
+- [x] `--preflight`, `--write-runtime-manifest` and supervised overrides in `supervised.py`; loopback check.
+- [x] Specs (§3.4) and decision record written with the code.
 
 **Validation.**
-- [ ] No profile ⇒ behaviour identical to today; partial keys, invalid seat, stale manifest, non-loopback backend,
+- [x] No profile ⇒ behaviour identical to today; partial keys, invalid seat, stale manifest, non-loopback backend,
   wrong world/format, missing interpreter each give their named outcome.
-- [ ] Store tests: restart reuse, `--fresh` deletes both, smoke isolation, read-only bundle, upgrade keeps
+- [x] Store tests: restart reuse, `--fresh` deletes both, smoke isolation, read-only bundle, upgrade keeps
   per-user files, log pruning never touches `cognition/`, instance mismatch refused without modification.
 
 **Acceptance.** Server and resolver agree; resident selection checked; no secret on disk or argv; missing runtime ⇒
@@ -392,8 +392,8 @@ malformed profile fails before any child starts.
 supervised tests; doc link and decision-ID checks. CI runs all three OSes. NOT RUN.
 
 **Boundary/review.**
-- [ ] Review: path escapes, save/store collision, writer isolation, grammar reuse, secret flow, spec/code match.
-- [ ] Commit configuration, specs and tests together; no child supervision before C3.
+- [x] Review: path escapes, save/store collision, writer isolation, grammar reuse, secret flow, spec/code match.
+- [x] Commit configuration, specs and tests together; no child supervision before C3.
 
 ### C3 — supervise one cognition child
 
@@ -405,20 +405,20 @@ two-window lifetime, on all three OSes.
 `tools/launch/tests/launcher/` real-process fixtures. No server/client domain change; no model-service ownership.
 
 **Implementation.**
-- [ ] Start town server with `--decisions`, resolve assignment, start the child per §4.11; own stdin and handle.
-- [ ] `--supervised` EOF ⇒ Stopper; status lines per §3.4.1; standalone CLI unchanged.
-- [ ] Bounded status reading during play; unexpected exit ⇒ `degraded(child_exited)`, world continues.
-- [ ] Ordered shutdown on final client exit and error/drop paths; kill/reap only the owned child after the bound.
+- [x] Start town server with `--decisions`, resolve assignment, start the child per §4.11; own stdin and handle.
+- [x] `--supervised` EOF ⇒ Stopper; status lines per §3.4.1; standalone CLI unchanged.
+- [x] Bounded status reading during play; unexpected exit ⇒ `degraded(child_exited)`, world continues.
+- [x] Ordered shutdown on final client exit and error/drop paths; kill/reap only the owned child after the bound.
 
 **Validation.**
-- [ ] Real child (scripted backend): `ready` after welcome+home; unreachable endpoint; malformed answer; killed
+- [x] Real child (scripted backend): `ready` after welcome+home; unreachable endpoint; malformed answer; killed
   child; launch failure after server start; shutdown during an in-flight request; malformed status line.
-- [ ] Two clients: first closes, second still acts; last closes, server persists, all owned children reaped.
+- [x] Two clients: first closes, second still acts; last closes, server persists, all owned children reaped.
   Killing the launcher stops server and cognition via EOF.
-- [ ] Other residents act during blocked inference; no cloud attempt; child environment has no
+- [x] Other residents act during blocked inference; no cloud attempt; child environment has no
   `MINEWORLD_ADMIN_TOKEN`; a planted invite never appears in the **cognition child's** argv, stderr log, status
   lines or store files (the server log and client argv hold it by existing design, LAUNCHER.md).
-- [ ] Same lifecycle tests on Windows and Linux in CI (B3).
+- [ ] Same lifecycle tests on Windows and Linux in CI (B3). Pending: the PR CI run (core `test-windows`, `test`; `python` layer on three OSes).
 
 **Acceptance.** Direct interpreter child; status reflects held seat/home; no orphaned owned child; only owned
 processes stopped; world responsive under model failure.
@@ -430,9 +430,9 @@ HTTP cancellation may not stop Ollama GPU work: measured and reported, never cla
 Milestone D protocol path where applicable. Scripted backend only; ≤ 10 min, one heavy slot. NOT RUN.
 
 **Boundary/review.**
-- [ ] Red-team: EOF inheritance, kill/reap, status bounds, stdin ownership, drop order, partial-launch exits,
+- [x] Red-team: EOF inheritance, kill/reap, status bounds, stdin ownership, drop order, partial-launch exits,
   environment construction, Windows behaviour.
-- [ ] Commit lifecycle atomically.
+- [x] Commit lifecycle atomically.
 
 ### C4 — corrected memory and controller substitution through a real save
 
@@ -544,6 +544,7 @@ separately and stops the run if the total (ledger calls + warm-up) would exceed 
 | 5 | Unrelated short line (T1) | 1 |
 | 6 | Restart; player re-enters; T3 fires once (greeted set is process memory) | 1 |
 | 7 | Player asks current location and code (T1) | 1 |
+| F | `feeling` (S35 N-e): a need word changes, or waking — *row added 2026-11-28 after the gate, red-team #565; cap unchanged; see §10 PR-B follow-ups* | 0–2 |
 | | **Total expected / cap** | **7 / 8** (one spare for a single failure) |
 
 **Other bounds.** Inference wall ≤ 180 s total; ≤ 20 s trigger-to-submit per reply; each real-process run
@@ -666,5 +667,310 @@ milestone-D fallback and Anthropic adapter tests 24 passed; ruff and strict pyri
 
 ### PR-B (C2–C5)
 
-Base: pending the client-stack merge and PR-A merge; the exact `main` SHA and the launcher seam re-audit result
-are recorded here before C2. Not started.
+**Base and seam re-audit (before C2).** Branch `mvp0/pr-dialogue-b`, worktree
+`/Users/yuema137/mineworld-worktrees/impl-dialogue-b`, one execution session (2026-11-27). Base `origin/main` @
+`b0b4690397c37a95a03aa7879fd45d9d6676f43a` (#549 merge), which contains the client stack (#544, #548, #549 with
+`Hosting`) and PR-A (#547, `83e52776` is an ancestor). Seams re-audited on that SHA: `lib.rs::run` (profile-free
+`chosen` → `Server::start(…, hosting, …)` → `join` → `Clients::run` → `Server::stop`); `hosting.rs` (`Played{admin}`
+adds `--town` and sets `MINEWORLD_ADMIN_TOKEN` through `configure_client`); `children.rs` (server env removes
+`MINEWORLD_INVITE`, `CREATE_NO_WINDOW` inline, clients waited for in order); `config.rs` (strict `launch.toml`
+subset, defaults 2D `carol`/market-town, 3D/both social-cafe); `user.rs` (`saves/`, `logs/` pruned to five runs,
+`scratch/`); `join.rs`. All as §2 states; no deviation. The C4 lane (correction scenario, isolation, MCP case,
+live-gate harness) is delegated to one sub-agent in its own worktree
+(`/Users/yuema137/mineworld-worktrees/impl-dialogue-b-c4`, branch `mvp0/pr-dialogue-b-c4`, same base, never pushed);
+its commits are cherry-picked onto this branch.
+
+**Concurrency.** Launcher-solo (#550 design; code lane starting in parallel) edits `config.rs` defaults, `hosting.rs`
+and `lib.rs`. This PR's launcher edits, kept minimal and listed for that lane: `config.rs` (a `Grammar` switch, four
+profile keys, `profile()`, defaults moved unchanged into `applied()`); `user.rs` (`profile()`, `store()`, `Log`
+shareable); `bundle.rs` (`file()`); `children.rs` (`Server::start` takes `decisions`, `no_window`/`log_files`
+shared); `lib.rs` (profile read, `--fresh` store deletion, preflight/assignment/child wiring); new `cognition.rs`.
+`hosting.rs` is not touched.
+
+#### C2 — profile, store and contracts
+
+**Implementation.**
+
+- [x] Profile from the per-user folder with the existing parser: `config::profile(mode, file, text)` reuses
+  `parse`/`pair`/`set` with `Grammar::Profile`, which adds `cognition-python`, `cognition-config`,
+  `cognition-manifest` (absolute) and `cognition-decisions` (bundle-relative, plain components); partial,
+  relative, `..`, duplicate and unknown keys fail by name and line; `launch.toml` refuses the four keys. The profile
+  replaces `launch.toml` for every mode; smoke ignores it (`lib.rs::run`).
+- [x] Assignment with the same decision list as the server: `cognition::Setup::assignment` runs the owned server
+  binary `decisions <world> --decisions <file> --json` into `cognition/<world>/run/assignment.json` (30 s bound,
+  killed after); `Server::start(…, decisions)` adds `--decisions` for the same file. Exactly one LM seat:
+  `supervised._one_seat` (`assignment_invalid`). LM seat ≠ human seat: see deviation D-B1.
+- [x] Store: `UserDir::store(world)` = `cognition/<world>/`, created when conversation is on; `--fresh` removes
+  `saves/<world>/` and `cognition/<world>/` only; a world named `profile.toml` has no store. Smoke starts no
+  cognition, so it needs no scratch store (deviation D-B2). Cognition-side binding:
+  `supervised.BoundHomes._bind` writes `<store>/instance` on the first welcome, refuses another instance before any
+  home opens.
+- [x] `supervised.py` (flags, overrides via `model_copy`, loopback `ws://` check, invite from `MINEWORLD_INVITE`,
+  ledger default `<store>/budget.sqlite`, status channel, preflight) and `runtime_manifest.py` (writer, deriver,
+  comparison, entry-point resolution, Git revision read without Git). `__main__.py`: `--config` checked by hand so
+  `--write-runtime-manifest` needs none; serving moved into `_serve_until_stopped` (standalone behaviour unchanged);
+  `serve(…, homes=None)`.
+- [x] Specs and record: `docs/reference/cognition-supervised.md` (new); `tools/launch/LAUNCHER.md` §§1, 3, 4, 5, 9, 10;
+  MODULE_SPEC §5 LM Controller bullet (the stale "never chooses movement" replaced by the `go`/pacer fact, link
+  added); `cognition/lm-controller/tools/reference.py` intro (supervised link) and regenerated
+  `docs/reference/cognition-toml.md`; `examples/local.toml` stale "format 1"/"FG-c is not merged" fixed;
+  `packaging/cognition-profile.template.toml`; `packaging/decisions/market-town-alice-lm.yaml`;
+  `docs/decisions/ARC-372.md` + index.
+
+**Bounded deviations (C2).**
+
+- *D-B1 — LM seat vs. human seat, learned from the status line.* Previous assumption: the launcher reads the LM seat
+  from `assignment.json`. Audit: the launcher has no JSON library, and `ARC-78`'s amendment admits only `getrandom`
+  with operator approval; a JSON dependency would be a material dependency change. Resolution: the child's status
+  line carries the LM seat (`seat`, §3.4.1); a seat that is a human seat of the mode is refused by the launcher's
+  watcher as `degraded(profile_invalid)` and the child is stopped. `take_over=False` already guarantees no seat theft
+  in the window before the line is read. Validation: launcher case `cognition_failures_leave_the_world_playing`
+  (`seat-visitor`).
+- *D-B2 — no smoke store.* §3.4.4 names `scratch/<run>/cognition/` for smoke, while §3.2 says smoke ignores the
+  profile; with no profile read, no cognition child is started in smoke, so no store is made. Recorded, not
+  implemented.
+- *D-B3 — preflight in C2.* The launcher's preflight call (`Setup::preflight`) landed with C2's code because the
+  profile's interpreter, configuration and manifest are only used by it, and an unused key would fail clippy; the
+  child supervision itself is C3.
+- *D-B4 — `runtime_manifest.py`.* The manifest writer/deriver is its own module beside `supervised.py` (cohesion and
+  size; `supervised.py` holds the flags, preflight, overrides, binding and status). Third-party distributions are
+  recorded with `files: []`.
+- *D-B5 — preflight model listing.* `model_unavailable` is produced by preflight's `GET <base_url>/models` on
+  loopback (stdlib `urllib`, not the provider adapter; DEP-27 keeps `httpx2` in `openai_compatible.py`). A listing,
+  not inference; skipped in replay mode.
+
+#### C3 — supervise one cognition child
+
+**Implementation.**
+
+- [x] Launcher: `cognition::Cognition::start` runs `<python> -I -m mineworld_cognition --config … --supervised
+  --server-url=ws://<join>/ws --store-dir … --assignment …`, environment built by `Setup::command` (removes
+  `MINEWORLD_ADMIN_TOKEN` and the inherited `MINEWORLD_INVITE`, then sets the join's invite), `CREATE_NO_WINDOW`,
+  `.exe` check on Windows; stderr to `<run>-cognition.log`; never through `Hosting`.
+- [x] Python: `--supervised` stdin EOF ⇒ `Stopper.stop` (thread-safe; an early stop is honoured when serving begins);
+  status lines `starting`/`ready`/`stopped`/`degraded` (`Status`, original stdout only; `sys.stdout` → stderr);
+  `ready` only from `BoundHomes.hold`; closed reasons from `reason_of` (exception groups unwrapped).
+- [x] Watcher thread (`Watch::run`): strict status parse (four flat keys, no escapes, ≤ 512 bytes); malformed ⇒
+  `status_invalid`; human seat ⇒ `profile_invalid`; no `ready` in 60 s ⇒ `readiness_timeout`; unexpected exit ⇒
+  `child_exited`; each state one launch-log line. World and clients never wait.
+- [x] Ordered shutdown: after `Clients::run`, `Cognition::stop` closes stdin, waits ≤ 20 s (child's own bound 15 s),
+  kills/reaps only that child; then `Server::stop`. `Drop` does the same on error paths; declared after the server,
+  so it drops first. `seat.py` unchanged (0 lines; readiness hook lives in `BoundHomes`).
+
+**Sizes.** `seat.py` 765 → 765; `config.py` 732 → 732; `supervised.py` new; `runtime_manifest.py` new;
+`tools/launch/src/cognition.rs` new.
+
+*D-B6 — one commit for C2 and C3.* The launcher's preflight (C2) and child (C3) share `Setup::command` and
+`cognition.rs`; splitting them would commit a dead-code state that fails clippy. C2 and C3 are one semantic commit;
+the checkboxes above stay separate.
+
+**Validation (C2 + C3), working tree on base `b0b46903`, 2026-11-27, macOS (this Mac).**
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Launcher unit | `cargo test -p mineworld-launch --lib` | PASS 10/10 (profile grammar incl. all-or-none/absolute/`..`/duplicate/unknown keys and `launch.toml` refusing them; status-line strict reader; reason set fail-closed) |
+| Launcher real-process | `cargo test -p mineworld-launch --test launcher` (one slot) | PASS 9/9: 4 new (`cognition_child_is_started_with_its_own_environment_and_stopped_before_the_server`, `cognition_failures_leave_the_world_playing` over `preflight=runtime_mismatch`, `garbage`, `exit`, `seat-visitor`, `silent` (60 s readiness), `deaf` (killed after 20 s), `killing_the_launcher_stops_its_cognition_child`, `fresh_deletes_this_worlds_store_and_keeps_the_profile_and_other_worlds`) + 5 existing unchanged |
+| Python unit | `pytest tests/test_supervised.py` | PASS 5 (overrides win and are loopback/absolute only; stdout is status lines only with named reasons; this checkout's manifest passes preflight, a changed SDK digest → `runtime_mismatch`; instance binding writes once and refuses another instance with the store byte-identical; reasons inside exception groups) |
+| Python real process | `pytest tests/test_supervised_process.py` (real server, held loopback model) | PASS: `starting`→`starting(alice)`→`ready` only with `instance` + `<instance>/memory.sqlite`; other residents' requests journaled while Alice's one request was held; stdin closed → last line `stopped/stopping`, exit 0 within 15 s; one request, ledger charged 1; fresh join `hosted`; planted invite in no stderr/store file |
+| Regression | `test_shutdown`, `test_controller_log`, `test_controller_server` (real binary), `test_milestone_d_fallback`, `test_reference` | PASS (30 passed incl. the above, 114 s) |
+| Static | `cargo fmt --check`, `cargo clippy -p mineworld-launch --all-targets -D warnings`; `ruff format --check`, `ruff check`, strict `pyright cognition/lm-controller`; `check_doc_headings.py`, `check_decision_ids.py` | PASS / clean |
+| Manual | `python -I -m mineworld_cognition --write-runtime-manifest`, `--preflight` against `examples/local.toml` | PASS; preflight listed `qwen3.5:4b` at the local Ollama (`GET /v1/models`; no inference, $0) |
+
+Coverage map for C3 validation items: "unreachable endpoint" = preflight `model_unavailable` (no service at `base_url`, the launcher forwards the child's reason: fake `preflight=` case); "malformed answer" = existing `test_controller_resilience` (30 % garbage, unchanged) — supervised mode changes no consult path; "killed child" = `exit` case; "launch failure after server start" = `seat-visitor`/`garbage`/`silent` cases (world keeps admitting players); "shutdown during an in-flight request" = `test_supervised_process.py`.
+
+Mutations (applied, run, reverted): M-B1 `Setup::command` keeps `MINEWORLD_ADMIN_TOKEN` → caught ("no admin token
+reaches cognition"); M-B2 server stopped before cognition → caught (`server-down` at the child's EOF). Static test
+coverage of the Windows `.exe` check is by CI on Windows (core `test-windows` runs the launcher test; `python` layer on
+three OSes runs the Python tests) — local runs are macOS only.
+
+**Review (C2 + C3, implementer's logic review).** Path escapes: profile decision list plain components only, store
+name refuses `profile.toml`; save/store collision impossible (`saves/` vs `cognition/`). Writer isolation: one store
+per world, home lock (`home_busy`), instance binding before any open. Grammar reuse: one parser, a `Grammar` switch.
+Secret flow: admin token removed, invite only in env, never argv/log/status/store (tests). Spec/code match checked
+line by line for §§1–4 of `cognition-supervised.md` and LAUNCHER.md §10. EOF inheritance: stdin piped only to the
+child; stdout pipe drained on its own thread (a full pipe never blocks the child); stop order cognition → server;
+`Drop` covers error paths; only owned handles killed. Watch loop does not spin on a closed pipe. Remaining: a status
+line could be split across reads only past 512 bytes, which is refused by design.
+
+#### C4 — corrected memory and controller substitution (sub-lane, cherry-picked)
+
+Delegated sub-lane commits `a37be20e` / `81c2b9a6` (worktree `impl-dialogue-b-c4`), cherry-picked here as
+`0b2b1a5f` (harness shared through `tools/cli/tests/support/cognition.rs`; `milestone_d.rs` 875 → 586 lines) and
+`13caef35` (`tools/cli/tests/correction_memory.rs` + `correction/{mod,people,evidence}.rs`, scripted model
+`tests/correction_cognition.py`, MCP driver `clients/agent/tests/correction_mcp_player.py`, fixture
+`fixtures/decisions/market-alice-dev-lm.yaml`, `python` layer entry in `scripts/ci_layer.py`).
+
+- [x] Implementation: Market Town, `alice` on `lm`, player `visitor`; runtime nonce code + initial place; leave and
+  rejoin; correction (new place, same code); unrelated line; another resident acting; graceful stop (server stdin
+  EOF, cognition SIGINT) and restart on the same save + store; the current place-and-code question (questions never
+  contain the answers). Positioning: `--town --solo --time-scale 3600` with plain clients holding `alice` and
+  `visitor` from genesis, then `POST /admin/clock {"time_scale":12}` at 07:00; Alice observed at (6000, 8000)
+  before any cognition process exists (no model call). Isolation: a second LM seat (`dev`) in the same home is told
+  a private code by Erin; it never appears in Alice's shown memory. Rule → human → LM and MCP-agent → LM keep
+  Alice's EntityId and history; holdings change only through her own non-`talk` requests.
+- [x] Validation (sub-lane, then re-run here on `13caef35`): `cargo test -p mineworld-cli --test correction_memory
+  -- --ignored --exact she_answers_with_the_corrected_place_after_a_restart` PASS (1 passed, 21.8 s; sub-lane 3/3
+  runs); `cargo test -p mineworld-cli --test milestone_d -- --include-ignored` → `she_remembers_across_the_two_views`
+  and `the_world_runs_with_alice_unplugged` PASS; `record_the_milestone_d_cassette` failed at its own
+  `MINEWORLD_MILESTONE_D_RECORD` check (operator-run test selected by `--include-ignored` by mistake; no model was
+  contacted). Gate harness dry run (scripted, `MINEWORLD_CORRECTION_GATE_DRY=1`) PASS with 7 ledger calls (sub-lane).
+  Mutations (sub-lane): M1 retrieval drops the correction → caught; M2 recent-recall seat filter removed → caught
+  (Alice no longer knew the code); M3 scripted model picks the oldest place → caught. Existing ownership cited, not
+  duplicated: `test_home_isolation::test_a_seat_view_shows_none_of_a_home_mates_rows`, `ac5_takeover.rs`.
+- [x] Review: shown prompt and citations read from the decision log; access predicates via the second seat;
+  restart identity via the home's `created` marker; oracle provenance = the scripted model reads only shown lines.
+  Findings recorded: (1) T3 ("someone I know arrived") fired twice in the dry run (Vera's walk to the counter, Wes
+  after the restart) where §6's table expected once, so the gate expects 7 ledger calls + 1 warm-up = exactly the cap
+  of 8 (no spare; still within Q-D3, nothing raised); (2) the rule fallback may buy/eat for Alice between holders;
+  (3) a null-store restart once re-answered an old line, the retained store never did (timing-dependent, recorded
+  only). `--fresh` making the old nonce unrecallable is the launcher case
+  `fresh_deletes_this_worlds_store_and_keeps_the_profile_and_other_worlds` (the store is gone) plus B1.
+
+#### C5 — package, observe, live gate
+
+**Implementation.**
+
+- [x] `scripts/package.py`: `COGNITION_FILES` ship `runtime/decisions/market-town-alice-lm.yaml` and
+  `runtime/cognition-profile.template.toml`; `check_contents` fails an active template line; two self-test cases.
+  `packaging/PLAY.txt` (EN + zh-CN mirror) "Talking with Alice (optional; requires a local runtime)". These landed in
+  commit `858bef5d` with C2/C3 (bounded: one staging). `package.py` 1309 → 1331 lines (+22): existing size debt, no
+  new responsibility beyond shipping two files and checking one.
+- [x] Finding F-B1 (fixed): in a packaged run the supervised process ended with `SIGABRT` ("could not acquire lock for
+  `<stdin>` at interpreter shutdown") because the stdin watcher was a daemon thread blocked in a buffered read. Fix:
+  read the raw descriptor (`os.read`). Regression in `test_supervised.py` (an open pipe at a degraded exit → exit 3);
+  mutation back to `sys.stdin.buffer.read` → caught.
+
+**Validation (package, macOS universal, built from `858bef5d`, Godot 4.7.2).**
+
+| Check | Result |
+| --- | --- |
+| `python3 scripts/package.py --self-test` | PASS 55 cases (incl. template inactive / active template refused) |
+| `package.py assemble --no-archive` | PASS; bundle 518 MB; `runtime/decisions/…`, `runtime/cognition-profile.template.toml` present; template has 0 active lines |
+| `package.py smoke` (2d, 3d, both; headless; profile ignored) | PASS steps 1, 2, 4, 5, 4+5, 6 ×3; step 2 (archive sums) and 3 (AC-8 record) NOT RUN as before |
+| Packaged 2D played, per-user profile (paths with a space and `世界`), manifest stale after a commit | PASS (missing-prerequisite path): `degraded(runtime_mismatch)` before the server; server started **without** `--decisions`; client played; ordered stop; launcher exit 0 |
+| Packaged 2D + 3D played (visitor 2D, wanderer 3D), fresh manifest, replay-mode configuration with an empty cassette | `cognition: ready` (store holds `instance`, `<instance>/`, ledger, assignment); first client closed → server and 3D client kept running; last closed → server graceful, launcher exit 0. The child then died on the empty cassette's `CassetteMiss` (a test-configuration choice: replay must miss loudly) and exposed F-B1; logged `degraded(child_exited)`, world kept playing. Store 256 KB, save 6.1 MB |
+| Rendered dialogue in the exported windows | NOT RUN: any reply there needs a model call, and Q-D3's 8 calls belong to the §6 gate; the protocol path to both clients is owned by `speech_both_ways.rs`/Milestone D |
+
+**Live gate (§6) — pre-registered before the run.** Claim: the local model, through the shipped controller, answers
+turn 7 with the corrected place and the original code from shown, cited memory after a real restart. Owner: Gate 1
+(real LLM). Command: `MINEWORLD_CORRECTION_GATE_OUT=<dir> cargo test -p mineworld-cli --test correction_memory --
+--ignored --exact the_bounded_live_gate --nocapture` on the final executable head, one slot, local Ollama
+`qwen3.5:4b` at `http://127.0.0.1:11434/v1`, `structured_output="none"`, `reasoning="off"`, `max_in_flight=1`,
+`max_calls=1`, `consult_deadline_s=20`, `greet_cooldown_s=86400`, gate ledger `calls_per_wall_hour=7`,
+`tokens_per_wall_day=30000`, warm-up counted, stop at 8. Expected calls 7 + 1 (C4 finding 1). PASS rubric and judges
+exactly §6 (machine (a)(c)(e); reviewer (b)(d)(f); then operator). Evidence destination:
+`.structured-coding/plans/mvp0/dialogue-memory-evidence/live-gate-<date>/`. FAIL/INCONCLUSIVE ⇒ "check 2 NOT MET"
+and the §0 operator choice; no rerun for a better answer.
+
+**Live gate (§6) — result: FAIL. Check 2 NOT MET.** Executable head `6cd2364b`, 2026-11-28, this Mac, local Ollama
+`qwen3.5:4b`, $0, one run (no rerun). Evidence: `dialogue-memory-evidence/live-gate-20261128/` (`evidence.json`,
+`alice.decisions.jsonl`, `cassette-1.jsonl`, `cassette-2.jsonl`, the two phase configs). Calls: warm-up 1 + ledger 7 =
+8 = cap; run wall 101 s (≤ 10 min); disk: store 0.60 MB, save 6.2 MB.
+
+Observed (decision log + transcript):
+- 7 consults before the restart, 3 of them content failures (`unknown_person` — `"to": null`; two `forged_recall`)
+  that fell back and handed the seat back. Triggers spent: `arrived` ×2, **`feeling` ×1** (a needs-pack trigger the
+  §6 table did not pin), `spoken_to` ×4.
+- Turn 1 (code + place): no reply within the turn (62 s), the consult fell back → rubric (f) fails.
+- Turn 2 (question, via the MCP agent): fell back, no reply. Turn 3 (correction): "Good morning, Ms. Lindgren. I see
+  you've updated your location." Alice repeated her own line to Vera ("feeling a bit rough") in consults 2, 3 and
+  the rejected consult 6. (Correction, red-team #565 finding 2: an earlier version of this entry said she replied
+  "I remember you. You said 'Not too long…'"; that line is Bob's rule template, event 741, shown to her as memory.)
+- The harness stopped before turn 4 (unrelated line) because one more call would pass the cap of 8; turn 5 (the
+  post-restart question = §6 turn 7) was never asked; rubric (a)–(e) not exercisable.
+- `other_resident_actions` during inference counted 0 by the harness (recorded, not interpreted; the
+  deterministic proof is `test_supervised_process.py`).
+
+Classification: FAIL, not INCONCLUSIVE — the semantic path ran with the prerequisites present, and turn 1's
+relevance criterion (f) was contradicted; the cap stop is a consequence of the model's invalid answers plus an
+unpinned `feeling` trigger. Per §0 Q-D3 the lane stops here for the operator's choice: (1) a larger local model,
+(2) a reviewed prompt/recall amendment (and pinning the `feeling` trigger in the gate scenario, e.g. a fed and
+rested player/Alice or a gate profile without needs triggers), or (3) accept rule-only conversation for now. No cap
+raised, no model swapped, no rerun.
+
+**Status.** C2–C5 implemented; deterministic validation complete; live gate FAIL ("check 2 NOT MET"); PR #565 open;
+CI on the final head pending at the time of this entry. READY FOR OPERATOR REVIEW once CI is green — awaiting the
+§0 operator choice. Never merge without authorization.
+
+#### Red-team #565 follow-ups (2026-11-28; review `_reviews/pr565.md`, PASS-WITH-FOLLOWUPS)
+
+**Attribution of the gate FAIL (finding 3), corrected.** Not the model alone:
+
+| Failure | Cause | Disposition |
+| --- | --- | --- |
+| Turn 1 never answered | **Code**: `Pending` kept only the newest trigger. Consult 1 (`arrived`, nobody in talk reach) fell back with `unknown_person` and handed back; Bob's `arrived` then overwrote Vera's waiting line, uncounted (`dropped: 0`) | Fixed: `triggers.Pending.offer` never lets another kind of trigger displace a waiting `spoken_to` (the newer one is dropped); every lost trigger is counted in the new counter `superseded_triggers`. Regression `test_a_waiting_persons_words_are_never_displaced_by_another_kind_of_trigger`; mutation (guard removed) caught. `seat.py` 765 → 764 |
+| Unplanned `feeling` call | **Harness**: Alice held still from 00:00 to 07:00 was famished/exhausted; her rule fallback ate between holders and the hunger word changed | Harness now feeds her from what she carries (offered `eat`/`drink`) before cognition starts and records her `needs` in the `positioned` note. Tiredness cannot be reset at the café (sleep needs a `residential` place; walking is wall-bound), so she is still tired: recorded, not hidden |
+| `unknown_person`, `forged_recall` ×2 | **Model + prompt/validator design**: `say` to nobody when no one was in reach; two recall tokens with wrong syntax over shown ids (`#[741]`, `#525`) | Operator amendment (pending): known-persons list in the prompt and a structured citation format |
+| Irrelevant content | **Model capability** | Operator amendment / model choice |
+
+**§6 trigger table (finding 6, coordinator direction).** A `feeling` row is added below as an amendment of the live
+table, without changing the cap: `feeling` (S35 N-e) fires once when a need word changes and once on waking; in a
+07:00–13:00 window (6 world hours) tiredness rises 60/h and hunger 120/h, so even a fed seat can cross a word: 0–2
+calls. The cap of 8 is unchanged; whether the next gate needs a larger cap or a needs-quiet scenario is part of the
+operator's amendment. Expected calls now: warm-up 1 + `arrived` ×2 (C4 finding 1) + T1 ×5 + `feeling` 0–2 → 8–10,
+i.e. **over the cap by design** until the amendment decides.
+
+**Process (findings 5, 7, 9).** The §6 spare call was removed (7 → 7 + 1 = 8, no spare) by C4 finding 1, recorded
+5 s before the run, **without escalation**: a change in gate tolerance that should have gone to the operator first;
+recorded here as a deviation. `other_resident_actions: 0` in `evidence.json` was not measured (the harness writes
+0 unless all turns run): read it as "not measured". The §6 baseline comparison (rule-only vs one-LM) was NOT RUN.
+The FAIL cassette is not used as the C4 replay fixture; C4 stays on its scripted model (deviation from §6 Cassette).
+
+**CI (finding 1).** The PR's CI on `1bce2b18` ran in `deferred` mode: only `fast`, `changes`, `removability`. The
+cross-platform launcher tests (core `test`, `test-windows`, `test-macos`) and the `python` layer on three OSes did
+**not** run; §7 "Cross-platform" stays NOT RUN until a full-mode run on the exact final head (needs a milestone label
+or a manual dispatch, the coordinator's call).
+
+**PLAY.txt (finding 8).** Start-over text now names `cognition/<world>/` beside `saves/<world>/`; conversation is
+marked "checked on macOS only so far" (EN and zh-CN).
+
+**Record renumbered.** The R1 runtime record is `ARC-372` (was ARC-371, which #564 also took first); every citation moved in the same commit.
+
+## 11. Amendment DM-20261128-4 — prompt and citation format before one more gate (DRAFT, awaiting red-team)
+
+**Ruling.** Operator, 2026-11-27, relayed by the primary coordinator: "对话先改提示词" ("for dialogue, change the
+prompt first"): the §0 Q-D3 choice after the FAIL is the reviewed prompt/recall amendment, not a larger model and not
+rule-only. Scope as directed: (A1) the prompt lists the persons Alice may name; (A2) memory citations use a structured
+format the validator parses strictly; (A3) the gate scenario starts Alice fed/rested and pins `feeling` off; validation
+stays strict (no loosening, no canonicalising of malformed tokens); the player's-line fix (`Pending`, §10 follow-ups)
+stays; then the §6 gate is run **once more**, within the same Q-D3 caps (≤ 8 calls including the warm-up, ≤ 180 s
+inference, ≤ 20 s per reply, $0). Everything else in §§1–6 is unchanged. Status: draft; implementation starts after the
+red-team review of this text.
+
+**A1 — persons.** Audit: the prompt already prints "I can talk to: <labels>" and "People here", and the rule text says
+`"to"` is "a person from the list, or null"; in the gate the model answered `say` with `to: null` while the list said
+"nobody" (`unknown_person`), and addressed Bob when Vera's line was the trigger. Change (`controller/prompt.py`, rules
+and user text only): (a) the rule names the exact list — `"to"` must be copied exactly from "I can talk to"; (b) when that
+list is "nobody", the rule says to choose `"nothing"`; (c) when the trigger is a person speaking to me, the user text
+names that speaker as the one to answer if they are in the list; (d) a separate line "People I remember who are not
+here: …" (labels from the seat's own stable/known people, already in the shown memory) may be mentioned in words but is
+never valid as `"to"`. No new person source: every label already reaches the prompt today. The validator is unchanged
+(`unknown_person` stays).
+
+**A2 — structured citations.** Today a recall is a free string that must equal a shown token (`"[#12]"`, `"[#10-14]"`)
+or a digit string inside a shown range; the model wrote `"#[741]"` and `"#525"` for shown ids and was refused as
+`forged_recall`. Change: `recalls` becomes a list of objects `{"memory": N}` with N an integer event id (the prompt shows
+each memory line as `[memory N]`, or `[memory N-M]` for a range, and the example uses `{"memory": 338}`). The validator
+parses strictly: an entry that is not exactly an object with one integer key `memory` is a new content failure
+**`malformed_recall`**; a well-formed N not shown (not a line's id, not inside a shown range) stays `forged_recall`.
+Internally a valid recall is stored as today's canonical token (`"[#N]"`), so decision logs, the Milestone D/C4 oracles
+and `recall_names` keep their meaning. The scripted models (`milestone_d_cognition.py`, `correction_cognition.py`,
+`scripted_seat.py` fixtures) answer in the new format. Known consequence, recorded not hidden: the 2026-10 Milestone D
+cassette's prompts no longer match (`CassetteMiss`); `test_milestone_d_replay` keeps replaying its **recorded decision log**
+(it re-validates the logged answers): those answers use the old string format, so the replay test either pins the old
+validator for historical logs, or the historical fixture is retired with this amendment — the red team decides; my
+proposal is to retire it explicitly (the new gate cassette, if PASS, becomes the C4 replay fixture as §6 intended).
+
+**A3 — gate scenario.** (a) Fed start: the harness feeds Alice from what she carries before cognition starts (done in the
+§10 follow-ups). (b) `feeling` pinned off for the gate: a new operator key `[controller] feeling = true|false` (default
+`true`, today's behaviour; documented in the generated `cognition-toml.md`), set `false` only in the gate's
+configuration. Rest cannot be restored at the café (sleep needs a `residential` place, walking is wall-bound), so
+"rested" is not claimed. (c) Expected calls with (b): warm-up 1 + `arrived` ×2 + T1 ×5 = 8 = cap (no spare, as in the
+first run). Proposal for the red team, not yet in scope: skip the `arrived` consult when the arriving person is not in
+talk reach (the first run spent one call on Vera's arrival with "I can talk to: nobody"), which would restore one spare.
+
+**Validation plan.** Unit: prompt renders list the exact talk-to and remembered-absent lines and the citation format;
+validator accepts `{"memory": N}` for shown N, refuses malformed shapes as `malformed_recall` and unshown N as
+`forged_recall` (mutation: loosen the parser → caught); `feeling = false` offers no `feeling` trigger. Golden renders
+(`tests/golden/s28a_renders.json`, `s28b_parity.json`) regenerated with their capture scripts and the diff reviewed.
+Scripted Milestone D + C4 correction scenario PASS. Then the §6 gate once on the final head, same rubric and judges.

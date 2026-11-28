@@ -102,6 +102,8 @@ class Counters(CognitionModel):
     server_refusals: int = Field(ge=0, default=0)
     frame_refusals: int = Field(ge=0, default=0)
     stale_triggers: int = Field(ge=0, default=0)
+    superseded_triggers: int = Field(ge=0, default=0)
+    """Triggers lost in the pending slot (`triggers.Pending.offer`): displaced, or dropped behind a person's words."""
     dropped: int = Field(ge=0, default=0)
     handbacks: int = Field(ge=0, default=0)
     model_calls: int = Field(ge=0, default=0)

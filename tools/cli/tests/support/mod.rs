@@ -25,6 +25,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio_tungstenite::tungstenite::Message;
 
+pub mod cognition;
 pub mod ticks;
 
 /// How long a test waits for the server to come up, and for a frame to arrive.
@@ -129,6 +130,40 @@ impl Server {
         };
         let (server, captured) = Self::launch(configure, true).await;
         (server, captured.expect("captured output"))
+    }
+
+    /// Like [`Server::start_with_env`], with `--stop-on-stdin-eof` and the standard input the returned handle
+    /// writes to: dropping that handle is the launcher's graceful stop (`ARC-78`), see
+    /// [`Server::stopped_by_eof`].
+    pub async fn start_stoppable(
+        arguments: &[&str],
+        env: &[(&str, &str)],
+    ) -> (Self, std::process::ChildStdin, Captured) {
+        let configure = |command: &mut Command| {
+            command
+                .args(arguments)
+                .args(["--invite", INVITE, "--stop-on-stdin-eof"])
+                .env_remove("MINEWORLD_INVITE")
+                .env_remove("MINEWORLD_ADMIN_TOKEN")
+                .envs(env.iter().copied())
+                .stdin(Stdio::piped());
+        };
+        let (mut server, captured) = Self::launch(configure, true).await;
+        let stdin = server.process.stdin.take().expect("piped stdin");
+        (server, stdin, captured.expect("captured output"))
+    }
+
+    /// Closes the standard input of a [`Server::start_stoppable`] server and waits for its graceful exit
+    /// (the same path as Ctrl-C: checkpoint, statistics, exit 0).
+    pub async fn stopped_by_eof(
+        &mut self,
+        stdin: std::process::ChildStdin,
+        limit: Duration,
+    ) -> std::process::ExitStatus {
+        drop(stdin);
+        self.exited_within(limit)
+            .await
+            .unwrap_or_else(|| panic!("the server did not stop within {limit:?} of stdin EOF"))
     }
 
     /// Starts the binary on `127.0.0.1:0`, reads back the address it bound, and waits until it answers.

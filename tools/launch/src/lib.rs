@@ -18,6 +18,7 @@
 
 mod bundle;
 mod children;
+mod cognition;
 mod config;
 mod dialog;
 mod hosting;
@@ -32,6 +33,7 @@ use std::process::ExitCode;
 
 use bundle::Bundle;
 use children::{Clients, Server};
+use cognition::{Cognition, Reason, Setup};
 use config::Choice;
 use hosting::Hosting;
 use user::{Log, Run, UserDir};
@@ -171,10 +173,18 @@ fn run(mode: Mode, options: &Options, log: &mut Log) -> Result<u8, Failure> {
     let bundle = Bundle::locate(options.bundle.clone())?;
 
     let played = options.smoke.unwrap_or(mode);
-    // A smoke run plays its fixed fixture and never reads launch.toml (`pr-launcher-solo.md` Q-LS5).
-    let choice = match options.smoke {
-        Some(smoke) => config::smoke(smoke),
-        None => chosen(&bundle, mode)?,
+    // A smoke run plays its fixed fixture and never reads launch.toml or the cognition profile
+    // (`pr-launcher-solo.md` Q-LS5; `LAUNCHER.md` §10.1).
+    let profile = if options.smoke.is_some() {
+        None
+    } else {
+        read_optional(&user.profile())?
+    };
+    let (choice, keys) = match (options.smoke, &profile) {
+        (Some(smoke), _) => (config::smoke(smoke), None),
+        (None, Some(text)) => config::profile(mode, &user.profile().display().to_string(), text)
+            .map_err(Failure::new)?,
+        (None, None) => (chosen(&bundle, mode)?, None),
     };
     let world = bundle.world(&choice.world)?;
     let clients = choice
@@ -190,14 +200,19 @@ fn run(mode: Mode, options: &Options, log: &mut Log) -> Result<u8, Failure> {
         scratch.0.clone()
     } else {
         let save = user.save(&choice.world);
-        if options.fresh && save.exists() {
-            std::fs::remove_dir_all(&save).map_err(|error| {
-                Failure::new(format!(
-                    "cannot start over: removing {}: {error}",
-                    save.display()
-                ))
-            })?;
-            log.line(&format!("--fresh: removed {}", save.display()));
+        if options.fresh {
+            // B1: a world's memories go with its save, so none outlives the world it belongs to.
+            for folder in [save.clone(), user.store(&choice.world)?] {
+                if folder.exists() {
+                    std::fs::remove_dir_all(&folder).map_err(|error| {
+                        Failure::new(format!(
+                            "cannot start over: removing {}: {error}",
+                            folder.display()
+                        ))
+                    })?;
+                    log.line(&format!("--fresh: removed {}", folder.display()));
+                }
+            }
         }
         save
     };
@@ -210,16 +225,47 @@ fn run(mode: Mode, options: &Options, log: &mut Log) -> Result<u8, Failure> {
 
     // One player is a single-player world; Both seats two players and is shared (Q-LS2).
     let hosting = Hosting::new(options.smoke.is_some(), mode != Mode::Both)?;
+    let setup = match keys {
+        Some(keys) => conversation(
+            &bundle,
+            keys,
+            user.store(&choice.world)?,
+            &user.log(run, "preflight"),
+            log,
+        ),
+        None => None,
+    };
     let mut server = Server::start(
         &bundle,
         &world,
         &save,
         &hosting,
+        setup.as_ref().map(|setup| setup.decisions.as_path()),
         &user.log(run, "server"),
         log,
     )?;
     let join = server.join()?;
     log.line(&format!("the server is ready at {}", join.address));
+    // Declared after the server, so that a failure stops it first (drop order); the clients never wait
+    // for it (`LAUNCHER.md` §10.4).
+    let cognition = setup.and_then(|setup| {
+        let humans = choice
+            .clients
+            .iter()
+            .map(|(_, seat)| seat.clone())
+            .collect();
+        let started = setup.assignment(&bundle, &world).and_then(|assignment| {
+            Cognition::start(
+                &setup,
+                &join,
+                &assignment,
+                humans,
+                &user.log(run, "cognition"),
+                log,
+            )
+        });
+        started.map_err(|reason| off(log, reason)).ok()
+    });
     let code = Clients {
         bundle: &bundle,
         join: &join,
@@ -231,6 +277,10 @@ fn run(mode: Mode, options: &Options, log: &mut Log) -> Result<u8, Failure> {
         |client| user.log(run, &format!("client-{}", client.label())),
         log,
     )?;
+    // The last client has exited: cognition leaves its seat and stops, then the server checkpoints.
+    if let Some(cognition) = cognition {
+        cognition.stop();
+    }
     server.stop(log)?;
     Ok(if options.smoke.is_some() { code } else { 0 })
 }
@@ -238,18 +288,62 @@ fn run(mode: Mode, options: &Options, log: &mut Log) -> Result<u8, Failure> {
 /// What `mode` plays in this bundle: its defaults, overridden by `runtime/launch.toml` when present.
 fn chosen(bundle: &Bundle, mode: Mode) -> Result<Choice, Failure> {
     let overrides = bundle.overrides();
-    let text = match std::fs::read_to_string(&overrides) {
-        Ok(text) => Some(text),
-        Err(error) if error.kind() == ErrorKind::NotFound => None,
-        Err(error) => {
-            return Err(Failure::new(format!(
-                "cannot read {}: {error}",
-                overrides.display()
-            )));
-        }
-    };
+    let text = read_optional(&overrides)?;
     let named = overrides.display().to_string();
     config::choice(mode, text.as_deref().map(|text| (named.as_str(), text))).map_err(Failure::new)
+}
+
+/// A file's text, or `None` when there is no such file.
+fn read_optional(path: &std::path::Path) -> Result<Option<String>, Failure> {
+    match std::fs::read_to_string(path) {
+        Ok(text) => Ok(Some(text)),
+        Err(error) if error.kind() == ErrorKind::NotFound => Ok(None),
+        Err(error) => Err(Failure::new(format!(
+            "cannot read {}: {error}",
+            path.display()
+        ))),
+    }
+}
+
+/// The profile's cognition keys for this world, with its store created; `None`, logged, when
+/// conversation cannot be set up and the world plays rule-only.
+fn conversation(
+    bundle: &Bundle,
+    keys: config::CognitionKeys,
+    store: PathBuf,
+    preflight_log: &std::path::Path,
+    log: &mut Log,
+) -> Option<Setup> {
+    let setup = match Setup::new(bundle, keys, store) {
+        Ok(setup) => setup,
+        Err(reason) => {
+            off(log, reason);
+            return None;
+        }
+    };
+    if let Err(error) = std::fs::create_dir_all(&setup.store) {
+        log.line(&format!(
+            "cognition: cannot create {}: {error}",
+            setup.store.display()
+        ));
+        off(log, Reason::ProfileInvalid);
+        return None;
+    }
+    match setup.preflight(preflight_log) {
+        Ok(()) => Some(setup),
+        Err(reason) => {
+            off(log, reason);
+            None
+        }
+    }
+}
+
+/// Conversation is off for this run: the world plays with its rule controllers.
+fn off(log: &mut Log, reason: Reason) {
+    log.line(&format!(
+        "cognition: degraded({reason}): residents play by their rules; {}",
+        reason.advice()
+    ));
 }
 
 fn label(mode: Mode, smoke: bool) -> String {

@@ -100,6 +100,14 @@ impl Bundle {
         Ok(path)
     }
 
+    /// A file named relative to the bundle root (the profile's `cognition-decisions`, `LAUNCHER.md`
+    /// §10.1), or `None` when the bundle does not hold it. The path has only plain components
+    /// (`config::CognitionKeys`), so it names nothing outside the bundle.
+    pub fn file(&self, relative: &Path) -> Option<PathBuf> {
+        let path = self.runtime.parent()?.join(relative);
+        path.is_file().then_some(path)
+    }
+
     /// The optional overrides file (`LAUNCHER.md` §6).
     pub fn overrides(&self) -> PathBuf {
         self.runtime.join("launch.toml")

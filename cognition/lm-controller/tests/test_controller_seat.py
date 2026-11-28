@@ -858,3 +858,34 @@ def test_a_submit_waiting_for_the_lock_past_its_expiry_is_never_sent() -> None:
 
     assert run(scenario()) == (EXPIRED, EXPIRED, "sent")
     assert sent == ["sent"]
+
+
+def test_a_waiting_persons_words_are_never_displaced_by_another_kind_of_trigger() -> None:
+    """PR-B red-team #565: during the live gate a consult fell back while the player's line waited, and the next
+    `arrived` overwrote it, so the line was never answered and no counter said so. A waiting `spoken_to` now stays;
+    the other trigger is dropped; a newer `spoken_to` still supersedes an older one; every loss is counted."""
+    from mineworld_cognition.controller.triggers import Pending
+
+    said = Trigger(
+        event=EventId("338"), kind="spoken_to", speaker=EntityId("20"), words="My code is NWP-2641."
+    )
+    arrived = Trigger(event=EventId("463"), kind="arrived", speaker=EntityId("7"), words="")
+    said_again = Trigger(
+        event=EventId("470"), kind="spoken_to", speaker=EntityId("20"), words="Hello?"
+    )
+
+    async def scenario() -> list[Trigger]:
+        pending = Pending()
+        taken: list[Trigger] = []
+        pending.offer(said, 1, 0.0)
+        pending.offer(arrived, 2, 1.0)
+        taken.append((await pending.take()).trigger)
+        assert pending.superseded == 1, "the dropped arrival is counted"
+        pending.offer(arrived, 3, 2.0)
+        pending.offer(said, 4, 3.0)
+        pending.offer(said_again, 5, 4.0)
+        taken.append((await pending.take()).trigger)
+        assert pending.superseded == 3, "a displaced arrival and a superseded line are counted"
+        return taken
+
+    assert run(scenario()) == [said, said_again]

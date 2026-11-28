@@ -35,12 +35,12 @@ def remembers(request: CompletionRequest) -> Completion | BackendFailure:
     """Answer the person who just spoke to me, if I can talk to them, with the earliest line I remember them
     telling me, citing it; else nothing."""
     user = request.messages[1].text if len(request.messages) > 1 else ""
-    speaker = _speaker(user)
+    speaker = speaker_of(user)
     lines = [(words, token) for who, words, token in _remembered(user) if who == speaker]
-    if speaker is None or speaker not in _talk_to(user) or not lines:
-        return _answer({"act": "nothing", "to": None, "words": "", "offer": None, "recalls": []})
+    if speaker is None or speaker not in talk_to(user) or not lines:
+        return answer({"act": "nothing", "to": None, "words": "", "offer": None, "recalls": []})
     words, token = lines[0]
-    return _answer(
+    return answer(
         {
             "act": "say",
             "to": speaker,
@@ -51,14 +51,14 @@ def remembers(request: CompletionRequest) -> Completion | BackendFailure:
     )
 
 
-def _speaker(user: str) -> str | None:
+def speaker_of(user: str) -> str | None:
     """The label WHAT JUST HAPPENED names as having spoken to me (`prompt._heard`)."""
     happened = user.split("WHAT JUST HAPPENED", 1)[-1]
     found = re.search(r"^(?P<who>.+?) said to me: ", happened.strip(), re.MULTILINE)
     return None if found is None or found["who"] == "Someone" else found["who"]
 
 
-def _talk_to(user: str) -> list[str]:
+def talk_to(user: str) -> list[str]:
     for line in user.splitlines():
         if line.startswith(TALK_LINE):
             listed = line.removeprefix(TALK_LINE)
@@ -77,7 +77,7 @@ def _remembered(user: str) -> list[tuple[str, str, str]]:
     return [(who, words, token) for _, who, words, token in sorted(found)]
 
 
-def _answer(choice: dict[str, object]) -> Completion:
+def answer(choice: dict[str, object]) -> Completion:
     text = json.dumps(choice)
     return Completion(
         text=text,

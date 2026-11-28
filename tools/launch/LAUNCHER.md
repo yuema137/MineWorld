@@ -12,7 +12,8 @@ with the join arguments, waits for the client(s) to exit, stops the server, and 
 a failure.
 
 It never reads world state; the only thing it reads from the server is the join line
-(`server/PROTOCOL.md` §4.1). It holds no world rule, opens no window of its own, makes no network connection,
+(`server/PROTOCOL.md` §4.1). With conversation on (§10) it also supervises one cognition process and reads
+nothing from it but its closed status lines. It holds no world rule, opens no window of its own, makes no network connection,
 and stops only the processes it started. The launcher itself invokes no model provider. The bundled
 default towns have no decision list and use in-process rule controllers without model or network
 services; a separately configured World Pack retains its own authored decision policy.
@@ -50,7 +51,8 @@ no console; the server is started with `CREATE_NO_WINDOW`.
 All optional. A double-click passes none.
 
 ```text
---fresh               delete this mode's world save (saves/<world>/) before starting: the world starts over
+--fresh               delete this mode's world save (saves/<world>/) and its cognition store
+                      (cognition/<world>/, §10.3) before starting: the world starts over
 --smoke=2d|3d|both    a scripted, headless check of the bundle (§7); never a player's mode
 --no-dialog           report failures only in the log and on stderr, never in a dialog
 --bundle=<dir>        the bundle root, instead of the one found from the executable's path (§4)
@@ -75,6 +77,8 @@ binary's mode.
 | `clients/MineWorld.app` (macOS) | the same runtime; the launcher starts the one executable in `Contents/MacOS/`, whatever the export named it |
 | `clients/mineworld-2d.pck`, `clients/mineworld-3d.pck` and their `.settings.json` | the clients' packs and run-time settings, which the runtime loads |
 | `launch.toml` | optional overrides (§6) |
+| `decisions/market-town-alice-lm.yaml` | the decision list a cognition profile names (§10.1); read only then |
+| `cognition-profile.template.toml` | an inactive, commented profile to copy (§10.1); never read |
 
 Official Godot release templates are built with `disable_path_overrides` and refuse `--main-pack` (step-23
 §18, probe P-3). So the bundle carries one exported runtime (`clients/runtime/`) that mounts the client's pack
@@ -98,8 +102,12 @@ read-only (step-23 F-R8).
 
 - **Saves:** `saves/<world>/`, passed to the server as `--save`. A play run resumes it; `--fresh` deletes it
   first.
+- **Cognition:** `cognition/profile.toml`, the optional profile that turns conversation on (§10.1), and
+  `cognition/<world>/`, a world's cognition store (§10.3), deleted with its save by `--fresh`. A world
+  named `profile.toml` has no store.
 - **Logs:** `logs/`, one set of files per run, named `<run>-launch.log`, `<run>-server.log`,
-  `<run>-client-2d.log`, `<run>-client-3d.log`, where `<run>` is the run's start time in Unix seconds and
+  `<run>-client-2d.log`, `<run>-client-3d.log` and, when conversation is on, `<run>-preflight.log` and
+  `<run>-cognition.log`, where `<run>` is the run's start time in Unix seconds and
   the launcher's process id, `<seconds>-<pid>`. After writing its own, the launcher keeps the files of the
   five most recent runs and deletes the rest; a file whose name is not of that form is never touched.
 - **Smoke scratch:** `scratch/<run>/`, used as the save of a smoke run and removed when the run ends, pass or
@@ -218,3 +226,124 @@ A failure is one message naming the step that failed and the log to read. It is 
 Exit status: in a smoke run, the clients' — the first non-zero, else 0; in a play run, 0 when the clients
 exited and the server stopped gracefully. Any failure of the launcher itself, including a server that had to
 be killed, is 1.
+Conversation never fails a run: a cognition process that cannot start, or stops, is logged with its reason
+(§10.5), and the world plays with its rule controllers.
+
+## 10. Conversation: the cognition profile and the cognition child
+
+Design and evidence: `.structured-coding/plans/mvp0/pr-playable-dialogue-memory.md` (DM-20261127-3) §§3–4;
+the runtime route is `docs/decisions/ARC-372.md`; the cognition side of every contract below is
+[`docs/reference/cognition-supervised.md`](../../docs/reference/cognition-supervised.md). The launcher handles
+only opaque paths and the closed status vocabulary: it never reads the cognition configuration, never names a
+model, endpoint or key, never downloads a model or a runtime, and never starts or stops a model service.
+
+### 10.1 The profile
+
+`cognition/profile.toml` in the per-user folder (§5). It survives package upgrades and read-only bundles. **No
+profile, no conversation:** the run is exactly §7. Deleting the file turns conversation off again. A smoke run
+ignores it. The bundle ships `runtime/cognition-profile.template.toml`, fully commented and never read.
+
+When the profile exists it **replaces** `launch.toml` for every mode: a mode's section gives its world and
+seats as `launch.toml` would (§6), and a mode without a section plays its defaults (§2). Its grammar is §6's,
+read by the same parser, with four more keys, which a section gives all together or not at all:
+
+| Key | Value |
+| --- | --- |
+| `cognition-python` | absolute path of the interpreter of a MineWorld checkout's `uv sync --locked` environment (on Windows, a `.exe`) |
+| `cognition-config` | absolute path of the operator's cognition configuration (`docs/reference/cognition-toml.md`) |
+| `cognition-manifest` | absolute path of the runtime manifest that interpreter wrote (`cognition-supervised.md` §3) |
+| `cognition-decisions` | the decision list, relative to the bundle root, with plain components only: `runtime/decisions/market-town-alice-lm.yaml` |
+
+Some but not all four, a relative interpreter, configuration or manifest, a decision list with `..` or an
+absolute path, a key given twice, or an unknown key: the run fails before any child starts, naming the file
+and line, as for `launch.toml`. A section without the keys plays that mode without conversation.
+
+The operator's profile (design Q-D2): Market Town for every mode; the player is `visitor` in 2D and in 3D, and
+`visitor` (2D) with `wanderer` (3D) in 2D + 3D; the shipped list drives only `alice` by the LM controller.
+
+### 10.2 A run with conversation on
+
+```text
+1  as §7 step 1, with the profile in place of launch.toml; create cognition/<world>/
+2  preflight: <python> -I -m mineworld_cognition --config <config> --preflight <manifest>
+     standard output: one status line, read; standard error: logs/<run>-preflight.log; 30 s, then killed
+     anything but `starting` and exit 0 ⇒ conversation off for this run (§10.5), and step 3 is §7's
+3  start the server as §7 step 3, plus  --decisions <bundle>/<cognition-decisions>
+4  read the join line (§7 step 4)
+5  the assignment: <runtime>/mineworld decisions <world> --decisions <the same file> --json
+     standard output: cognition/<world>/run/assignment.json; 30 s, then killed; failure ⇒ conversation off
+6  start the cognition child (§10.4)
+7  start the clients (§7 step 5); they never wait for cognition
+8  when every client has exited: stop the cognition child (§10.4), then the server (§8)
+```
+
+The server and the assignment always read the same decision list. While no cognition process holds Alice's
+seat, the list's fallback (`rule`) drives her in the server.
+
+### 10.3 The world's cognition store
+
+`cognition/<world>/` in the per-user folder: the cognition process's memory home, resume and decision-log
+files, budget ledger, the `instance` binding (`cognition-supervised.md` §4), and `run/assignment.json`. It
+persists across restarts and package upgrades.
+
+- **Lifecycle owner: the launcher.** It creates the folder when conversation is on, and `--fresh` deletes
+  it together with `saves/<world>/` (design B1): no private conversation outlives the world it belongs to,
+  and disk use stays bounded by the live save. Another world's store and the profile are never touched.
+- **Binding owner: cognition.** The first welcome binds the store to the world instance; a store bound to
+  another instance is refused (`instance_mismatch`) and left as it is, never silently erased.
+- **Restore caveat.** MineWorld has no backup or restore feature. Restoring an older copy of a save by hand
+  while keeping a newer store can leave the store ahead of the world: unsupported. A save of another world
+  instance is refused as above; a same-instance rollback is not detected.
+- Log pruning (§5) never touches `cognition/`. A smoke run starts no cognition and needs no store.
+
+### 10.4 The cognition child
+
+```text
+<python> -I -m mineworld_cognition --config <config> --supervised --server-url=ws://<address>/ws
+         --store-dir <user>/cognition/<world> --assignment <user>/cognition/<world>/run/assignment.json
+standard input:   a pipe the launcher holds
+standard output:  status lines (cognition-supervised.md §2), read by the launcher's watcher thread
+standard error:   logs/<run>-cognition.log
+environment:      the launcher's, without MINEWORLD_ADMIN_TOKEN, with MINEWORLD_INVITE = the join line's invite
+Windows:          CREATE_NO_WINDOW; the interpreter must be a .exe
+```
+
+The command and its environment are built by `src/cognition.rs` and nowhere else; never through
+`Hosting::configure_client` or `configure_server`, so the played run's admin capability (§7.1) never reaches
+cognition. The invite is in the child's environment only: never in its arguments, its log, its status lines
+or its store (the server's log and the clients' arguments hold it, §7).
+
+**Stopping.** When the last client exits, or the run fails after the child started, the launcher closes the
+child's standard input: the process stops serving, leaves its seat (5 s) and exits (its own bound is 15 s).
+The launcher waits up to 20 s, then kills that child only; then it stops the server (§8). The first of two
+clients to exit stops nothing (§7.1). A launcher that dies closes the pipe by dying, and the child stops the
+same way. Only owned child handles are killed or reaped: no process group, no search by name, and a model
+service is never touched. An HTTP request in flight is cancelled with the process; a local model service may
+still finish that computation on its own.
+
+### 10.5 States
+
+The launcher logs each state of the cognition child, never anything the process says beyond the closed status
+vocabulary:
+
+| State | Meaning |
+| --- | --- |
+| `disabled` | no profile, or no cognition keys in this mode's section: nothing is logged, nothing started |
+| `starting` | the child was started and has not yet held its seat |
+| `ready` | the child's status line says the seat's welcome was received and its memory home is held; never a spawn or an open endpoint alone |
+| `degraded(reason)` | conversation is off for the rest of the run; the world plays with its rule controllers |
+| `stopped` | the child exited after its input closed |
+
+The launcher's own reasons, in addition to the process's (`cognition-supervised.md` §2.3):
+
+| Reason | When | The child |
+| --- | --- | --- |
+| `profile_invalid` | the profile's decision list is not in the bundle; the store cannot be created; the child's status names a seat that is a human seat of this mode | stopped, if started |
+| `preflight_failed` | the interpreter is missing or not a `.exe` on Windows, the preflight crashed, printed no valid line, or ran past 30 s | none started |
+| `readiness_timeout` | no `ready` within 60 s of the start | stopped |
+| `status_invalid` | a malformed status line | stopped |
+| `child_exited` | the child could not be started, or exited before it was asked to stop | already gone |
+
+A failure before the server starts (the profile's decision list, the preflight) starts the server exactly as
+without a profile: no `--decisions`. Every state change is one line in `<run>-launch.log`, with what the
+player can do about it.

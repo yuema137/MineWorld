@@ -204,14 +204,25 @@ class Waiting(NamedTuple):
 
 
 class Pending:
-    """One slot for the trigger that waits while a consult runs. `offer` replaces a waiting trigger with the
-    newer one; `take` waits for one and removes it."""
+    """One slot for the trigger that waits while a consult runs; `take` waits for one and removes it.
+
+    `offer` replaces a waiting trigger with the newer one, except that a waiting `spoken_to` (a person's words to
+    me) is never displaced by another kind of trigger: the newer one is dropped instead (PR-B red-team #565: an
+    `arrived` once overwrote a player's unanswered line). A newer `spoken_to` still supersedes an older one (a
+    burst is answered at its newest line, §4.5). Every trigger lost either way is counted in `superseded`."""
 
     def __init__(self) -> None:
         self._waiting: Waiting | None = None
         self._ready = asyncio.Event()
+        self.superseded = 0
+        """Triggers lost to the slot: displaced by a newer one, or dropped behind a waiting `spoken_to`."""
 
     def offer(self, trigger: Trigger, heard_at: int, received_at: float) -> None:
+        waiting = self._waiting
+        if waiting is not None:
+            self.superseded += 1
+            if waiting.trigger.kind == "spoken_to" and trigger.kind != "spoken_to":
+                return
         self._waiting = Waiting(trigger, heard_at, received_at)
         self._ready.set()
 

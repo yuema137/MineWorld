@@ -5,6 +5,9 @@ store, the decision JSON (`mineworld decisions --json`) and the invite's environ
 each selected `lm` seat. Ctrl-C (SIGINT) or SIGTERM leaves every seat within five seconds (`SeatRunner._leave_on_stop`), and a
 stop that hangs is cut short (`shutdown.Stopper`, D-P6-43); the status line of each seat is read back from its decision log,
 which every runner closes with its counters.
+
+`--supervised`, `--preflight` and `--write-runtime-manifest` are a launcher's (`supervised.py`,
+`docs/reference/cognition-supervised.md`); without them the command behaves exactly as before.
 """
 
 from __future__ import annotations
@@ -22,6 +25,7 @@ from typing import cast
 from mineworld_sdk.session import open_socket
 from mineworld_sdk.wire.frames import Invite
 
+from mineworld_cognition import supervised
 from mineworld_cognition.backend.model import ModelBackend
 from mineworld_cognition.config import CognitionConfig, build_router, load
 from mineworld_cognition.controller.assignment import LmSeat, read_assignment
@@ -41,19 +45,48 @@ def main(argv: Sequence[str] | None = None, *, scripted: ModelBackend | None = N
         prog="python -m mineworld_cognition",
         description="Drive the lm seats of a decision file through a language model (S10 P6b).",
     )
-    parser.add_argument("--config", required=True, type=Path, metavar="FILE")
+    parser.add_argument("--config", type=Path, metavar="FILE")
+    supervised.add_arguments(parser)
     arguments = parser.parse_args(argv)
+
+    def serving(
+        config: CognitionConfig,
+        seats: Sequence[LmSeat],
+        invite: Invite,
+        homes: SeatHomes,
+        stopper: Stopper,
+    ) -> int:
+        return _serve_until_stopped(config, seats, invite, homes, stopper, scripted=scripted)
+
+    if supervised.wants(arguments):
+        return supervised.dispatch(arguments, serving)
+    if arguments.config is None:
+        parser.error("the following arguments are required: --config")
     try:
         config = load(arguments.config)
-        server, decisions, store_dir = _required(config)
+        _, decisions, store_dir = _required(config)
         seats = read_assignment(decisions, config.seats).seats
         invite = _invite(config)
-        router = build_router(config, scripted=scripted)
+        return serving(config, seats, invite, SeatHomes(store_dir, config.memory), Stopper())
     except ConfigError as error:
         print(f"[cognition] {error}", file=sys.stderr)
         return 2
+
+
+def _serve_until_stopped(
+    config: CognitionConfig,
+    seats: Sequence[LmSeat],
+    invite: Invite,
+    homes: SeatHomes,
+    stopper: Stopper,
+    *,
+    scripted: ModelBackend | None,
+) -> int:
+    """Serves until every seat ends or a stop arrives, then prints each seat's counters. A `ConfigError` raised
+    while building the router or serving propagates to the caller, which names it."""
+    server, _, store_dir = _required(config)
+    router = build_router(config, scripted=scripted)
     _earlier_layout(store_dir, seats)
-    stopper = Stopper()
     try:
         asyncio.run(
             stopper.serve(
@@ -65,14 +98,12 @@ def main(argv: Sequence[str] | None = None, *, scripted: ModelBackend | None = N
                         invite=invite,
                         url=server,
                         store_dir=store_dir,
+                        homes=homes,
                     ),
                     router,
                 )
             )
         )
-    except ConfigError as error:
-        print(f"[cognition] {error}", file=sys.stderr)
-        return 2
     except KeyboardInterrupt:
         pass
     finally:
@@ -90,10 +121,12 @@ async def serve(
     invite: Invite,
     url: str,
     store_dir: Path,
+    homes: SeatHomes | None = None,
 ) -> None:
     """Runs one `SeatRunner` per seat on the running loop until every runner ends or one raises. The seats share
-    one `SeatHomes` (pr-s28f §5.6), closed however serving ends."""
-    homes = SeatHomes(store_dir, config.memory)
+    one `SeatHomes` (pr-s28f §5.6) — `homes`, or the store's own — closed however serving ends."""
+    if homes is None:
+        homes = SeatHomes(store_dir, config.memory)
     runners = [
         SeatRunner(
             config,

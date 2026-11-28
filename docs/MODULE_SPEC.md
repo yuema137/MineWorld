@@ -2411,8 +2411,12 @@ property, and it never changes who a Person is (INV-1).
   it joins each seat that `mineworld decisions --json` assigns to `lm`, and it is the only process that
   holds such a seat while it runs. Its social choices (what to say, to whom, which offered affordance to
   attempt) come from a language model through the P5 gateway; a model's text is a proposal that the
-  controller validates, and a request is built only through `mineworld_sdk.offers`. It never chooses
-  movement. When it cannot decide (a failed consult, an exhausted retry layer, a breached bound, an open
+  controller validates, and a request is built only through `mineworld_sdk.offers`. It chooses movement
+  only as a place to go (the `go` choice, `pr-le-leave-early.md`): an accepted `walk-to` is then walked by
+  the SDK's pacer (`mineworld_sdk.pacer`), one offered `walk-step` per wall second, under the seat's one
+  submit lock; it never chooses a position or a stride. A launcher may run it as its supervised child
+  ([`reference/cognition-supervised.md`](reference/cognition-supervised.md); `tools/launch/LAUNCHER.md` §10;
+  `ARC-372`). When it cannot decide (a failed consult, an exhausted retry layer, a breached bound, an open
   breaker), it gives the seat back with `leave`, and the server's fallback model for that seat drives it
   (`took_over: "hosted"`). The hand-back is host state: no fact is written and no world state changes.
   Retry layers (transport, content, semantic), the per-seat circuit breaker, the consult deadline and the

@@ -337,6 +337,10 @@ The file belongs to you, never to a world. The package README is
 [`cognition/lm-controller/README.md`](../../cognition/lm-controller/README.md). The machine-readable schema is
 [`schema/cognition-toml.schema.json`](schema/cognition-toml.schema.json).
 
+A launcher that runs the cognition process as its child (`--supervised`) supplies `server`, `store`,
+`decisions_json` and the invite's variable itself, and the file cannot override them; that mode, its status
+lines and its runtime manifest are specified in [`cognition-supervised.md`](cognition-supervised.md).
+
 A key marked *Required* must be present. A key marked *unset* may be left out and has no value. Keys that are
 not listed here are refused by the loader."""
 

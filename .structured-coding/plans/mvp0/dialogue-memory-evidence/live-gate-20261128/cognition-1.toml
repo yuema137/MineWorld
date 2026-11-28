@@ -1,0 +1,34 @@
+server = "ws://127.0.0.1:56728/ws"
+invite_env = "MINEWORLD_INVITE"
+nickname = "cognition"
+store = "store"
+decisions_json = "seats.json"
+seats = ["alice"]
+
+[recording]
+mode = "record"
+cassette = "cassette-1.jsonl"
+
+[tiers]
+social = "local"
+ordinary_decision = "none"
+major_decision = "none"
+summarize = "none"
+
+[backends.local]
+base_url = "http://127.0.0.1:11434/v1"
+model = "qwen3.5:4b"
+structured_output = "none"
+reasoning = "off"
+
+[controller]
+consult_deadline_s = 20
+seat_retry_s = 1
+max_calls = 1
+greet_cooldown_s = 86400
+
+[budgets]
+calls_per_wall_hour = 7
+tokens_per_wall_day = 30000
+max_in_flight = 1
+ledger = "gate-ledger.sqlite"

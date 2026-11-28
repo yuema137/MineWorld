@@ -20,8 +20,21 @@ const JOIN_PATIENCE: Duration = Duration::from_secs(60);
 const STOP_PATIENCE: Duration = Duration::from_secs(10);
 const POLL: Duration = Duration::from_millis(100);
 
+/// On Windows, starts a console program without a console window: a console program started by a GUI
+/// program would otherwise open one. Nothing elsewhere.
+pub fn no_window(command: &mut Command) {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+    #[cfg(not(windows))]
+    let _ = command;
+}
+
 /// A log file opened twice, for a child's standard output and its standard error.
-fn log_files(path: &Path) -> Result<(File, File), Failure> {
+pub fn log_files(path: &Path) -> Result<(File, File), Failure> {
     let cannot =
         |error: std::io::Error| Failure::new(format!("cannot write {}: {error}", path.display()));
     let out = File::create(path).map_err(cannot)?;
@@ -39,13 +52,15 @@ pub struct Server {
 }
 
 impl Server {
-    /// Starts the world with played-town or smoke-fixture hosting,
-    /// its standard input a pipe this launcher holds, its output in `log_path`.
+    /// Starts the world with played-town or smoke-fixture hosting, and with the cognition profile's
+    /// decision list when conversation is on (`LAUNCHER.md` §10.2), its standard input a pipe this
+    /// launcher holds, its output in `log_path`.
     pub fn start(
         bundle: &Bundle,
         world: &Path,
         save: &Path,
         hosting: &Hosting,
+        decisions: Option<&Path>,
         log_path: &Path,
         log: &mut Log,
     ) -> Result<Self, Failure> {
@@ -66,13 +81,10 @@ impl Server {
             .stdout(out)
             .stderr(err);
         hosting.configure_server(&mut command);
-        #[cfg(windows)]
-        {
-            use std::os::windows::process::CommandExt;
-            // A console program started by a GUI program would otherwise open a console window.
-            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-            command.creation_flags(CREATE_NO_WINDOW);
+        if let Some(decisions) = decisions {
+            command.arg("--decisions").arg(decisions);
         }
+        no_window(&mut command);
         let mut child = command.spawn().map_err(|error| {
             Failure::new(format!(
                 "cannot start the server ({}): {error}",
