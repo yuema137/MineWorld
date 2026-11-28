@@ -9,8 +9,8 @@ Implementation base:    origin/main @ 0b2faf2f (#382)
 Start condition:        this design frozen (met 2026-10-27). S34-c1 is merged (#368). S34-c2 (Lakeside) is not
                         required to start: Lakeside joins every test of this PR by discovery when it lands (Q-S34d-3)
 Execution contract:     §12
-Lifecycle:              FROZEN 2026-10-27 (header reconciled 2026-11-27). S34-d1: IN IMPLEMENTATION on
-                        mvp0/pr-s34d1 (worktree impl-s34d1, base origin/main @ 7718d952, 2026-11-27). S34-d2: not started
+Lifecycle:              FROZEN 2026-10-27 (header reconciled 2026-11-27). S34-d1: PR #551 open, NOT READY —
+                        awaiting the operator on Q-S34d1-1 … Q-S34d1-4 (§13). S34-d2: not started
 ```
 
 **Dated note, 2026-10-27 (operator ruling Q-S34c3-3; SD-c3-5 in
@@ -338,6 +338,37 @@ evidence in §13.
 - [ ] Validation: CI on the exact head green; X-d-1…X-d-4 and X-d-7 planted one at a time, each red,
   reverted, each recorded in §13.
 - [ ] Review: bodies-yard's and Lakeside's baseline sections untouched; the re-baseline reason names this PR.
+
+#### Package run on the merged head, and two regressions escalated
+
+`cargo test -p mineworld-cli --no-fail-fast` (local, Darwin/arm64, head 6a0264ed = C5 + baselines + merge of
+origin/main 29401a26; `fast` CI on the same head: success, run 46085752994): 114 targets pass, 3 fail.
+
+- `guide` `the_guide_in_this_repository_runs_green` — **unrelated, environment**: page 12's `cp` reads
+  `repo-guide-home/MineWorld/entities/modern-goods`, which chapter 01's clone step creates, and that step is
+  PENDING ("waits for operator-only") in a local run. No guide page or entity changed here.
+- `market_town` `market_town_lives_three_hundred_days_then_the_same_seed_is_the_same_market` — **FAIL caused
+  by this PR's trajectories, root cause outside S34-d1 (Q-S34d1-3)**: "erin idle in days 121-150". Evidence
+  (release build, seed 7, `--save`): at t 8 000 610 (day 92) Erin gives way to Alice on the street and is
+  nudged to (1100, 2300), between the terrace table's top edge (y 2020) and the planter at y 2561; from there
+  every `walk-to` is rejected `no-route` for the rest of the run (3 075 rejections by day 125; the base run of
+  7718d952 has 786 in 300 days and no idle bucket). No sit point is within 18 m; nobody sits near her. The
+  defect is bodies/movement's (a give-way nudge leaves a person where no route can start); the rest band
+  only changes who is where when. *Recommendation:* a separate bodies/movement fix PR (the nudge must not end
+  where `route_in` cannot start, or the planner must start from the nearest admissible point), landed before
+  S34-d1; S34-d1 then re-runs this test unchanged. Not fixed here: it is another pack's ownership and outside
+  §1's scope.
+- `price_reporter` `clerk_publishes_and_keepers_follow` — **FAIL caused by this PR's trajectories (Q-S34d1-4)**:
+  5 keeper price moves "away from the suggestion" (e.g. 132 → 121 while the newest posted suggestion is 143).
+  The test's oracle takes the newest notice Carol posted; a keeper prices from the suggestion on its own
+  `notice-board` record (`price/mod.rs` `suggestion`), which can lag the newest posting. With people sitting
+  instead of walking on, keepers' boards are refreshed on a different schedule. Not diagnosed further
+  within S34-d1's budget. *Recommendation:* the price-reporter owner decides whether the oracle should use
+  the keeper's own board (the controller's real input) or whether board delivery must be tightened; S34-d1
+  does not tune the rest band to make this pass.
+
+The two runs used for this diagnosis: `_scratch/s34d1/mt150` (this head, release) and a detached base build of
+7718d952 (`_scratch/s34d1-base`, removed afterwards); logs under `/Users/yuema137/mineworld-worktrees/_scratch/s34d1/`.
 
 #### C5 — Docs
 - [ ] Implementation: dated notes on `ARC-147` (NPCs sit through a rest band; why no stillness gate) and on
