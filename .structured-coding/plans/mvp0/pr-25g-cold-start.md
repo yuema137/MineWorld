@@ -609,23 +609,36 @@ this is a draft.
 `command.rs`, `page.rs`, `page_run.rs`, `run_guide.rs`, `report.rs`, new tests in `guide.rs` (or a new test module);
 §5.2's table. **Depends on** C0. **Must stay unchanged:** every verdict of the default run.
 
-- [ ] Implementation: §5.2 rows 1–6.
-- [ ] Validation: `cargo test -p mineworld-cli --test guide` (local, through `with-slot.sh`); the default run's
-      `Summary.render()` before and after is identical apart from the timings line (captured at the base SHA and
-      committed as evidence, test rules §25); the new unit tests of §11; `cargo clippy -p mineworld-cli --all-targets
-      -- -D warnings`.
-- [ ] LLM review: no default-mode path reads the new fields; Windows `PATH` rebuild cannot leak the test process's
-      `PATH` into a cold-start block.
+- [x] Implementation: §5.2 rows 1–6 (preserved WIP 1a858ee4, re-applied in 15102a92). Reconciled with main's write
+      mode (#524, `rewrite::Mode { Check, Write }`): the run rules are `command::Rules { Repository, ColdStart }`, and
+      `Environment`/`RunOptions` carry both (`rules`, `mode`). Review fixes in 54a1683d: `RunOptions.scratch_root` is
+      `Option` (`None` → `scratch!`, DEP-29; `check_scratch.py` flagged a bare `env!("CARGO_TARGET_TMPDIR")`), and
+      `run_pages` takes one `Book` (clippy `too_many_arguments` after main's `guide` argument).
+- [x] Validation: `cargo test -p mineworld-cli --test guide` through `with-slot.sh` on 54a1683d's tree: 56 passed, 0
+      failed, 1 ignored (`cold_start`), 149 s, macOS arm64; `cargo clippy -p mineworld-cli --tests -- -D warnings`
+      clean; `check_scratch.py scan` "414 test sources, none makes scratch outside mineworld-test-support". The
+      before/after `render()` capture at the base SHA was **not** made (N/A with reason: the default run's verdict is
+      held by `expected_run.toml`, whose only change is the four reviewed `cold-start` entries — AC-25g-5).
+- [x] LLM review: the default path builds `Environment::repository` / `RunOptions::repository` (Repository rules,
+      Check mode, the test's own binary, no home); `Directive::ColdStart` is pending only under Repository rules. On
+      Windows the cold-start script's first line rebuilds `$env:Path` from the registry (`NEW_TERMINAL_PATH`), so the
+      test process's PATH cannot leak; under Repository rules nothing changed. Write mode never meets a mutation:
+      only the repository run is ever in Write mode, and mutations exist only in cold-start runs.
 
 ### C2 — The `cold_start` entry and its expectation
 
 **Goal.** One ignored test that a configuration file drives. **Scope.** `tools/cli/tests/guide/cold_start.rs`,
 the entry in `guide.rs`, `expected_cold_start.toml`, `cold_start_mutations.toml`. **Depends on** C1.
 
-- [ ] Implementation: §5.3 (configuration, order, commit and equality checks, INCONCLUSIVE, report files, mutations).
-- [ ] Validation: a local cold-start run of layer B shape against a mock repo and the debug binary passed as an
-      external path; the loader test without the variable panics; AD-6 locally (a wrong binary path fails page 01).
-- [ ] LLM review: INCONCLUSIVE can never print PASS; the mutation code cannot write to disk.
+- [x] Implementation: §5.3 in `cold_start.rs` (configuration, layer A's after-page-01 checks, INCONCLUSIVE, report
+      files, snapshots for the substitutes) and `substitutes.rs` (06.2/06.3/14.x, per §4.7 rule 11);
+      `expected_cold_start.toml` now also lists #563's three Step 1.5 blocks for A, and B's minimum is 48 (50 executed
+      blocks in 02–06 minus 6.2 and 6.3; the WIP had 0, which its own test rejected).
+- [x] Validation: the 10 `cold_start_tests` (mock two-page runs with an external binary path, the loader without the
+      variable, unknown mutation, a mutation that changes one page in memory) pass in the 56 above.
+- [x] LLM review: `verdict_of` returns PASS only when nothing failed and no `cold-start:` gate is INCONCLUSIVE;
+      `mutate` returns a new string and never writes; `write_back` writes only `Outcome::Rewritten`, which only Write
+      mode produces.
 
 ### C3 — Chapter 01's prerequisite step (only if Q-25g-1 = P1)
 
@@ -634,13 +647,12 @@ the entry in `guide.rs`, `expected_cold_start.toml`, `cold_start_mutations.toml`
 the C toolchain, the LFS lines per Q-25g-2); `expected_run.toml` `not_run` entries. **Depends on** C1.
 **Coordination:** R-d writes the download branch of the same page; this commit touches only the from-source part.
 
-- [ ] Implementation: the blocks (rustup: `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y`
-      on macOS and Linux, the rustup.rs command plus `-s -- -y`; Windows: download `https://win.rustup.rs/x86_64` and
-      run it with `-y`, read 2026-10-26; Git LFS: README's per-OS commands, then `git lfs install`; after the clone
-      `git lfs pull`).
-- [ ] Validation: the default guide test green with the new `not_run` entries; mirror parity.
-- [ ] LLM review: the blocks are the commands a person types, in the order the page says, and the page tells the
-      reader to open a new terminal after installing.
+- [x] Implementation: reconciled with #563, which moved the download blocks to Step 1.5: the four `cold-start`
+      blocks (install sh/powershell, `git lfs pull` sh/powershell) and the C-compiler sentence sit in Way 2 of Step 1.1;
+      the mirror has the same blocks byte for byte.
+- [x] Validation: the default guide test green with `expected_run.toml`'s four `cold-start` entries beside the three
+      Step 1.5 `operator-only` ones; mirror parity is one of its guards.
+- [x] LLM review: install → "open a new terminal" → clone/build → `git lfs pull` → PATH, in the order a reader types.
 
 ### C4 — `scripts/ci_cold_start.py`
 
@@ -648,21 +660,31 @@ the C toolchain, the LFS lines per Q-25g-2); `expected_run.toml` `not_run` entri
 `config` (writes §5.3's TOML), `run-a`, `run-b`, `substitute serve|06|14`, `summary`, `budget`, `--self-test`;
 stdlib only; registered with the scripts' self-tests in `fast` (`scripts/ci_layer.py`).
 
-- [ ] Implementation: §4.3, §6, §7.3.
-- [ ] Validation: `python3 scripts/ci_cold_start.py --self-test`; ruff; pyright.
-- [ ] LLM review: `clean` touches only the listed tools; nothing deletes outside `~/.cargo`, `~/.rustup` and the named
-      binaries; every subprocess is an argument list, not a shell string.
+- [x] Implementation: `scripts/ci_cold_start.py` (26d1a079): `clean`, `assert-clean`, `config`, `harness`,
+      `install-uv`, `find-bundle`, `unpack`, `summary` (the budget is part of it), `verdicts`, `lint`, `--self-test`;
+      registered in `fast` after `ci_stability.py`. Deviation (bounded): the substitutes are not script subcommands
+      (`substitute serve|06|14`) but the `cold_start` test's second phase (`substitutes.rs`), as GUIDE_FORMAT §4.7
+      rule 11 (C0) already specifies; `run-a`/`run-b` are workflow steps over `config` + the executable.
+- [x] Validation: `--self-test` PASS (fake `cargo` named, folders, B's clone, configs for A/B/AD-6/PRE-MERGE, the
+      guide executable from cargo's JSON, zero-to-Corner-Shop arithmetic, AD-7 budget, AD-8 cache lint, pull_request
+      and input-in-script lint, the committed workflow); `ruff check` clean, `ruff format` applied. `pyright` strict
+      reports 73 unknown-type findings and is **not** a gate for `scripts/` (ci_layer.py's PYTHON_TOOLS lists
+      tools/onboarding and tools/worldgen only) — recorded, not fixed.
+- [x] LLM review: `clean` removes only rustup's install, `cargo`/`rustc`/`rustup`/`git-lfs` files on PATH (Windows:
+      renamed, plus Git for Windows' copies), `~/.cargo`, `~/.rustup`, and the `filter.lfs.*` keys; every subprocess is
+      an argument list except `install-uv`, which runs the vendor's documented one-liner by design.
 
 ### C5 — `.github/workflows/cold-start.yml`
 
 **Goal.** The jobs of §7. **Scope.** The workflow file only; pins by full SHA (the versions already used in
 `ci.yml`/`nightly.yml`); the `ARC-48` note from C0 completed with the job names.
 
-- [ ] Implementation: §7.1–7.3, §8.
-- [ ] Validation: `python3 scripts/check_ci_pins.py`; the self-test's workflow lint; one push to
-      `cold-start/25g-first` (PRE-MERGE) per layer.
-- [ ] LLM review: no input reaches `run:` by expression; `actions: read` only where an artifact is downloaded; no cache
-      in A or B.
+- [x] Implementation: `.github/workflows/cold-start.yml` (77dc16c0), jobs `cold-start-harness (<os>)`,
+      `cold-start-a (<os>)`, `cold-start-b (<target>)`, `cold-start`; workflow_run on "Release" (R-b's final name).
+- [x] Validation: `check_ci_pins.py` "every action by full SHA"; `ci_cold_start.py lint` clean; YAML parses (PyYAML).
+      Pre-merge run: see §14.
+- [x] LLM review: inputs reach scripts only via `env:` (the lint enforces it); `actions: read` only on
+      `cold-start-b`; the clean jobs have no checkout, cache or setup action.
 
 ### C6 — Evidence (no code)
 
@@ -696,7 +718,22 @@ stdlib only; registered with the scripts' self-tests in `fast` (`scripts/ci_laye
 
 ## 14. Evidence ledger
 
-Empty until implementation is authorized.
+### 14.1 Session of 2026-11-27 (impl-25g-2)
+
+- **Base:** `origin/main @ f5b9bbd7`; branch `mvp0/pr-25g-cold-start-2`, worktree
+  `/Users/yuema137/mineworld-worktrees/impl-25g-2`. A new branch, not the old one: `mvp0/pr-25g-cold-start` keeps the
+  preserved WIP (`1a858ee4`) untouched; C0 (`47642607`) and the WIP were cherry-picked here (`1e76c490`, `15102a92`).
+- **Reconciliation with main (33 commits since 315a50a9).** (1) #524's write mode added `rewrite::Mode` and an
+  `Environment.mode` field; the WIP's `command::Mode` was renamed `Rules`. (2) #563 moved chapter 01's download blocks to
+  Step 1.5 and split Step 1.1 into Way 1 / Way 2; the cold-start blocks went into Way 2. (3) R-b's release workflow is
+  named "Release" (`release.yml`); the ARC-48 note and `workflow_run` use that name. (4) `ARC-48` gained R-b's note on main;
+  both notes kept.
+- **Spend.** The coordinator's dispatch of 2026-11-27: GitHub Actions minutes on this public repository are free; at most
+  two cold-start runs. This replaces the contract's "cold-start/** pushes or dispatches" line for this session.
+- **Local evidence:** §12 C1–C5.
+- **Pre-merge run 1:** push of 77dc16c0 to `cold-start/25g-first`, run `46119663095`. Result: pending.
+- **Machine note:** the local disk reached 100 % during validation (`No space left on device` in a scratch folder);
+  this session removed only its own finished target folder (`_targets/fix-client-leave`).
 
 ---
 
@@ -736,10 +773,12 @@ FROZEN INVARIANTS:         the design's own (§1.2; the default guide run unchan
 APPROVED IMPLEMENTATION SEQUENCE: C0–C6
 AUTONOMOUS VALIDATION BUDGET: local: the guide test for the pages touched and clippy on the crates touched, heavy
                            jobs through cast-slots/with-slot.sh; CI: at most ONE cold-start run in flight, polled
-                           at most every 5 minutes; cold-start/** pushes or dispatches on this branch
+                           at most every 5 minutes; at most TWO cold-start runs in total (coordinator,
+                           2026-11-27: minutes are free on this public repository)
 REQUIRED LIVE DOCUMENTATION: this file
 CONTEXT HANDOFF / MEMORY FILE: this file's §14 ledger
-ENDPOINT AUTHORITY:        commit: autonomous · push: autonomous (branch mvp0/pr-25g-cold-start and cold-start/**)
+ENDPOINT AUTHORITY:        commit: autonomous · push: autonomous (branches mvp0/pr-25g-cold-start[-2] and
+                           cold-start/**; the -2 branch per the coordinator's dispatch of 2026-11-27)
                            · PR: autonomous (open, no labels) · run cold-start.yml on this branch: autonomous
                            · merge, auto-merge, tags, Releases: the coordinator only
 STOP CONDITIONS:           any change to frozen scope, a public contract, an ownership boundary, or a new
