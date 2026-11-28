@@ -244,11 +244,10 @@ async fn the_money_line_is_in_the_worlds_own_currency() {
         (Variant::dinar("trade-e2-dinar"), "KD200.000"),
     ] {
         let save = SaveDir::new("trade-e2");
-        // Both clients take the visitor's seat in turn. A 2D exit that drops its connection would hold
-        // the seat for the default 30 s resume window and refuse the 3D join (`seat occupied`), so no
-        // hold: this test is about the money line, not resume.
-        let mut arguments = hosted(&variant.path(), &save);
-        arguments.extend(["--hold".to_owned(), "0".to_owned()]);
+        // Both clients take the visitor's seat in turn, under the server's default 30 s hold: the 2D
+        // drive's exit sends `leave`, so the seat is free at once and the 3D join right after it is
+        // welcomed rather than refused `seat_occupied` (#543's regression).
+        let arguments = hosted(&variant.path(), &save);
         let mut world = World::start(&owned(&arguments), None).await;
         let steps = json!([{ "sleep": 1 }, { "hud": true }]);
         let (status, lines) = play(world.address, "visitor", "trade-e2-2d", &steps, &[]).await;
