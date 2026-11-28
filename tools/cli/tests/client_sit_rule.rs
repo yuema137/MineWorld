@@ -1,8 +1,10 @@
-//! Two clients agree on a contested seat (S33-f AC-f-4; `ARC-145`): the 2D and the 3D client, each
-//! through its own wiring of the shared sit decision (`clients/shared/sitting/sit_rule.gd`), are fed the
-//! same recorded observations of Lakeside's bakery, two people still at one chair, and print who they
-//! draw seated where. The two lists must be equal, and equal to the fixture's expectation: the lower
-//! entity id takes the seat; a person still but 0.45 m away, and one walking past, are not seated.
+//! Two clients agree on a contested seat (S33-f AC-f-4; `ARC-145`), in the posture branch since S34-c2
+//! (R-S34c-f-1, `ARC-172`): the 2D and the 3D client, each through its own wiring of the shared sit
+//! decision (`clients/shared/sitting/sit_rule.gd`), are fed the same recorded observations of Lakeside's
+//! bakery, which discloses its `sit-points`, two people at one chair, and print who they draw seated
+//! where. The two lists must be equal, and equal to the fixture's expectation: the person whose
+//! disclosed `posture-state` names the seat is drawn there; the one the server left standing, a person
+//! beside another chair, and one walking past are not seated.
 //!
 //! It starts Godot, so it is `#[ignore]`d — reported as ignored, never as passed, without it:
 //!
@@ -122,12 +124,12 @@ fn both_clients_draw_the_same_person_on_a_contested_seat() {
         .collect();
     assert_eq!(
         finally, expected,
-        "the lower id takes the contested seat; nobody else is drawn seated"
+        "the server's seated person holds the contested seat; nobody else is drawn seated"
     );
     assert!(
         !two.iter()
             .any(|line| line.starts_with("SEATED 100 ") || line.starts_with("SEATED 101 ")),
-        "nobody is drawn seated before standing still for 2 s of world time: {two:?}"
+        "nobody is drawn seated before the server seats them: {two:?}"
     );
 }
 
@@ -403,29 +405,20 @@ fn standing_on_point(fixture: &Value) -> Value {
 #[test]
 #[ignore = "needs Godot; posture disclosure must suppress legacy stillness inference"]
 fn disclosure_suppresses_lakeside_fallback_even_after_five_seconds() {
-    let mut fixture: Value = serde_json::from_str(
+    // Since S34-c2 the fixture is in the posture branch: the bakery discloses its `sit-points` (the
+    // world's points, `ARC-172`), and Lakeside's depiction file carries no fallback position.
+    let fixture: Value = serde_json::from_str(
         &std::fs::read_to_string(Path::new(REPOSITORY).join(FIXTURE)).unwrap(),
     )
     .unwrap();
-    let depictions: Value = serde_json::from_str(
-        &std::fs::read_to_string(
-            Path::new(REPOSITORY)
-                .join("presentation/mineworld-default/3D/sit_points/lakeside.yaml"),
-        )
-        .unwrap(),
-    )
-    .unwrap();
-    let points: Vec<_> = depictions["points"].as_array().unwrap().iter()
-        .filter(|p| p["tags"].as_array().unwrap().iter().any(|t| t == "bakery"))
-        .map(|p| serde_json::json!({"key": p["point"], "at": p["fallback"]["at"], "facing": p["fallback"]["facing"]})).collect();
-    for frame in fixture["frames"].as_array_mut().unwrap() {
-        for entity in frame["entities"].as_array_mut().unwrap() {
-            if entity["entity_type"] == "place" {
-                entity["components"] =
-                    serde_json::json!([{"component_type": "sit-points", "payload": points}]);
-            }
-        }
-    }
+    assert!(
+        fixture["frames"][0]["entities"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|e| component(e, "sit-points").is_some()),
+        "located first: the fixture's place discloses sit-points"
+    );
     let still = standing_on_point(&fixture);
     let scratch = mineworld_test_support::scratch!(empty "s34e-disclosure-over-fallback");
     let path = scratch.join("counterfactual.json");

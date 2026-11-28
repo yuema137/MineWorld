@@ -19,6 +19,16 @@ Execution contract:     §12
 Lifecycle:              FROZEN 2026-10-27 (e950e49b, #527; header reconciled 2026-11-27); not yet implemented
 ```
 
+**Dated note, 2026-11-27 (S34-c2, PR #553; `pr-s34c-world-sit-points.md` §11.2 BC-c2-4b): Q-S34c3-6's
+assignment to S34-c2 is moved here.** S34-c2 landed before this PR, as the dated note of 2026-10-27
+orders, so it had no generator. It hand-authored Lakeside's five bakery chair points with SD-c-1's
+"behind" case and did not regenerate S34-c1's sections. The chair form of the generator, and the
+regeneration of S34-c1's café, park and street sections with the tool, are therefore this PR's (or the
+first PR after it that adds the chair form). S34-c2 also changed the data that AC-c3-6's Lakeside dry run
+reads (R-c3-6). The pier bench and the square benches now face north / north / east, the way their points
+face. The square's north bench holds 2 points and the halt's row 8, so that dry run should find Lakeside's
+hand-authored bench points equal to what the generator produces, apart from the keys.
+
 **Effort:** `mvp0`, release-blocking · **Step:** [`step-34-posture.md`](step-34-posture.md) §§5.1, 6.3,
 12–14 (the S34-c row: "sit points in … the station halls (S29)"; AC-S34-6's world half for "both station
 halls"; I-S34-6, I-S34-9) · **Previous PRs:** [`pr-s34a-posture-pack.md`](pr-s34a-posture-pack.md) (#301),

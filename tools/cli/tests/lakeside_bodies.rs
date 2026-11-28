@@ -197,6 +197,20 @@ fn without_bodies(name: &str) -> headless::Scratch {
     copy
 }
 
+/// [`without_bodies`], and without `posture` and every `sit-points:` too (S34-c2): the world as it was
+/// before both packs, which is what S33-b's recorded expectation describes (I-c-2: removing `posture`
+/// and its sections gives back the world without it).
+fn without_bodies_or_posture(name: &str) -> headless::Scratch {
+    let copy = without_bodies(name);
+    edit(&copy.join("world.yaml"), "  - posture\n", "");
+    for entry in std::fs::read_dir(copy.join("places")).expect("lists") {
+        let file = entry.expect("an entry").path();
+        let (kept, _) = strip_section(&lakeside::read_lf(&file), "sit-points");
+        std::fs::write(&file, kept).expect("writes");
+    }
+    copy
+}
+
 /// (2) AC-b-2 and (3) AC-b-5 over one run.
 #[test]
 fn nobody_stands_in_the_lake_in_thirty_days_and_bodies_stay_rare() {
@@ -359,7 +373,8 @@ fn the_village_floors_do_not_overlap() {
 
 /// (5) AC-b-7 (Q-S33b-1 as ruled): removing `bodies` from `systems:` — and with it every `body:`,
 /// which the loader refuses once nothing owns it — gives exactly the world after only moving the
-/// doorway points. The expectation is the 30-day, seed-7 summary (every line but `wall`, as
+/// doorway points. Since S34-c2 `posture` and its `sit-points:` are removed with it (they came after
+/// the recording; removing them gives the world back, I-c-2). The expectation is the 30-day, seed-7 summary (every line but `wall`, as
 /// `ci_parity.py` keeps it) of `worlds/lakeside` at S33-b's C1 commit (`30b7c521`: the doorway move,
 /// before any body), recorded then: evidence from before the code under test. A merged change outside
 /// bodies and the doorways that moves the summary re-records it, with a dated `# reason` line naming
@@ -373,7 +388,7 @@ fn without_bodies_only_the_doorways_moved() {
     .filter(|line| !line.starts_with('#'))
     .map(|line| format!("{line}\n"))
     .collect();
-    let without = without_bodies("lakeside-bodies-only");
+    let without = without_bodies_or_posture("lakeside-bodies-only");
     let printed: String = run(&without, SEED, DAYS, None)
         .lines()
         .filter(|line| !line.starts_with("wall "))
