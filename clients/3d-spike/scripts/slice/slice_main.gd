@@ -109,6 +109,7 @@ func _ready() -> void:
 		_cost_effects_off()
 	await _loading_stage("loading.player")
 	_spawn_player()
+	await _graphics_stage()
 	var mouse_before_loading := Input.mouse_mode
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	clock = SliceClock.new()
@@ -159,6 +160,17 @@ func _start_probe() -> void:
 func _loading_stage(key: String) -> void:
 	_loading.show_stage(MineWorldText.text(key))
 	await _loading.drawn()
+
+
+## The next frame is the first drawn through the player's camera: it compiles the render pipelines, and on a
+## cold shader cache (measured on macOS Metal: ~117 s) that one frame blocks every redraw. The stage that stays
+## on screen meanwhile is drawn first, with 3D held off for that one frame, so it names the real wait.
+func _graphics_stage() -> void:
+	var viewport := get_viewport()
+	var held := viewport.disable_3d
+	viewport.disable_3d = true
+	await _loading_stage("loading.graphics")
+	viewport.disable_3d = held
 
 
 ## The world this scene presents, by its key (`SliceWorlds.key()`), and the depiction that draws it

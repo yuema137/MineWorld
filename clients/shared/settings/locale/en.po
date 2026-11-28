@@ -1061,6 +1061,9 @@ msgstr "Preparing lighting..."
 msgid "loading.player"
 msgstr "Preparing your character..."
 
+msgid "loading.graphics"
+msgstr "Preparing graphics... (the first launch can take a few minutes)"
+
 msgid "loading.connecting"
 msgstr "Joining the world..."
 

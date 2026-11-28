@@ -1026,6 +1026,9 @@ msgstr "正在准备光照……"
 msgid "loading.player"
 msgstr "正在准备你的角色……"
 
+msgid "loading.graphics"
+msgstr "正在准备图形……（首次启动可能需要几分钟）"
+
 msgid "loading.connecting"
 msgstr "正在进入世界……"
 
