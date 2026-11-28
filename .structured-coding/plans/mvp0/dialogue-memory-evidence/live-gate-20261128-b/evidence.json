@@ -1,0 +1,391 @@
+{
+  "calls": {
+    "cap": 8,
+    "consults": [
+      {
+        "attempts": [
+          {
+            "failure": null,
+            "key": "284a48804e609472a349814f9a5f49c12cdbbd1444f79e907407efe74ba2c422",
+            "layer": "none",
+            "text": "{\"act\": \"say\", \"to\": \"Vera Lindgren\", \"words\": \"Morning, Vera. You look like you need a coffee before that shift starts.\", \"offer\": null, \"recalls\": [{\"memory\": 19}]}"
+          }
+        ],
+        "outcome": "dropped",
+        "trigger": "arrived"
+      },
+      {
+        "attempts": [
+          {
+            "failure": {
+              "cls": "transport",
+              "reason": "timeout",
+              "retry_after_s": null,
+              "retryable": true
+            },
+            "key": "d0a7b3f0ae26a70c05223b2072aa8541ee9489e9da97ad213ad5d371c3338410",
+            "layer": "transport",
+            "text": null
+          }
+        ],
+        "outcome": "fell_back",
+        "trigger": "spoken_to"
+      },
+      {
+        "attempts": [
+          {
+            "failure": null,
+            "key": "64587ca2a27fba146606e15127722ea11bb625107d721262af8d78b6e56a0ac7",
+            "layer": "none",
+            "text": "{\"act\": \"say\", \"to\": \"Vera Lindgren\", \"words\": \"Yes, I remember. KOG-8901 for the locker, and your bag is at the bakery.\", \"offer\": null, \"recalls\": [{\"memory\": 351}, {\"memory\": 582}]}"
+          }
+        ],
+        "outcome": "acted",
+        "trigger": "spoken_to"
+      },
+      {
+        "attempts": [
+          {
+            "failure": null,
+            "key": "08d6ad47857ae1cb8422894bbea2f60245e12428daaec57c4bf29b9349ae777a",
+            "layer": "none",
+            "text": "{\"act\": \"say\", \"to\": \"Vera Lindgren\", \"words\": \"Morning, Vera. I'm just starting up for the shift now.\", \"offer\": null, \"recalls\": [{\"memory\": 19}]}"
+          }
+        ],
+        "outcome": "dropped",
+        "trigger": "spoken_to"
+      },
+      {
+        "attempts": [
+          {
+            "failure": {
+              "cls": "transport",
+              "reason": "timeout",
+              "retry_after_s": null,
+              "retryable": true
+            },
+            "key": "c44e1fb6ea5ae2691fe8f0d37dab1a9350db28cf94bc7f8a914f4833c93d5409",
+            "layer": "transport",
+            "text": null
+          }
+        ],
+        "outcome": "fell_back",
+        "trigger": "spoken_to"
+      },
+      {
+        "attempts": [
+          {
+            "failure": null,
+            "key": "972e887ee49235c3130b556fd97a07721412a2cddf860de712da17b343f5c492",
+            "layer": "none",
+            "text": "{\"act\": \"say\", \"to\": \"Vera Lindgren\", \"words\": \"It's certainly a nice morning. Though I suspect you've changed your mind about that bag location already.\", \"offer\": null, \"recalls\": [{\"memory\": 12}]}"
+          }
+        ],
+        "outcome": "acted",
+        "trigger": "spoken_to"
+      },
+      {
+        "attempts": [
+          {
+            "failure": null,
+            "key": "6cb19d7e13f3d905a75dfbd29597b93a2eb592b7c857e4a56a4d1ccc72f0ee12",
+            "layer": "none",
+            "text": "{\"act\": \"say\", \"to\": \"Vera Lindgren\", \"words\": \"The weather's lovely, isn't it? Your bag is at the garage now, and your locker code stays KOG-8901.\", \"offer\": null, \"recalls\": [{\"memory\": 351}, {\"memory\": 753}]}"
+          }
+        ],
+        "outcome": "acted",
+        "trigger": "spoken_to"
+      },
+      {
+        "attempts": [
+          {
+            "failure": {
+              "cls": "budget",
+              "reason": "calls_per_wall_hour",
+              "retry_after_s": null,
+              "retryable": false
+            },
+            "key": "099b0ee34bcce48c122dca519d9ce2dde3d5d4a60c0bfde41a01d3f521ba72a7",
+            "layer": "none",
+            "text": null
+          }
+        ],
+        "outcome": "budget",
+        "trigger": "arrived"
+      }
+    ],
+    "ledger_calls": 7,
+    "other_resident_actions": 408,
+    "run_wall_s": 108,
+    "total": 8,
+    "warm_up": 1
+  },
+  "lines": {
+    "code": "KOG-8901",
+    "new": "garage",
+    "old": "bakery"
+  },
+  "machine_checks": [
+    {
+      "check": "(a) the reply is a saved spoke caused by Alice's accepted request",
+      "detail": "reply \"The weather's lovely, isn't it? Your bag is at the garage now, and your locker code stays KOG-8901.\", fact Some(Spoken { id: 939, speaker: \"10\", listener: \"20\", words: \"The weather's lovely, isn't it? Your bag is at the garage now, and your locker code stays KOG-8901.\", action: Some(547) })",
+      "holds": true
+    },
+    {
+      "check": "(c) the reply names the original code exactly",
+      "detail": "code \"KOG-8901\"",
+      "holds": true
+    },
+    {
+      "check": "(e) both sources are shown and cited by valid recalls",
+      "detail": "code line #351, correction #753, shown {1, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 221, 222, 225, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 259, 351, 471, 582, 624, 629, 630, 679, 680, 681, 682, 731, 752, 753, 815, 816, 831, 842, 864, 879, 895, 898, 906}, recalls [\"[#351]\", \"[#753]\"]",
+      "holds": true
+    }
+  ],
+  "observations": [
+    {
+      "positioned": {
+        "alice_at": [
+          6000,
+          8000
+        ],
+        "alice_place": 2,
+        "alice_took_over": "Hosted",
+        "holdings": {
+          "capacity": 6,
+          "held": []
+        },
+        "meals": [
+          "drink",
+          "drink",
+          "eat"
+        ],
+        "needs": {
+          "asleep": false,
+          "hunger": 650,
+          "hunger_model": "unitless",
+          "kinds": [
+            {
+              "hunger": 200,
+              "item": {
+                "entity": "22",
+                "entity_type": "item"
+              }
+            },
+            {
+              "hunger": 500,
+              "item": {
+                "entity": "24",
+                "entity_type": "item"
+              }
+            },
+            {
+              "hunger": 400,
+              "item": {
+                "entity": "27",
+                "entity_type": "item"
+              }
+            },
+            {
+              "hunger": 0,
+              "item": {
+                "entity": "29",
+                "entity_type": "item"
+              }
+            },
+            {
+              "hunger": 350,
+              "item": {
+                "entity": "30",
+                "entity_type": "item"
+              }
+            },
+            {
+              "hunger": 100,
+              "item": {
+                "entity": "32",
+                "entity_type": "item"
+              }
+            },
+            {
+              "hunger": 150,
+              "item": {
+                "entity": "33",
+                "entity_type": "item"
+              }
+            },
+            {
+              "hunger": 650,
+              "item": {
+                "entity": "38",
+                "entity_type": "item"
+              }
+            },
+            {
+              "hunger": 600,
+              "item": {
+                "entity": "41",
+                "entity_type": "item"
+              }
+            },
+            {
+              "hunger": 0,
+              "item": {
+                "entity": "44",
+                "entity_type": "item"
+              }
+            }
+          ],
+          "nourishment": [],
+          "rates": {
+            "hunger_asleep_per_hour": 30,
+            "hunger_per_hour": 120,
+            "rest_per_hour": 125,
+            "tiredness_per_hour": 60
+          },
+          "restore": {
+            "hunger": [
+              "eating"
+            ],
+            "tiredness": [
+              "sleeping"
+            ]
+          },
+          "tiredness": 1000,
+          "words": {
+            "hunger": "hungry",
+            "tiredness": "exhausted"
+          }
+        },
+        "save_bytes": 1536576,
+        "store_bytes": 0,
+        "wallet": {
+          "balance": 20000
+        },
+        "world_at": 25290
+      }
+    },
+    {
+      "mcp agent joined": {
+        "barista": "E3",
+        "took_over": "hosted"
+      }
+    },
+    {
+      "store across the restart": {
+        "consults_before_restart": 6,
+        "created_after": "d92bd64695e5967875455b82567df09f",
+        "created_before": "d92bd64695e5967875455b82567df09f",
+        "cursor_after": 939,
+        "cursor_before": 898,
+        "rows_after": 219,
+        "rows_before": 202
+      }
+    },
+    {
+      "alice under a person again": {
+        "heard": [
+          "Please remember this: my locker code is KOG-8901 and my bag is at the bakery.",
+          "Do you remember what I told you about my bag and my locker?",
+          "Busy in here today.",
+          "Correction: my bag is now at the garage, not the bakery. Same locker code.",
+          "By the way, the weather is lovely this morning.",
+          "Where is my bag now, and what is my locker code?"
+        ],
+        "holdings": {
+          "capacity": 6,
+          "held": []
+        },
+        "took_over": "Hosted",
+        "wallet": {
+          "balance": 19825
+        }
+      }
+    },
+    {
+      "holdings changed between holders": {
+        "after": [
+          {
+            "capacity": 6,
+            "held": []
+          },
+          {
+            "balance": 19825
+          }
+        ],
+        "before": [
+          {
+            "capacity": 6,
+            "held": []
+          },
+          {
+            "balance": 20000
+          }
+        ],
+        "her_other_requests": [
+          "drink",
+          "drink",
+          "eat",
+          "buy",
+          "eat",
+          "walk-to",
+          "walk-step"
+        ]
+      }
+    },
+    {
+      "disk at the end": {
+        "save_bytes": 6242240,
+        "store_bytes": 625119
+      }
+    }
+  ],
+  "stopped_at_turn": null,
+  "transcript": [
+    {
+      "outcome": "fell_back",
+      "player": "protocol-client",
+      "reply": null,
+      "said": "Please remember this: my locker code is KOG-8901 and my bag is at the bakery.",
+      "turn": 1,
+      "wall_ms": 22098,
+      "world_at": 25393
+    },
+    {
+      "outcome": "acted",
+      "player": "mcp-agent",
+      "reply": "Yes, I remember. KOG-8901 for the locker, and your bag is at the bakery.",
+      "said": "Do you remember what I told you about my bag and my locker?",
+      "turn": 2,
+      "wall_ms": 20136,
+      "world_at": 25679
+    },
+    {
+      "outcome": "fell_back",
+      "player": "mcp-agent",
+      "reply": null,
+      "said": "Correction: my bag is now at the garage, not the bakery. Same locker code.",
+      "turn": 3,
+      "wall_ms": 20118,
+      "world_at": 25922
+    },
+    {
+      "outcome": "acted",
+      "player": "mcp-agent",
+      "reply": "It's certainly a nice morning. Though I suspect you've changed your mind about that bag location already.",
+      "said": "By the way, the weather is lovely this morning.",
+      "turn": 4,
+      "wall_ms": 15568,
+      "world_at": 26164
+    },
+    {
+      "outcome": "acted",
+      "player": "protocol-client",
+      "reply": "The weather's lovely, isn't it? Your bag is at the garage now, and your locker code stays KOG-8901.",
+      "said": "Where is my bag now, and what is my locker code?",
+      "turn": 5,
+      "wall_ms": 11449,
+      "world_at": 26356
+    }
+  ]
+}

@@ -1028,3 +1028,28 @@ Regression on the amended tree: correction scenario PASS; gate dry run PASS (scr
 PASS; `speech_both_ways --ignored --test-threads=1` 5/5 PASS; real-binary `test_controller_server`,
 `test_controller_resilience`, `test_supervised_process`, `test_milestone_d_fallback` 9 PASS; seat suite 25 PASS;
 ruff, strict pyright clean. Live gate: next, once, on the committed head.
+
+### 11.3 Live gate, second and last run under DM-20261128-4 — result: FAIL on rubric (f); turn 7 (a)–(e) hold
+
+Head `420eec7a` (recorded in `head.txt`), 2026-11-28, this Mac, local Ollama `qwen3.5:4b`, $0, run once after the
+coordinator's go. Evidence: `dialogue-memory-evidence/live-gate-20261128-b/`. Calls: warm-up 1 + ledger 7 = 8 = cap (an
+eighth consult, a post-restart `arrived`, was refused by the gate ledger before any call). Run wall 108 s. Disk: store
+0.63 MB, save 6.2 MB. Other residents' requests during the run: 408 (measured this time).
+
+| Turn (harness) | Player said | Alice | Wall |
+| --- | --- | --- | --- |
+| 1 (window) | locker code KOG-8901, bag at the bakery | **no reply**: consult fell back on `timeout` (the 20 s deadline) | 22.1 s |
+| 2 (MCP agent) | do you remember my bag and locker? | "Yes, I remember. KOG-8901 for the locker, and your bag is at the bakery." | 20.1 s |
+| 3 (MCP agent) | correction: bag at the garage, same code | **no reply**: `timeout` | 20.1 s |
+| 4 (MCP agent) | the weather is lovely | "It's certainly a nice morning. Though I suspect you've changed your mind about that bag location already." | 15.6 s |
+| restart (graceful), store reused (`created` marker equal) | | | |
+| 5 (window) = §6 turn 7 | where is my bag now, and my code? | "The weather's lovely, isn't it? Your bag is at the garage now, and your locker code stays KOG-8901." | 11.4 s |
+
+Rubric (fixed before the first run, §6): (a) HOLDS (saved `spoke` #939 caused by Alice's accepted request, action 547);
+(b) names the corrected place "garage" — holds (reviewer to confirm); (c) HOLDS, the original code exactly; (d) the
+superseded "bakery" is not presented as current — holds (reviewer to confirm); (e) HOLDS, both sources (#351 code line,
+#753 correction) shown and cited by valid structured recalls; (f) turn 3's reply (harness turn 2) is relevant, but
+**turn 1 got no reply** (the model did not answer within the 20 s per-reply deadline). All must hold, so the
+classification is **FAIL on (f) only**; the memory claims of check 2 were met by the live model after a restart.
+No `malformed_recall`, `forged_recall` or `unknown_person` occurred. Two consults ended `dropped` (their submit was no
+longer offered when the answer came). Judges next: red team, then the operator. No rerun.
