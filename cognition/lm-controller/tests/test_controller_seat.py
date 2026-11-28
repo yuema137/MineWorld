@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import time
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
@@ -33,11 +34,17 @@ from scripted_seat import (
 from support import completion, request, run
 
 from mineworld_cognition.backend.canonical import cassette_key
-from mineworld_cognition.backend.model import BackendFailure, Completion, CompletionRequest
+from mineworld_cognition.backend.model import (
+    BackendFailure,
+    Completion,
+    CompletionRequest,
+    ModelBackend,
+)
 from mineworld_cognition.budget import BudgetPolicy, MemoryLedger
 from mineworld_cognition.config import CognitionConfig
 from mineworld_cognition.controller import seat as seat_module
 from mineworld_cognition.controller.assignment import LmSeat, read_assignment
+from mineworld_cognition.controller.deadline import EXPIRED, Expiry, send_locked
 from mineworld_cognition.controller.homes import SeatHomes
 from mineworld_cognition.controller.log import DecisionRecord, read_decisions
 from mineworld_cognition.controller.prompt import Trigger
@@ -124,7 +131,7 @@ def _runner(
     tmp_path: Path,
     server: ScriptedServer,
     clock: FakeClock,
-    backend: ScriptedAnswers,
+    backend: ModelBackend,
     key: EntityKey = ALICE,
 ) -> SeatRunner:
     budget = Budget.of(BudgetPolicy(), MemoryLedger(), _WallClock())
@@ -734,3 +741,120 @@ def test_under_verify_a_scope_account_that_under_reports_stops_the_seat_by_name(
         assert raised.value.seat == "alice"
 
     run(scenario())
+
+
+# ── The absolute consult deadline (DM-20261127-3 C1, §§4.4, 4.5) ─────────────────────────────────────────
+
+
+def _stale_triggers(tmp_path: Path) -> int:
+    """The runner's `stale_triggers` counter from the last counters line of the decision log."""
+    lines = (tmp_path / "store" / "alice.decisions.jsonl").read_text(encoding="utf-8").splitlines()
+    counters = [json.loads(line) for line in lines if '"kind":"counters"' in line]
+    return int(counters[-1]["stale_triggers"])
+
+
+def test_a_trigger_whose_deadline_passes_before_the_first_observation_is_discarded_unasked(
+    tmp_path: Path,
+) -> None:
+    # `consult_deadline_s` runs from the trigger's receipt (cognition-toml.md). A line heard before the seat's
+    # first observation, which arrives 25 s later, is past its 20 s deadline: it is counted stale and never sent
+    # to the model. Before the fix the consult began after the observation with a fresh 20 s.
+    async def scenario() -> ScriptedAnswers:
+        clock = FakeClock()
+        link = Link(welcome(resume=1))
+        backend = ScriptedAnswers(_nothing)
+        task = asyncio.create_task(_runner(tmp_path, ScriptedServer(link), clock, backend).run())
+        await until(lambda: "join" in link.kinds(), "the join")
+        link.say(perceived("2", spoke("2", speaker="5")))
+        await _settle()
+        clock.now += 25.0
+        link.say(observation(1))
+        await _settle()
+        await _cancel(task)
+        return backend
+
+    backend = run(scenario())
+    assert backend.requests == []
+    assert _decisions(tmp_path) == []
+    assert _stale_triggers(tmp_path) == 1
+
+
+class _EachHeld:
+    """A backend whose every call waits for its own release; `started` counts the calls that reached it."""
+
+    def __init__(self) -> None:
+        self.started = 0
+        self.release: list[asyncio.Event] = []
+
+    async def complete(self, request: CompletionRequest) -> Completion | BackendFailure:
+        self.started += 1
+        self.release.append(asyncio.Event())
+        await self.release[-1].wait()
+        return completion(NOTHING)
+
+    async def aclose(self) -> None:
+        return None
+
+
+def test_the_pending_wait_spends_the_deadline_and_a_late_answer_is_not_acted_on(
+    tmp_path: Path,
+) -> None:
+    # Line 3 arrives while line 2's consult runs; that consult takes 15 s, so line 3 has 5 s left when its own
+    # consult starts. Its answer comes 6 s later: past the expiry, the answer is not acted on and the consult
+    # ends `fell_back` at the deadline. Before the fix line 3's consult started a fresh 20 s and chose.
+    async def scenario() -> None:
+        clock = FakeClock()
+        link = Link(welcome(resume=1), observation(1))
+        backend = _EachHeld()
+        task = asyncio.create_task(_runner(tmp_path, ScriptedServer(link), clock, backend).run())
+        await until(lambda: "join" in link.kinds(), "the join")
+        link.say(perceived("2", spoke("2", speaker="5")))
+        await until(lambda: backend.started == 1, "line 2 is asked")
+        link.say(perceived("3", spoke("3", speaker="5", utterance="again")))
+        await _settle()
+        clock.now += 15.0
+        backend.release[0].set()
+        await until(lambda: backend.started == 2, "line 3 is asked")
+        clock.now += 6.0
+        backend.release[1].set()
+        await _logged(tmp_path, 2)
+        await _cancel(task)
+
+    run(scenario())
+    first, second = _decisions(tmp_path)
+    assert first.record.outcome == "chose"
+    assert second.input.trigger.event == "3"
+    assert (second.record.outcome, second.record.cause) == ("fell_back", "deadline")
+
+
+def test_a_submit_waiting_for_the_lock_past_its_expiry_is_never_sent() -> None:
+    # §4.4: the submit lock's wait spends the deadline, and the expiry is checked again once the lock is held.
+    # (a) the pacer holds the lock while the fake clock passes the expiry; (b) the lock is held longer than what is
+    # left, on the real clock: the wait ends at the expiry, and nothing is sent in either case.
+    sent: list[str] = []
+
+    async def send(request: str) -> str:
+        sent.append(request)
+        return request
+
+    async def scenario() -> tuple[object, object, object]:
+        lock = asyncio.Lock()
+        clock = FakeClock()
+        await lock.acquire()
+        waiting = asyncio.create_task(
+            send_locked(lock, Expiry.after(clock.now, 20), clock.time, send, "late")
+        )
+        await _settle(5)
+        clock.now += 20.0
+        lock.release()
+        held_past = await waiting
+        await lock.acquire()
+        bounded = await send_locked(
+            lock, Expiry.after(time.monotonic(), 0.05), time.monotonic, send, "x"
+        )
+        lock.release()
+        in_time = await send_locked(lock, Expiry.after(clock.now, 20), clock.time, send, "sent")
+        return held_past, bounded, in_time
+
+    assert run(scenario()) == (EXPIRED, EXPIRED, "sent")
+    assert sent == ["sent"]

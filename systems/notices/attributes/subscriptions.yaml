@@ -1,0 +1,15 @@
+# notices.subscriptions (step-30 §9.6 N-2; S31-b2 §5.2, ARC-124): the topics a person follows, owned and kept
+# by `notices` in its own `Subscriptions` component. Shipped with the pack (ships_data!); it exists only where a
+# world enables `attributes`. Its vocabulary, `notices.topics`, is yielded by the world's configure/notices.yaml
+# (the topic keys), so it is whatever topics the world declares. No default: a person with no authored value,
+# lock entry or role follows nothing, as in a world without `attributes`.
+format: 1
+attributes:
+  subscriptions:
+    group: behaviour
+    kind: { set: { vocabulary: notices.topics, max: 32 } }
+    visibility: private
+    mutability: evolving
+    owner: notices
+    label: Subscriptions
+    phrase: "follows {value}"

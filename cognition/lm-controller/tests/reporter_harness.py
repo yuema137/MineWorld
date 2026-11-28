@@ -27,6 +27,7 @@ from mineworld_cognition.controller.consult import (
     NewestState,
     consult,
 )
+from mineworld_cognition.controller.deadline import Expiry
 from mineworld_cognition.controller.persona import Persona
 from mineworld_cognition.controller.prompt import Trigger
 from mineworld_cognition.controller.retry import BoundRetry, RetryRegistry
@@ -110,7 +111,7 @@ def run_due(
             clock=clock.clock,
             sleep=clock.sleep,
             policies=_policies(),
-            limits=ConsultLimits(deadline_s=20.0, max_calls=5),
+            limits=ConsultLimits(expiry=Expiry(20.0), max_calls=5),
         )
         return run(
             consult(

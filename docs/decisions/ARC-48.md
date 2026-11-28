@@ -246,3 +246,21 @@ Amended by [`ARC-154`](ARC-154.md) (operator policy of 2026-10-18, speed first).
 - The required gates pass on a pull request with "deferred to milestone", and do not run on a push to `main`.
 - The full matrix runs on a dispatch with `milestone: true` or on a PR labelled `milestone`. That includes the AC-8 legs and `ac8`, which no longer run on every push to `main`.
 - Scratch branches and the documentation-only rule of the 13x note are unchanged.
+
+---
+
+## ARC-48 note — the release workflow (2026-10-27, S23 R-b)
+
+Design: `.structured-coding/plans/mvp0/pr-s23-rb-release-workflow.md` §3.10.
+
+- `.github/workflows/release.yml` (workflow "Release") exists beside `ci.yml` and `nightly.yml`. Its
+  triggers are a `v*` tag push, `workflow_dispatch`, and a push to `release-dry-run/**`; it has no
+  `pull_request` or `pull_request_target` trigger. Its jobs (`verify-tag`, `bundle`, `server-arm64`,
+  `bundle-arm64`, `reference`, `smoke`, `parity`, `draft`) are not PR checks and need no name in branch protection;
+  `ci.yml`'s `fast` and `test`, their names and their triggers are unchanged.
+- It reads no secret. The workflow default is `permissions: contents: read`; `verify-tag` adds
+  `checks: read` (it reads the tagged commit's `fast` and `test` check runs); only `draft` can write
+  (`contents: write`, `id-token: write`, `attestations: write`), and only on a tag run or a dispatch with
+  the input `draft: true`. It creates draft releases only; nothing in it publishes (`ARC-79`).
+- `publish.yml` (R-d) is the only workflow that may read a secret.
+- `fast` gains `ci_release.py --self-test`.

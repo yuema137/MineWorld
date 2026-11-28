@@ -1,8 +1,7 @@
 # PR 25g — The onboarding cold-start check, layers A and B
 
-**Lifecycle:** `DESIGN FROZEN 2026-10-27 (operator approved in the primary session: every question answered as recommended) (not frozen)`. Written 2026-10-26 by a design session for the release lane. Nothing here
-authorizes implementation, a workflow run that costs money, a tag, a release or a merge. Only the operator
-freezes this design.
+**Lifecycle:** `FROZEN 2026-10-27 (DESIGN FROZEN: operator approved in the primary session, every question answered as recommended; not yet implemented)`. Written 2026-10-26 by a design session for the release lane; frozen by the operator's ruling of 2026-10-27 (primary session, 21:11 UTC, "all as recommended"; header reconciled 2026-11-27). The freeze
+authorizes implementation within this design's execution contract; it does not authorize a workflow run that costs money, a tag, a release or a merge.
 **Author / worktree:** `/Users/yuema137/mineworld-worktrees/design-25g-cold-start`, branch
 `docs/pr-design-25g-cold-start`, from `origin/main @ 0b2faf2f`.
 **Effort:** `mvp0` · **Parent:** [`step-25-creator-docs.md`](step-25-creator-docs.md) (S25; this is a new PR

@@ -5,17 +5,18 @@
 **Ruled 2026-10-26 (operator, primary session):** every question below is answered as recommended.
 
 ```text
-Design revision:        revision 1 (2026-10-20), DRAFT
+Design revision:        revision 1 (2026-10-20), frozen 2026-10-26; scope extension 2026-10-27
 Author:                 S31-b2 PR-design sub-agent (Opus), worktree
                         /Users/yuema137/mineworld-worktrees/impl-notices-attr, branch
                         docs/pr-design-notices-attributes, planning base origin/main @ fec906f2
                         (S31-b #349 and S30-c merged; S30-f merged: employment is an owner)
-Approved by / evidence: none yet. §14 lists the freeze questions, each with a recommended answer
-Implementation base:    main at C0
+Approved by / evidence: operator rulings recorded in the freeze header and §14.1
+Implementation base:    original C0 0b2faf2f; recovery 2b4d36fa (2026-11-22)
 Start condition:        this design frozen by the operator; the coordinator's dispatch
 Execution contract:     §12
 Implementer:            Opus-class for C1 (a loader seam); Haiku may take C3 (the topics record)
-Lifecycle:              DRAFT
+Lifecycle:              PUBLISHED 2026-11-27 (branch mvp0/pr-s31b2-notices); red-team PASS-WITH-FOLLOWUPS;
+                        awaiting CI on the exact head and operator merge review
 ```
 
 **Effort:** `mvp0` · **Step:** [`step-31-wealth-prices.md`](step-31-wealth-prices.md) §8.5 ("Order");
@@ -440,15 +441,293 @@ first as their own PR.
 
 ### 14.1 Rulings
 
-None yet.
+Ruled 2026-10-26 by the operator in the primary session, relayed by the coordinator: **every question is
+answered as recommended.**
+
+| Id | Ruling |
+| --- | --- |
+| Q-S31b2-1 | A general loader seam: a configuration may yield data files, collected like shipped data (§5.1) |
+| Q-S31b2-2 | Keep `defaults.by_tag` and the `notices:` section without `attributes`; refuse both with `attributes` (`subscriptions-are-attributes`, §5.4) |
+| Q-S31b2-3 | Handed sets carry `origin: default` |
+| Q-S31b2-4 | No `View.topics` in the agent adapter in this PR; it stays in Rust |
+| Q-S31b2-5 | The `topics` record is disclosed to each person about themself only |
+
+**Drift recorded at C0 (2026-10-26).** "Must merge before S31-e and S31-g" no longer holds: S31-e (#422) and S31-g
+(#418) merged first. Per Q-S31b2-4 this PR still does not touch the agent adapter, so **R-S31g-b2-1** (`View.topics`
+reads the `topics` record) and **R-S31e-b2-1** (the board panel lists topics; words for
+`subscriptions-are-attributes`) are now **outstanding follow-ups** for later PRs, not satisfied by S31-e or S31-g
+as merged. If S31-e or S31-g goldens or tests move because of the new `topics` record, updating them is a bounded
+correction under R-b2-3's logic and is recorded in §15.
+
+**Approved scope extension (operator, 2026-10-27, relayed by the coordinator).** The C4 material stop (§15) is
+ruled as proposed: `compare` in `worldpack/src/configure.rs` checks only saved facts caused by
+`Causation::WorldGenesis`, with one test in `worldpack/src/configure/tests.rs`. Both files join §2.1 for this PR.
 
 ## 15. Ledger (live during implementation)
 
+### Publication on 2026-11-27
+
+Owner: publication agent, worktree `/Users/yuema137/mineworld-worktrees/pub-s31b2` (branch
+`recover/s31b2-notices-attributes`, pushed as `mvp0/pr-s31b2-notices`; the old remote `mvp0/pr-s31b2`
+holds the October WIP and is left untouched). Authority: the coordinator's 2026-11-27 dispatch — push, open
+the PR, repair CI; no merge, tag, release or release-job dispatch.
+
+**Merge with main.** `origin/main @ 02b17504` merged (not rebased) into `f10b1ee8` as `fc3f1541`: clean
+automatic merge; no file is changed on both sides since base `2b4d36fa` (main's side touched only CI
+scripts/actions, guide tests, `social_composition.rs`, `packages/tests/far_field.rs`, 3D probe scripts,
+READMEs and plan files).
+
+**Local validation on `fc3f1541`** (the executable content of every later commit on this branch; later
+commits are documentation only). Every Cargo command ran through `cast-slots/with-slot.sh`, with
+`CARGO_TARGET_DIR` inside the worktree; logs in the worktree's ignored `target/b2-evidence/` (not durable).
+
+| Check | Result |
+| --- | --- |
+| `cargo fmt --all --check`; `git diff --check` | PASS |
+| `cargo clippy -p mineworld-authoring -p mineworld-worldpack -p mineworld-notices -p mineworld-cli --all-targets -- -D warnings` | PASS, no warnings |
+| `cargo test -p mineworld-notices` | PASS, 30 (attributes 6, board 3, configuration 4, parity 1, publish 7, subscriptions 6, topics 3) |
+| `cargo test -p mineworld-worldpack --lib data` | PASS, 9 |
+| `cargo test -p mineworld-worldpack --lib configure::tests::the_comparator` | PASS, 2 (mutation proof is historical, not rerun) |
+| `cargo test -p mineworld-cli --test notices -- --skip no_random_subscription` | PASS, 7 (1 filtered: the 30-day scenario, NOT RUN) |
+| `mineworld reference --check docs/reference` | PASS, 46 files |
+| `check_doc_headings.py`, `check_decision_ids.py` (after the F-1 docs commit) | PASS |
+
+Not run locally: full workspace suite, `no_random_subscription`, `ac1_composability` on this head (its 16/16
+PASS was on `f10b1ee8`, historical), AC-b2-8. CI on the exact PR head is the gate.
+
+**Independent red-team review (2026-11-27):** PASS-WITH-FOLLOWUPS on `f10b1ee8` + merge `fc3f1541`
+(`/Users/yuema137/mineworld-worktrees/_reviews/s31b2.md`). Dispositions:
+
+- **F-1 (medium, fixed in this PR):** the comparator's WorldGenesis-only rule was recorded only here. Added a
+  dated `ARC-61` note (item 7) and aligned `docs/MODULE_SPEC.md` (configure drift paragraph). CLAUDE.md §2.1
+  rule 4.
+- **F-2 (low, open follow-up):** the `defaults.by_tag` refusal in an `attributes` world is occupancy-based
+  (fires only when a tag actually seeds someone). An unmatched `by_tag` loads silently; no second state
+  source results. A configuration-level declarative check is a candidate follow-up.
+- **F-3 (low, open):** the new `topics` record reaches every observation in notices-enabled scratch worlds
+  (agent MCP tests, `client_trade.rs`, 2D HUD generic row). The `python` and Godot CI layers must pass on the
+  exact head before merge; under CI's `deferred` mode (ARC-154) a normal PR runs `fast` only, so those layers
+  run only in `full` mode (the `milestone` label or a milestone dispatch) — an operator/coordinator cost
+  decision, not taken here. R-S31g-b2-1 and R-S31e-b2-1 remain open.
+- **F-4 (low, process, open):** the October/November `/tmp` evidence (recovery worktree, snapshot logs,
+  comparator mutant/restored logs, parity-baseline log, PR body, prior review) was wiped on reboot. Those
+  claims are historical; the durable evidence is the tracked parity fixtures with their SHA-256 and the tests.
+- **Size (open follow-up):** `tools/cli/tests/notices.rs` is 697 lines, near the ~800 trigger; the next
+  notices CLI test splits the file by AC family.
+- F-5 notes: informational, no action.
+
+**F-3 closure without full CI (operator CI policy 2026-11-27: per-PR relevant tests only).** The `milestone`
+label was removed by the coordinator; the full run was cancelled, not failed. Instead, the consumers of the
+notices records were run locally through `with-slot.sh` on `fc3f1541` (code-equivalent to `1b9bdc62`), each
+compared with the same command on a detached `origin/main @ 02b17504` baseline worktree (since removed).
+Consumers found by grepping `clients/` and `tools/cli/tests` for notices/subscriptions/topics.
+
+| Check | Branch | `main` baseline | Verdict |
+| --- | --- | --- | --- |
+| `uv run --locked pytest` agent subset: `test_notices_view`, `test_market_acts`, `test_market_inbox`, `test_mcp_resources`, `test_http_prototype`, `test_play_market_mcp` (real server) | 43 pass, 3 fail | 43 pass, 3 fail (same three) | PASS for 43; 3 pre-existing FAIL, not caused by this PR |
+| The same three real-server MCP tests with only the scratch directory renamed to the pack id (temporary probe file, deleted, never committed) | W3 `cafe-notices` (notices, no economy) PASS; W1/W2 FAIL `bodies-in-solid` | — | W3 consumes `subscriptions`/`topics` through the real server: PASS. W1/W2 blocked before notices load |
+| `cargo test -p mineworld-cli --test client_trade -- --ignored --test-threads=1` (Godot 4.7.2 2D, headless) | 1 pass (`refusals_have_words_and_a_stale_notice_is_still_shown`, the notice-board consumer), 5 fail | identical 1 pass, 5 fail | notices consumer PASS; 5 pre-existing FAIL |
+| `cargo test -p mineworld-cli --test price_reporter` (notices worlds, rule/clerk controllers) | 4 pass, 1 fail (`clerk_publishes_and_keepers_follow`: "no keeper moved away", 6 vs 0) | same test FAILS identically (6 vs 0) | 4 PASS; 1 pre-existing FAIL |
+
+Pre-existing defects on `main` found here (outside this PR's frozen scope, which excludes `clients/`; routed to
+the coordinator, not fixed):
+
+1. `clients/agent/tests/test_play_market_mcp.py` copies worlds into directories named `market-g`,
+   `market-g-crown`, `cafe-notices`, which the loader refuses ("a pack's id is its directory name").
+2. The Market Town fixture moves Grace to `cafe (2610, 600)`, now refused `bodies-in-solid` (0 mm from a solid);
+   it breaks the W1/W2 agent tests and four Godot trade tests.
+3. `client_trade.rs` reuses scratch `trade-e11` within one test (`a_world_without_economy_shows_no_trade`
+   fails alone with "already in use").
+4. `price_reporter.rs::clerk_publishes_and_keepers_follow`: keepers move away from suggestions 6 times.
+
+Reference-world goldens (AC-b2-8): not run. No world under `worlds/` enables `notices` or `attributes`
+(re-checked on the merged tree), so Social Café and Market Town observations cannot carry the new records;
+AC-b2-8 holds by construction (I-b2-3), with its CI golden evidence still deferred to the milestone run.
+Compute used for this closure: about 6 minutes including the baseline build.
+
+### Recovery on 2026-11-22
+
+The coordinator delegated local completion on base `2b4d36fa`, branch
+`recover/s31b2-notices-attributes`, worktree `/tmp/mineworld-recover-s31b2`. The old
+`/Users/yuema137/mineworld-worktrees/impl-s31b2` remains read-only. Its five commits
+`18c9c2cd`, `c90abc88`, `93d30dda`, `7d93acb5`, `5b533593` were recovered as
+`29bec581`, `b7a501cb`, `2136b97c`, `6a2baa03`, `b3450fd1`, respectively, without conflicts.
+The three dirty files (this ledger and `worldpack/src/configure{,/tests}.rs`) were recovered
+from `/tmp/mineworld-s31b2-snapshot/dirty.patch`, SHA256
+`e6b5f5f0fcfb61acf0981cb1599d4942f179dfe22b6a7ac40b31cf028302fd54`.
+There were no untracked files. Root and old-worktree content were not edited.
+
+The October 26 freeze supersedes the historical DRAFT metadata above. The October 27
+14:16 operator ruling in `/Users/yuema137/mineworld-demos/progress/pending-decisions.md`
+explicitly approves the WorldGenesis-only comparison and regression: the historical C4
+material stop below is resolved, not a pending approval. The latest root `CLAUDE.md`
+standing rules apply even though they are uncommitted.
+
+Endpoint authority for this recovery is the coordinator's 2026-11-22 dispatch: implement,
+validate locally, review, and make local semantic commits and a PR body; no push, PR
+publication, merge, tag, paid API, subagents, or shared-plan/dashboard writes. Independent
+red-team review is coordinated by the primary as soon as local evidence is ready. Remote
+CI remains NOT RUN and is not a prerequisite to starting that review.
+
+Validation plan: slot-guarded comparator tests establish that direct genesis configuration
+still detects drift while reaction facts do not. The existing real-binary
+`notices_attributes_disclosed_and_resumed` test owns actual subscription → SIGKILL →
+restart → projected disclosure → replay behavior. Run that test, the bounded notices
+integration files and loader data tests, then formatting, scoped clippy, documentation
+checks and reference verification. No workspace suite. Gate 1 is NOT REQUIRED: no
+model-facing semantics change or paid model use. Gate 2 is the real-binary restart test,
+target under ten minutes per run after compilation. Preserve failed attempts and exact
+commands below; old October evidence is historical, not evidence for this recovery head.
+
+Recovery findings: the preserved comparator regression selected genesis index zero, which is
+`arrived`, not `probe-configured`. The first focused run FAILED (1 pass, 1 failure): its
+direct-genesis negative arm correctly exposed that the test was outside the comparator's
+owned types. Select the event by its declared type and assert the named owner and payload.
+The comparator implementation itself retains the approved single causation filter.
+
+The configured vocabulary also emitted bare YAML scalars. A new catalogue integration
+regression with valid topic ids `null` and `true` FAILED because `null` could not decode as
+a string. Encode the list through the existing JSON serializer (valid YAML), preserving
+all topic ids without expanding the public vocabulary or adding a dependency. This is a
+bounded correction to AC-b2-3, not a new feature.
+
+### Recovery validation and review
+
+All commands below run from `/tmp/mineworld-recover-s31b2`; every Cargo test/clippy
+command uses `/Users/yuema137/mineworld-worktrees/cast-slots/with-slot.sh`.
+Tested content is recovery HEAD `b3450fd1` plus the reviewed recovery diff; final commit
+mapping is recorded in the handoff after committing without changing executable content.
+
+| Claim | Command / observation | Result |
+| --- | --- | --- |
+| Configuration drift distinguishes direct input from reaction output | `cargo test -p mineworld-worldpack --lib configure::tests::the_comparator` | PASS, 2 tests; initial repaired run 2.51 s including compilation |
+| Comparator regression is discriminative | Remove only the WorldGenesis filter, run the same target; restore source automatically and rerun | Expected FAIL in reaction regression; restored PASS, 2 tests. Mutation and restored logs in `/tmp/mineworld-s31b2-snapshot/comparator-{mutant,restored}.log` |
+| Pack ownership, role-equivalent initialization, vocabulary, privacy, legacy behavior, topics | `cargo test -p mineworld-notices` | PASS, 30 tests across seven integration targets, 8.74 s build; no unit/doc tests counted as evidence |
+| Loader seam ordering and errors | `cargo test -p mineworld-worldpack --lib data` | PASS, 9 tests, 1.71 s build |
+| Actual binary validation, privacy, dynamic subscriptions, kill/restart/replay | `cargo test -p mineworld-cli --test notices -- --skip no_random_subscription` | PASS, 7 tests, 1.65 s execution after 1m41s initial build; excludes only the existing 30-day scenario |
+| Complete disclosure equality after restart (final strengthened test) | `cargo test -p mineworld-cli --test notices notices_attributes_disclosed_and_resumed` | PASS, 1 test, 1.30 s execution after 14.80 s rebuild |
+| Scoped compilation and lint | `cargo clippy -p mineworld-authoring -p mineworld-worldpack -p mineworld-notices -p mineworld-cli --all-targets -- -D warnings` | PASS, 15.53 s, no warnings |
+| Generated reference | `target/debug/mineworld reference --check docs/reference` | PASS, 46 files match; no regeneration needed |
+| Static documentation and hygiene | `cargo fmt --all --check`, `git diff --check`, `python3 scripts/check_doc_headings.py`, `python3 scripts/check_decision_ids.py`, `python3 scripts/check_scratch.py scan` | PASS after formatting the new regression; 254 headings, 257 decision ids, 386 test sources |
+
+AC-b2-1 now has independent complete event-envelope byte evidence, beyond the historical
+component comparison. A detached baseline worktree `/tmp/mineworld-s31b2-parity` at
+`2b4d36fa` ran the same `tests/parity.rs` scenario with its original support and production
+sources. W1 and W2 each initialize tag defaults and an authored empty override, subscribe,
+publish text and prices, then unsubscribe. W2 renames the price topic and tag and adds a
+third topic. Captured immutable files, including terminal newline:
+
+- `systems/notices/tests/fixtures/pre-attributes-w1.json`, SHA256
+  `372ade1bebf5154c29c52cdebc19712e97d00e85d137c5404690f278255aa9b1`.
+- `systems/notices/tests/fixtures/pre-attributes-w2.json`, SHA256
+  `496d1efdca38eee5cb923dcaa38a8e168a1c1d06f5aaa8b1fa398ed7285b3102`.
+
+The baseline capture passed before these files were copied into the recovery tree;
+`tests/parity.rs` then passed against their bytes. Expected values are never derived from
+the implementation under review. Initial stdout is in the snapshot directory's
+`parity-baseline.log`; the tracked fixtures and scenario are the durable evidence.
+
+**Implementer logic and maintainability review (2026-11-22).**
+
+- Ownership and modularity: only notices writes `Subscriptions`. The optional model-crate
+  interface projects current component state and returns disclosure through the shared
+  renderer. No duplicate attribute store, required System dependency, kernel concept,
+  localization type, UI, or resolution-context API is introduced. The loader seam is generic
+  and defaults to no files; files retain configuring-pack provenance and owner decoding.
+- Robustness: malformed handed values fail explicitly, unknown topics are refused by the
+  existing reducer, authored initialization is refused when the catalogue declares the
+  attribute, and by-tag initialization is detected before context reduction completes.
+  As §5.4 specifies, this detects defaults that actually seed a person; an unmatched tag
+  default creates no second state source. Private records return early for other subjects.
+  Topics use the live component, not a cached flag. Restart compares only assembly inputs;
+  persisted reaction output remains checked by replay, not silently discarded.
+- Newly introduced defects fixed: ambiguous YAML scalars are quoted, the comparator test
+  selects the intended event, and stale component/dependency comments now describe optional
+  attribute disclosure. Complete disclosure equality strengthens the real restart oracle.
+- Size/readability: `notices/src/system.rs` grows from 345 to 481 lines and
+  `worldpack/src/data.rs` from 456 to 534. The former remains the install/dispatch/disclosure
+  implementation; its existing long reaction dispatcher grows by two explicit event cases,
+  with handed-value conversion in a separate helper. The latter remains data collection and
+  owner decoding; yielded-name checks and provenance formatting are separate small helpers.
+  Both were reviewed at the size triggers: no new mixed domain responsibility, deep nesting,
+  inheritance, or hidden mutable coupling was found. Extracting arbitrary fragments solely
+  to meet a line count would reduce conceptual locality. Existing dispatch/loader size is
+  retained debt, explicitly distinguished from the bounded new branches.
+- Extensibility and reuse: subsequent configured vocabularies use the same optional yield
+  hook, without adding a dependency or teaching the loader their domain. JSON serialization
+  reuses the existing library and avoids hand-escaped YAML. No speculative abstraction was
+  added beyond the frozen seam.
+- Scope scan: no changes under the forbidden directories in I-b2-1, no event-schema change,
+  no reference-world source/golden changes, no shared plans or dashboard edits. AC-b2-8's
+  reference-world milestone/remote CI is NOT RUN locally under the coordinator's cost and
+  publication limits. It is not represented as a local pass. The primary owns independent
+  red-team review and later integration/remote validation.
+
+### Historical implementation evidence
+
+Recovery commit mapping: `b2a4408e` completes the October 27 comparison extension,
+repairs its regression, and strengthens AC-b2-7's disclosure oracle. The following
+`fix(notices): preserve scalar topic ids and pin pre-adoption event parity` commit
+completes the bounded vocabulary correction and adds the frozen AC-b2-1 evidence.
+Both implementation, deterministic validation, and implementer logic review are complete
+for these recovery milestones; independent red-team review remains the primary's next step.
+
+The executable recovery endpoint is `19e30172bc57775d4b1369df7ccdee8226745955`.
+The subsequent documentation commit freezes the review packet; its exact SHA is sent to
+the coordinator with the PR body and evidence paths. No remote/public action is performed.
+
+The following October ledger is preserved as history. Its C4 failure and material stop
+were resolved by the approved recovery above. C5's old public-push/remote-CI endpoint is
+withheld under the current dispatch; local completion is recorded separately and is not
+a claim of merge readiness or remote validation.
+
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 | — | [ ] | [ ] | [ ] |
-| C1 | — | [ ] | [ ] | [ ] |
-| C2 | — | [ ] | [ ] | [ ] |
-| C3 | — | [ ] | [ ] | [ ] |
-| C4 | — | [ ] | [ ] | [ ] |
+| C0 | this commit | [x] | [x] | [x] |
+| C1 | see `git log` (`feat(authoring): a configuration may yield …`) | [x] | [x] `cargo test -p mineworld-worldpack --lib data`: 9 passed (3 new); clippy `-D warnings` on `mineworld-worldpack`, `mineworld-authoring` clean | [x] no existing world's load changes: `yields` defaults to none, so `collect` adds nothing; the existing order test is unchanged and passes |
+| C2 | see `git log` (`feat(notices): subscriptions are the notices.subscriptions attribute …`) | [x] | [x] `cargo test -p mineworld-notices` (all test files): 25 passed, incl. `--test attributes` 5 (AC-b2-1 pack half, AC-b2-2, AC-b2-3, AC-b2-4, AC-b2-5 pack half, on W1/W2 and W1-attr/W2-attr); clippy `-D warnings` clean | [x] no fact changes shape (I-b2-2: handed sets are the existing `subscriptions-seeded`, `origin: default`, SystemInternal, about the person); two sources cannot seed one person in an `attributes` world (by_tag refused at `attributes-composed`, authored refused at reduction); mutations M-b2-1 … M-b2-3 reasoned against the tests, not planted (speed-first charter) |
+| C3 | see `git log` (`feat(notices): a topics record …`) | [x] | [x] `cargo test -p mineworld-notices`: 28 passed, incl. `--test topics` 3 (AC-b2-6 pack half on W1 and the W2 variant; unconfigured world); clippy clean | [x] nothing about another person is disclosed: `discloses` returns early when observer ≠ subject, and the test counts exactly one `topics` record per observation; `subscribed` reads the component (flips after `subscribe`) |
+| C4 | see `git log` (`test(cli): …`) | [x] | [ ] **FAIL** — `cargo test -p mineworld-cli --test notices -- --skip no_random_subscription`: 6 passed, 1 failed (`notices_attributes_disclosed_and_resumed`, the AC-b2-7 restart); `mineworld reference --check docs/reference`: matches (46 files, nothing to regenerate) | [x] the arms read the server's observations and `mineworld validate`, not pack state |
+
+**MATERIAL STOP at C4 (2026-10-26): AC-b2-7 cannot pass inside §2.1.** In W1-attr the first server run works
+(AC-b2-5 and AC-b2-6 arms pass up to the kill), but restarting on the same save is refused:
+
+```text
+the world could not be built: the world's configuration differs from the save's: system 'notices'
+(save: subscriptions-seeded {"person":{"entity":"11",...},"topics":["prices.ingredients"],"origin":"default"}
+SystemInternal; this pack: nothing) — a save resumes only against the configuration it was created with
+```
+
+Cause: `WorldPack::check_configuration` (`worldpack/src/configure.rs` 563-618, `compare` 517-549) compares the
+save's genesis facts of every configuration-fact type (`PackConfiguration::FACTS`; `notices` declares
+`subscriptions-seeded` because `defaults.by_tag` seeds it) with the facts assembly states. The handed set's
+`subscriptions-seeded` is recorded at genesis by **reaction** (caused by `attributes-handed`, §5.3), so the save has
+it and assembly does not. Every world that enables `notices` and `attributes` with any handed value therefore
+cannot resume or replay. A-10 holds; no fact changes shape; the defect is in the drift check's reading of
+"genesis facts", which is outside §2.1.
+
+Smallest proposed revision (needs a ruling: an edit outside §2.1): in `compare`, keep only saved facts whose
+causation is `Causation::WorldGenesis` (the facts assembly re-states); reaction facts derive from them and are
+re-derived by replay. One filter in `worldpack/src/configure.rs` plus a test in `worldpack/src/configure/tests.rs`.
+Rejected in-scope alternatives: writing `Subscriptions` directly in the `attributes-handed` reaction (drops the
+`subscriptions-seeded` fact AC-b2-2 requires); a new fact type for handed sets (a fact change, I-b2-2).
 | C5 | — | [ ] | [ ] | [ ] |
+
+**C0 evidence (2026-10-26).** Base `origin/main @ 0b2faf2f`, branch `mvp0/pr-s31b2`, worktree
+`/Users/yuema137/mineworld-worktrees/impl-s31b2`.
+
+- A-1 … A-21 re-read on the base; the facts hold. A-18 holds: no `worlds/*/world.yaml` enables `notices` or
+  `attributes`. A-19: **S31-f has not merged** at the base (`worlds/market-town/configure/` has no `notices.yaml`).
+- **A-10 confirmed** (`kernel/src/dispatch.rs` `genesis` 497-529 records every genesis fact then calls `reduce`
+  once; `reduce` 606-661 reduces each fact of a generation in order, every subscriber in registration order,
+  and reactions form the next generation). So: by_tag `subscriptions-seeded` (configuration facts) reduce before
+  `attributes-composed` (context facts), which reduces before every section fact; the `attributes` reaction to
+  `attributes-composed` starts the catalogue Process before any section seed reduces; a reaction to
+  `attributes-handed` lands in a later generation. Because `notices` may be registered before `attributes`, the
+  §5.4 by_tag check reads the declaration from the `attributes-composed` payload (`catalogue.attributes`), not
+  from the running Process; the authored-seed check reads `RunningCatalogue::in_world`.
+- **Declaration fields pinned (§5.2):** `RawDeclaration` (`authoring/attributes/src/declaration.rs:435-459`) makes
+  `facets`, `prompt_rank`, `default`, `words`, `since` optional; `group`, `kind`, `visibility`, `mutability`,
+  `label` required. N-2 is shipped as written, with no `facets` and no `prompt_rank`.
+- Validation: `scripts/check_doc_headings.py`, `scripts/check_decision_ids.py` (see the commit). Review: §2 holds on
+  the base.

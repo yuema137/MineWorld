@@ -1,6 +1,11 @@
 //! AC-S30-5 and AC-S30-6 (`pr-s30d-sampler.md` AC-d-4, AC-d-5): synthetic populations of the fixture
 //! profile match its marginals and conditionals, and no masked value is ever drawn.
 
+#[path = "fidelity/deciles.rs"]
+mod deciles;
+#[path = "fidelity/newcomers.rs"]
+mod newcomers;
+
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
@@ -42,6 +47,7 @@ fn profile(catalogue: &Catalogue) -> mineworld_attributes_model::profile::Profil
         lock: None,
         backend: None,
         mask: None,
+        newcomers: None,
     };
     build(
         catalogue,

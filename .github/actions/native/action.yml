@@ -24,6 +24,10 @@ inputs:
       ARC-110, ARC-149). The Cargo cache key stays the layer's, so every shard restores the same dependencies.
     required: false
     default: ""
+  archive:
+    description: Directory containing the verified per-OS core archive, or empty for local builds.
+    required: false
+    default: ""
 runs:
   using: composite
   steps:
@@ -48,21 +52,50 @@ runs:
         crs=$({ od -An -c worlds/market-town/world.yaml | grep -o '\\r' || true; } | wc -l | tr -d ' ')
         echo "worlds/market-town/world.yaml: $crs carriage returns"
 
+    # The `core` suite's test runner (docs/decisions/DEP-163.md): a prebuilt, checksummed binary, the same
+    # version the Dockerfile's toolchain stage builds for Linux.
+    - name: Install cargo-nextest
+      uses: taiki-e/install-action@1168f6810a3cb30a3514bf5756a3b7f0422c6df8 # v2.87.28
+      with:
+        tool: cargo-nextest@0.9.148
+
     - name: Run layer ${{ inputs.layer }} ${{ inputs.shard }}
       shell: bash
       env:
         LAYER: ${{ inputs.layer }}
         SHARD: ${{ inputs.shard }}
+        ARCHIVE: ${{ inputs.archive }}
         CARGO_INCREMENTAL: "0"
         CARGO_PROFILE_DEV_DEBUG: line-tables-only
       run: |
         if [ "$RUNNER_OS" = "Windows" ]; then python=python; else python=python3; fi
         read -r -a layers <<< "$LAYER"
-        if [ -n "$SHARD" ]; then
-          "$python" scripts/ci_layer.py "${layers[@]}" --shard "$SHARD"
-        else
-          "$python" scripts/ci_layer.py "${layers[@]}"
-        fi
+        options=()
+        if [ -n "$SHARD" ]; then options+=(--shard "$SHARD"); fi
+        if [ -n "$ARCHIVE" ]; then options+=(--archive "$ARCHIVE"); fi
+        "$python" scripts/ci_layer.py "${layers[@]}" "${options[@]}"
+
+    - name: Summarise failing tests
+      if: always()
+      shell: bash
+      run: |
+        if [ -s target/ci-failed-tests.md ]; then cat target/ci-failed-tests.md >> "$GITHUB_STEP_SUMMARY"; fi
+
+    # nextest's JUnit (docs/decisions/DEP-163.md): every test's own time and verdict, for the shard weights
+    # (`ci_shard.py --weigh`) and for reading a red run without its log. Absent for layers nextest does not run.
+    - name: Name the JUnit artifact
+      id: junit
+      if: always() && (inputs.layer == 'core' || inputs.layer == 'platforms-lock core')
+      shell: bash
+      env:
+        RAW: junit-${{ github.job }}-${{ runner.os }}-${{ inputs.layer }}-${{ inputs.shard }}
+      run: echo "name=$(printf '%s' "$RAW" | tr ' /,:' '----')" >> "$GITHUB_OUTPUT"
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      if: always() && (inputs.layer == 'core' || inputs.layer == 'platforms-lock core')
+      with:
+        name: ${{ steps.junit.outputs.name }}
+        path: target/nextest/ci/junit.xml
+        if-no-files-found: ignore
 
     - name: Prune target/ before the cache is saved
       shell: bash

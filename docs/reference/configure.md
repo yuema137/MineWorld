@@ -780,6 +780,7 @@ The world's choice of backend, mask, profile, population seed, salt and lock.
 | `format` | whole number | yes | — | at least 0 | The format version: 1. |
 | `lock` | text | no | `null` | — | The lock, by name: `locks/<name>.yaml` of this World Pack. |
 | `mask` | text | no | `null` | — | The mask applied to the backend's catalogue, by id. Absent: the backend's default. |
+| `newcomers` | [NewcomersConfiguration](#configure-attributes-newcomersconfiguration) | no | — | — | People who arrive later (`ARC-128`). Absent: no runtime sampling, and every byte as before. |
 | `profile` | text | no | `null` | — | The population profile people are sampled from, by its `profile:` id among the world's and its required packs' `populations/` files. Absent: no sampling. |
 | `salt` | whole number | no | `0` | at least 0 | Changes sampled values only; the world's own population is the one this salt gives. |
 | `seed` | text | no | `null` | — | The population seed: world content, never the run's `--seed`. Required when `profile` is set. |
@@ -797,6 +798,18 @@ profile: san-diego-county
 salt: 0
 seed: fixture-pop-v1
 ```
+
+### Types used above
+
+<a id="configure-attributes-newcomersconfiguration"></a>
+
+#### `NewcomersConfiguration`
+
+`newcomers:` — the declared people whose attributes are resolved when they arrive, not at genesis.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `later` | list of text | yes | — | — | Person keys the world declares (`population:`), each listed once. A listed person exists from genesis with no attributes; a System admits them at run time (`newcomer-admitted`) and their values are drawn then, against the people already there. |
 
 <a id="configure-notices"></a>
 

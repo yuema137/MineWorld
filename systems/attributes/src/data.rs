@@ -96,7 +96,22 @@ impl OwnsData for AttributesSystem {
         _: &Seeding<'_, '_>,
         context: &AttributesContext,
     ) -> Result<Vec<Emission>, Rejection> {
+        let configured = context
+            .population
+            .as_ref()
+            .and_then(|population| population.later.as_ref());
+        let finalized = context
+            .newcomers
+            .as_ref()
+            .map(|newcomers| newcomers.deferred.keys().cloned().collect());
+        if configured != finalized.as_ref() {
+            return Err(Rejection::System {
+                code: mineworld_contracts::RejectionCode::from_static("newcomers-unresolved"),
+                detail: Some("every configured deferred person must have a finalized fixed set before genesis".to_owned()),
+            });
+        }
         let composed = AttributesComposed {
+            newcomers: context.newcomers.clone(),
             schema: COMPOSED_SCHEMA,
             catalogue: context.catalogue.projection(),
             population: context

@@ -11,6 +11,9 @@ never submits an unvalidated proposal (`ARC-72`). It ends in exactly one termina
     disconnected the seat ended or was lost mid-consult (not counted by the breaker)
     dropped      a newer line arrived before the submit, so the proposal is not sent (not counted)
 
+The deadline is the trigger's absolute `Expiry` (`deadline.py`): no model call and no submit begins at or after it, and
+an answer that arrives at or after it is not acted on; each ends `fell_back` with cause `deadline`.
+
 A frame refusal (`paused`) is `fell_back` with cause `frame`, which the breaker does not count. A `rate_limited`
 refusal is the one exception: the same request is sent again after the transport layer's wait (D-P6b-35).
 """
@@ -33,6 +36,7 @@ from mineworld_cognition.backend.model import CognitionModel, CompletionRequest
 from mineworld_cognition.controller.attributes import NO_ATTRIBUTES, SelfAttributes
 from mineworld_cognition.controller.breaker import BreakerOutcome
 from mineworld_cognition.controller.choice import ContentFailure, SocialChoice, parse_choice
+from mineworld_cognition.controller.deadline import EXPIRED, Expired, Expiry
 from mineworld_cognition.controller.failures import (
     RATE_LIMITED,
     FailureRecord,
@@ -69,7 +73,8 @@ class NewestState:
 
 @dataclass(frozen=True)
 class ConsultLimits:
-    deadline_s: float
+    expiry: Expiry
+    """The trigger's absolute deadline on `ConsultDeps.clock`; the consult never starts a fresh one."""
     max_calls: int
 
 
@@ -87,7 +92,8 @@ class ConsultDeps:
     newest: Callable[[], NewestState]
     current: Callable[[], bool]
     """False when a newer line from the trigger's speaker arrived after the consult's basis (dropped)."""
-    submit: Callable[[ActionRequest], Awaitable[Answered | RefusedRequest]]
+    submit: Callable[[ActionRequest], Awaitable[Answered | RefusedRequest | Expired]]
+    """`Expired` when the expiry passed before the request could be sent (checked under the submit lock)."""
     clock: Callable[[], float]
     """Monotonic wall seconds."""
     sleep: Callable[[float], Awaitable[None]]
@@ -146,7 +152,6 @@ def _end(
 
 
 async def consult(input: ConsultInput, deps: ConsultDeps) -> ConsultRecord:
-    started = deps.clock()
     limits = deps.limits
     jitter = {layer: _jitter(input.seat, input.trigger, layer) for layer in LAYERS}
     counts: dict[Layer, int] = {"transport": 0, "content": 0, "semantic": 0}
@@ -161,7 +166,7 @@ async def consult(input: ConsultInput, deps: ConsultDeps) -> ConsultRecord:
     }
 
     def remaining() -> float:
-        return limits.deadline_s - (deps.clock() - started)
+        return limits.expiry.remaining(deps.clock())
 
     async def retry_or_end(layer: Layer, failure: FailureRecord) -> ConsultRecord | None:
         """The layer's decision for a failed attempt: `None` to go on, or the terminal record."""
@@ -171,7 +176,7 @@ async def consult(input: ConsultInput, deps: ConsultDeps) -> ConsultRecord:
             return _end("fell_back", layer, attempts)
         if calls >= limits.max_calls:
             return _end("fell_back", "cap", attempts)
-        if decision.delay_s > remaining():
+        if decision.delay_s >= remaining():
             return _end("fell_back", "deadline", attempts)
         await deps.sleep(decision.delay_s)
         return None
@@ -210,6 +215,10 @@ async def consult(input: ConsultInput, deps: ConsultDeps) -> ConsultRecord:
 
         assert isinstance(gate, Completed)
         text = gate.completion.text
+        if remaining() <= 0:
+            # The answer came at or after the expiry: it is not acted on, whatever it says.
+            attempts.append(AttemptRecord(layer="none", key=key, failure=None, text=text))
+            return _end("fell_back", "deadline", attempts)
         parsed = parse_choice(gate.completion, fillers=bool(input.fillables))
         proposal: Proposal | ContentFailure
         if isinstance(parsed, SocialChoice):
@@ -248,9 +257,12 @@ async def consult(input: ConsultInput, deps: ConsultDeps) -> ConsultRecord:
                 attempts.append(AttemptRecord(layer="none", key=key, failure=None, text=text))
                 return _end("dropped", None, attempts, proposal=proposal)
             try:
-                answer = await deps.submit(built)
+                answer = EXPIRED if remaining() <= 0 else await deps.submit(built)
             except MineWorldError:
                 return _end("disconnected", "disconnected", attempts, proposal=proposal)
+            if isinstance(answer, Expired):
+                attempts.append(AttemptRecord(layer="none", key=key, failure=None, text=text))
+                return _end("fell_back", "deadline", attempts, proposal=proposal)
             if not (isinstance(answer, RefusedRequest) and answer.code == RATE_LIMITED):
                 break
             # The seat's request budget is spent (S27-a): wait as the transport layer says, at least
@@ -260,7 +272,7 @@ async def consult(input: ConsultInput, deps: ConsultDeps) -> ConsultRecord:
             attempts.append(AttemptRecord(layer="transport", key=key, failure=failure, text=text))
             counts["transport"] += 1
             decision = bound["transport"].decide(counts["transport"], failure, jitter["transport"])
-            if not decision.retry or decision.delay_s > remaining():
+            if not decision.retry or decision.delay_s >= remaining():
                 return _end("fell_back", "frame", attempts, proposal=proposal)
             await deps.sleep(decision.delay_s)
         if isinstance(answer, RefusedRequest):

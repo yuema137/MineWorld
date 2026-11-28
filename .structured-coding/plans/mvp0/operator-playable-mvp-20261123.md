@@ -109,6 +109,18 @@ claims that checks ran or a newly approved design freeze.
 
 ## 5. Single-player sleep advance proposal and unresolved decisions
 
+**Resolved 2026-11-27 (operator ruling, Q-L1 … Q-L5 as recommended):** shop hours, homes and
+single-player sleep advance are designed and frozen in
+[`pr-nightlife.md`](pr-nightlife.md) (contracts: [`pr-nightlife-contract.md`](pr-nightlife-contract.md)).
+Rulings: optional economy-owned shop hours with Market Town café 05:30–22:00, store
+06:00–23:00, newsstand 06:00–18:00, unattended (Q-L1); sleep-owned `sleep-until`
+with a configurable morning, default 07:00, a world rule in every world (Q-L2);
+solo-only exact-due advance, interrupted on restart, no controller-trace parity
+(Q-L3); advance refused while another decision session is attached (Q-L4 option A);
+N1 shop hours first, N2 sleep advance right after, private homes deferred (Q-L5).
+Rows "Homes/sleep", "Shop hours" and "Sleep skip" of §3 and the residences /
+staffed hours / sleep advance item below are governed by that design.
+
 Proposed behavior: a permitted sleep action in a solo world presents a sleeping
 screen while the authoritative host processes the intervening night, stopping at
 the requested morning or an earlier wake/interruption. Save the resulting world
@@ -127,6 +139,10 @@ deterministic, persisted results. Do not implement a direct timestamp jump.
 The operator approved **2000 kcal/day, configurable** on November 23. This
 fixes the example default, not a physiological model.
 
+Food energy, serving units, overrides, the bar and old saves are designed in
+[`step-fe-food-energy.md`](step-fe-food-energy.md) (engine PR FE-a, Market Town
+content PR FE-b); its §1 records the 2026-11-27 rulings.
+
 Still to resolve before dependent implementation:
 
 - Explicit nutritional serving units and optional per-person overrides.
@@ -140,6 +156,12 @@ Still to resolve before dependent implementation:
   downloaded or run. The existing local provider path is the first candidate,
   subject to real response/memory and shared-machine performance checks. No
   paid model calls are authorized by this requirement alone.
+  **Ruled 2026-11-27 (operator, Q-D1…Q-D5 as recommended):** design frozen in
+  [`pr-playable-dialogue-memory.md`](pr-playable-dialogue-memory.md) DM-20261127-3 —
+  R1 installed local runtime with local `qwen3.5:4b`; Market Town, LM Alice,
+  operator Vera (`visitor`), 3D Wes (`wanderer`); bounded local live gate (≤ 8
+  calls, $0); PR-A (deadline fix) on `main`, PR-B on the recovered client
+  integration stack after it merges; no merge without the operator.
 - Scope of personal residences, staffed opening hours and sleep advance in this
   first delivery, with concrete implementation designs and review checkpoints.
 

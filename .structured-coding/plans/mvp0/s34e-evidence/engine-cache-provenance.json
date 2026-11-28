@@ -1,0 +1,528 @@
+{
+  "models": [
+    "Shelf_01",
+    "bar_chair_round_01",
+    "calathea_orbifolia_01",
+    "carrot_cake",
+    "ceramic_vase_02",
+    "dining_chair_02",
+    "jug_01",
+    "painted_wooden_chair_01",
+    "potted_plant_02",
+    "round_wooden_table_02",
+    "tea_set_01",
+    "wooden_display_shelves_01"
+  ],
+  "records": [
+    {
+      "path": ".godot/imported/Shelf_01.gltf-65acad13db710c3780e264dd21d6810f.scn",
+      "sha256": "c107fca68094741f17f0844efd0c3cba6d99722fa7f27ac048ffaa8a771fee21",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/Shelf_01.gltf-65acad13db710c3780e264dd21d6810f.scn"
+    },
+    {
+      "path": ".godot/imported/Shelf_01.gltf-65acad13db710c3780e264dd21d6810f.scn",
+      "sha256": "c107fca68094741f17f0844efd0c3cba6d99722fa7f27ac048ffaa8a771fee21",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/Shelf_01.gltf-65acad13db710c3780e264dd21d6810f.scn"
+    },
+    {
+      "path": ".godot/imported/Shelf_01_arm_1k.jpg-ed0eaf3a3e69936ef5085bb05fb800f1.ctex",
+      "sha256": "b2ed2085d468ec6c0a7508d82c2d7771d93a908059237e42be077f30e4641ebe",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/Shelf_01_arm_1k.jpg-ed0eaf3a3e69936ef5085bb05fb800f1.ctex"
+    },
+    {
+      "path": ".godot/imported/Shelf_01_arm_1k.jpg-ed0eaf3a3e69936ef5085bb05fb800f1.ctex",
+      "sha256": "b2ed2085d468ec6c0a7508d82c2d7771d93a908059237e42be077f30e4641ebe",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/Shelf_01_arm_1k.jpg-ed0eaf3a3e69936ef5085bb05fb800f1.ctex"
+    },
+    {
+      "path": ".godot/imported/Shelf_01_nor_gl_1k.jpg-201f16b5cce02b3b3afa9fea208c83e8.ctex",
+      "sha256": "963069956123938cb049db5598676a4ae1f7bd2b795e9c0c4977232ce00582f9",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/Shelf_01_nor_gl_1k.jpg-201f16b5cce02b3b3afa9fea208c83e8.ctex"
+    },
+    {
+      "path": ".godot/imported/Shelf_01_nor_gl_1k.jpg-201f16b5cce02b3b3afa9fea208c83e8.ctex",
+      "sha256": "963069956123938cb049db5598676a4ae1f7bd2b795e9c0c4977232ce00582f9",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/Shelf_01_nor_gl_1k.jpg-201f16b5cce02b3b3afa9fea208c83e8.ctex"
+    },
+    {
+      "path": ".godot/imported/Shelf_01_diff_1k.jpg-cccdaf7501bc7a3158c0945888490c63.ctex",
+      "sha256": "57e94ec411439187ad979373720801190620e2816e85b20d2c99609b335df5d3",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/Shelf_01_diff_1k.jpg-cccdaf7501bc7a3158c0945888490c63.ctex"
+    },
+    {
+      "path": ".godot/imported/Shelf_01_diff_1k.jpg-cccdaf7501bc7a3158c0945888490c63.ctex",
+      "sha256": "57e94ec411439187ad979373720801190620e2816e85b20d2c99609b335df5d3",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/Shelf_01_diff_1k.jpg-cccdaf7501bc7a3158c0945888490c63.ctex"
+    },
+    {
+      "path": ".godot/imported/bar_chair_round_01.gltf-17b62a4f35382a2832092f607ab1cfb8.scn",
+      "sha256": "68473697b3712d6a38c7923431cddc70817377d79c40a6b1e8d49a42e8fd9b5d",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/bar_chair_round_01.gltf-17b62a4f35382a2832092f607ab1cfb8.scn"
+    },
+    {
+      "path": ".godot/imported/bar_chair_round_01.gltf-17b62a4f35382a2832092f607ab1cfb8.scn",
+      "sha256": "68473697b3712d6a38c7923431cddc70817377d79c40a6b1e8d49a42e8fd9b5d",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/bar_chair_round_01.gltf-17b62a4f35382a2832092f607ab1cfb8.scn"
+    },
+    {
+      "path": ".godot/imported/bar_chair_round_01_diff_1k.jpg-2aefebdf24654016a0abb201a742627e.ctex",
+      "sha256": "97152e0989dcb9935d645bf46461f9638e23d141a251ac7e7b6bb4d2f8abe125",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/bar_chair_round_01_diff_1k.jpg-2aefebdf24654016a0abb201a742627e.ctex"
+    },
+    {
+      "path": ".godot/imported/bar_chair_round_01_diff_1k.jpg-2aefebdf24654016a0abb201a742627e.ctex",
+      "sha256": "97152e0989dcb9935d645bf46461f9638e23d141a251ac7e7b6bb4d2f8abe125",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/bar_chair_round_01_diff_1k.jpg-2aefebdf24654016a0abb201a742627e.ctex"
+    },
+    {
+      "path": ".godot/imported/bar_chair_round_01_arm_1k.jpg-063815e8c4c9d803a6272359eff3fe02.ctex",
+      "sha256": "045996098bc2dc7037e5d9a4abe1df4632f6dbaa47efed05aca07e19fa77623e",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/bar_chair_round_01_arm_1k.jpg-063815e8c4c9d803a6272359eff3fe02.ctex"
+    },
+    {
+      "path": ".godot/imported/bar_chair_round_01_arm_1k.jpg-063815e8c4c9d803a6272359eff3fe02.ctex",
+      "sha256": "045996098bc2dc7037e5d9a4abe1df4632f6dbaa47efed05aca07e19fa77623e",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/bar_chair_round_01_arm_1k.jpg-063815e8c4c9d803a6272359eff3fe02.ctex"
+    },
+    {
+      "path": ".godot/imported/bar_chair_round_01_nor_gl_1k.jpg-9f8ad0af59e2b77c33bfcec6cac114ae.ctex",
+      "sha256": "4256d6393e722be0f7e497adee2b3139fdf69d3043c22c266dad0dfce50dd57c",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/bar_chair_round_01_nor_gl_1k.jpg-9f8ad0af59e2b77c33bfcec6cac114ae.ctex"
+    },
+    {
+      "path": ".godot/imported/bar_chair_round_01_nor_gl_1k.jpg-9f8ad0af59e2b77c33bfcec6cac114ae.ctex",
+      "sha256": "4256d6393e722be0f7e497adee2b3139fdf69d3043c22c266dad0dfce50dd57c",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/bar_chair_round_01_nor_gl_1k.jpg-9f8ad0af59e2b77c33bfcec6cac114ae.ctex"
+    },
+    {
+      "path": ".godot/imported/calathea_orbifolia_01.gltf-ac897f9152ee11c5dd4b0ce000d79bbb.scn",
+      "sha256": "de72457061c817f42d0a4c2af99296c14ab1acfae2b350c52d25056a6e7a58cb",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/calathea_orbifolia_01.gltf-ac897f9152ee11c5dd4b0ce000d79bbb.scn"
+    },
+    {
+      "path": ".godot/imported/calathea_orbifolia_01.gltf-ac897f9152ee11c5dd4b0ce000d79bbb.scn",
+      "sha256": "de72457061c817f42d0a4c2af99296c14ab1acfae2b350c52d25056a6e7a58cb",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/calathea_orbifolia_01.gltf-ac897f9152ee11c5dd4b0ce000d79bbb.scn"
+    },
+    {
+      "path": ".godot/imported/calathea_orbifolia_01_arm_1k.jpg-b0d68f321719632834b483c529a79df0.ctex",
+      "sha256": "89cac4403ba40672303a9862e1441723f165420a89155c304e1ea30c49352e44",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/calathea_orbifolia_01_arm_1k.jpg-b0d68f321719632834b483c529a79df0.ctex"
+    },
+    {
+      "path": ".godot/imported/calathea_orbifolia_01_arm_1k.jpg-b0d68f321719632834b483c529a79df0.ctex",
+      "sha256": "89cac4403ba40672303a9862e1441723f165420a89155c304e1ea30c49352e44",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/calathea_orbifolia_01_arm_1k.jpg-b0d68f321719632834b483c529a79df0.ctex"
+    },
+    {
+      "path": ".godot/imported/calathea_orbifolia_01_nor_gl_1k.jpg-b3cfd767bc610eb7edbfa2e6e5a9a42e.ctex",
+      "sha256": "5d4b295b61e3992cfce687e5f0b816dc110dcc1208f267ad768ffcc0a99d6bf0",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/calathea_orbifolia_01_nor_gl_1k.jpg-b3cfd767bc610eb7edbfa2e6e5a9a42e.ctex"
+    },
+    {
+      "path": ".godot/imported/calathea_orbifolia_01_nor_gl_1k.jpg-b3cfd767bc610eb7edbfa2e6e5a9a42e.ctex",
+      "sha256": "5d4b295b61e3992cfce687e5f0b816dc110dcc1208f267ad768ffcc0a99d6bf0",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/calathea_orbifolia_01_nor_gl_1k.jpg-b3cfd767bc610eb7edbfa2e6e5a9a42e.ctex"
+    },
+    {
+      "path": ".godot/imported/calathea_orbifolia_01_diff_1k.jpg-c1765c4d42b9996bcc6403bd416ca2f4.ctex",
+      "sha256": "d86fdd538efcb16788b4defe3c1de89ccafe6be3a4181c2dab732127d5769cf9",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/calathea_orbifolia_01_diff_1k.jpg-c1765c4d42b9996bcc6403bd416ca2f4.ctex"
+    },
+    {
+      "path": ".godot/imported/calathea_orbifolia_01_diff_1k.jpg-c1765c4d42b9996bcc6403bd416ca2f4.ctex",
+      "sha256": "d86fdd538efcb16788b4defe3c1de89ccafe6be3a4181c2dab732127d5769cf9",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/calathea_orbifolia_01_diff_1k.jpg-c1765c4d42b9996bcc6403bd416ca2f4.ctex"
+    },
+    {
+      "path": ".godot/imported/carrot_cake.gltf-5397a8ddfe1fc491fde11fd2743eadb0.scn",
+      "sha256": "e2abdb8cf075d3bcfed04ffe7e6aa6b2480de722572a32c5dd4f6f2850282ac4",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/carrot_cake.gltf-5397a8ddfe1fc491fde11fd2743eadb0.scn"
+    },
+    {
+      "path": ".godot/imported/carrot_cake.gltf-5397a8ddfe1fc491fde11fd2743eadb0.scn",
+      "sha256": "e2abdb8cf075d3bcfed04ffe7e6aa6b2480de722572a32c5dd4f6f2850282ac4",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/carrot_cake.gltf-5397a8ddfe1fc491fde11fd2743eadb0.scn"
+    },
+    {
+      "path": ".godot/imported/carrot_cake_nor_gl_1k.jpg-189d9f6c8c72e43fa3768f39c15e3f67.ctex",
+      "sha256": "ef5ee8c92a0b2c28add902f7b8aa9dec1eeac9023900879db6aa295667f27ada",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/carrot_cake_nor_gl_1k.jpg-189d9f6c8c72e43fa3768f39c15e3f67.ctex"
+    },
+    {
+      "path": ".godot/imported/carrot_cake_nor_gl_1k.jpg-189d9f6c8c72e43fa3768f39c15e3f67.ctex",
+      "sha256": "ef5ee8c92a0b2c28add902f7b8aa9dec1eeac9023900879db6aa295667f27ada",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/carrot_cake_nor_gl_1k.jpg-189d9f6c8c72e43fa3768f39c15e3f67.ctex"
+    },
+    {
+      "path": ".godot/imported/carrot_cake_diff_1k.jpg-4eff431c2e69b6254a8bd4728dd24e3d.ctex",
+      "sha256": "31f63e83433d18ce59dcb04b7e7bb80df4bec5edea63a57eddf1c42b67048b3a",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/carrot_cake_diff_1k.jpg-4eff431c2e69b6254a8bd4728dd24e3d.ctex"
+    },
+    {
+      "path": ".godot/imported/carrot_cake_diff_1k.jpg-4eff431c2e69b6254a8bd4728dd24e3d.ctex",
+      "sha256": "31f63e83433d18ce59dcb04b7e7bb80df4bec5edea63a57eddf1c42b67048b3a",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/carrot_cake_diff_1k.jpg-4eff431c2e69b6254a8bd4728dd24e3d.ctex"
+    },
+    {
+      "path": ".godot/imported/carrot_cake_arm_1k.jpg-3b29cce4fdb925aa469016562f09d897.ctex",
+      "sha256": "2e590609df772160481a47a9329ad544d816f84281a08cc6a4837b441f6ea27a",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/carrot_cake_arm_1k.jpg-3b29cce4fdb925aa469016562f09d897.ctex"
+    },
+    {
+      "path": ".godot/imported/carrot_cake_arm_1k.jpg-3b29cce4fdb925aa469016562f09d897.ctex",
+      "sha256": "2e590609df772160481a47a9329ad544d816f84281a08cc6a4837b441f6ea27a",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/carrot_cake_arm_1k.jpg-3b29cce4fdb925aa469016562f09d897.ctex"
+    },
+    {
+      "path": ".godot/imported/ceramic_vase_02.gltf-4ec5da9580ea6642d7f9f7a6e79fcda5.scn",
+      "sha256": "30f2331302d825333bb43ea27854e8c61960db699b92856be9a65de0f93c55c2",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/ceramic_vase_02.gltf-4ec5da9580ea6642d7f9f7a6e79fcda5.scn"
+    },
+    {
+      "path": ".godot/imported/ceramic_vase_02.gltf-4ec5da9580ea6642d7f9f7a6e79fcda5.scn",
+      "sha256": "30f2331302d825333bb43ea27854e8c61960db699b92856be9a65de0f93c55c2",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/ceramic_vase_02.gltf-4ec5da9580ea6642d7f9f7a6e79fcda5.scn"
+    },
+    {
+      "path": ".godot/imported/ceramic_vase_02_rough_1k.jpg-74e43bb14431cbbdd000f6b6b82ff6e3.ctex",
+      "sha256": "e4204e236dc2b6d8b9a2250986b6faf0847c0137801c13701eb59e9dc8b8f25e",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/ceramic_vase_02_rough_1k.jpg-74e43bb14431cbbdd000f6b6b82ff6e3.ctex"
+    },
+    {
+      "path": ".godot/imported/ceramic_vase_02_rough_1k.jpg-74e43bb14431cbbdd000f6b6b82ff6e3.ctex",
+      "sha256": "e4204e236dc2b6d8b9a2250986b6faf0847c0137801c13701eb59e9dc8b8f25e",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/ceramic_vase_02_rough_1k.jpg-74e43bb14431cbbdd000f6b6b82ff6e3.ctex"
+    },
+    {
+      "path": ".godot/imported/ceramic_vase_02_diff_1k.jpg-0f1cd8e0417977cc52e386a23e7d9c47.ctex",
+      "sha256": "e10daad7d09d141c2fecd512edddc404d1e4632b4ba67a0b042943a0d495fbe4",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/ceramic_vase_02_diff_1k.jpg-0f1cd8e0417977cc52e386a23e7d9c47.ctex"
+    },
+    {
+      "path": ".godot/imported/ceramic_vase_02_diff_1k.jpg-0f1cd8e0417977cc52e386a23e7d9c47.ctex",
+      "sha256": "e10daad7d09d141c2fecd512edddc404d1e4632b4ba67a0b042943a0d495fbe4",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/ceramic_vase_02_diff_1k.jpg-0f1cd8e0417977cc52e386a23e7d9c47.ctex"
+    },
+    {
+      "path": ".godot/imported/ceramic_vase_02_nor_gl_1k.jpg-92d0c15a770b965b01b7b13d7d6bd456.ctex",
+      "sha256": "5e47f880b58cfdae1c00e02b8e5ae5ebd60c895b98758228ec14faf10ff857d0",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/ceramic_vase_02_nor_gl_1k.jpg-92d0c15a770b965b01b7b13d7d6bd456.ctex"
+    },
+    {
+      "path": ".godot/imported/ceramic_vase_02_nor_gl_1k.jpg-92d0c15a770b965b01b7b13d7d6bd456.ctex",
+      "sha256": "5e47f880b58cfdae1c00e02b8e5ae5ebd60c895b98758228ec14faf10ff857d0",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/ceramic_vase_02_nor_gl_1k.jpg-92d0c15a770b965b01b7b13d7d6bd456.ctex"
+    },
+    {
+      "path": ".godot/imported/dining_chair_02.gltf-54161f47bde62dbed1f339c41274cf9f.scn",
+      "sha256": "57dce6c84573890686fbd6c69a81bd9127383e15409ca0e2001a31c5bf843883",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/dining_chair_02.gltf-54161f47bde62dbed1f339c41274cf9f.scn"
+    },
+    {
+      "path": ".godot/imported/dining_chair_02.gltf-54161f47bde62dbed1f339c41274cf9f.scn",
+      "sha256": "57dce6c84573890686fbd6c69a81bd9127383e15409ca0e2001a31c5bf843883",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/dining_chair_02.gltf-54161f47bde62dbed1f339c41274cf9f.scn"
+    },
+    {
+      "path": ".godot/imported/dining_chair_02_diff_1k.jpg-4eb6d24aaff719847530d46ad2f6f515.ctex",
+      "sha256": "4009b2632848d898216feade26eea61ad4f7d54b54e07394927a31fd52292ae9",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/dining_chair_02_diff_1k.jpg-4eb6d24aaff719847530d46ad2f6f515.ctex"
+    },
+    {
+      "path": ".godot/imported/dining_chair_02_diff_1k.jpg-4eb6d24aaff719847530d46ad2f6f515.ctex",
+      "sha256": "4009b2632848d898216feade26eea61ad4f7d54b54e07394927a31fd52292ae9",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/dining_chair_02_diff_1k.jpg-4eb6d24aaff719847530d46ad2f6f515.ctex"
+    },
+    {
+      "path": ".godot/imported/dining_chair_02_arm_1k.jpg-0547ea2942747b6bb9e1adff51b75ba6.ctex",
+      "sha256": "c1e768382f893fa66214e0fb9c10cce8fae1e72fbaa5f76f03b4cb1c04171c57",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/dining_chair_02_arm_1k.jpg-0547ea2942747b6bb9e1adff51b75ba6.ctex"
+    },
+    {
+      "path": ".godot/imported/dining_chair_02_arm_1k.jpg-0547ea2942747b6bb9e1adff51b75ba6.ctex",
+      "sha256": "c1e768382f893fa66214e0fb9c10cce8fae1e72fbaa5f76f03b4cb1c04171c57",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/dining_chair_02_arm_1k.jpg-0547ea2942747b6bb9e1adff51b75ba6.ctex"
+    },
+    {
+      "path": ".godot/imported/dining_chair_02_nor_gl_1k.jpg-5af97df11095dd6f1197f6bb1dc7960a.ctex",
+      "sha256": "a47f2d4871a5da729ad2d4e45ab1cc0f13918c511b419b6e1659959146bf7ba1",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/dining_chair_02_nor_gl_1k.jpg-5af97df11095dd6f1197f6bb1dc7960a.ctex"
+    },
+    {
+      "path": ".godot/imported/dining_chair_02_nor_gl_1k.jpg-5af97df11095dd6f1197f6bb1dc7960a.ctex",
+      "sha256": "a47f2d4871a5da729ad2d4e45ab1cc0f13918c511b419b6e1659959146bf7ba1",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/dining_chair_02_nor_gl_1k.jpg-5af97df11095dd6f1197f6bb1dc7960a.ctex"
+    },
+    {
+      "path": ".godot/imported/jug_01.gltf-de5f4470145b100000ec9e4e88bb2aa4.scn",
+      "sha256": "6fc921c05f3726cfcace4e3b7d415ad92c3d27f8a45e534ae4dae1181061dae6",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/jug_01.gltf-de5f4470145b100000ec9e4e88bb2aa4.scn"
+    },
+    {
+      "path": ".godot/imported/jug_01.gltf-de5f4470145b100000ec9e4e88bb2aa4.scn",
+      "sha256": "6fc921c05f3726cfcace4e3b7d415ad92c3d27f8a45e534ae4dae1181061dae6",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/jug_01.gltf-de5f4470145b100000ec9e4e88bb2aa4.scn"
+    },
+    {
+      "path": ".godot/imported/jug_01_arm_1k.jpg-d33a3d81cefd9b81a69cfc75d0cd1095.ctex",
+      "sha256": "f90e38bad868fdf7946602876a3e541d968c2341a017c1863c3c54f6befd59bb",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/jug_01_arm_1k.jpg-d33a3d81cefd9b81a69cfc75d0cd1095.ctex"
+    },
+    {
+      "path": ".godot/imported/jug_01_arm_1k.jpg-d33a3d81cefd9b81a69cfc75d0cd1095.ctex",
+      "sha256": "f90e38bad868fdf7946602876a3e541d968c2341a017c1863c3c54f6befd59bb",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/jug_01_arm_1k.jpg-d33a3d81cefd9b81a69cfc75d0cd1095.ctex"
+    },
+    {
+      "path": ".godot/imported/jug_01_diff_1k.jpg-63092853c18ecb7720a215d0468baa4f.ctex",
+      "sha256": "eca9862e1ab0470d22e105ca82b2bb3cc5d151e2b6403c58487da50fb0b74df0",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/jug_01_diff_1k.jpg-63092853c18ecb7720a215d0468baa4f.ctex"
+    },
+    {
+      "path": ".godot/imported/jug_01_diff_1k.jpg-63092853c18ecb7720a215d0468baa4f.ctex",
+      "sha256": "eca9862e1ab0470d22e105ca82b2bb3cc5d151e2b6403c58487da50fb0b74df0",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/jug_01_diff_1k.jpg-63092853c18ecb7720a215d0468baa4f.ctex"
+    },
+    {
+      "path": ".godot/imported/jug_01_nor_gl_1k.jpg-d3b425d52a72e7bbd09dee6ebda76745.ctex",
+      "sha256": "e659a837ef7fbdccbdd1f0deb5c8ffa3661437d442ab670abc39ae5c80a90240",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/jug_01_nor_gl_1k.jpg-d3b425d52a72e7bbd09dee6ebda76745.ctex"
+    },
+    {
+      "path": ".godot/imported/jug_01_nor_gl_1k.jpg-d3b425d52a72e7bbd09dee6ebda76745.ctex",
+      "sha256": "e659a837ef7fbdccbdd1f0deb5c8ffa3661437d442ab670abc39ae5c80a90240",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/jug_01_nor_gl_1k.jpg-d3b425d52a72e7bbd09dee6ebda76745.ctex"
+    },
+    {
+      "path": ".godot/imported/painted_wooden_chair_01.gltf-5fb8a39c2878e0a71ecffc3857d28694.scn",
+      "sha256": "f4c7cd30fc3ded2f3046a789e4cbaf08d1223bbbc002e2feb9b69013ebb2a400",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/painted_wooden_chair_01.gltf-5fb8a39c2878e0a71ecffc3857d28694.scn"
+    },
+    {
+      "path": ".godot/imported/painted_wooden_chair_01.gltf-5fb8a39c2878e0a71ecffc3857d28694.scn",
+      "sha256": "f4c7cd30fc3ded2f3046a789e4cbaf08d1223bbbc002e2feb9b69013ebb2a400",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/painted_wooden_chair_01.gltf-5fb8a39c2878e0a71ecffc3857d28694.scn"
+    },
+    {
+      "path": ".godot/imported/painted_wooden_chair_01_diff_1k.jpg-8b1262aad04892e74d9c60a854fda843.ctex",
+      "sha256": "eb8164d976f5dadb74934a72806138f285f7ed93caab138fc2b547f08c807c3f",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/painted_wooden_chair_01_diff_1k.jpg-8b1262aad04892e74d9c60a854fda843.ctex"
+    },
+    {
+      "path": ".godot/imported/painted_wooden_chair_01_diff_1k.jpg-8b1262aad04892e74d9c60a854fda843.ctex",
+      "sha256": "eb8164d976f5dadb74934a72806138f285f7ed93caab138fc2b547f08c807c3f",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/painted_wooden_chair_01_diff_1k.jpg-8b1262aad04892e74d9c60a854fda843.ctex"
+    },
+    {
+      "path": ".godot/imported/painted_wooden_chair_01_nor_gl_1k.jpg-816aee0855a5980e584c15421dcdf242.ctex",
+      "sha256": "af982bb58a8b2ee40f4e8e492cd1c3fa5c2619e7b0fceee71a9c2b83a576e6d7",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/painted_wooden_chair_01_nor_gl_1k.jpg-816aee0855a5980e584c15421dcdf242.ctex"
+    },
+    {
+      "path": ".godot/imported/painted_wooden_chair_01_nor_gl_1k.jpg-816aee0855a5980e584c15421dcdf242.ctex",
+      "sha256": "af982bb58a8b2ee40f4e8e492cd1c3fa5c2619e7b0fceee71a9c2b83a576e6d7",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/painted_wooden_chair_01_nor_gl_1k.jpg-816aee0855a5980e584c15421dcdf242.ctex"
+    },
+    {
+      "path": ".godot/imported/painted_wooden_chair_01_arm_1k.jpg-b3a499427dfdd39091b864d64451f94b.ctex",
+      "sha256": "a78728b7555a9b8612d838ca7575c2fec235f1817aa9317675312c1a6d36aafd",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/painted_wooden_chair_01_arm_1k.jpg-b3a499427dfdd39091b864d64451f94b.ctex"
+    },
+    {
+      "path": ".godot/imported/painted_wooden_chair_01_arm_1k.jpg-b3a499427dfdd39091b864d64451f94b.ctex",
+      "sha256": "a78728b7555a9b8612d838ca7575c2fec235f1817aa9317675312c1a6d36aafd",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/painted_wooden_chair_01_arm_1k.jpg-b3a499427dfdd39091b864d64451f94b.ctex"
+    },
+    {
+      "path": ".godot/imported/potted_plant_02.gltf-46780d04106afd242b847608818a7c3d.scn",
+      "sha256": "08d4403636c9f31a1136a4fa25976e67c097098a967d6cb76e723d6916d61c74",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/potted_plant_02.gltf-46780d04106afd242b847608818a7c3d.scn"
+    },
+    {
+      "path": ".godot/imported/potted_plant_02.gltf-46780d04106afd242b847608818a7c3d.scn",
+      "sha256": "08d4403636c9f31a1136a4fa25976e67c097098a967d6cb76e723d6916d61c74",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/potted_plant_02.gltf-46780d04106afd242b847608818a7c3d.scn"
+    },
+    {
+      "path": ".godot/imported/potted_plant_02_pot_nor_gl_1k.jpg-1ad32da8bf4d9c9b073aaef1f5807a75.ctex",
+      "sha256": "ce6769271424ac48787555aa73870fc59659a732baed4e5b44607e0c51d824c7",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/potted_plant_02_pot_nor_gl_1k.jpg-1ad32da8bf4d9c9b073aaef1f5807a75.ctex"
+    },
+    {
+      "path": ".godot/imported/potted_plant_02_pot_nor_gl_1k.jpg-1ad32da8bf4d9c9b073aaef1f5807a75.ctex",
+      "sha256": "ce6769271424ac48787555aa73870fc59659a732baed4e5b44607e0c51d824c7",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/potted_plant_02_pot_nor_gl_1k.jpg-1ad32da8bf4d9c9b073aaef1f5807a75.ctex"
+    },
+    {
+      "path": ".godot/imported/potted_plant_02_leaves_rough_1k.jpg-5e27b755b92cc55d7cf2a31ad358b66a.ctex",
+      "sha256": "3b69e4bc13869abebe092609395e34d9f3628ee1c3e44069e15cdf338054dda6",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/potted_plant_02_leaves_rough_1k.jpg-5e27b755b92cc55d7cf2a31ad358b66a.ctex"
+    },
+    {
+      "path": ".godot/imported/potted_plant_02_leaves_rough_1k.jpg-5e27b755b92cc55d7cf2a31ad358b66a.ctex",
+      "sha256": "3b69e4bc13869abebe092609395e34d9f3628ee1c3e44069e15cdf338054dda6",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/potted_plant_02_leaves_rough_1k.jpg-5e27b755b92cc55d7cf2a31ad358b66a.ctex"
+    },
+    {
+      "path": ".godot/imported/potted_plant_02_leaves_nor_gl_1k.jpg-165910ad8ded1289fca549494882ad4e.ctex",
+      "sha256": "d6cbdc29b4ce95b9dad9c99bcab6495a9252f0bd742c749b5bb00208c79eab2f",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/potted_plant_02_leaves_nor_gl_1k.jpg-165910ad8ded1289fca549494882ad4e.ctex"
+    },
+    {
+      "path": ".godot/imported/potted_plant_02_leaves_nor_gl_1k.jpg-165910ad8ded1289fca549494882ad4e.ctex",
+      "sha256": "d6cbdc29b4ce95b9dad9c99bcab6495a9252f0bd742c749b5bb00208c79eab2f",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/potted_plant_02_leaves_nor_gl_1k.jpg-165910ad8ded1289fca549494882ad4e.ctex"
+    },
+    {
+      "path": ".godot/imported/potted_plant_02_leaves_diff_1k.jpg-ff56206bdb636ed1fcb4d2b4f7756fd3.ctex",
+      "sha256": "bf43de10a9b2044d5421b75665d95aa13800d5e8655cc2d327efa8a772cfd5a4",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/potted_plant_02_leaves_diff_1k.jpg-ff56206bdb636ed1fcb4d2b4f7756fd3.ctex"
+    },
+    {
+      "path": ".godot/imported/potted_plant_02_leaves_diff_1k.jpg-ff56206bdb636ed1fcb4d2b4f7756fd3.ctex",
+      "sha256": "bf43de10a9b2044d5421b75665d95aa13800d5e8655cc2d327efa8a772cfd5a4",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/potted_plant_02_leaves_diff_1k.jpg-ff56206bdb636ed1fcb4d2b4f7756fd3.ctex"
+    },
+    {
+      "path": ".godot/imported/potted_plant_02_pot_diff_1k.jpg-55b271720627e0f725e20d94cf915d9c.ctex",
+      "sha256": "bb06f774b7dbc7a883171c7bb561a0fddca57b8752dfafabe8ca197e27085607",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/potted_plant_02_pot_diff_1k.jpg-55b271720627e0f725e20d94cf915d9c.ctex"
+    },
+    {
+      "path": ".godot/imported/potted_plant_02_pot_diff_1k.jpg-55b271720627e0f725e20d94cf915d9c.ctex",
+      "sha256": "bb06f774b7dbc7a883171c7bb561a0fddca57b8752dfafabe8ca197e27085607",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/potted_plant_02_pot_diff_1k.jpg-55b271720627e0f725e20d94cf915d9c.ctex"
+    },
+    {
+      "path": ".godot/imported/potted_plant_02_pot_rough_1k.jpg-bab56ae3bcec84b486ea5ce68e390eee.ctex",
+      "sha256": "936127657965d99c7acd6c8ef62740f20b30f8a133316ecc0abd306457cbfea6",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/potted_plant_02_pot_rough_1k.jpg-bab56ae3bcec84b486ea5ce68e390eee.ctex"
+    },
+    {
+      "path": ".godot/imported/potted_plant_02_pot_rough_1k.jpg-bab56ae3bcec84b486ea5ce68e390eee.ctex",
+      "sha256": "936127657965d99c7acd6c8ef62740f20b30f8a133316ecc0abd306457cbfea6",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/potted_plant_02_pot_rough_1k.jpg-bab56ae3bcec84b486ea5ce68e390eee.ctex"
+    },
+    {
+      "path": ".godot/imported/round_wooden_table_02.gltf-fb099015f0e76965f73bcd2785f758c8.scn",
+      "sha256": "6a55395f9407b5d7f0ea79ab15b84386132b2dc5efe29a04b83d3affaf94e301",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/round_wooden_table_02.gltf-fb099015f0e76965f73bcd2785f758c8.scn"
+    },
+    {
+      "path": ".godot/imported/round_wooden_table_02.gltf-fb099015f0e76965f73bcd2785f758c8.scn",
+      "sha256": "6a55395f9407b5d7f0ea79ab15b84386132b2dc5efe29a04b83d3affaf94e301",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/round_wooden_table_02.gltf-fb099015f0e76965f73bcd2785f758c8.scn"
+    },
+    {
+      "path": ".godot/imported/round_wooden_table_02_nor_gl_1k.jpg-d2d3f3216abdf99620791a92c2edb843.ctex",
+      "sha256": "8a70f3d2dc9ae37da77e535028715f9c9f0541bfefa987f480682e41b9aa2f8a",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/round_wooden_table_02_nor_gl_1k.jpg-d2d3f3216abdf99620791a92c2edb843.ctex"
+    },
+    {
+      "path": ".godot/imported/round_wooden_table_02_nor_gl_1k.jpg-d2d3f3216abdf99620791a92c2edb843.ctex",
+      "sha256": "8a70f3d2dc9ae37da77e535028715f9c9f0541bfefa987f480682e41b9aa2f8a",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/round_wooden_table_02_nor_gl_1k.jpg-d2d3f3216abdf99620791a92c2edb843.ctex"
+    },
+    {
+      "path": ".godot/imported/round_wooden_table_02_diff_1k.jpg-15c87cb9b144749cb789ee093735cd3d.ctex",
+      "sha256": "54dd0ec00423b6ebe559560c3f25c87a20f577162287570ec220970121a78cba",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/round_wooden_table_02_diff_1k.jpg-15c87cb9b144749cb789ee093735cd3d.ctex"
+    },
+    {
+      "path": ".godot/imported/round_wooden_table_02_diff_1k.jpg-15c87cb9b144749cb789ee093735cd3d.ctex",
+      "sha256": "54dd0ec00423b6ebe559560c3f25c87a20f577162287570ec220970121a78cba",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/round_wooden_table_02_diff_1k.jpg-15c87cb9b144749cb789ee093735cd3d.ctex"
+    },
+    {
+      "path": ".godot/imported/round_wooden_table_02_arm_1k.jpg-9b10e599fb2fc186aadffbd44673aa5c.ctex",
+      "sha256": "a1c259ce768fea96e8c9ed4ccdf0ebeb2ef736ef2ef0d8eb4c6e9086587f7d2e",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/round_wooden_table_02_arm_1k.jpg-9b10e599fb2fc186aadffbd44673aa5c.ctex"
+    },
+    {
+      "path": ".godot/imported/round_wooden_table_02_arm_1k.jpg-9b10e599fb2fc186aadffbd44673aa5c.ctex",
+      "sha256": "a1c259ce768fea96e8c9ed4ccdf0ebeb2ef736ef2ef0d8eb4c6e9086587f7d2e",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/round_wooden_table_02_arm_1k.jpg-9b10e599fb2fc186aadffbd44673aa5c.ctex"
+    },
+    {
+      "path": ".godot/imported/tea_set_01.gltf-5138ef7453de315f74b07c28578b6e77.scn",
+      "sha256": "636d362ddf0d50a5c8a544ae43478c9af8b991bd02baa1295ca340662cd8997d",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/tea_set_01.gltf-5138ef7453de315f74b07c28578b6e77.scn"
+    },
+    {
+      "path": ".godot/imported/tea_set_01.gltf-5138ef7453de315f74b07c28578b6e77.scn",
+      "sha256": "636d362ddf0d50a5c8a544ae43478c9af8b991bd02baa1295ca340662cd8997d",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/tea_set_01.gltf-5138ef7453de315f74b07c28578b6e77.scn"
+    },
+    {
+      "path": ".godot/imported/tea_set_01_diff_1k.jpg-4e7654a8d1f796ccaf7fb9778504f1e1.ctex",
+      "sha256": "b82a6feeb85fa0add99fb021d418f2e701d289188a266ecba443dd14f270cef0",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/tea_set_01_diff_1k.jpg-4e7654a8d1f796ccaf7fb9778504f1e1.ctex"
+    },
+    {
+      "path": ".godot/imported/tea_set_01_diff_1k.jpg-4e7654a8d1f796ccaf7fb9778504f1e1.ctex",
+      "sha256": "b82a6feeb85fa0add99fb021d418f2e701d289188a266ecba443dd14f270cef0",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/tea_set_01_diff_1k.jpg-4e7654a8d1f796ccaf7fb9778504f1e1.ctex"
+    },
+    {
+      "path": ".godot/imported/tea_set_01_arm_1k.jpg-d54e418697066f53f793e78b23472f4e.ctex",
+      "sha256": "f07221b87176cd971c3103ba85444031634bab16c29fcf648d78071724ef43e2",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/tea_set_01_arm_1k.jpg-d54e418697066f53f793e78b23472f4e.ctex"
+    },
+    {
+      "path": ".godot/imported/tea_set_01_arm_1k.jpg-d54e418697066f53f793e78b23472f4e.ctex",
+      "sha256": "f07221b87176cd971c3103ba85444031634bab16c29fcf648d78071724ef43e2",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/tea_set_01_arm_1k.jpg-d54e418697066f53f793e78b23472f4e.ctex"
+    },
+    {
+      "path": ".godot/imported/tea_set_01_nor_gl_1k.jpg-777dcefc5d34387378cc7d81573c97c7.ctex",
+      "sha256": "e3d2bb5856f537fddaf10424df202fd7ffaefe6a9ff64d9969888eb5e48f66eb",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/tea_set_01_nor_gl_1k.jpg-777dcefc5d34387378cc7d81573c97c7.ctex"
+    },
+    {
+      "path": ".godot/imported/tea_set_01_nor_gl_1k.jpg-777dcefc5d34387378cc7d81573c97c7.ctex",
+      "sha256": "e3d2bb5856f537fddaf10424df202fd7ffaefe6a9ff64d9969888eb5e48f66eb",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/tea_set_01_nor_gl_1k.jpg-777dcefc5d34387378cc7d81573c97c7.ctex"
+    },
+    {
+      "path": ".godot/imported/wooden_display_shelves_01.gltf-9c355ee7fd614d3218d18b430fc2d8f6.scn",
+      "sha256": "a78bec0a42496ad8895aa73efdd6eddb472f12505878a7e463549fbfaa838b7c",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/wooden_display_shelves_01.gltf-9c355ee7fd614d3218d18b430fc2d8f6.scn"
+    },
+    {
+      "path": ".godot/imported/wooden_display_shelves_01.gltf-9c355ee7fd614d3218d18b430fc2d8f6.scn",
+      "sha256": "a78bec0a42496ad8895aa73efdd6eddb472f12505878a7e463549fbfaa838b7c",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/wooden_display_shelves_01.gltf-9c355ee7fd614d3218d18b430fc2d8f6.scn"
+    },
+    {
+      "path": ".godot/imported/wooden_display_shelves_01_arm_1k.jpg-844233fa2c01ae63ee2e72a40fb35721.ctex",
+      "sha256": "333b764962f5a89ba7d3e346d6c8e929366a5d170877fb9a1917a8e00a422c9a",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/wooden_display_shelves_01_arm_1k.jpg-844233fa2c01ae63ee2e72a40fb35721.ctex"
+    },
+    {
+      "path": ".godot/imported/wooden_display_shelves_01_arm_1k.jpg-844233fa2c01ae63ee2e72a40fb35721.ctex",
+      "sha256": "333b764962f5a89ba7d3e346d6c8e929366a5d170877fb9a1917a8e00a422c9a",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/wooden_display_shelves_01_arm_1k.jpg-844233fa2c01ae63ee2e72a40fb35721.ctex"
+    },
+    {
+      "path": ".godot/imported/wooden_display_shelves_01_nor_gl_1k.jpg-7de214437d6df37c099abceadc67907e.ctex",
+      "sha256": "6eb6e01d1cd38e51d47043b82ffc5582d06246c79508c55e277d6b72bfdc562d",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/wooden_display_shelves_01_nor_gl_1k.jpg-7de214437d6df37c099abceadc67907e.ctex"
+    },
+    {
+      "path": ".godot/imported/wooden_display_shelves_01_nor_gl_1k.jpg-7de214437d6df37c099abceadc67907e.ctex",
+      "sha256": "6eb6e01d1cd38e51d47043b82ffc5582d06246c79508c55e277d6b72bfdc562d",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/wooden_display_shelves_01_nor_gl_1k.jpg-7de214437d6df37c099abceadc67907e.ctex"
+    },
+    {
+      "path": ".godot/imported/wooden_display_shelves_01_diff_1k.jpg-f3b13ae446d9e5180533bdcaecd47f04.ctex",
+      "sha256": "875333ab396cb65b6367d9c55d3b4002c1ff4bcdff942054f8092be04471f734",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/wooden_display_shelves_01_diff_1k.jpg-f3b13ae446d9e5180533bdcaecd47f04.ctex"
+    },
+    {
+      "path": ".godot/imported/wooden_display_shelves_01_diff_1k.jpg-f3b13ae446d9e5180533bdcaecd47f04.ctex",
+      "sha256": "875333ab396cb65b6367d9c55d3b4002c1ff4bcdff942054f8092be04471f734",
+      "source_cache": "/tmp/mineworld-any-seat-probe/clients/3d-spike/.godot/imported/wooden_display_shelves_01_diff_1k.jpg-f3b13ae446d9e5180533bdcaecd47f04.ctex"
+    }
+  ]
+}

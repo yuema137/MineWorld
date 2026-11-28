@@ -1,0 +1,135 @@
+{
+  "format": 2,
+  "scope": {
+    "world": "social-cafe"
+  },
+  "about": "S34-B approved central drawing anchors, place-local east/north metres from disclosed sit points; semantic world positions unchanged. Independent engine/mesh evidence: tools/cli/tests/fixtures/seat-surfaces.json. These are drawing anchors, not body-fit/contact acceptance (S34-f).",
+  "points": [
+    {
+      "tags": [
+        "cafe",
+        "public"
+      ],
+      "point": "window-stools.1",
+      "group": "window-stools",
+      "prop": "stool.1",
+      "seat_height_m": 0.6893,
+      "seat_displacement_m": {
+        "east": 1.2e-05,
+        "north": -0.477133
+      }
+    },
+    {
+      "tags": [
+        "cafe",
+        "public"
+      ],
+      "point": "window-stools.2",
+      "group": "window-stools",
+      "prop": "stool.2",
+      "seat_height_m": 0.6893,
+      "seat_displacement_m": {
+        "east": -0.000674,
+        "north": -0.498166
+      }
+    },
+    {
+      "tags": [
+        "cafe",
+        "public"
+      ],
+      "point": "window-stools.3",
+      "group": "window-stools",
+      "prop": "stool.3",
+      "seat_height_m": 0.6893,
+      "seat_displacement_m": {
+        "east": -0.001352,
+        "north": -0.516267
+      }
+    },
+    {
+      "tags": [
+        "cafe",
+        "public"
+      ],
+      "point": "table-1.1",
+      "group": "table-1",
+      "prop": "table.east.chair-w",
+      "seat_height_m": 0.453183,
+      "seat_displacement_m": {
+        "east": 0.652133,
+        "north": 0.013499
+      }
+    },
+    {
+      "tags": [
+        "cafe",
+        "public"
+      ],
+      "point": "table-1.2",
+      "group": "table-1",
+      "prop": "table.east.chair-e",
+      "seat_height_m": 0.453183,
+      "seat_displacement_m": {
+        "east": -0.652133,
+        "north": -0.013499
+      }
+    },
+    {
+      "tags": [
+        "cafe",
+        "public"
+      ],
+      "point": "table-2.1",
+      "group": "table-2",
+      "prop": "table.north.chair-w",
+      "seat_height_m": 0.447,
+      "seat_displacement_m": {
+        "east": 0.593954,
+        "north": -0.009468
+      }
+    },
+    {
+      "tags": [
+        "cafe",
+        "public"
+      ],
+      "point": "table-2.2",
+      "group": "table-2",
+      "prop": "table.north.chair-e",
+      "seat_height_m": 0.447,
+      "seat_displacement_m": {
+        "east": -0.047954,
+        "north": -0.498532
+      }
+    },
+    {
+      "tags": [
+        "cafe",
+        "public"
+      ],
+      "point": "table-3.1",
+      "group": "table-3",
+      "prop": "table.back.chair-w",
+      "seat_height_m": 0.453183,
+      "seat_displacement_m": {
+        "east": 0.100832,
+        "north": 0.486464
+      }
+    },
+    {
+      "tags": [
+        "cafe",
+        "public"
+      ],
+      "point": "table-3.2",
+      "group": "table-3",
+      "prop": "table.back.chair-e",
+      "seat_height_m": 0.453183,
+      "seat_displacement_m": {
+        "east": -0.640832,
+        "north": -0.006464
+      }
+    }
+  ]
+}

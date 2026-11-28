@@ -53,6 +53,7 @@ fn town(with_attributes: bool) -> (World, EntityId, EntityId) {
         let catalogue =
             Catalogue::build(&[(origin, DataFile::Attributes(decoded))]).expect("builds");
         let composed = AttributesComposed {
+            newcomers: None,
             schema: COMPOSED_SCHEMA,
             catalogue: catalogue.projection(),
             population: None,

@@ -17,6 +17,7 @@
 //! disclosed    Disclosed, the typed reader of a perceived entity's blocks; the composition
 //! owner        AttributeOwner, disclose_owned
 //! facts        the pack's five facts, the catalogue Process, RunningCatalogue
+//! newcomer     people who arrive later: the complete context, admission, Process and check
 //! ```
 //!
 //! No float is stored, compared or computed (I-c-10).
@@ -42,6 +43,7 @@ pub mod id;
 pub mod kind;
 pub mod lock;
 pub mod mask;
+pub mod newcomer;
 pub mod owner;
 pub mod profile;
 pub mod render;
@@ -64,6 +66,9 @@ pub use facts::{
 pub use id::{QualifiedId, ValueSlug};
 pub use kind::{
     Category, Flag, Instant, Kind, KindName, Level, Quantity, Set, SystemReadable, Text,
+};
+pub use newcomer::{
+    NewcomerAdmitted, NewcomerContext, Newcomers, NewcomersProcess, admit_newcomer, check_newcomer,
 };
 pub use owner::{AttributeOwner, disclose_owned};
 pub use render::{Block, Entry, View};

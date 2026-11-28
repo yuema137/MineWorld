@@ -495,6 +495,9 @@ pub struct RawUses {
     /// Each id proposed.
     #[serde(default)]
     pub proposes: Vec<String>,
+    /// Whether it admits people who arrive later (`newcomer-admitted`, `ARC-128`).
+    #[serde(default)]
+    pub admits: bool,
 }
 
 /// One `attributes/*.yaml` file, decoded.

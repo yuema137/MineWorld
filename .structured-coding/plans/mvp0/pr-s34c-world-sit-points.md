@@ -308,6 +308,61 @@ ruled with S34-c3's freeze) widen S34-c2. Every prerequisite is merged: S33-b #3
   behind), measured against the corrected base. Social Café and Market Town are unaffected. This is
   recorded as a deviation within Q-S34c3-7's ruling; if the operator reads AC-c-3 literally, it is theirs
   to rule.
+- **BC-c2-8 (merge with main after S34-e; deviation from S34-e's frozen acceptance, coordinator ruling
+  2026-11-27 "Option A").** S34-e (merged while this PR was open) froze a Lakeside "legacy corpus" in
+  `tools/cli/tests/fixtures/seat-surfaces.json`:
+  - the SHA-256 of the five Lakeside place files;
+  - 29 `fallback_expected` / `disclosed_expected` poses, built from the depiction file's `fallback`;
+  - 29 `legacy_surfaces` support and height samples.
+
+  `sit_point_depictions::lakeside_calibrated_scalar_rows_retain_the_frozen_coordinates` and
+  `clients/shared/checks/sit_pose_check.gd` hold the code to it. S34-c2 must change exactly that data:
+  - the place files (its scope);
+  - the fallback, deleted (ARC-172 / R-S34c-f-1);
+  - `tree-bench-north.3` → none and the halt 7 → 8 (BC-c2-2/3, Q-S34c3-4);
+  - the bench facings (Q-S34c3-7).
+
+  So S34-e's corpus cannot stay frozen. It was regenerated with S34-e's own generators
+  (`s34e-evidence/generators/`), never hand-edited:
+  - *Reproduction first.* Run unchanged, except for their `/tmp` paths, on a `git archive` of
+    `origin/main`, `placements.py` (preceded by `measure.py` and `surfaces.py`) reproduces main's
+    `legacy_surfaces` exactly. `freeze-legacy.gd` (Godot 4.7, headless) reproduces main's `legacy`
+    exactly (`regen/cmp.py`, `regen/cmpleg.py`: "equal: True").
+  - *One adaptation* (`regen/placements.diff`, `regen/freeze-legacy-head.gd`): each row's position is
+    the world's own sit point, read from the place file, where the generators read the deleted
+    `fallback`. In `freeze-legacy`, that point is given to `pose_of` as the place's disclosure. The
+    row therefore carries `world` / `world_expected` instead of `fallback_expected`, and the script
+    asserts that `pose_of(tags, null, point)` is empty (no fallback). Everything else is S34-e's code:
+    the same encode, the same perturbed `disclosed` case and the same support/height measurement.
+  - *Splice* (`regen/splice.py`): it replaces only the `legacy` and `legacy_surfaces` blocks and the
+    five Lakeside source hashes, as text. Its self-test re-splices main's own blocks and gets main's
+    bytes back. Café and Market rows, targets, surfaces and their hashes are byte-equal.
+  - *Result.* All 29 points are still over a seat:
+    - bakery −3.71 mm (the same as before);
+    - pier 0 and square 0;
+    - station +2.5 mm, with 8 points and now no point under an armrest (the centred points miss the
+      standards);
+    - platform +2.5 mm (platform-bench-s.2/-n.2 are still under their armrests, as before; that is
+      S34-f's).
+  - *Test changes, only as far as required.*
+    - In `sit_point_depictions.rs`, the Lakeside test reads each row's point from the place file
+      (independent of the corpus) and asserts there is no `fallback`. It also asserts that the
+      corpus row's `world` equals the place file's point. The pelvis comparison and the 0.002 mm
+      bound are unchanged.
+    - In `sit_pose_check.gd`, "legacy fallback" becomes "legacy world point" (`pose_of(tags,
+      row.world)` against `world_expected`), plus a check that there is no fallback position.
+
+  `client_sit_rule.rs`'s S34-e counterfactual (`disclosure_suppresses_lakeside_fallback_…`) built its
+  disclosure from the deleted fallback. It now uses the fixture's own disclosed `sit-points`.
+  - *Validation on the merged tree* (merge of `8f4a8af7` with `origin/main @ 29401a26`, uncommitted, then
+    committed unchanged): all PASS.
+    - `cargo test -p mineworld-cli --test sit_point_depictions --test lakeside_sit_points --test
+      lakeside_bodies --test client_sit_checks --test client_sit_rule -- --include-ignored`: 2 + 3 + 4 + 3 + 3
+      passed. `client_sit_checks` runs the Godot `sit_pose_check.gd` ("the shared pose keeps legacy
+      outputs"); `client_sit_rule` runs both clients.
+    - `cargo test -p mineworld-posture --test worlds --test shipped`: 2 + 3 passed.
+    - Mutation: `tree-bench-east.2` y 9 000 → 9 050 in the place file turns the corpus test red ("the corpus
+      row is the world's point"); reverted.
 
 **Final table (29 points).** pier 5 (800 … 3 200, 1 010; 0); square north 2 (11 400, 12 000; 10 260;
 0), east 3 (13 260; 8 400, 9 000, 9 600; 90 000); bakery 5 (1 660; 1 800 … 4 200; 270 000); station 8
