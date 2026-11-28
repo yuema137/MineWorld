@@ -13,7 +13,8 @@
 //! section      the person file's attributes: section, decoded against the catalogue
 //! traits       the traits component, Handle<K>, read
 //! derive       age and band, computed per read and never stored
-//! render       phrases, words, and the holder's and another observer's views; the block (schema 2)
+//! labels       label packs per locale (labels/<locale>.yaml), merged; never world state (ARC-129)
+//! render       phrases, words, and the holder's and another observer's views; the block (schema 3)
 //! disclosed    Disclosed, the typed reader of a perceived entity's blocks; the composition
 //! owner        AttributeOwner, disclose_owned
 //! facts        the pack's five facts, the catalogue Process, RunningCatalogue
@@ -41,6 +42,7 @@ pub mod disclosed;
 pub mod facts;
 pub mod id;
 pub mod kind;
+pub mod labels;
 pub mod lock;
 pub mod mask;
 pub mod newcomer;
@@ -67,6 +69,9 @@ pub use id::{QualifiedId, ValueSlug};
 pub use kind::{
     Category, Flag, Instant, Kind, KindName, Level, Quantity, Set, SystemReadable, Text,
 };
+pub use labels::Labels;
+/// The locale type label packs are keyed by, defined once in `mineworld-authoring` (R-PDN-k-1).
+pub use mineworld_authoring::Locale;
 pub use newcomer::{
     NewcomerAdmitted, NewcomerContext, Newcomers, NewcomersProcess, admit_newcomer, check_newcomer,
 };

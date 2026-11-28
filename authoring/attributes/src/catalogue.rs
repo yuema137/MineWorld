@@ -55,7 +55,7 @@ impl At {
         }
     }
 
-    fn spanned<T>(file: &Path, spanned: &Spanned<T>) -> Self {
+    pub(crate) fn spanned<T>(file: &Path, spanned: &Spanned<T>) -> Self {
         let (line, column) = (spanned.referenced.line(), spanned.referenced.column());
         Self {
             file: file.to_path_buf(),
