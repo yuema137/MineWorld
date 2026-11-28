@@ -50,6 +50,7 @@ Standard library only.
 
 from __future__ import annotations
 
+import io
 import json
 import os
 import re
@@ -912,6 +913,10 @@ def options(arguments: list[str]) -> dict[str, str]:
 
 
 def main(argv: list[str]) -> int:
+    # Windows' console encoding is a code page; the summary's table holds `→` and `—` (run 46119663095).
+    for stream in (sys.stdout, sys.stderr):
+        if isinstance(stream, io.TextIOWrapper):
+            stream.reconfigure(encoding="utf-8")
     if not argv:
         print(__doc__)
         return 2

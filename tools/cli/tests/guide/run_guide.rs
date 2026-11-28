@@ -123,10 +123,28 @@ pub fn run_with(
         return summary;
     }
     if options.guards {
-        guard_pages(guide, &pages, repo, &mut summary);
+        guard(guide, &pages, repo, options.rules, &mut summary);
     }
     check_features(label, &features, options, &mut summary);
     summary
+}
+
+/// The guards of §§7–9. A cold-start run reads its pages from a copy beside the test executable, which holds
+/// `docs/guide` and nothing the pages link to; its guards read the clone's own `docs/guide` instead (§4.7 rule
+/// 9), which the run has already shown equal to that copy byte for byte (rule 8: a difference stops the run).
+fn guard(guide: &Path, pages: &[Listed], repo: &Path, rules: Rules, summary: &mut Summary) {
+    if rules == Rules::Repository {
+        guard_pages(guide, pages, repo, summary);
+        return;
+    }
+    let cloned = repo.join("docs").join("guide");
+    match english_pages(&cloned) {
+        Ok(listed) => guard_pages(&cloned, &listed, repo, summary),
+        Err(reason) => summary.checks.push((
+            format!("the clone's guide folder {}", cloned.display()),
+            Verdict::Fail(reason),
+        )),
+    }
 }
 
 /// The listed pages, in run order; every listed name must be a page (§4.7 rule 7).
