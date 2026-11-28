@@ -11,9 +11,10 @@
 //! R2  give way       a walker's stride blocked by people who rank lower — no walk in progress, or
 //!                    (`ARC-333` R1) a walk that started later, ties to the higher id — moves each of
 //!                    them, nearest the walker first, to the nearest free lattice point out of the
-//!                    walker's corridor, within GIVE_WAY_MAX, reached without crossing a solid —
-//!                    THRESHOLD_CLEAR from every doorway point when such a point exists; the
-//!                    result is verified (V1–V4) like every candidate (stride.rs)
+//!                    walker's corridor, within GIVE_WAY_MAX, reached without crossing a solid, from
+//!                    which a route can start (route.rs Starts; Q-S34d1-3) — THRESHOLD_CLEAR from
+//!                    every doorway point when such a point exists; the result is verified (V1–V4)
+//!                    like every candidate (stride.rs)
 //! ```
 //!
 //! Neither rule names a place, a person or a world. Integers only.
@@ -23,10 +24,12 @@ use mineworld_kernel::WorldRead;
 use mineworld_movement::Passages;
 
 use crate::entry::nearest_free;
-use crate::footprint::Footprint;
+use crate::footprint::{Footprint, Placed};
 use crate::geometry::{
     GAP, LATTICE, NUDGED_MAX, PERSON_RADIUS, Point, Room, TOLERANCE, distance2, segment_clear_of,
 };
+use crate::resolve::Here;
+use crate::route::Starts;
 
 /// How far, centre to centre, an arrival spot and a give-way point keep from every doorway point:
 /// one person standing (R 250) plus a passing lane of one person's width (0.6 m) plus the gap. The
@@ -73,17 +76,20 @@ const GIVE_WAY_PEOPLE: usize = 2 * NUDGED_MAX;
 /// [`GIVE_WAY_MAX`] that is free (a radius inside the floor and from every solid, two radii and a gap
 /// from everyone, a radius from every object), out of the walker's corridor and reached by a segment
 /// that meets no solid — preferring a point [`THRESHOLD_CLEAR`] from every doorway, and taking the
-/// nearest one off the corridor only when none is. Like a nudge, the step aside sweeps against the
-/// fixed geometry only; the result is verified against everyone by the caller.
+/// nearest one off the corridor only when none is. Every such point is one a route can start from
+/// ([`Starts`]): a person who gives way can always set off again (Q-S34d1-3). Like a nudge, the step
+/// aside sweeps against the fixed geometry only; the result is verified against everyone by the caller.
 pub(crate) fn give_way(
-    room: &Room,
+    here: &Here,
     others: &[Point],
     yields: &[bool],
-    doors: &[Point],
     objects: &[Footprint],
     start: Point,
     target: Point,
 ) -> Option<Vec<(usize, Point)>> {
+    let (room, doors) = (&here.room, &here.doors);
+    let placed: Vec<Placed> = here.objects.iter().map(|(_, placed)| *placed).collect();
+    let starts = Starts::new(room, &placed);
     let apart = 2 * PERSON_RADIUS.value() + GAP.value();
     let reach = i64::from(GIVE_WAY_MAX.value());
     let mut now = others.to_vec();
@@ -117,6 +123,7 @@ pub(crate) fn give_way(
                     .iter()
                     .all(|footprint| !footprint.within(p, PERSON_RADIUS.value()))
                 && clear_of_solids(room, from, p)
+                && starts.from(room, p)
         };
         let to = nearest_free(room, from, &|p| aside(p) && off_the_threshold(p, doors))
             .or_else(|| nearest_free(room, from, &aside))?;

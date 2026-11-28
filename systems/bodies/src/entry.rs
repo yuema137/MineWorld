@@ -19,6 +19,7 @@ use crate::footprint::{Footprint, Placed};
 use crate::geometry::{GAP, LATTICE, PERSON_RADIUS, Point, Room, distance2};
 use crate::rapier::{Against, Scene};
 use crate::resolve::{Answer, Here, Outcome, Route};
+use crate::route::Starts;
 use crate::stride::{Candidate, nudge, verifies};
 
 /// Whether a person's disc at `p` keeps a radius from every footprint.
@@ -61,7 +62,9 @@ pub(crate) fn entry(here: &Here, target: Point) -> Answer {
             target,
             Point::new(1, 0),
             Against::Walls,
-        ) {
+        )
+        .and_then(|nudged| nudged.startable(room, &Starts::new(room, &placed)))
+        {
             let candidate = Candidate {
                 walker: target,
                 displaced: nudged.moved,
