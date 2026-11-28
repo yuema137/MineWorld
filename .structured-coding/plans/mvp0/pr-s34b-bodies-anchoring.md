@@ -387,7 +387,7 @@ or an idle person. The reader is a scratch test, not committed.
 
 **Coverage hole (sitters beyond 3 m of the straight line, or beyond the cap of 16), measured not
 patched.** The 1 084 remaining stops at a sitter are 1.7 % of all stops, over 300 days. About 70 % of them
-are in the café, within 1 m of `window-stools.1` / `table-1.1`. After such a stop, the existing re-plan
+are in the café, in the 2 m × 1 m around `window-stools.1` (x 2 000–4 000, y 2 000–3 000). After such a stop, the existing re-plan
 already plans round everyone within 3 m of the walker, the sitter included (`still_people`), and now also
 round the sitters near the new line. So a detour that meets a sitter costs one stop, not a storm. A
 re-plan triggered when a seated body blocks the planned path would add a path-versus-sitter check to
