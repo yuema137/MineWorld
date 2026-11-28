@@ -1,11 +1,12 @@
 # PR ON-a — Agent onboarding documents and the three example briefs
 
-**Lifecycle:** `DRAFT — FREEZE-READY` (2026-11-27). Not frozen; no implementation is authorized until the operator
-approves a `DESIGN FROZEN` header. **Parent:** [`step-01-brief-to-playable-world.md`](step-01-brief-to-playable-world.md)
+**Lifecycle:** `FROZEN` — **DESIGN FROZEN 2026-11-27** by operator ruling, relayed by the coordinator: "其他问题都用你的推荐"
+(QA-1 … QA-4 as recommended; QA-4: merge after independent review under the design-doc merge ruling). Red-team
+pre-freeze findings applied (step §12). Base: `origin/main @ c373b802`. **Parent:** [`step-01-brief-to-playable-world.md`](step-01-brief-to-playable-world.md)
 §§3–6, §9 (ON-a). **Kind:** documents only (`docs/onboarding/`, one link in `docs/guide/README.md`). No code, no CLI,
 no harness, no world, no MVP lane touched. **Base:** `origin/main @ c373b802`.
 
-## 0. Freeze questions (plain language)
+## 0. Freeze questions (plain language) — ruled 2026-11-27 as recommended
 
 | # | Question | Recommendation |
 | --- | --- | --- |
@@ -24,10 +25,25 @@ no harness, no world, no MVP lane touched. **Base:** `origin/main @ c373b802`.
 - Worlds already carry non-YAML files (`worlds/lakeside/README.md`); C1's review confirms the loader ignores
   `brief.md` by running `mineworld validate` on a copy of `docs/guide/examples/corner-shop` with a `brief.md` added
   (evidence recorded, file not committed).
-- Known client limits stated honestly in `ONBOARDING.md`: a new world needs a `far_field/<world-key>.yaml` in a
-  Presentation Pack (no fallback, MODULE_SPEC §6.1.1, `ARC-102`); `./mineworld-slice --world=` takes only
-  `worlds/<key>`; guide ch. 06 says the 3D client draws only the sample café. Until ON-c, the documented play path is
-  headless + 2D (with the stated presentation limitation) + MCP agent play.
+- Client facts stated in `ONBOARDING.md` (step §2, corrected after red-team F1/F7/F14): a world is drawn only with a
+  Presentation Pack carrying `far_field/<world-key>.yaml` (no fallback, MODULE_SPEC §6.1.1, `ARC-102`); the bundled
+  packs carry far fields for the bundled worlds only; the 3D client joins any hosted world with
+  `--server … --invite … --world-key … --presentation=<dir>` and draws places with no depiction plainly
+  (`clients/3d-spike/PRESENTATION.md` §6); `--world=<pack>` self-hosting is limited to `worlds/`; `--presentation=none`
+  in 2D is a diagnostic, never play. A world-local pack (greybox-seeded) is described as the intended route and marked
+  **not yet exercised end to end** until ON-c; the agent reports "not yet drawn" rather than using diagnostic mode.
+  Guide ch. 06's stale 3D sentence is recorded in step §2 and fixed by ON-c with run evidence; ON-a does not repeat it.
+- Platforms: `ONBOARDING.md` names the launch path per platform (checkout scripts on macOS/Linux; the bundle launchers
+  or the `mineworld` binary plus `clients/2d/README.md` on Windows).
+
+### 1.1 Execution contract (to be confirmed at freeze)
+
+| Field | Value |
+| --- | --- |
+| Owner session / worktree | the onboarding design session; `/Users/yuema137/mineworld-worktrees/impl-onboarding-on-a`, branch `docs/onboarding-on-a`, from `origin/main` |
+| Affected paths | `docs/onboarding/**`, one line in `docs/guide/README.md` |
+| Resource limits | no build, no test run beyond the text checks below (machine load rule R-LOAD-1); spending USD 0 |
+| Merge | QA-4 |
 
 ## 2. Files
 
@@ -60,13 +76,15 @@ stand-ins; never fake); 7 Playing it (headless, server, 2D, MCP; current 3D limi
 - **Implementation:** [ ] write the four files per §2 and step §§3–4; [ ] terminology checked against
   `CORE_CONCEPTS.md` (World Pack, System Pack, Entity Pack, Presentation Pack, Place, Person, Item, ActionIntent);
   [ ] every command cites its guide chapter; [ ] add the guide README link.
-- **Validation:** [ ] every relative link resolves (link check over `docs/onboarding/`); [ ] every CLI subcommand and
+- **Validation:** [ ] every relative link resolves — no repository link checker exists, so the command is a recorded
+  shell loop over `docs/onboarding/**/*.md` that tests each relative `](path)` target with `test -e` (links into
+  `.structured-coding/plans/onboarding/` resolve once PR #574 merges; ON-a merges after it); [ ] every CLI subcommand and
   flag named exists in `docs/reference/cli.md`; [ ] `brief.md`-ignored evidence of §1; [ ] guide test unaffected (no
   guide page changed except README's link line; run the guide-format check for that file only).
 - **LLM review:** [ ] independent reviewer reads `ONBOARDING.md` + `BRIEF.md` cold and lists every instruction that
   is ambiguous, untested or invites guessing; findings dispositioned in §5.
-- **Acceptance:** an agent reading only these files can name, for each of M1–M8, its default and whether it would
-  ask; no field name or heading is required of a brief; no rule exists only in `README.md`.
+- **Acceptance:** the independent reviewer (the LLM-review item, reading cold) names, for each of M1–M8, its default
+  and whether the agent would ask, matching `BRIEF.md` §2 — measured by that review's written answer; no field name or heading is required of a brief; no rule exists only in `README.md`.
 - **Failure/edge:** a guide chapter moved or renamed → link check fails; a command that does not exist → reference
   check fails.
 - **Commit boundary:** documents only; no example briefs.
@@ -75,7 +93,9 @@ stand-ins; never fake); 7 Playing it (headless, server, 2D, MCP; current 3D limi
 
 - **Goal:** the three operator-named worked examples, each with an expected-outcome note.
 - **Scope:** `briefs/*.md` with the text of §4, verbatim, and the notes derived from step §5.
-- **Implementation:** [ ] three files; [ ] each note: what gets built, which bundled packs, what is a gap and its
+- **Implementation:** [ ] three files; [ ] the seaside brief uses `BRIEF.md`'s skeleton headings, renaming two
+  ("Me" for Player, "Anything else" for the free part) and omitting Limits, which `BRIEF.md` §1 states is allowed;
+  [ ] each note names its owner rule (step §5: the post-merge update of the step that closes a gap updates it); [ ] each note: what gets built, which bundled packs, what is a gap and its
   class, the gating status; [ ] the operator's 2026-11-27 example ruling quoted in `BRIEF.md`'s examples section.
 - **Validation:** [ ] each note's pack ids appear in `systems/` / `entities/` (manual check against `packs list`
   output recorded); [ ] each gap cites the plan that owns it (S21, `vehicles` step, nightlife N1, ON-c, ON-f, scale

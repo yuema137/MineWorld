@@ -1,7 +1,12 @@
 # Onboarding step 01 — From a loose brief to a playable world
 
-**Lifecycle:** `DRAFT — FREEZE-READY` (2026-11-27). Step-level design. Nothing here is frozen and nothing here
-authorizes implementation; each PR of §9 is frozen on its own. The first PR's design draft is
+**Lifecycle:** `FROZEN` — **DESIGN FROZEN 2026-11-27** by operator ruling, relayed by the coordinator: "其他问题都用你的推荐"
+(QON-1 … QON-9 as recommended), together with the QON-7 correction "用真实 agent 跑示例测试 不会花钱啊，用订阅就行"
+(§8.1). Frozen after the red-team pre-freeze review (`/Users/yuema137/mineworld-worktrees/_reviews/design-onboarding.md`,
+reviewed head `eaee7ad3`, verdict FREEZE-AFTER-FIXES); its required fixes F1–F15 are applied as bounded corrections
+that change no ruled decision (§12). Base: `origin/main @ c373b802`. Frozen: scope, invariants (§7), acceptance (§8),
+PR split (§9). Writable: progress, evidence, bounded corrections. §10.2–10.4 stay a non-binding survey (QON-9).
+Each PR of §9 still needs its own frozen design; ON-a's is
 [`pr-01a-onboarding-docs-and-briefs.md`](pr-01a-onboarding-docs-and-briefs.md).
 **Effort:** `onboarding` (new effort directory). There is no `onboarding/overall.md`: this effort is one step until
 §9's later PRs prove otherwise; the parent is `mvp0/overall.md` "Operator requirement recorded 2026-11-22 — intent to
@@ -15,19 +20,19 @@ INV-S25-6, INV-S25-7; `mvp1/step-21-regions-travel.md` §§5.3–5.6, 5.12; `mvp
 
 ---
 
-## 0. Freeze questions (plain language, each with a recommendation)
+## 0. Freeze questions (plain language) — all ruled 2026-11-27 as recommended
 
 | # | Question | Recommendation |
 | --- | --- | --- |
 | QON-1 | Is the brief a **scaffold** (a short must-state checklist + worked examples, everything else free) rather than a schema? | **Yes.** No brief parser, no brief schema, no required headings. The user's agent is the parser. The framework's contracts (World Pack files, `mineworld validate`) stay the only machine-checked input (§3). |
 | QON-2 | When a brief leaves something out, does the agent ask or default? | **Default almost everything and write the default down; ask at most one round of questions, and only when the answer changes what kind of world it is** (play vs headless research, or two readings of the premise that lead to different worlds). Everything else gets the documented default (§3.3) and is listed in the world's `brief.md` "What the agent decided" section, so the user can change it in the next iteration. |
 | QON-3 | Where do the onboarding documents live? | **`docs/onboarding/`**: a short `README.md` for humans, `ONBOARDING.md` (the one document an outside agent reads), `BRIEF.md` (the checklist and defaults), `briefs/` (the three operator-named examples). Not a guide chapter: `docs/guide/` pages are executed by the guide test line by line (`GUIDE_FORMAT.md`), and a brief's outcome is not deterministic text. `ONBOARDING.md` links into the tested guide for every command instead of repeating it. |
-| QON-4 | How does a world an agent just wrote get **played in 2D and 3D**, when today the clients refuse a world with no `far_field/<world-key>.yaml` (no fallback, `ARC-102`) and the 3D launcher accepts only `worlds/<key>` inside the checkout? | **Keep `ARC-102`. Add a world-local Presentation Pack that the agent writes beside the world** (far field + 3D depiction), seeded from a small, reviewed set of setting archetypes (coast, city, mountain, plain …), validated by the existing `mineworld packs validate`; and let the launch path take a world directory. Do not add a generic fallback far field (§6, PR ON-c). This is the largest framework gap and needs the presentation owners' review. |
-| QON-5 | Which example briefs gate acceptance? | **The seaside resort gates; the metropolis gates as a declared neighbourhood slice** (a few connected blocks, a few hundred residents at most, transit stubbed and listed as a gap); **the Italian mountain village is run and reported but does not gate** until the required `vehicles` step (§10, QON-9) delivers driving; S21 §5.4.1 is design-only today. Its round must end with the driving requirement classified **real product gap**, not faked (§5.3). |
+| QON-4 | How does a world an agent just wrote get **played in 2D and 3D**, when the clients refuse a world whose Presentation Pack has no `far_field/<world-key>.yaml` (no fallback, `ARC-102`) and the bundled packs carry far fields only for the bundled worlds? | **Keep `ARC-102`. The agent writes a world-local Presentation Pack beside the world** carrying `far_field/<world-key>.yaml` (and, optionally, depictions), seeded from a small reviewed set of setting archetypes (coast, city, mountain, plain …) and checked by the existing `mineworld packs validate`. No generic fallback far field. The 3D client already joins any hosted world (`--server … --world-key … --presentation=<dir>`) and draws places with no depiction plainly (`clients/3d-spike/PRESENTATION.md` §6); what is missing is the archetype seeds, a scaffold command, the self-hosting convenience for a world outside `worlds/`, and a per-world pack in the bundle (§6 ON-c). Needs the presentation owners' review. |
+| QON-5 | Which example briefs gate acceptance? | **The seaside resort gates as a played world; the metropolis gates as a declared neighbourhood slice used both played and as a year-long headless research run** (different use, scale, population packs and evidence: the 11-22 "materially different" requirement is met by use and scale, not only by setting — recorded explicitly here because both use the town System Pack set). **The Italian mountain village is run and reported but does not gate** until the required `vehicles` step (§10, QON-9) delivers driving; it is then the brief with a materially different interaction system. Its round must end with driving classified **real product gap**, not faked (§5.3). |
 | QON-6 | Release placement. | **After the first playable MVP.** PR ON-a (documents only) can merge now; it touches no MVP lane. ON-b … ON-f wait until the playable MVP is accepted, then queue in §9's order. The 11-22 acceptance (§8) is not claimed by ON-a. |
-| QON-7 | Agent harness and cost. | **Real-agent brief rounds run on the operator's existing subscription logins on this machine (Claude Code; Codex CLI), not metered API keys: $0 incremental** (operator correction, 2026-11-27, §8.1). Reuse `tools/onboarding` (allowlisted, sandboxed, never in CI, ≤ 80 turns). Bounded: at most 3 brief rounds per agent CLI per milestone, one at a time, started and attended by the operator, within the plan's normal interactive limits and the vendors' terms (§8.1). A Codex round is reported, not gating, until an equally strict allowlist is shown for it (no `bypass` mode). |
-| QON-9 | Vehicles are required (operator, 2026-11-27). How do they enter the plan? | **As their own step and PR series (`vehicles`), after the playable MVP, not inside onboarding.** Direction in §10: a `vehicles` System Pack owns vehicle state; the server simulates driving with Rapier's ray-cast vehicle controller (already our physics engine, `DEP-13`) for player-driven cars and a road-graph `Process` for NPC and distant cars; clients send throttle/steer as intents and render wheels with Godot/Jolt. `transport` (S21) builds on `vehicles` rather than owning the fleet. One `ARC-VH-*` and one `DEP-VH-*` record before code. Onboarding's BR-3 becomes gating once `vehicles` lands. |
+| QON-7 | Agent harness and cost. | **Real-agent brief rounds run on the operator's existing subscription logins on this machine (Claude Code; Codex CLI), not metered API keys: $0 incremental** (operator correction, 2026-11-27, §8.1). Reuse `tools/onboarding` (allowlisted, sandboxed, never in CI, ≤ 80 turns). Bounded: at most 3 brief rounds per agent CLI per milestone, one at a time, started and attended by the operator, within the plan's normal interactive limits and the vendors' terms (§8.1). A Codex round is reported, not gating, until an equally strict allowlist is shown for it (no `bypass` mode). A **round** is one `run.py` invocation: ≤ 80 turns, ≤ 3 600 s wall time, `--max-budget-usd` ≤ 5 kept as the CLI-reported ceiling (QS25-3; raising it would need an amendment of QS25-3 and `run.py`, operator-approved). ON-g total: BR-1/2/3 once each plus at most one rerun per brief after a recorded fix. Paid asset generation (ON-c archetypes) is USD 0 unless separately approved in ON-c's design. Credentials: inherited from PROTOCOL §3.2 (operator's login; no key reaches the agent; `run.py` never reads or prints one). |
 | QON-8 | Does the agent author through MCP? | **No.** Authoring is files + the `mineworld` CLI, which every agent (Claude Code, Codex, any shell-capable agent) already has. The MCP adapter (`clients/agent`) is used for what it is for: the agent (or a second agent) *plays* the world it built, which is the "real server/client interaction" evidence (§8). |
+| QON-9 | Vehicles are required (operator, 2026-11-27). How do they enter the plan? | **As their own step and PR series (`vehicles`), after the playable MVP, not inside onboarding. This question approves placement only.** §10 is a **non-binding reuse survey and direction**: it lists the accepted decisions any vehicle design must amend or satisfy (`DEP-13`, `ARC-67`, `ARC-50`, `ARC-25`, S21 §5.4.1) as open questions the vehicles step must answer with its own `ARC-VH-*` / `DEP-VH-*` records before code. Onboarding's BR-3 becomes gating once `vehicles` delivers driving. |
 
 ---
 
@@ -72,6 +77,10 @@ same kind ("make the beach bar open at night"), each ending with the world playa
   fallback.
 - Headless research is first-class: a brief may ask for no renderer at all.
 - Both reference clients remain first-class; a "playable" claim names which client(s) were actually run.
+- All three platforms (macOS, Linux, Windows) are supported. The onboarding documents name each platform's launch
+  path (checkout bash scripts on macOS/Linux; the bundle launchers or the `mineworld` binary plus `clients/2d/README.md`
+  on Windows); ON-c and the vehicles step list all three in acceptance. Operator-run agent rounds run on the
+  operator's macOS machine; that is recorded as a coverage limit, not a claim for the other two.
 
 ---
 
@@ -88,9 +97,9 @@ same kind ("make the beach bar open at night"), each ending with the world playa
 | Learn to author | 13 tested guide chapters (Corner Shop), compare pages, example world | `docs/guide/` | Reuse; it is the tested authority for commands. It is a human tutorial in one fixed world, not a brief→world path. |
 | Fresh-agent onboarding test | `tools/onboarding`: sandbox (guide + reference + binary + `entities/` only), allowlisted Claude Code, guard, audit, scorer (S1–S8, P1), rounds ledger; ON-1/2/3 instruction sets; round 3 passed every check but live S7 | `tools/onboarding/PROTOCOL.md`, step-25 §20.3 | **Reuse as the acceptance harness** (§8). It has no 2D/3D, restart or agent-play checks yet. |
 | Agent plays a world | `mineworld-agent mcp` (stdio / Streamable HTTP), grants, guide ch. 14 | `clients/agent/`, `docs/reference/agent-tools.md` | Reuse for the server/client evidence. |
-| Play in 2D | `./mineworld-2d --world PATH` hosts any World Pack path; needs Godot 4.7 and a checkout | `mineworld-2d` | Partly. Needs `far_field/<world-key>.yaml` in the Presentation Pack, no fallback; `--presentation=none` is a diagnostic only (MODULE_SPEC §6.1.1). |
-| Play in 3D | `./mineworld-slice --world=<key>` accepts only `worlds/<key>/world.yaml` inside the checkout; drawn worlds need a depiction file in the pack (`depictions/<key>.yaml`) and a far field. Guide ch. 06: "The 3D client today draws the café of the sample town only." | `mineworld-slice` line ~311, `presentation/mineworld-default/3D/` | **Gap** (§6 ON-c). The exact current behaviour of a fresh world in each client is ON-c's first audit item. |
-| Bundled launcher | `tools/launch`: fixed bundle worlds from `launch.toml`; any unlisted argument is an error | `tools/launch/LAUNCHER.md` §3 | Gap: no "this world directory" entry (§6 ON-c). |
+| Play in 2D | `./mineworld-2d --world PATH` hosts any World Pack path; `--presentation=<dir>` takes any 2D Presentation Pack; needs Godot 4.7 and a checkout (bash; Windows per `clients/2d/README.md`) | `mineworld-2d` | Partly. The pack must carry `far_field/<world-key>.yaml`, no fallback; `--presentation=none` is a diagnostic drawing, never play (MODULE_SPEC §6.1.1, INV-ON-6). The bundled 2D pack carries far fields for the bundled worlds only. |
+| Play in 3D | `./mineworld-slice --server=host:port --invite=TOKEN --world-key=KEY --presentation=<dir>` joins **any** world hosted by `mineworld server <any dir>`; a world with no depiction is drawn plainly from its disclosure (`SlicePlainDepiction`, `clients/3d-spike/PRESENTATION.md` §6; AC-16f-10 drew Lakeside plainly with the greybox pack). Only the self-hosting `--world=<pack>` convenience is limited to `worlds/<pack>` (`mineworld-slice` ~l. 310). The far field is required. `presentation/mineworld-greybox/3D` (MIT, small) is a natural seed for a world-local 3D pack | `mineworld-slice`, `clients/3d-spike/PRESENTATION.md` | Partly: far field per world (ON-c), self-hosting convenience for an outside directory (ON-c). Not yet run on a world outside `worlds/` — ON-c's first evidence item. **Recorded contradiction:** guide ch. 06 l. 83 ("The 3D client today draws the café of the sample town only") is stale against the code above (`CLAUDE.md` §2.1 rule 4); the guide is wrong, and ON-c fixes the sentence and its mirror with run evidence. |
+| Bundled launcher | `tools/launch`: arguments are fixed (`LAUNCHER.md` §3), but `runtime/launch.toml`'s `world` may name any folder under `runtime/worlds/` (§6); `scripts/package.py` fixes which worlds and which Presentation Pack (`mineworld-default`) are bundled | `tools/launch/LAUNCHER.md` §§3, 6; `scripts/package.py` | Partly: a copied world plays in the bundle except that the bundled pack lacks its far field — ON-c adds a per-world Presentation Pack to the bundle path, not a new argument. |
 | Bigger worlds | `tools/worldgen/tile.py` copies a pack into disconnected blocks (scale gates) | `tools/worldgen/` | Reuse as the base of a connected-grid generator (metropolis, §6 ON-f). |
 | Capabilities the briefs touch | Bundled System Packs: presence, movement, conversation, relationships, group-activity, schedule, naming, persona, item, inventory, item-transfer, economy, employment, consumption, needs, sleep, posture, bodies, appearance, attributes, calendar, weather, happenings, notices, price-survey; Entity Packs `modern-goods`, `person-attributes`, `populations-us`; LM decision model with fallback | `systems/`, `entities/`, `cognition/` | Rich for a town; **no** transport/vehicles/regions/atlas (S21 is a step design; RT-c not built; self-driving is §5.4.1 "design only; no PR"), no lodging/reservations, no swimming or water activity. |
 | Authoring brief / onboarding doc for an outside agent | none | — | **Missing** (§6 ON-a). |
@@ -107,7 +116,7 @@ needed for choosing *not* to build a component).
 ### 3.1 Form
 
 A brief is **any text**: a few sentences in a chat, or a Markdown file. Any language. No required headings, no fixed
-order. `BRIEF.md` offers an optional skeleton (the eight headings of §3.2) for users who like one; the worked examples
+order. `BRIEF.md` offers an optional skeleton (the eight headings of §3.2, defined once there; an example may rename a heading and says so) for users who like one; the worked examples
 show both a skeleton-shaped brief and a free-prose one, deliberately.
 
 ### 3.2 The must-state checklist (what the agent must *know* before building, not what the user must *write*)
@@ -119,8 +128,8 @@ show both a skeleton-shaped brief and a free-prose one, deliberately.
 | M3 | **Player** — who the player is (an arriving visitor, a resident, staff, nobody) | defaults to **one seat, a newcomer** (`visitor`) for played worlds, no player seat for research-only |
 | M4 | **Places** — the places that matter and roughly how they connect | defaults to the premise's obvious places (3–8) on one street/square, every place reachable |
 | M5 | **People** — how many, and any who matter by name or role | defaults to **6–12 residents**, named for the setting, each with a routine; scale caps in §3.4 |
-| M6 | **Daily life** — what people do: work, trade, eat, sleep, meet, events | defaults to the bundled town set (routines, conversation, relationships, needs, sleep, money, work, shops, a weekly happening); every choice maps to an installable System Pack (§4.2) |
-| M7 | **Minds** — rules only, or some people on a language model | defaults to **rules only** (runs with no LM, costs nothing); LM seats only when asked, always with a rule fallback, local model first |
+| M6 | **Activities** — what happens in the world (for a town: work, trade, eat, sleep, meet, events; for another kind of game, whatever its interactions are) | defaults to the bundled town set (routines, conversation, relationships, needs, sleep, money, work, shops, a weekly happening) only when the premise is town life; every choice maps to an installable System Pack (§4.2) |
+| M7 | **Minds** (user-facing word; agent-facing: each Person's **Controller** / decision model, `CORE_CONCEPTS.md`) — rules only, or some people on a language model | defaults to **rules only** (runs with no LM, costs nothing); LM decision models only when asked, always with a rule fallback, local model first |
 | M8 | **Limits** — size, time span to simulate, money/time the agent may spend | defaults to the §3.4 caps; spending defaults to **none** (no paid model, no paid asset generation) |
 
 Everything else is **free**: tone, history, names, weather and season, real-world location, stories, rules of
@@ -137,7 +146,7 @@ attributes, routines, interaction-list rules, calendar epoch, weather location) 
    defaults are the framework's job).
 5. A request no installed pack can satisfy is not a question; it is a gap (§5).
 
-### 3.4 Default caps (a first iteration must stay playable on one Mac)
+### 3.4 Default caps (a first iteration must stay playable on one reference laptop — macOS, Linux or Windows)
 
 People ≤ 40, places ≤ 25, simulated span for the agent's own check 14 days, LM seats 0. Above them the agent builds a
 declared **slice** first (named in `brief.md`), plays it, and grows it in later iterations. The caps are documented
@@ -168,7 +177,7 @@ read brief → M1–M8 (ask once or default)                         (§3.3)
 → mineworld run --headless --seed 1 --days 14 --save …           (faults 0, no `rejected` line, every place entered)
 → inspect: biography / perceived for 2 people; interactions      (the world does what the brief said)
 → presentation: world-local Presentation Pack (far field,
-  depiction) from an archetype                                    (ON-c; until then 2D --presentation=none, stated)
+  depiction) from an archetype                                    (ON-c; until then: report "not yet drawn"; never diagnostic mode)
 → host: mineworld server … --save … ; open 2D and/or 3D;
   optionally join one seat itself over MCP and act               (the real server/client interaction)
 → report to the user (§4.5); next iteration starts here
@@ -176,7 +185,7 @@ read brief → M1–M8 (ask once or default)                         (§3.3)
 
 Each arrow that can fail has a named recovery in `ONBOARDING.md`: a refusal is looked up in ch. 13; a `rejected` run
 line means an unreachable or unavailable action and is fixed in the world, not hidden; a missing capability goes to
-`GAPS.md`.
+`brief.md` "Gaps" (the one location; INV-ON-3).
 
 ### 4.3 Files the agent leaves in the world directory
 
@@ -203,6 +212,10 @@ check showed, what the agent decided on the user's behalf, what the framework ca
 ## 5. The three worked example briefs (operator-named)
 
 The full briefs, as a user would write them, are in PR ON-a's design §4 and land as `docs/onboarding/briefs/*.md`.
+Each brief file ends with a dated "Expected outcome on this build" note. **Owner of those notes:** the post-merge
+update of any step that closes a gap a note names (vehicles, S21 transport, nightlife N1, ON-c, ON-f, the scale
+roadmap) updates the note in the same documentation pass; ON-b gives a scored agent the brief text without its note, so
+the agent finds gaps from `packs list` and the reference, not from the note.
 This section records what each demands of the framework. "Today" means `origin/main @ c373b802`.
 
 ### 5.1 Seaside resort (海边度假村) — skeleton-shaped brief
@@ -253,8 +266,8 @@ piazza.*
 - **New System Packs this demands (not onboarding's to build):**
   1. **`vehicles`** — required by the operator (2026-11-27), its own step (§10): cars as Items held through
      `inventory`; `vehicles` owns occupancy, pose/route position, engine, optional fuel; `drive-to { destination }`
-     along a road graph is a `Process` owned by `vehicles`; embodied driving (throttle/steer intents) is simulated on
-     the server with Rapier's ray-cast vehicle controller; arrival is presence's `arrived` (presence stays the sole
+     along a road graph is a `Process` owned by `vehicles`; embodied driving (throttle/steer) is designed by that step
+     (§10.2 survey, open questions §10.3); arrival is presence's `arrived` (presence stays the sole
      owner of where people are); fuel or tolls as `*-due` facts that economy answers (single ownership).
   2. **Road geometry and terrain/elevation** for the server's drivable surface and for presentation (the road is
      drawn and, in 3D, driven) — part of the `vehicles` step's design (§10.3 time domains and collision).
@@ -272,7 +285,7 @@ piazza.*
 | Rank | PR | What | Why this rank | Reuse first |
 | --- | --- | --- | --- | --- |
 | 1 | **ON-a** | `docs/onboarding/`: `ONBOARDING.md` (agent-audience), `BRIEF.md` (checklist, defaults, ask rule, gap rule), three example briefs with expected-outcome notes, human `README.md`; link from `docs/guide/README.md` "For agents" | Without it no outside agent has a single entry point; documents only, can merge now | Links to the tested guide and generated reference; repeats no command |
-| 2 | **ON-c** | **Play an authored world in 2D and 3D**: a world-local Presentation Pack scaffold (far field + 3D depiction from a reviewed archetype set), `mineworld create --presentation <archetype>` or a documented copy step; `mineworld-slice --world` and the bundle launcher accept a world directory | A world that cannot be opened in the clients is not "playable"; `ARC-102` forbids the shortcut of a fallback | Existing far-field schema and `packs validate`, `depictions/*.yaml` (S33-e), existing far-field files as archetype seeds |
+| 2 | **ON-c** | **Play an authored world in 2D and 3D**: archetype far-field seeds; a world-local Presentation Pack scaffold (`mineworld create --presentation <archetype>` or a documented copy step: greybox-seeded 3D pack, a 2D pack); the self-hosting convenience (`mineworld-2d`/`mineworld-slice`) for a world outside `worlds/`; a per-world Presentation Pack in the bundle path (`scripts/package.py`, `launch.toml`); guide ch. 06 correction; evidence on macOS, Linux and Windows | A world that cannot be opened in the clients is not "playable"; `ARC-102` forbids the shortcut of a fallback. The join path already exists (§2), so this is narrower than it looks | Existing far-field schema and `packs validate`, `presentation/mineworld-greybox/3D`, plain drawing (`SlicePlainDepiction`), existing far-field files as archetype seeds |
 | 3 | **ON-b** | Harness: brief rounds (`BR-1` resort, `BR-2` metropolis slice, `BR-3` mountain village) in `tools/onboarding`; rubric fields from M1–M8; new checks: restart (save, kill, resume, `replay`), server + agent play over MCP (a scripted model-free seat acts in the agent's world), elapsed wall time, manual-intervention count, gap classification; allowed set adds `docs/onboarding/` | It is how §8's acceptance is measured; reuses a proven harness | `run.py`, `score.py`, `audit.py`, guard, ledger format |
 | 4 | **ON-d** | `mineworld packs describe [--json]`: per System Pack the actions it offers, sections it owns, configure keys, packs it needs — generated from code like `mineworld reference` | Turns "which packs?" from reading eight reference files into one lookup; reduces guesses | The reference generator (`ARC-90`) and `SystemPack` declarations |
 | 5 | **ON-e** | Playability diagnostics in `validate` (warnings, never new refusals without review): a place no passage reaches, a seat with nothing it can do, a person with no routine in a world with `schedule`, a happening with no place | `F-25f-1` showed a world that validates and is unplayable; agents trust `validate` | S29-a's town reachability check, generalized |
@@ -298,7 +311,7 @@ transit, mountain driving), nightlife N1 shop hours (resort bar), scale measurem
 - **INV-ON-4 The brief stays a scaffold.** No component of MineWorld refuses a brief for its shape; only World Pack
   files are validated.
 - **INV-ON-5 No paid model in CI, fresh agent, sandbox** — INV-S25-6 and INV-S25-7, unchanged.
-- **INV-ON-6 Playable means run.** "Playable in 2D/3D" is claimed only for a client actually opened on that world in
+- **INV-ON-6 Playable means run.** A diagnostic drawing (`--presentation=none`) never counts as playable. "Playable in 2D/3D" is claimed only for a client actually opened on that world in
   that round, with evidence.
 
 ---
@@ -320,7 +333,7 @@ reference + binary (+ clients):
 | A8 | Manual interventions: count and description (target 0) | rounds ledger column |
 | A9 | Gaps correctly classified (mountain village: driving = real product gap) | audit + reviewer |
 
-**Step acceptance:** BR-1 (resort) and BR-2 (metropolis slice) pass A1–A9 on one commit, plus a human hands-on play of
+**Step acceptance:** BR-1 (resort, played) and BR-2 (metropolis slice, played **and** a headless 365-day research run with `--save`, `replay` clean) pass A1–A9 on one commit, plus a human hands-on play of
 each in 2D and 3D by the operator; BR-3 (mountain village) runs and passes A1–A3, A5–A9 with driving recorded as a
 product gap. Two materially different briefs therefore gate, as the 11-22 requirement asks.
 
@@ -363,7 +376,7 @@ Operator correction, 2026-11-27, verbatim:
 | --- | --- | --- | --- |
 | ON-a | documents (§6 rank 1) | — | now (docs-only; no MVP lane touched) |
 | ON-b | harness brief rounds and checks | ON-a | after first playable MVP |
-| ON-c | authored-world presentation + launch by directory | presentation owners' review; QON-4 | after first playable MVP |
+| ON-c | world-local Presentation Pack scaffold (archetype far fields, greybox-seeded 3D pack), self-hosting a world outside `worlds/`, per-world pack in the bundle, guide ch. 06 correction | presentation owners' review; QON-4 | after first playable MVP |
 | ON-d | `packs describe` | — | after first playable MVP; parallel with ON-c |
 | ON-e | playability warnings | S29-a reachability | parallel with ON-d |
 | ON-f | grid generator | ON-b (to measure) | before BR-2 gating |
@@ -383,75 +396,97 @@ a separate `vehicles` step (its own step and PR designs, frozen on their own); i
 of onboarding's PRs. It replaces S21 §5.4.1's "design only; no PR" status for self-driven cars with "required, own
 step", subject to the operator's freeze of that step.
 
-### 10.2 Reuse survey (mechanics; licences to re-verify in the step's prototype)
+### 10.2 Reuse survey (mechanics; non-binding; licences to re-verify in the step's prototype)
 
-The common mechanical pattern in open-world games is the **ray-cast vehicle**: a rigid chassis, one ray (or shape
-cast) per wheel for suspension and ground contact, tyre friction from slip, engine/brake torque and a steering angle
-per wheel — plus, for traffic far from any player, a cheap **path-following** model on a lane/road graph that switches
-to physics only near players. Candidates:
+**Status of §10.2–10.4: a non-binding survey and direction.** QON-9 approves the placement only. Every
+recommendation below is an input to the `vehicles` step, which decides it in its own `DEP-VH-*` / `ARC-VH-*`
+records after the questions of §10.3 are answered.
 
-| # | Option | Where it runs | Licence | Fit |
+The common mechanical pattern in open-world games is the **ray-cast vehicle**. It has a rigid chassis, one ray (or
+shape cast) per wheel for suspension and ground contact, tyre friction from slip, engine and brake torque, and a
+steering angle per wheel. Traffic far from any player usually uses a cheaper **path-following** model on a lane or
+road graph, and switches to physics only near players. Candidates:
+
+| # | Option | Where it runs | Licence | Fit and cost |
 | --- | --- | --- | --- | --- |
-| V1 | **Rapier `DynamicRayCastVehicleController`** (`rapier3d::control`, present in our pinned `rapier3d 0.36.0`, `src/control/ray_cast_vehicle_controller.rs`) | server (Rust) | Apache-2.0 | **Best server fit**: same engine, version and `enhanced-determinism` feature the `bodies` pack already uses (`DEP-13`), so cars and people collide in one authoritative world. Arcade-to-mid fidelity; tuning per car kind. |
-| V2 | **Godot 4 `VehicleBody3D` / `VehicleWheel3D`** (built-in ray-cast vehicle), under the Jolt engine the 3D client already uses (`clients/3d-spike/project.godot`: `3d/physics_engine="Jolt Physics"`) | 3D client | MIT | **Best client fit** for prediction and wheel/suspension visuals; whether `VehicleBody3D` behaves identically under Godot's built-in Jolt (Godot ≥ 4.4) must be measured in the prototype (P-VH-1). Not authoritative. |
-| V3 | **Jolt's native `VehicleConstraint` / `WheeledVehicleController`** (C++, Jolt Physics) | would need a native binding (server) or a GDExtension (client) | MIT | Highest fidelity (engine, gearbox, differentials, anti-roll), but a second physics engine on the server breaks one-world collision with `bodies`; a binding is new maintenance. Keep as the upgrade path if V1's fidelity proves insufficient. |
-| V4 | Open-source Godot vehicle controller add-ons (asset-library ray-cast controllers) | 3D client | each to verify (MIT/CC0 expected; any GPL/unknown is rejected by `deny.toml` policy) | Possible source of tuned client-side feel; adopted only if better than V2 and licence-clean. Survey in the step's first PR. |
-| V5 | Our own kinematic bicycle model on the road graph | server | ours | Not a physics replacement; it **is** the right model for NPC and off-screen cars (semantic scale, §10.3), and costs little. |
+| V1 | **Rapier `DynamicRayCastVehicleController`** (`rapier3d::control`, present in our pinned `rapier3d 0.36.0`, `src/control/ray_cast_vehicle_controller.rs`) | server (Rust) | Apache-2.0 | Same engine, version and `enhanced-determinism` feature as `bodies` (`DEP-13`). Determinism is plausible but must be proven. **Conflicts with `DEP-13`'s isolation as accepted**: see Q-VH-1. Arcade-to-mid fidelity. |
+| V2 | **Godot 4 `VehicleBody3D` / `VehicleWheel3D`** (the built-in ray-cast vehicle), under the Jolt engine the 3D client uses (`clients/3d-spike/project.godot`: `3d/physics_engine="Jolt Physics"`) | 3D client | MIT | Natural for wheel and suspension visuals. **A different model from V1** (solver, step, tuning semantics), so prediction from it diverges from the server: Q-VH-3. Behaviour under Godot's built-in Jolt is unverified. |
+| V3 | **Jolt's native `VehicleConstraint` / `WheeledVehicleController`** (C++) | needs a native binding (server) or a GDExtension (client) | MIT | Highest fidelity (engine, gearbox, differentials, anti-roll). A second physics engine on the server, or a binding to maintain. Upgrade path only. |
+| V4 | Open-source Godot vehicle controller add-ons (asset-library ray-cast controllers) | 3D client | each to verify (any GPL or unknown licence is rejected by the `deny.toml` policy) | A possible source of tuned client feel. Surveyed, never assumed. |
+| V5 | Our own kinematic bicycle model on the road graph | server | ours | The likely model for NPC and off-screen cars (route scale). Cheap and deterministic on integers. |
+| V6 | **V1 on the client too**: the same Rust controller, shared through a GDExtension | 3D client (and 2D, if 2D predicts) | Apache-2.0 | The determinism-matching prediction option: the same model on both sides allows input rewind and replay. Costs a GDExtension build on three platforms. |
+| V7 | **Client-simulated, server-validated**: the client simulates the car (V2/V4/V6) and reports poses as `walk-step`-like requests; the server validates each against speed, road and collision limits (S21 §5.4.1's implied direction) | client simulates, server validates | — | Fits `ARC-67` (per-request resolution, no embodied time on the server) and keeps the journal small. It trusts the client more, which is bounded by validation, and cars do not push other bodies authoritatively between requests. |
 
-Recommendation for the step's `DEP-VH-a`: **V1 on the server for embodied driving, V5 for route-following driving,
-V2 on the 3D client for prediction and presentation**; V3 recorded as the measured-upgrade path; V4 surveyed, not
-assumed. The record states both halves of the reuse question (not reinventing: V1/V2 adopted; not forcing: no client
-physics is authoritative, no second engine on the server).
+### 10.3 Architecture: what any vehicle design must reconcile (open questions for the vehicles step)
 
-### 10.3 Architecture reconciliation
+Settled direction (consistent with the accepted decisions):
 
-- **Ownership (`ARC-VH-a`).** A new **`vehicles` System Pack** owns vehicle runtime state: pose/route position,
-  speed, occupants by seat, engine on/off, fuel (optional), parked/moving. **Ownership of the car as property stays
-  with `inventory`** (a car is an Item kind, held like any item); economy alone moves money (fuel, tolls, purchase,
-  as `*-due` facts it answers). **Presence stays the only owner of where a person is**: a car's cabin is a Place
-  (S21 §5.4's carriage model), entering is presence's `arrived` into the cabin, so talking inside a car is ordinary
-  conversation. Driver and passenger seats are sit points (`posture`); `vehicles` offers `enter-vehicle`,
-  `exit-vehicle`, `start-engine`, `drive`, `drive-to`, `park`. `transport` (S21 RT-c) then **builds on `vehicles`**
-  (a bus or train is a vehicle with a line and a timetable) instead of owning the fleet — an amendment to S21 §5.4
-  recorded in `ARC-VH-a`.
-- **Two scales of one spatial model (`CLAUDE.md` §4 rule 14).** *Semantic:* a road graph (links between stops/places,
-  `length_m`, speed limit, `self_drive`) as `vehicles`/`transport` configuration; `drive-to { destination }` is a
-  `Process` owned by `vehicles` along the graph, ending in presence's arrival — used by NPCs and by any car no player
-  is driving or seeing. *Embodied:* inside a region with drivable geometry, a held car is simulated by V1 on the
-  server; the client never decides where the car is. `MoveIntent`-like driving intents, the drive `Process`, the
-  authoritative pose and the rendered car stay four distinct things.
-- **Intent flow.** The client sends `drive` intents carrying throttle, brake and steer (bounded values) at the
-  server's input rate; the server's actor check (same seat rules as walking), the `vehicles` pack's validation
-  (driver seat, engine on, not `Busy`) and V1 produce the pose; refusals use the standard codes (`Unavailable`,
-  `Busy`, `PermissionDenied`, `NoSupportedInteraction`). The 3D client predicts with V2 and corrects to the server
-  as walking does (12e: snap beyond a threshold, short glide). Rule 15 holds: no client evaluates who may drive.
-- **Time domains — the open question the step must answer first.** Today the server advances at semantic instants
-  (walking strides via `walk-step`, `ARC-39`), not a fixed physics tick. Embodied driving needs a fixed-rate server
-  step (e.g. 30–60 Hz) **only for held, moving vehicles and the bodies near them**. Whether that is a `vehicles`-owned
-  sub-stepping `Process` or a kernel scheduling capability is an architecture decision for the operator
-  (`ARC-VH-b`); the kernel must not learn what a car is either way.
-- **Collision with people and objects.** Cars are bodies in `bodies`' Rapier world (kinematic when following a route,
-  dynamic when embodied); a car's contact with a person is resolved by the server and stated as facts (`vehicle-struck`
-  or a refused/stopped drive), never by a client. Whether a world allows harm is Interaction List configuration.
-- **Multiplayer.** One driver seat per vehicle, any number of passenger seats; the driver's intents are the only
-  control input; passengers see the server's pose. Takeover, reconnect and hold follow the existing seat rules.
-- **Persistence.** Facts are semantic, not per-tick: `vehicle-entered`, `engine-started`, `drive-began`,
-  `drive-ended { from, to, distance_m }`, `vehicle-parked { place, pose }`, `vehicle-struck`. The embodied pose is
-  snapshot state, restored on resume; a run stops and resumes with every parked car where it was. Replay determinism
-  relies on V1 under `enhanced-determinism` plus recorded intents — to be proven in the step, as `bodies` did.
-- **NPC drivers.** Controllers propose `drive-to` (route scale); rule controllers need no physics; an LM controller
-  proposes the same intent. A player-visible NPC car may be promoted to embodied simulation only if the step shows it
-  is needed.
-- **2D/3D parity.** Both clients send the same intents and render the same disclosed state: 2D draws a top-down car
-  sprite along the disclosed pose; 3D draws wheels, suspension and steering (V2). Neither carries driving rules.
+- **Kernel ignorance.** The kernel never learns what a car is.
+- **Property and money.** A car is an Item kind held through `inventory`. Only economy moves money: fuel, tolls and
+  purchases are `*-due` facts that economy answers.
+- **Where people are.** Presence stays the only owner of a person's location. A car's cabin is a Place (S21 §5.4's
+  carriage model), so entering a car is presence's `arrived` into the cabin and talking inside it is ordinary
+  conversation. Driver and passenger seats are sit points (`posture`).
+- **Offers.** A new **`vehicles` System Pack** offers `enter-vehicle`, `exit-vehicle`, `start-engine`, `drive`,
+  `drive-to` and `park`. Refusals use the standard codes (`Unavailable`, `Busy`, `PermissionDenied`,
+  `NoSupportedInteraction`). No client evaluates who may drive (rule 15).
+- **Relation to transport.** `transport` (S21 RT-c) builds on `vehicles`: a bus or train is a vehicle with a line and
+  a timetable. That amends S21 §5.4, and `ARC-VH-a` records the amendment.
+- **NPC drivers.** NPCs use the route scale. Controllers propose `drive-to`, and rule controllers need no physics.
+- **Seats.** Multiplayer uses one driver seat and any number of passenger seats. The existing seat rules apply.
+
+Open questions. Each is answered with evidence and an operator ruling before code:
+
+- **Q-VH-1 Physics state vs `DEP-13`.** `DEP-13` accepts that `rapier3d` is named only in `systems/bodies`
+  (`src/rapier.rs`, structurally tested). Each resolution builds a fresh Rapier world and drops it, and there is "no
+  momentum between resolutions". A ray-cast vehicle (V1) is a persistent, momentum-carrying body stepped every tick.
+  V1 therefore requires **amending `DEP-13`**. The amendment is either persistent per-place physics state in `bodies`,
+  or a second crate naming Rapier behind its own isolating module. V7 needs no amendment.
+- **Q-VH-2 One owner of the embodied car pose.** Either `bodies` hosts vehicle dynamics on `vehicles`' behalf
+  (requests in, facts out), or `vehicles` owns the car's physics and `bodies` consumes it for collisions with people
+  and objects. There may not be two writers (`CLAUDE.md` §4 rule 1).
+- **Q-VH-3 Time domain (`ARC-67`, S21 §5.4.1).** `ARC-67` §2: embodied time is not a world quantity; a per-request
+  rule is resolved when its request arrives; no fact, component, Process or rule carries wall time. A 30–60 Hz server
+  step for held vehicles contradicts that unless `ARC-67` is amended. V7 does not. Time scale must also be reconciled.
+  At the default 12×, a 20-minute real-speed embodied drive lasts about 4 world hours, while a `drive-to` Process on the
+  same road takes 20 world minutes. Two scales of one spatial model must not disagree by 12× on the same road. The
+  candidates are: driving speed scaled with time scale; embodied driving only at 1×; or route time defined from wall
+  time while a car is held. Whether any sub-stepping is pack-owned or a kernel scheduling capability belongs here too
+  (`ARC-VH-b`).
+- **Q-VH-4 Reconciliation (`ARC-50` does not transfer).** Walking's rule zeroes velocity and teleports beyond 150 mm,
+  then suspends `move` reports. `ARC-50` rejected input replay because server strides are not replayable on the
+  client. At 15–25 m/s, one round trip is metres of travel, and zeroing a car's velocity on every correction is
+  unplayable. The step chooses one of these, and discloses velocity and angular velocity if it predicts:
+  - the same model on both sides with input-sequence rewind and replay (V6);
+  - interpolation and extrapolation with server velocity disclosed;
+  - client-simulated and server-validated (V7).
+
+  The P-VH-1 pass threshold (maximum divergence at a stated speed and round-trip time) is fixed **before** measuring.
+- **Q-VH-5 Journal volume and determinism (`ARC-25`).** A world is its journal re-executed. Recorded 30–60 Hz inputs
+  are journal entries: one hour of driving is 100–200k records per vehicle. The step sizes the volume, quantizes
+  inputs to integers (`DEP-13`'s integers in, integer millimetres out, kept for the car pose), sets the snapshot
+  cadence, and states the semantic facts (`vehicle-entered`, `engine-started`, `drive-began`,
+  `drive-ended { from, to, distance_m }`, `vehicle-parked`, `vehicle-struck`). V7 records poses per request instead.
+- **Q-VH-6 Collision and harm.** Who resolves car–person and car–object contact (tied to Q-VH-2), and which facts are
+  stated. Whether harm is allowed is Interaction List configuration.
+- **Q-VH-7 2D parity.** 2D needs the following:
+  - a keyboard mapping for throttle, brake and steer;
+  - a decision on whether 2D predicts (it has no physics engine) or only interpolates;
+  - a way to disclose elevation and hairpins of a mountain road to a top-down client;
+  - 2D driving included in BR-3's acceptance.
+
+  Neither client may duplicate driving logic (the two gating questions of `CLAUDE.md` §4).
+- **Q-VH-8 Platforms.** Acceptance on macOS, Linux and Windows, including any GDExtension (V6).
 
 ### 10.4 Placement
 
-A separate step after the playable MVP (QON-9), ordered with S21: `vehicles` first (cars, roads, embodied + route
-driving, one world, one region), then S21 `transport` lines and regions on top. Its first PR is a prototype
-(P-VH-1: V1 server car + V2 client prediction on a flat test place, measured correction error and determinism) and the
-`DEP-VH-a` / `ARC-VH-a` / `ARC-VH-b` records (ids numbered by the primary). Onboarding's BR-3 (mountain village) gates
-once that step delivers `drive-to` and embodied driving on a road.
+A separate step after the playable MVP (QON-9), ordered with S21. `vehicles` comes first: cars, roads, route driving
+and embodied driving, in one world and one region. S21's `transport` lines and regions follow on top. The step's
+first PR answers Q-VH-1 … Q-VH-8 with a prototype on a flat test place (P-VH-1). The prototype compares V1+V6 against
+V7 at least, against a pre-stated divergence threshold, with determinism and journal-volume measurements. That PR
+also drafts the `DEP-VH-a`, `ARC-VH-a` and `ARC-VH-b` records (ids numbered by the primary) and any `DEP-13` /
+`ARC-67` / `ARC-50` amendments. Onboarding's BR-3 (mountain village) gates once that step delivers `drive-to` and
+embodied driving on a road, in both clients.
 
 ---
 
@@ -462,3 +497,24 @@ once that step delivers `drive-to` and embodied driving on a road.
 - **Guessing agents.** Mitigated by the ask rule, the capability index and the audit's guess phrases.
 - **Brief inflation into a schema.** INV-ON-4; `BRIEF.md` reviewers reject required headings or field names.
 - **Cost of big worlds.** Caps (§3.4) and per-round budget; any raise is the operator's.
+
+---
+
+## 12. Red-team pre-freeze review disposition (2026-11-27)
+
+| Finding | Disposition |
+| --- | --- |
+| F1 3D audit wrong | Fixed: §2 rows "Play in 3D" and "Bundled launcher", QON-4, ON-c rescoped; guide ch. 06 staleness recorded (§2) and routed to ON-c. |
+| F2–F4 vehicles conflicts (`DEP-13`, `ARC-67`, `ARC-50`) | Fixed: §10 demoted to a non-binding survey; conflicts listed as Q-VH-1 … Q-VH-4; V6 (same model on client) and V7 (client-simulated, server-validated) added. |
+| F5 journal volume (`ARC-25`) | Fixed: Q-VH-5. |
+| F6 2D parity | Fixed: Q-VH-7. |
+| F7 diagnostic drawing as play | Fixed: §2, §4.2, INV-ON-6. |
+| F8 two gap locations | Fixed: `brief.md` "Gaps" only. |
+| F9 spending | Fixed in QON-7: round definition, QS25-3 ceiling and amendment path, ON-g total, asset spend USD 0, credential inheritance. |
+| F10 materially different gating briefs | Fixed in QON-5 / §8: BR-2 gates as played **and** a 365-day headless research run (different use and scale); recorded as the reason. |
+| F11 platforms | Fixed: §1.3, §3.4, ON-c, Q-VH-8. |
+| F12 checklist wording | Fixed: M6 "Activities", M7 mapped to Controller, skeleton headings defined once. |
+| F13 stale notes | Fixed: owner rule in §5; scored agents get the brief without its note. |
+| F14 launcher audit | Fixed: §2 row. |
+| F15 housekeeping | Fixed: QON-8/9 order; ON-a link-check command, acceptance measure and execution contract. |
+
