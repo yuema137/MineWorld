@@ -807,3 +807,39 @@ nightly record on the merged head is the cross-check.
 - **Locale**: `reason.shop-closed` in `clients/shared/settings/locale/en.po` ("the shop is closed") and
   `zh_Hans.po` ("店铺已打烊"); `messages.pot` regenerated (`MINEWORLD_WRITE_POT=1`); `mineworld-acceptance
   --test client_text` 6/6 PASS.
+
+### Operator ruling on D-N1-4 (2026-11-27, relayed by the coordinator) — audit and material stop
+
+Ruling: "新世界早上 7 点开始" — new worlds begin at 07:00, not 00:00.
+
+**Audit (head 125b98fc, main a8a74659).** The genesis instant is not authored anywhere: every host hard-codes
+`WorldTime::EPOCH` (instant 0 = local midnight of the calendar epoch, `INV-TW-4`) — `tools/cli/src/run.rs`
+`Begun::new` (l. 318), `server/src/host/config.rs` `HostConfig::epoch` default (l. 96, used by `serve.rs` to create
+a save and to load an ephemeral world), `tools/cli/src/create.rs` l. 72, and the inspection paths
+(`main.rs` l. 776, `biography.rs`, `packs.rs`, `perceived.rs`). Resume reads genesis from the save. `run --days N`
+already counts from genesis (`run.rs` l. 132). `world.yaml`'s only time key is `hosting: time_scale` (host
+pacing, "never seeded, ignored by `run`", `ARC-69` item 9), so a start time does not belong there.
+
+**Smallest correct change (proposed, not implemented).**
+1. A new optional `world.yaml` key `begins: "HH:MM"` (schedule's `TimeOfDay` convention), the time of day of
+   genesis on day 0; absent = `"00:00"` (today's behaviour, no world's bytes move). Owned by `worldpack`
+   (`format.rs` field + `WorldPack::begins()`), documented in `MODULE_SPEC.md` beside `hosting:`, recorded as a
+   new ARC (amends no invariant: midnights stay multiples of 86 400 s; genesis simply need not be one).
+2. Every host that **creates** a world uses `pack.begins()` instead of `WorldTime::EPOCH`: `run.rs`,
+   `serve.rs`/`HostConfig` (when creating or loading ephemeral), `create.rs`; the inspection paths likewise.
+3. Content: `worlds/{market-town,social-cafe,lakeside}/world.yaml` `begins: "07:00"`; Bodies Yard unchanged.
+
+**Why this stops here (contract N1 MATERIAL STOP; CLAUDE.md §2.2, §3.1).**
+- It adds a public `world.yaml` contract outside N1's frozen scope (N1-C1…C3 touch economy and Market Town
+  organizations only); a contract addition needs its design text and ARC before code.
+- Ripple measured by audit: three worlds' baselines move (three long records ≈ 25 min each ≈ 75 min, above N1's
+  60-min heavy budget); tests that assert a quiet first hour after genesis (`ac5_takeover`, `milestone_c` via
+  `fixture::assert_quiet_in(…, 0, 3600)`) break at 07:00, where Bob, Grace, Carol and Ivan's routine boundaries
+  fall, and need reworking, not a constant change; AC-S35-8 must be re-measured (the first night is gone);
+  ~30 test files load worlds at `EPOCH` in memory and need a per-file audit; the Godot café-buy tests
+  (`client_3d_market`, `client_2d_interact`, `ac13_clients`, `demo_a`) are the ruling's beneficiaries and must be
+  run in a heavy slot.
+- Recommendation: merge N1 as is (its `MarketCopy` test copies keep the three Rust tests honest), and open a
+  small follow-up PR "world start time" with the design above (one commit for the key + hosts, one for content
+  and goldens), budget ≈ 2 h heavy. Alternative, if the operator wants it inside #552: approve the scope and a
+  2 h heavy budget, and this session continues.
