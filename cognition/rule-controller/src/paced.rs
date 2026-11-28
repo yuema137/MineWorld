@@ -19,7 +19,9 @@
 //! function of its seed, its pace and the observation, and the compiler says so. Every choice is a
 //! mix of `(seed, observer, instant)`. "Answer each line once" is kept without a record of having
 //! answered: the run consults each seat once per `pace`, never two seats at one instant, so a line
-//! heard at `h` lies in exactly one of its listener's windows `(t − pace, t]`. A controller rebuilt
+//! heard at `h` lies in exactly one of its listener's windows `[t − pace, t)` (`ARC-27` note 2026-11-27:
+//! a line stamped at a consult's own instant reaches the listener after that consult, so it is the next
+//! window's). A controller rebuilt
 //! after a restart therefore decides exactly as the one that died — which is what lets a killed run
 //! finish the same world (`AC-6` with controllers in the loop).
 //!
@@ -405,7 +407,9 @@ impl PacedRuleController {
         let opened = now.checked_sub(self.pace.seconds())?;
         let (speaker, heard) = newest.iter().find(|(speaker, heard)| {
             let at = heard.at().seconds();
-            opened < at && at <= now && may_talk_to(observation, **speaker)
+            // `[now − pace, now)`: a line stamped at a consult instant is applied after that consult
+            // (a hosted player's line, ARC-27 note 2026-11-27), so it belongs to the next window.
+            opened <= at && at < now && may_talk_to(observation, **speaker)
         })?;
         if draw.below(100, 1) >= ANSWERS {
             return None;
