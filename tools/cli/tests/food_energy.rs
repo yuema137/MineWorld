@@ -170,12 +170,15 @@ fn model_contradictions_in_configure_are_refused_by_name() {
             Path::new(MARKET_TOWN),
             DOLLARS,
         );
-        std::fs::write(pack.join("configure/needs.yaml"), section).expect("writes");
+        // The refusal names the file by the platform's path (`configure\needs.yaml` on Windows).
+        let file = Path::new("configure").join("needs.yaml");
+        std::fs::write(pack.join(&file), section).expect("writes");
         let refusal = read(&pack)
             .err()
             .map(|error| error.to_string())
             .unwrap_or_else(|| panic!("{case}: expected a refusal"));
-        for part in ["configure/needs.yaml", code, entry, "'needs'"] {
+        let file = file.display().to_string();
+        for part in [file.as_str(), code, entry, "'needs'"] {
             assert!(
                 refusal.contains(part),
                 "{case}: {part:?} missing from: {refusal}"

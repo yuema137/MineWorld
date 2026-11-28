@@ -693,3 +693,14 @@ final head, recorded separately from local results. Review starts while CI runs.
   `fe-evidence/e6/3d-*.jpg` files are replaced. Schema audit: every needs record in the four recorded fixtures states
   `schema_version` (1, 1, 2, 1, by `jq`); the only GDScript needs frame without one is `needs_check.gd::_energy_frame`'s
   deliberate `null` case. `needs_check` 0 failures; R7 PASS.
+
+### Post-merge corrections (2026-11-27, fix/main-regressions-20261127)
+
+The full CI run 46106558394 (merge ref of #540 on main `8745f572`) found two FE-a defects that `fast` did not run:
+- `acceptance::client_rules`: `needs.gd::_reserve` declares `var capacity` — the owner's disclosed `capacity_kcal`,
+  checked by type and bound (§3.8) and passed through. `capacity` is a rule word (I-S14-1), so the declaration must
+  be admitted with a reason; `RULE_NAMES` gains that one admission. The disclosure and the client are unchanged
+  (no contract change: the client already decides nothing; the server already discloses the value it shows).
+- `cli::food_energy::model_contradictions_in_configure_are_refused_by_name` failed on Windows only: it searched the
+  refusal for the literal `configure/needs.yaml`, while the loader names the file with the platform separator
+  (`configure\needs.yaml`). The expected text is now built with `Path::join`.

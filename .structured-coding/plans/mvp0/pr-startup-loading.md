@@ -181,3 +181,11 @@ investigation stays open as its own follow-up.
     time → the evidence detects the regression → **PASS**.
   - **Render-thread caveat.** `UNDRAWN_FRAMES` is documented in `loading.gd` and `LOADING.md` as valid only
     while drawing runs on the main thread; revisit it if rendering moves to a separate thread.
+
+### Post-merge correction (2026-11-27, fix/main-regressions-20261127)
+
+The full CI run 46106558394 (merge ref of #540 on main `8745f572`) failed `acceptance::client_text`
+`the_catalogs_are_complete_and_consistent`: the nine `loading.*` entries exist in both shared catalogs and the pot,
+but `loading` was not one of the test's `KEY_FAMILIES` (step-20 SD-SET-a-6), so each read "is not a key". This PR
+ran `fast` only. Correction: `loading` is registered as a key family beside `trade` and `board`; no key, catalog
+text or client code changes.
