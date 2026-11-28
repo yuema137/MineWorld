@@ -659,7 +659,7 @@ fn play_joins_with_working_arguments_stops_gracefully_and_resumes() {
 /// A-R6: a launcher that dies — here, killed — does not orphan its server, which stops by the same
 /// graceful path within the launcher's own patience.
 fn killing_the_launcher_stops_its_server() {
-    let bundle = Bundle::new("launch-kill", &["market-town"]);
+    let bundle = Bundle::new("launch-kill", &["social-cafe"]);
     let mut launcher = bundle.background("3d");
     let client = bundle.record_of("3d");
     assert_eq!(client.user("seat"), "visitor", "the 3D default seat");
@@ -712,6 +712,8 @@ fn smoke_both_runs_two_headless_clients_on_one_server_and_leaves_no_scratch() {
     }
     fs::write(logs.join("keep-me.log"), "not a run's").expect("an unrelated file");
 
+    // A player's launch.toml never steers a smoke run (Q-LS5): this one names Market Town and Carol.
+    bundle.overrides("[both]\nworld = \"market-town\"\nseat-2d = \"carol\"\n[3d]\nworld = \"market-town\"\nseat = \"carol\"\n");
     let output = bundle
         .launcher("both", &["--smoke=both"])
         .env("MINEWORLD_ADMIN_TOKEN", "unrelated-parent-smoke-capability")
@@ -754,6 +756,13 @@ fn smoke_both_runs_two_headless_clients_on_one_server_and_leaves_no_scratch() {
     }
     assert_eq!(two_d.user("seat"), "visitor");
     assert_eq!(three_d.user("seat"), "wanderer");
+    for client in [&two_d, &three_d] {
+        assert_eq!(
+            client.user("world-key"),
+            "social-cafe",
+            "the fixture, not launch.toml"
+        );
+    }
     assert_eq!(
         two_d.user("server"),
         three_d.user("server"),
@@ -803,6 +812,24 @@ fn smoke_both_runs_two_headless_clients_on_one_server_and_leaves_no_scratch() {
         "the fixture's seat, not launch.toml's"
     );
     assert_eq!(fixture.user("world-key"), "market-town");
+    bundle.overrides("[3d]\nworld = \"market-town\"\nseat = \"carol\"\n");
+    fs::remove_file(bundle.record().join("2d.args")).expect("the old record");
+    let three_d_smoke = bundle
+        .launcher("3d", &["--smoke=3d"])
+        .output()
+        .expect("the launcher runs");
+    assert!(
+        three_d_smoke.status.success(),
+        "{}",
+        finished(&three_d_smoke)
+    );
+    let fixture = bundle.record_of("3d");
+    assert_eq!(
+        fixture.user("seat"),
+        "visitor",
+        "the fixture, not launch.toml"
+    );
+    assert_eq!(fixture.user("world-key"), "social-cafe");
     assert!(
         !bundle.user().join("scratch").exists(),
         "removed after a failure too"

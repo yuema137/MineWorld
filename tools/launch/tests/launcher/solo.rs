@@ -1,5 +1,6 @@
-//! `pr-launcher-solo.md` C1–C2: every mode plays Market Town as a visitor; one player alone is a
-//! `--solo` world, Both is not; a save played as Carol resumes with the player as the visitor and Carol
+//! `pr-launcher-solo.md` C1–C2: 2D plays Market Town as a visitor (3D and Both keep Social Café until
+//! the Q-LS7 gate); one player alone is a `--solo` world, Both is not; a save played as Carol resumes with
+//! the player as the visitor and Carol
 //! town-driven, nothing reset; a fast-forward never survives a restart (`ARC-69` items 5 and 8).
 //!
 //! The oracle is the server, never the launcher's word: whether `POST /admin/clock` accepts 25×
@@ -41,10 +42,54 @@ pub fn child(record: &Path, label: &str, args: &[String], phase: &str) {
     )
     .unwrap();
     if phase == "first" && value("--seat=") == "carol" {
-        // The player's own view of themselves (a save played as Carol, before the default changes).
-        let view = self_view(address, value("--seat="), value("--invite="));
+        // The player's own state, changed by one of their own actions (a drink or a meal from what
+        // they carry), so that a save reset to genesis cannot pass the comparison after the resume.
+        let (seat, invite) = (value("--seat="), value("--invite="));
+        let genesis = self_view(address, seat, invite).1;
+        consume_own(address, seat, invite);
+        let view = self_view(address, seat, invite);
+        assert_ne!(genesis, view.1, "consuming changed the holdings");
         fs::write(record.join("carol.before"), view.1.to_string()).unwrap();
     }
+}
+
+/// Joins `seat`, consumes the first thing its own affordances offer to drink or eat, and leaves once
+/// the server has accepted it.
+fn consume_own(address: &str, seat: &str, invite: &str) {
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+    runtime.block_on(async {
+        let (mut socket, welcome) = join(address, seat, invite).await;
+        let view = until(&mut socket, |v| v["t"] == "observation").await;
+        let offer = view["observation"]["affordances"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|a| {
+                a["available"] == true && (a["action_type"] == "drink" || a["action_type"] == "eat")
+            })
+            .expect("the seat holds something to drink or eat")
+            .clone();
+        let kind = offer["action_type"].clone();
+        socket.send(Message::Text(json!({"t":"submit", "token":"consume", "request":{
+            "actor":welcome["observer"], "action_type":kind, "target":offer["target"],
+            "payload":{"action_type":kind, "payload":offer["payload"]}, "actor_location":null
+        }}).to_string().into())).await.unwrap();
+        let result = until(&mut socket, |v| {
+            v["t"] == "result" && v["token"] == "consume"
+        })
+        .await;
+        assert!(
+            result["result"]["accepted"].is_object(),
+            "consuming accepted: {result}"
+        );
+        socket
+            .send(Message::Text(json!({"t":"leave"}).to_string().into()))
+            .await
+            .unwrap();
+    });
 }
 
 /// Joins `seat` and returns `welcome.took_over` and the wallet and holdings its own first observation
@@ -110,7 +155,17 @@ fn instance(log: &str) -> String {
 }
 
 pub fn market_town_by_default_solo_alone_and_a_carol_save_resumes_as_the_visitor() {
-    let bundle = Bundle::new("launch-solo", &["market-town"]);
+    let bundle = Bundle::new("launch-solo", &["market-town", "social-cafe"]);
+
+    // A Social Café save made before the default change, kept byte-identical by it (LS-I4).
+    bundle.overrides("[2d]\nworld = \"social-cafe\"\n");
+    let cafe = bundle.launcher("2d", &[]).output().unwrap();
+    assert!(cafe.status.success(), "{}", finished(&cafe));
+    let cafe_save = bundle.user().join("saves/social-cafe");
+    let cafe_bytes = files(&cafe_save);
+    assert!(!cafe_bytes.is_empty(), "the Social Café save exists");
+    let servers_before = bundle.logs("server");
+    clear(&bundle);
 
     // Run 1: a save played as Carol, as every 2D save was before this change (LAUNCHER.md §4 opt-out).
     bundle.overrides("[2d]\nseat = \"carol\"\n");
@@ -131,7 +186,7 @@ pub fn market_town_by_default_solo_alone_and_a_carol_save_resumes_as_the_visitor
         200,
         "a 2D play run is a --solo world: 25x is permitted"
     );
-    let first_log = new_log(&BTreeSet::new(), &bundle.logs("server"));
+    let first_log = new_log(&servers_before, &bundle.logs("server"));
     assert!(first_log.contains("[mineworld] created "), "{first_log}");
 
     // Run 2: the defaults. The same save resumes; the player is the visitor; Carol is town-driven.
@@ -186,7 +241,14 @@ pub fn market_town_by_default_solo_alone_and_a_carol_save_resumes_as_the_visitor
         "the same world"
     );
 
-    // 3D alone is solo too; Both seats two players and is not.
+    assert_eq!(
+        files(&cafe_save),
+        cafe_bytes,
+        "the Social Café save is untouched"
+    );
+
+    // 3D alone is solo too; Both seats two players and is not. Both keep Social Café until the
+    // Q-LS7 gate (`config.rs` WORLD_3D).
     for (mode, labels, expected) in [("3d", &["3d"][..], 200), ("both", &["2d", "3d"][..], 409)] {
         clear(&bundle);
         let run = bundle
@@ -198,10 +260,27 @@ pub fn market_town_by_default_solo_alone_and_a_carol_save_resumes_as_the_visitor
         for label in labels {
             assert_eq!(
                 bundle.record_of(label).user("world-key"),
-                "market-town",
+                "social-cafe",
                 "{mode}"
             );
             assert_eq!(solo_record(&bundle, label).0, expected, "{mode} {label}");
         }
     }
+}
+
+/// Every file under `folder`, by relative path, with its bytes.
+fn files(folder: &Path) -> std::collections::BTreeMap<PathBuf, Vec<u8>> {
+    let mut out = std::collections::BTreeMap::new();
+    for entry in fs::read_dir(folder).unwrap() {
+        let path = entry.unwrap().path();
+        if path.is_dir() {
+            for (inner, bytes) in files(&path) {
+                out.insert(path.file_name().unwrap().into(), Vec::new());
+                out.insert(PathBuf::from(path.file_name().unwrap()).join(inner), bytes);
+            }
+        } else {
+            out.insert(path.file_name().unwrap().into(), fs::read(&path).unwrap());
+        }
+    }
+    out
 }

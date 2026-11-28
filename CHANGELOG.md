@@ -18,6 +18,12 @@ First pre-alpha. Packaged clients for macOS, Windows and Linux are not yet publi
 
 ### Changed
 
+- The packaged 2D launcher plays Market Town as the visitor instead of Carol. An existing 2D save resumes with
+  Carol driven by the town; `seat = "carol"` in `runtime/launch.toml` keeps playing her. A packaged 2D or 3D
+  run started alone is now a single-player (`--solo`) world. 2D + 3D and smoke runs are not. Smoke checks
+  ignore `launch.toml`. 3D and 2D + 3D stay on Social Café until the packaged 3D Market Town timing passes
+  (#561).
+
 - Saves of worlds that enable `needs` made by earlier builds no longer load: keep the previous build to play
   them (#555).
 - The MCP surface exposes one `act` tool instead of five, which halves the tool list size (#261).

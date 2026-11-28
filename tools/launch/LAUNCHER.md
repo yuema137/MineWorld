@@ -27,8 +27,13 @@ Three binaries, each a one-line
 | Binary | Mode | Default world | Seats |
 | --- | --- | --- | --- |
 | `mineworld-2d-launch` | `2d` | `market-town` | 2D client as `visitor` |
-| `mineworld-3d-launch` | `3d` | `market-town` | 3D client as `visitor` |
-| `mineworld-both-launch` | `both` | `market-town` | 2D client as `visitor`, 3D client as `wanderer` (`AC-15`'s two players) |
+| `mineworld-3d-launch` | `3d` | `social-cafe` (until the Q-LS7 gate, below) | 3D client as `visitor` |
+| `mineworld-both-launch` | `both` | `social-cafe` (until the Q-LS7 gate, below) | 2D client as `visitor`, 3D client as `wanderer` (`AC-15`'s two players) |
+
+**The Q-LS7 gate** (`pr-launcher-solo.md`). 3D and Both move to `market-town` only when the packaged 3D Market
+Town timing gate passes. The gate's measurement is the median of 3 interleaved warm runs per world, against the
+bound stated in Q-LS7. The switch is one line, `WORLD_3D` in `tools/launch/src/config.rs`, which the gate's PR
+sets to `PLAYED_WORLD` and records here.
 
 Every played mode starts `--town`: unoccupied seats use the world's resolved decision models
 (default in-process paced rule controllers for the bundled towns), without pinning Alice to a
@@ -122,8 +127,8 @@ seat is not checked by the launcher: the server refuses an unknown seat to the c
 
 Before 2026-11-27 the 2D launcher played `carol`. A `saves/market-town/` from then resumes with the player as
 `visitor`; Carol keeps her wallet, holdings and place and is driven by the town like every resident. To
-keep playing her, add `[2d]` with `seat = "carol"`. Social Café, the 3D and 2D + 3D default before that
-date, is played with `world = "social-cafe"`; its save is untouched by the change.
+keep playing her, add `[2d]` with `seat = "carol"`. A Social Café save is untouched by the change; a 2D
+player reaches it with `world = "social-cafe"`.
 
 ## 7. A run
 

@@ -77,7 +77,7 @@ single-client play runs. It changes nothing else in that amendment.
   single-player world: scales above 24×, and the sleep advance once nightlife N2's amending record lands.
 - **Scale ceiling.** The shipped World tab still offers at most 24×, and the capability reaches only the
   launcher's own children, so the product ceiling is unchanged.
-- **Defaults.** Every mode now plays Market Town; 2D plays `visitor` instead of `carol`.
+- **Defaults.** 2D plays Market Town as `visitor` instead of `carol`. 3D and Both keep Social Café until the Q-LS7 packaged timing gate passes; then one constant (`config.rs` `WORLD_3D`) switches them to Market Town.
 - **Smoke.** Smoke plays a fixed fixture and no longer reads `launch.toml`.
 - **No `--hosted-here`.** Still none is passed.
 - **Approval.** The operator approved every recommendation of `pr-launcher-solo.md` (Q-LS1 … Q-LS7) on

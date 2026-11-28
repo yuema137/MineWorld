@@ -298,6 +298,40 @@ Escalate:              any need to change the server's --solo semantics, or a sm
   - The launcher's change here only pins that case's world to `social-cafe`, which was the Both default anyway.
   - Escalated to the coordinator. It is not fixed here: it lies outside `tools/launch`.
 
+### Review fixes — 2026-11-27 (`_reviews/pr561.md`)
+
+- **F1, the frozen Q-LS1 gate.** 3D and Both default to `social-cafe` until Q-LS7 passes (`config.rs`
+  `WORLD_3D`). The gate's PR flips that one constant to `PLAYED_WORLD`; `LAUNCHER.md` §2 documents this. 2D plays
+  Market Town now. This supersedes the "Decision for the coordinator/operator" below.
+- **F4, discriminating the Carol resume test.**
+  - In run 1 the Carol seat consumes something from its own holdings (`consume_own`, accepted by the server).
+  - The test asserts that this snapshot differs from genesis. A save reset to genesis therefore cannot pass the
+    after-resume equality.
+- **F5, coverage.**
+  - `--smoke=both` and `--smoke=3d` run under a `launch.toml` that names Market Town and Carol. They still play
+    `social-cafe` as `visitor`/`wanderer`.
+  - A Social Café save made before run 1 is byte-identical after the Market Town runs (`files()` compare).
+- **F7, records.**
+  - Entry added to CHANGELOG `[0.1.0] Changed`.
+  - Platforms: Windows and Linux launcher tests NOT RUN.
+    - Only `fast` (Linux, without the launcher's real-launch cases) runs on this PR.
+    - `test-windows`, `platforms` and the macOS/Linux shards are skipped without the `milestone` label.
+    - Local evidence is macOS only.
+- **Per-commit LLM logic review.**
+  - [x] `58f29926` (C1+C2):
+    - one owner of the solo decision (`Hosting`);
+    - smoke fixtures pinned;
+    - no domain code, no admission change;
+    - red-team review `_reviews/pr561.md` found F1 (fixed here) and minor follow-ups.
+  - [x] This fix commit: the gate is a single constant, the tests can detect a reset, and the docs follow the
+    branch taken.
+
+- **Living case is intermittent, not consistently broken.**
+  - The full crate suite on this fix head: **PASS**, 6/6 real-launch cases, including
+    `played_town_and_private_clock_controls` (`_targets/launcher-solo-evidence/checks5.log`). Clippy PASS.
+  - The same case had failed in 4 earlier local runs, one of them on main with this PR's changes stashed.
+  - It is therefore an intermittent failure of the resident-dialogue oracle. It remains escalated as such.
+
 ### Packaged gates — status
 
 - **N1 is merged (#552).** The packaged `--slice-market` must therefore use the positioning branch (07:30,

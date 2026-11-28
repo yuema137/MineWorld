@@ -86,7 +86,7 @@ pub fn choice(mode: Mode, overrides: Option<(&str, &str)>) -> Result<Choice, Str
     let world = |given: Option<WorldName>, default: &str| {
         given.unwrap_or_else(|| WorldName::new(default).expect("a default world is a world"))
     };
-    // Every mode plays Market Town as a player who is no resident (`pr-launcher-solo.md` Q-LS1, Q-LS6):
+    // Each mode plays its default world as a player who is no resident (`pr-launcher-solo.md` Q-LS1, Q-LS6):
     // `visitor`, and in Both `AC-15`'s second player `wanderer`. `launch.toml` may name another world or
     // seat, such as `seat = "carol"` to keep playing a save that was played as Carol.
     Ok(match mode {
@@ -95,11 +95,11 @@ pub fn choice(mode: Mode, overrides: Option<(&str, &str)>) -> Result<Choice, Str
             clients: vec![(Client::TwoD, seat(section.seat, "visitor"))],
         },
         Mode::ThreeD => Choice {
-            world: world(section.world, PLAYED_WORLD),
+            world: world(section.world, WORLD_3D),
             clients: vec![(Client::ThreeD, seat(section.seat, "visitor"))],
         },
         Mode::Both => Choice {
-            world: world(section.world, PLAYED_WORLD),
+            world: world(section.world, WORLD_3D),
             clients: vec![
                 (Client::TwoD, seat(section.seat_2d, "visitor")),
                 (Client::ThreeD, seat(section.seat_3d, "wanderer")),
@@ -108,8 +108,13 @@ pub fn choice(mode: Mode, overrides: Option<(&str, &str)>) -> Result<Choice, Str
     })
 }
 
-/// The world every mode plays unless `launch.toml` names another (Q-LS1).
+/// The world 2D plays unless `launch.toml` names another (Q-LS1).
 const PLAYED_WORLD: &str = "market-town";
+
+/// The world 3D and Both play unless `launch.toml` names another. **The Q-LS7 gate flips this one line**
+/// to `PLAYED_WORLD` once the packaged 3D Market Town timing passes (`pr-launcher-solo.md` Q-LS1, Q-LS7;
+/// `LAUNCHER.md` §2). Until then 3D keeps the world its packaged startup was measured on.
+const WORLD_3D: &str = "social-cafe";
 
 /// What a `--smoke` run of `mode` plays: a fixed fixture, never `launch.toml` (Q-LS5). These are the
 /// worlds and seats the probes' verdicts were recorded against (`scripts/package.py`), so a player's
@@ -246,7 +251,7 @@ mod tests {
         assert_eq!(two_d.clients, vec![(Client::TwoD, seat("visitor"))]);
 
         let three_d = choice(Mode::ThreeD, file).expect("valid");
-        assert_eq!(three_d.world.as_str(), "market-town");
+        assert_eq!(three_d.world.as_str(), WORLD_3D);
         assert_eq!(three_d.clients, vec![(Client::ThreeD, seat("visitor"))]);
 
         let both = choice(Mode::Both, file).expect("valid");
@@ -264,12 +269,21 @@ mod tests {
     }
 
     #[test]
-    fn every_mode_plays_market_town_as_a_visitor_and_smoke_keeps_its_fixtures() {
-        for (mode, seats) in [
-            (Mode::TwoD, vec![(Client::TwoD, seat("visitor"))]),
-            (Mode::ThreeD, vec![(Client::ThreeD, seat("visitor"))]),
+    fn every_mode_plays_its_default_world_as_a_visitor_and_smoke_keeps_its_fixtures() {
+        for (mode, default, seats) in [
+            (
+                Mode::TwoD,
+                PLAYED_WORLD,
+                vec![(Client::TwoD, seat("visitor"))],
+            ),
+            (
+                Mode::ThreeD,
+                WORLD_3D,
+                vec![(Client::ThreeD, seat("visitor"))],
+            ),
             (
                 Mode::Both,
+                WORLD_3D,
                 vec![
                     (Client::TwoD, seat("visitor")),
                     (Client::ThreeD, seat("wanderer")),
@@ -277,7 +291,7 @@ mod tests {
             ),
         ] {
             let played = choice(mode, None).expect("defaults");
-            assert_eq!(played.world.as_str(), "market-town");
+            assert_eq!(played.world.as_str(), default);
             assert_eq!(played.clients, seats);
         }
         // The fixtures the bundle's probes were recorded against, whatever the played defaults are.
