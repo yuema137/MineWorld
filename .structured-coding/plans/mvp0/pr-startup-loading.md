@@ -110,3 +110,18 @@ investigation stays open as its own follow-up.
   - The `[startup]` stages in the same log appear in setup order: world build ≈ 6.6 s and lighting ≈ 1.4 s
     headless.
 - **Not done.** A tracked automated test for this case; it is a follow-up, `_reviews/pr548.md` finding 4.
+
+### Bounded correction R2 — 2026-11-27 (perf lane root cause)
+
+- **Finding** (perf lane, `perf-startup/target/perf-evidence/`). On a cold macOS Metal shader cache, Godot 4.7.2
+  compiles every pipeline variant. The first frame drawn through the player's camera blocks about 117 s while the
+  screen still reads "Preparing your character".
+- **Fix.** Right after `_spawn_player()`, `_graphics_stage()` draws one frame with `disable_3d` set, showing
+  `loading.graphics` (en and zh_Hans, plus the pot). 3D is then restored, so the stalled frame is entered with a
+  truthful stage on screen. There is no percentage. The elapsed timer cannot advance inside the stalled frame;
+  LOADING.md says so.
+- **Evidence.**
+  - `ci_gdparse.py clients/3d-spike`: PASS.
+  - Headless closed-port probe (`probe-join-fail-graphics.log`): the new stage is printed in order after the
+    character stage; named FAIL after 19 s, exit 1, so the probe wait stays bounded. PASS.
+  - A windowed Metal cold-cache visual check that the new text is what stays on screen: NOT RUN in this lane.

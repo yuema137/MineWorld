@@ -1344,6 +1344,10 @@ msgstr ""
 msgid "loading.player"
 msgstr ""
 
+#. Preparing graphics... (the first launch can take a few minutes)
+msgid "loading.graphics"
+msgstr ""
+
 #. Joining the world...
 msgid "loading.connecting"
 msgstr ""
