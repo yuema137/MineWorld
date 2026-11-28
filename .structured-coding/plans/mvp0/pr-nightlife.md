@@ -757,3 +757,14 @@ Validation consequence:
 | `scripts/baselines.txt [world market-town]` re-record | — | NOT DONE — deferred to the primary (dispatch rule); every Market Town key moves (genesis `shop-opened` bytes) |
 | Packaged launcher night check (Gate2) | — | INCONCLUSIVE — prerequisite P1 |
 | CI `fast` | 4807b618 | PASS (run 46081089009); re-run on the final head below |
+
+### Coordinator rulings (2026-11-27, after the first hand-back)
+
+1. Re-record `scripts/baselines.txt [world market-town]` in this PR (the genesis `shop-opened` change is the frozen
+   design's own consequence); Market Town only; Lakeside was re-recorded by #553 and is not touched.
+2. D-N1-4 (hosted day starts at 00:00 with every shop closed) goes to the operator; no product change here. The
+   always-open test copies stay. **Follow-up for the client lane (S34-e):** the Godot acceptance tests that buy at
+   the café in hosted Market Town at start will meet `shop-closed` — `tools/cli/tests/client_3d_market.rs`,
+   `client_2d_interact.rs`, `ac13_clients.rs`, `demo_a.rs` (all `#[ignore]` locally; run by the client lanes).
+   `market::AlwaysOpen` (in `tools/cli/tests/market/mod.rs`) is available to them if the operator keeps 00:00.
+3. `fast` green on the final head.

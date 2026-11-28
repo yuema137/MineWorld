@@ -31,7 +31,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use headless::{Tables, fresh, mineworld, stderr, stdout};
-use market::{AlwaysOpen, Ledger, MARKET_TOWN, MarketFact, Town, market_fact};
+use market::{Ledger, MARKET_TOWN, MarketCopy, MarketFact, Town, market_fact};
 use mineworld_contracts::{Causation, EntityId, EventEnvelope, PersonId};
 use mineworld_server::WireObservation;
 use serde_json::{Value, json};
@@ -214,7 +214,7 @@ async fn in_the_cafe(client: &mut Client, who: &str) -> WireObservation {
 async fn alice_works_earns_buys_and_bob_sees_the_shelf_change_across_a_restart() {
     // Buying at the hosted head (midnight of day 2) is the subject, not shop hours: the town as it
     // was before ARC-364, every shop always open.
-    let pack = AlwaysOpen::new("milestone-c-pack");
+    let pack = MarketCopy::always_open("milestone-c-pack");
     let town = Town::read(Path::new(MARKET_TOWN));
     let (alice, bob) = (town.person("alice"), town.person("bob"));
 

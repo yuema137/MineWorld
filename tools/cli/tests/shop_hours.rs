@@ -16,6 +16,7 @@
 //! `shop-opened` payload, independently of economy's code.
 
 mod headless;
+mod market;
 mod social;
 
 use std::collections::BTreeMap;
@@ -25,6 +26,7 @@ use mineworld_contracts::EventEnvelope;
 use serde_json::Value;
 
 use headless::{Tables, fresh, mineworld};
+use market::MarketCopy;
 
 const MARKET: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../worlds/market-town");
 const DAY: i64 = 86_400;
@@ -128,14 +130,15 @@ fn keeps_hours(
     shops: &BTreeMap<u64, Option<Hours>>,
     nights: u64,
 ) -> Vec<(i64, u64)> {
-    let hours_at = |place: u64| shops[&place].clone().expect("hours");
+    // A shop without hours is always open.
+    let sells_at = |place: u64, at: i64| shops[&place].as_ref().is_none_or(|hours| open(hours, at));
     let sales: Vec<(i64, u64)> = of(facts, "sold")
         .map(|fact| (fact.at().seconds(), id_of(&payload(fact)["place"])))
         .filter(|(_, place)| shops.contains_key(place))
         .collect();
     for &(at, place) in &sales {
         assert!(
-            open(&hours_at(place), at),
+            sells_at(place, at),
             "{what}: sold at shop {place} at {at} s, outside its hours"
         );
     }
@@ -255,18 +258,42 @@ fn motivated_residents_do_not_haunt_closed_shops() {
     let facts = social::facts_of(&Tables::read(&save));
     let _ = keeps_hours("motivated", &facts, &printed, &shops(&facts), 2);
 }
-/// A copy of `from` at `to`, every file.
-fn copy_tree(from: &Path, to: &Path) {
-    std::fs::create_dir_all(to).expect("a directory");
-    for entry in std::fs::read_dir(from).expect("readable") {
-        let entry = entry.expect("an entry");
-        let target = to.join(entry.file_name());
-        if entry.file_type().expect("a type").is_dir() {
-            copy_tree(&entry.path(), &target);
-        } else {
-            std::fs::copy(entry.path(), &target).expect("copied");
-        }
-    }
+/// N1-I7 where residents actually meet a closure: a copy of Market Town whose café closes for lunch
+/// (12:00–14:00), when Carol, Ivan, Erin, Felix and the wanderer's routines take them there. Under `rule`,
+/// people do walk into the closed café in that window — so the closure is met, not merely absent — and
+/// still: no sale at the café inside it, at most one refused `buy` per shop per closed interval, nobody
+/// in more than once a day, and the café sells again from 14:00. (Under `motivated` no seat buys anything
+/// in Market Town at all, base content included, so this encounter can only be driven by `rule`.)
+#[test]
+fn residents_meet_a_lunchtime_closure_and_neither_buy_there_nor_haunt_it() {
+    let pack = MarketCopy::with_hours(
+        "shop-hours-lunch-pack",
+        "cafe-company",
+        "[{ from: \"05:30\", until: \"12:00\" }, { from: \"14:00\", until: \"22:00\" }]",
+    );
+    let save = fresh("shop-hours-lunch");
+    let printed = run(Path::new(pack.path()), 2, &save);
+    let facts = social::facts_of(&Tables::read(&save));
+    let shops = shops(&facts);
+    let (cafe, _) = shops
+        .iter()
+        .find(|(_, hours)| hours.as_ref().is_some_and(|hours| hours.len() == 2))
+        .expect("the café, with its split hours");
+    let lunch = |at: i64| (12 * HOUR..14 * HOUR).contains(&at.rem_euclid(DAY));
+    let met = of(&facts, "person-entered-place")
+        .filter(|fact| id_of(&payload(fact)["place"]) == *cafe && lunch(fact.at().seconds()))
+        .count();
+    let sales = keeps_hours("rule, lunch closure", &facts, &printed, &shops, 2);
+    let afternoon = sales
+        .iter()
+        .filter(|(at, place)| place == cafe && (14 * HOUR..22 * HOUR).contains(&at.rem_euclid(DAY)))
+        .count();
+    println!("entries into the closed café at lunch {met}; café sales 14:00–22:00 {afternoon}");
+    assert!(
+        met > 0,
+        "residents walk into the café while it is closed for lunch"
+    );
+    assert!(afternoon > 0, "the café sells again after lunch");
 }
 
 /// N1-I8: a Market Town save from before hours resumes under the pack with hours — the discriminating
@@ -276,23 +303,9 @@ fn copy_tree(from: &Path, to: &Path) {
 /// `hours.rs::a_save_from_before_hours_resumes_with_its_shops_always_open`.
 #[test]
 fn a_market_town_save_from_before_hours_resumes_without_drift() {
-    let scratch = mineworld_test_support::scratch!(empty "shop-hours-pack-before");
-    // A pack's id is its directory name.
-    let before = scratch.path().join("market-town");
-    copy_tree(Path::new(MARKET), &before);
-    for organization in ["cafe-company", "corner-store", "station-news"] {
-        let file = before.join(format!("organizations/{organization}.yaml"));
-        let text = std::fs::read_to_string(&file).expect("readable");
-        let without: String = text
-            .lines()
-            .filter(|line| !line.trim_start().starts_with("hours:"))
-            .map(|line| format!("{line}\n"))
-            .collect();
-        assert_ne!(text, without, "{organization} authors hours");
-        std::fs::write(&file, without).expect("writable");
-    }
+    let before = MarketCopy::always_open("shop-hours-pack-before");
     let save = fresh("shop-hours-before-save");
-    let _ = run(&before, 1, &save);
+    let _ = run(Path::new(before.path()), 1, &save);
     let resumed = run(Path::new(MARKET), 2, &save);
     assert!(resumed.contains("resumed"), "{resumed}");
     let facts = social::facts_of(&Tables::read(&save));

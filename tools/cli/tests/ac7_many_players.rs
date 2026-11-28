@@ -26,7 +26,7 @@ use std::path::Path;
 use std::time::{Duration, Instant};
 
 use futures_util::future::join_all;
-use market::{AlwaysOpen, MARKET_TOWN, Town};
+use market::{MARKET_TOWN, MarketCopy, Town};
 use mineworld_contracts::{ActionResult, EntityId, Rejection};
 use mineworld_server::{RefusalCode, ServerFrame, TookOver, WireObservation};
 use serde_json::{Value, json};
@@ -200,7 +200,7 @@ async fn record(
 #[tokio::test(flavor = "multi_thread")]
 async fn four_players_in_one_world_meet_the_same_alice() {
     // Buying is a step here, not the subject: the café must sell at midnight, as before shop hours.
-    let pack = AlwaysOpen::new("ac7-many-players-pack");
+    let pack = MarketCopy::always_open("ac7-many-players-pack");
     let town = Town::read(Path::new(MARKET_TOWN));
     let alice = town.id("alice");
     let save = SaveDir::new("ac7-many-players");

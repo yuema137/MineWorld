@@ -863,6 +863,9 @@ msgstr "not enough money"
 msgid "reason.out-of-stock"
 msgstr "sold out"
 
+msgid "reason.shop-closed"
+msgstr "the shop is closed"
+
 msgid "reason.cannot-carry"
 msgstr "you cannot carry any more"
 

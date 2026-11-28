@@ -1100,6 +1100,10 @@ msgstr ""
 msgid "reason.out-of-stock"
 msgstr ""
 
+#. the shop is closed
+msgid "reason.shop-closed"
+msgstr ""
+
 #. you cannot carry any more
 msgid "reason.cannot-carry"
 msgstr ""

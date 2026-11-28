@@ -29,26 +29,51 @@ use crate::headless::{mineworld, stderr, stdout};
 /// The repository's Market Town.
 pub const MARKET_TOWN: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../worlds/market-town");
 
-/// A scratch copy of Market Town whose shops author no `hours` (`ARC-364`): always open, as every
-/// shop was before N1. For a hosted test whose subject is not shop hours but which buys right after
-/// genesis — instant 0 is midnight, when the authored town's shops are closed. Removed when dropped.
-pub struct AlwaysOpen {
+/// A scratch copy of Market Town with its shops' `hours` rewritten (`ARC-364`), removed when dropped.
+/// [`MarketCopy::always_open`]: every `hours` line dropped, every shop always open as before N1 — for a
+/// hosted test whose subject is not shop hours but which buys right after genesis (instant 0 is
+/// midnight, when the authored town's shops are closed). [`MarketCopy::with_hours`]: one organization's
+/// hours replaced, for a test that needs a closure at a time residents use the shop.
+pub struct MarketCopy {
     _scratch: crate::headless::Scratch,
     path: String,
 }
 
-impl AlwaysOpen {
-    /// The copy, its directory named `market-town` (a pack's id is its directory name).
-    pub fn new(name: &str) -> Self {
+impl MarketCopy {
+    /// Every shop always open.
+    pub fn always_open(name: &str) -> Self {
+        Self::edited(name, |_| None)
+    }
+
+    /// `organization`'s `hours:` line replaced by `hours: <hours>`; every other shop always open.
+    pub fn with_hours(name: &str, organization: &str, hours: &str) -> Self {
+        Self::edited(name, |stem| {
+            (stem == organization).then(|| format!("    hours: {hours}"))
+        })
+    }
+
+    /// The copy, its directory named `market-town` (a pack's id is its directory name): each
+    /// organization's `hours:` line replaced by `line(stem)`, or dropped when that is `None`.
+    fn edited(name: &str, line: impl Fn(&str) -> Option<String>) -> Self {
         let scratch = mineworld_test_support::scratch!(empty name);
         let root = scratch.path().join("market-town");
         copy_tree(Path::new(MARKET_TOWN), &root);
         for entry in std::fs::read_dir(root.join("organizations")).expect("organizations/") {
             let file = entry.expect("an entry").path();
             let text = std::fs::read_to_string(&file).expect("readable");
+            let stem = file
+                .file_stem()
+                .map(|s| s.to_string_lossy().into_owned())
+                .unwrap_or_default();
             let kept: String = text
                 .lines()
-                .filter(|line| !line.trim_start().starts_with("hours:"))
+                .filter_map(|l| {
+                    if l.trim_start().starts_with("hours:") {
+                        line(&stem)
+                    } else {
+                        Some(l.to_owned())
+                    }
+                })
                 .map(|line| format!("{line}\n"))
                 .collect();
             std::fs::write(&file, kept).expect("writable");
