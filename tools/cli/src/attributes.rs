@@ -7,11 +7,12 @@ use std::path::Path;
 
 use mineworld_attributes_model::backend;
 use mineworld_attributes_model::catalogue::CORE;
+use mineworld_attributes_model::labels::missing;
 use mineworld_attributes_model::render::{self, View};
 use mineworld_attributes_model::section::Restriction;
 use mineworld_attributes_model::{
-    ATTRIBUTES, AttributeValue, AttributesContext, Authored, Catalogue, Declaration, Mutability,
-    Traits, derive,
+    ATTRIBUTES, AttributeValue, AttributesContext, Authored, Catalogue, Declaration, Labels,
+    Locale, Mutability, Traits, derive,
 };
 use mineworld_contracts::{EntityKey, WorldTime};
 use mineworld_worldpack::format::SectionState;
@@ -35,11 +36,6 @@ fn read_context(world: &Path, roots: &PackRoots) -> Result<(WorldPack, Attribute
             )
         })?;
     Ok((pack, context))
-}
-
-/// The world, read, and its catalogue.
-fn read(world: &Path, roots: &PackRoots) -> Result<(WorldPack, Catalogue), String> {
-    read_context(world, roots).map(|(pack, context)| (pack, context.catalogue))
 }
 
 /// The header lines naming the backend and the mask, when the world's packs provide a backend.
@@ -228,11 +224,12 @@ fn resolved<'c>(
         .collect()
 }
 
-/// The rendered lines of one view at the epoch.
+/// The rendered lines of one view at the epoch, in English and every locale `labels` offers.
 fn view(
     catalogue: &Catalogue,
     values: &[(&Declaration, AttributeValue, &'static str)],
     view: View,
+    labels: &Labels,
 ) -> Vec<Value> {
     let plain = values
         .iter()
@@ -252,20 +249,38 @@ fn view(
                 }
                 _ => owned.get(&declaration.id).cloned(),
             }?;
-            render::entry(declaration, &value, view)
+            render::entry(declaration, &value, view, Some(labels))
         })
         .filter_map(|entry| serde_json::to_value(entry).ok())
         .collect()
 }
 
-/// `mineworld attributes show`.
+/// One rendered entry's text as `show` prints it in `locale` (`None`: English): its localised text,
+/// else its English text marked `(en)`, so a reviewer sees every fallback (S30-k §5.8).
+fn shown_text(entry: &Value, locale: Option<&Locale>) -> Option<String> {
+    let english = entry["text"].as_str()?;
+    let Some(locale) = locale else {
+        return Some(english.to_owned());
+    };
+    Some(match entry["texts"][locale.as_str()].as_str() {
+        Some(text) => text.to_owned(),
+        None => format!("{english} (en)"),
+    })
+}
+
+/// `mineworld attributes show`: with `locale`, the human print reads in that locale (the one offered
+/// locale it selects, else English) and marks every English fallback.
 pub fn show(
     world: &Path,
     person: Option<&EntityKey>,
     json: bool,
+    locale: Option<&Locale>,
     roots: &PackRoots,
 ) -> Result<(), String> {
-    let (pack, catalogue) = read(world, roots)?;
+    let (pack, context) = read_context(world, roots)?;
+    let catalogue = context.catalogue;
+    let labels = context.labels;
+    let reading = locale.and_then(|locale| locale.select(labels.locales()));
     if let Some(person) = person
         && !pack.people().contains_key(person)
     {
@@ -290,13 +305,18 @@ pub fn show(
         people.push(json!({
             "person": key.as_str(),
             "values": listed,
-            "holder": view(&catalogue, &values, View::Holder),
-            "other": view(&catalogue, &values, View::Other),
+            "holder": view(&catalogue, &values, View::Holder, &labels),
+            "other": view(&catalogue, &values, View::Other, &labels),
         }));
     }
     if json {
         println!("{}", json!({ "people": people }));
         return Ok(());
+    }
+    if let Some(locale) = locale.filter(|locale| !locale.is_english())
+        && reading.is_none()
+    {
+        println!("{locale}: not offered; shown in English");
     }
     for person in &people {
         println!("{}", person["person"].as_str().unwrap_or_default());
@@ -307,11 +327,11 @@ pub fn show(
             );
         }
         for (title, key) in [("holder", "holder"), ("another observer", "other")] {
-            let texts: Vec<&str> = person[key]
+            let texts: Vec<String> = person[key]
                 .as_array()
                 .into_iter()
                 .flatten()
-                .filter_map(|entry| entry["text"].as_str())
+                .filter_map(|entry| shown_text(entry, reading))
                 .collect();
             println!("  {title}: {}", texts.join("; "));
         }
@@ -319,9 +339,38 @@ pub fn show(
     Ok(())
 }
 
+/// The lines `check --locale` prints for one locale (S30-k §5.8): one `missing <locale> <id> <piece>`
+/// per missing piece, then the count; `not offered` when no label file gives it. A missing piece
+/// falls back to English, so it is reported, never refused.
+fn locale_lines(catalogue: &Catalogue, labels: &Labels, locale: &Locale) -> Vec<String> {
+    let Some(offered) = labels.of(locale) else {
+        return vec![format!("{locale}: not offered")];
+    };
+    let mut lines = Vec::new();
+    let mut complete = 0;
+    for declaration in catalogue.attributes() {
+        let missing = missing(declaration, offered.attributes.get(&declaration.id));
+        if missing.is_empty() {
+            complete += 1;
+        }
+        lines.extend(
+            missing
+                .into_iter()
+                .map(|piece| format!("missing {locale} {piece}")),
+        );
+    }
+    let pieces = lines.len();
+    lines.push(format!(
+        "{locale}: {complete} of {} attribute(s) complete; {pieces} missing piece(s)",
+        catalogue.len()
+    ));
+    lines
+}
+
 /// `mineworld attributes check`: everything `catalogue` validates (a refusal exits 1), then restrictions
-/// no profile draws, counts per namespace, and every pack's `uses:`.
-pub fn check(world: &Path, roots: &PackRoots) -> Result<(), String> {
+/// no profile draws, counts per namespace, every pack's `uses:`, and for each of `locales` what its
+/// label packs lack.
+pub fn check(world: &Path, locales: &[Locale], roots: &PackRoots) -> Result<(), String> {
     let (pack, context) = read_context(world, roots)?;
     let catalogue = &context.catalogue;
     for line in composition_lines(&context) {
@@ -396,6 +445,11 @@ pub fn check(world: &Path, roots: &PackRoots) -> Result<(), String> {
             reads.join(", "),
             proposes.join(", ")
         );
+    }
+    for locale in locales.iter().filter(|locale| !locale.is_english()) {
+        for line in locale_lines(catalogue, &context.labels, locale) {
+            println!("{line}");
+        }
     }
     println!("{} attribute(s); clean", catalogue.len());
     Ok(())

@@ -337,6 +337,9 @@ enum AttributesCommand {
         /// One JSON document.
         #[arg(long)]
         json: bool,
+        /// Print the lines in this locale (`zh_Hans`, `zh-Hans`), English fallbacks marked `(en)`.
+        #[arg(long, value_name = "LOCALE", value_parser = locale)]
+        locale: Option<mineworld_attributes_model::Locale>,
         #[command(flatten)]
         packs: PackDirs,
     },
@@ -345,6 +348,9 @@ enum AttributesCommand {
     Check {
         /// The World Pack directory.
         world: PathBuf,
+        /// Also list what the world's label packs lack in this locale; repeatable.
+        #[arg(long, value_name = "LOCALE", value_parser = locale)]
+        locale: Vec<mineworld_attributes_model::Locale>,
         #[command(flatten)]
         packs: PackDirs,
     },
@@ -527,6 +533,11 @@ fn pinned(text: &str) -> Result<mineworld_attributes_model::lock::Pinned, String
 }
 
 /// A seat name on the command line, checked as the key it must be.
+/// A locale as a person types it (`zh-Hans` is read as `zh_Hans`, S30-k §5.1).
+fn locale(text: &str) -> Result<mineworld_attributes_model::Locale, String> {
+    mineworld_attributes_model::Locale::parse(text).map_err(|error| error.to_string())
+}
+
 fn seat(text: &str) -> Result<EntityKey, String> {
     EntityKey::new(text).map_err(|error| format!("'{text}' is not a seat name: {error}"))
 }
@@ -671,13 +682,18 @@ async fn main() -> ExitCode {
                 world,
                 person,
                 json,
+                locale,
+                packs,
+            } => packs.roots().and_then(|roots| {
+                attributes::show(&world, person.as_ref(), json, locale.as_ref(), &roots)
+            }),
+            AttributesCommand::Check {
+                world,
+                locale,
                 packs,
             } => packs
                 .roots()
-                .and_then(|roots| attributes::show(&world, person.as_ref(), json, &roots)),
-            AttributesCommand::Check { world, packs } => packs
-                .roots()
-                .and_then(|roots| attributes::check(&world, &roots)),
+                .and_then(|roots| attributes::check(&world, &locale, &roots)),
             AttributesCommand::Backends { world, packs } => packs
                 .roots()
                 .and_then(|roots| attributes::backends(&world, &roots)),

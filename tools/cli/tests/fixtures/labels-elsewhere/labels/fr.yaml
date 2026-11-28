@@ -1,0 +1,13 @@
+# Test fixture (S30-k1): a test-only fr pack for this world's own attribute and the core hair colour.
+format: 1
+locale: fr
+words: { list: ", ", and: " et ", join: ", ", more: " …", pair: " : ", "yes": oui, "no": non }
+labels:
+  core.hair-colour:
+    label: Cheveux
+    phrase: "cheveux {value}"
+    words: { auburn: auburn, black: noirs }
+  labels-elsewhere.sea-legs:
+    label: Pied marin
+    phrase: "{value} sur le pont"
+    words: { landlubber: chancelant, steady: stable, old-salt: sûr de lui }

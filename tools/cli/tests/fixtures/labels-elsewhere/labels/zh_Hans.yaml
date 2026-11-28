@@ -1,0 +1,13 @@
+# Test fixture (S30-k1): this world's zh_Hans words for its own attribute and for the core hair colour.
+format: 1
+locale: zh_Hans
+words: { list: "、", and: "和", join: "，", more: "……", pair: "：", "yes": 是, "no": 否 }
+labels:
+  core.hair-colour:
+    label: 发色
+    phrase: "{value}头发"
+    words: { auburn: 赤褐色, black: 黑色 }
+  labels-elsewhere.sea-legs:
+    label: 船上功夫
+    phrase: "在甲板上{value}"
+    words: { landlubber: 站不稳, steady: 站得稳, old-salt: 稳如老水手 }
