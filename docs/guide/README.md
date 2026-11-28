@@ -34,3 +34,5 @@ The words the guide uses, such as World Pack and Place, are defined in
 
 For agents: the page format and the rules the test holds every page to are in
 [`GUIDE_FORMAT.md`](../GUIDE_FORMAT.md).
+
+To have your own agent build a world from a few sentences instead, see [`docs/onboarding/`](../onboarding/README.md).
