@@ -6,7 +6,7 @@ use std::net::TcpStream;
 
 pub const PROBE: &str = "MINEWORLD_LAUNCH_LIVING_PROBE";
 const INHERITED: &str = "launcher-test-unrelated-parent-capability";
-type Socket =
+pub(super) type Socket =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
 
 pub fn child(record: &Path, label: &str, args: &[String], phase: &str) {
@@ -150,7 +150,12 @@ pub fn child(record: &Path, label: &str, args: &[String], phase: &str) {
     fs::write(record.join(format!("{label}.verified")), "PASS").unwrap();
 }
 
-fn http(address: &str, admin: Option<&str>, path: &str, body: Option<Value>) -> (u16, Value) {
+pub(super) fn http(
+    address: &str,
+    admin: Option<&str>,
+    path: &str,
+    body: Option<Value>,
+) -> (u16, Value) {
     let mut stream = TcpStream::connect(address).expect("local host HTTP");
     stream
         .set_read_timeout(Some(Duration::from_secs(8)))
@@ -168,7 +173,7 @@ fn http(address: &str, admin: Option<&str>, path: &str, body: Option<Value>) -> 
     (status, serde_json::from_str(body).unwrap_or(Value::Null))
 }
 
-async fn join(address: &str, seat: &str, invite: &str) -> (Socket, Value) {
+pub(super) async fn join(address: &str, seat: &str, invite: &str) -> (Socket, Value) {
     let (mut socket, _) = tokio_tungstenite::connect_async(format!("ws://{address}/ws"))
         .await
         .unwrap();
@@ -177,7 +182,7 @@ async fn join(address: &str, seat: &str, invite: &str) -> (Socket, Value) {
     (socket, welcome)
 }
 
-async fn until(socket: &mut Socket, predicate: impl Fn(&Value) -> bool) -> Value {
+pub(super) async fn until(socket: &mut Socket, predicate: impl Fn(&Value) -> bool) -> Value {
     let deadline = tokio::time::Instant::now() + Duration::from_secs(40);
     loop {
         let next = tokio::time::timeout_at(deadline, socket.next())
@@ -280,7 +285,9 @@ async fn movement_after_release(address: &str, invite: &str) {
 
 pub fn played_town_and_private_clock_controls() {
     let bundle = Bundle::new("launch-living", &["social-cafe"]);
-    bundle.overrides("[both]\nseat-2d = \"alice\"\nseat-3d = \"wanderer\"\n");
+    bundle.overrides(
+        "[both]\nworld = \"social-cafe\"\nseat-2d = \"alice\"\nseat-3d = \"wanderer\"\n",
+    );
     // Deterministic fixture: Bob is available to talk; Carol has a due trip after release. No shipped
     // world is edited, and neither controller is replaced or told the expected action.
     let people = bundle.runtime().join("worlds/social-cafe/people");
