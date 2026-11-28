@@ -337,6 +337,58 @@ async fn every_permission_failure_is_unauthorized_after_half_a_second_and_change
 }
 
 // ---------------------------------------------------------------------------------------------
+// ARC-374 — the advance routes: behind the token, no instant, and never on a shared host.
+// ---------------------------------------------------------------------------------------------
+
+/// The advance routes are admin routes: without the token they are `401` after the delay. A body that names
+/// an instant, or a malformed operation, is `malformed`; a shared host refuses `not_solo` and records
+/// nothing, so the operation stays unknown and the clock and revision are as they were.
+#[tokio::test]
+async fn the_advance_routes_are_the_hosts_name_no_instant_and_refuse_a_shared_world() {
+    let address = start(Some(TOKEN)).await;
+    let operation = "0123456789abcdef0123456789abcdef";
+    let body = format!(r#"{{"operation":"{operation}","seat":"alice","until":"sleep"}}"#);
+    let unauthorized = http(address, "POST", "/admin/advance", &[], Some(&body)).await;
+    assert_eq!(unauthorized.status, 401, "{:?}", unauthorized.body);
+    assert!(unauthorized.took >= Duration::from_millis(500));
+
+    let before = status(address).await;
+    for (body, code, error) in [
+        (
+            format!(r#"{{"operation":"{operation}","seat":"alice","until":"sleep","at":5}}"#),
+            400,
+            "malformed",
+        ),
+        (
+            r#"{"operation":"0x1","seat":"alice","until":"sleep"}"#.to_owned(),
+            400,
+            "malformed",
+        ),
+        (body.clone(), 409, "not_solo"),
+    ] {
+        let answer = admin_post(address, "/admin/advance", &body).await;
+        assert_eq!(answer.status, code, "{body}: {:?}", answer.body);
+        assert_eq!(answer.body["error"], json!(error), "{body}");
+    }
+    for (method, path) in [
+        ("GET", format!("/admin/advance/{operation}")),
+        ("POST", format!("/admin/advance/{operation}/cancel")),
+    ] {
+        let answer = http(address, method, &path, &bearer(TOKEN), Some("")).await;
+        assert_eq!(answer.status, 404, "{path}: {:?}", answer.body);
+        assert_eq!(answer.body["error"], json!("unknown_operation"));
+    }
+    let malformed = admin_get(address, "/admin/advance/not-an-operation").await;
+    assert_eq!(malformed.status, 400);
+    let after = status(address).await;
+    assert_eq!(
+        after["revision"], before["revision"],
+        "a refusal moves nothing"
+    );
+    assert_eq!(after["paused"], before["paused"]);
+}
+
+// ---------------------------------------------------------------------------------------------
 // DA-8 — only the host changes time; the client vocabulary is closed.
 // ---------------------------------------------------------------------------------------------
 

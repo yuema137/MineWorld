@@ -537,24 +537,33 @@ behave as N2-I8 … I14 in both reference clients.
    `docs/decisions/ARC-<next>.md` (advance; **amends ARC-69 item 5** as §0 states) with a dated note on `ARC-69`.
    `tools/cli/src/hosted.rs` is not edited.
 3. **Implementation.**
-   - [ ] Typed request `{ operation, seat, until: "<adapter name>" }` — no instant; typed refusals: `not-solo`,
+   - [x] Typed request `{ operation, seat, until: "<adapter name>" }` — no instant; typed refusals: `not-solo`,
          `unauthenticated`, `seat-mismatch`, `other-controller-connected` (N2-I3 wording, incl. holds),
          `not-asleep`, `paused`, `busy`, `unknown-adapter`, `operation-conflict`, `advance-in-progress`.
-   - [ ] `host_operations` table records; legacy saves without it read as empty; recovery appends `interrupted`.
-   - [ ] Command/route behaviour of N2-I12 for everything except the loop itself.
-   - [ ] Idempotent status by operation id.
-   - [ ] Until C3 wires the loop, an admitted request records `advance-started`, moves no time, and ends
+         → `runtime/advance.rs::{AdvanceRequest, AdvanceRefusal, admit}`; `admin.rs` routes; wire spelling D-N2-9.
+   - [x] `host_operations` table records; legacy saves without it read as empty; recovery appends `interrupted`.
+         → `persistence/src/operation.rs` (`OperationId`, `OperationRecord`, `read_operations`), backend
+         `append_operation_record`/`operation_records`, `sqlite.rs` lazy table; `WorldRuntime::close_interrupted`.
+   - [x] Command/route behaviour of N2-I12 for everything except the loop itself. → join/other submit refused
+         `advance_in_progress`; clock change, kick/release of another `409 advance_in_progress`; sleeper leave/drop/
+         kick/release → `disconnected` (`connection_lost`, lag → `reason: lagged`); Shutdown → `stopped`; Sweep sweeps
+         only. HostClock hold/re-anchor and per-slice `clock` frames are the loop's (C3).
+   - [x] Idempotent status by operation id. → `advance_status`; `GET /admin/advance/{op}`; cancel of an ended one.
+   - [x] Until C3 wires the loop, an admitted request records `advance-started`, moves no time, and ends
          `stopped` with reason `not-yet-executable` — never a false `woke`. C3 removes that branch.
-4. **Validation.** [ ] each refusal; [ ] repeated id same/different payload; [ ] shared host and two-session host
-   refused; [ ] a seat inside a hold window refused, an observer session allowed; [ ] crash between records →
-   reopen → `interrupted`, no re-advance; [ ] `verify` coherence still passes; [ ] a world without `sleep` →
-   `unknown-adapter`; [ ] a pre-N2 save (no table) resumes with an empty operation history.
+         → `request_advance` (the one marked line).
+4. **Validation.** [x] each refusal; [x] repeated id same/different payload; [x] shared host and two-session host
+   refused; [x] a seat inside a hold window refused; N/A an observer session allowed — this server has no
+   observer-only session (every connection is seated, `PROTOCOL.md` §3), so free and hosted seats are what N2-I3
+   allows, and they are; [x] crash between records →
+   reopen → `interrupted`, no re-advance; [x] `verify` coherence still passes; [x] a world without `sleep` →
+   `unknown-adapter`; [x] a pre-N2 save (no table) resumes with an empty operation history. Evidence §12.
 5. **Acceptance.** Rejected requests cause no action and no record; neither the server crate nor `tools/cli` names a
    sleep type.
 6. **Failure/edges.** Journal write failure fail-stops; unknown record kind is a named recovery error.
 7. **Commands/evidence.** `cargo test -p mineworld-persistence --test host_journal`; `cargo test -p mineworld-server`
    filtered to admin/host/advance; `cargo test -p mineworld-cli --test <hosted target>`. NOT RUN.
-8. **Boundary.** [ ] independent auth/privacy/recovery review; [ ] diff/ledger.
+8. **Boundary.** [ ] independent auth/privacy/recovery review (PR-level red-team, §12); [x] diff/ledger.
 
 ### N2-C3 — exact-due execution
 
@@ -892,6 +901,12 @@ Cargo target:        /Users/yuema137/mineworld-worktrees/_targets/nightlife-n2 (
 | D-N2-3 | Pre-N2 save fixture | the design asks for a Market Town fixture; `tools/cli/tests/fixtures/pre-fe-save` is the precedent | a real genesis-only Market Town save from the base binary (999 424 bytes, `fixtures/pre-n2-market-town/SOURCE.md`) |
 | D-N2-4 | Rhythm regression's form ("same decision trace as the base") | a two-day run is 4 s; the base binary was built before any edit | a frozen copy of the base build's two-day summary (`run-seed-7-days-2.txt`) compared line for line by `sleep_until.rs`; the journal-row identity (below) recorded once as evidence; the 300-day `journal-300s` key is the long cross-check |
 | D-N2-5 | Refused `sleep-until` offers | validate's order | refused offers are parametric (no `at`); only an available offer carries a payload |
+| D-N2-6 | N2-I13's "the next slice starts only after the following sweep has drained it" (C3), recorded before C2/C3 code per the coordinator (2026-11-27) | `runtime/delivery.rs`: the world thread never waits for a client (`try_send` only; `NETWORKING.md` §4); a blocking "wait until drained" would make the world thread wait on a socket, which step-12 I-11 forbids | **Bounded deviation: the drain condition is a non-blocking check.** Before posting each continuation the world thread reads the sleeper's queue depth (its waiting perceived facts and its channel's used capacity, `Sender::max_capacity() − capacity()`); at or above half the bound it does not post a continuation and waits for nothing — the next ticker `Sweep` drains with `try_send` as today and then re-checks and re-posts. No thread blocks, delivery's bounds and drop/`lagged` rules are unchanged, and a `lagged` release still ends the advance `disconnected { lagged }`. Recorded high-water mark per N2-C3 item 4 |
+| D-N2-7 | Where the `AdvanceStop` trait lives (N2-I4) | `mineworld-contracts` depends on no kernel (the adapter must read `&World`); `mineworld-sdk` is domain-free, already depends on `mineworld-kernel`, is depended on by every pack and by `cognition/decision`; the kernel is frozen | `mineworld-sdk` (`sdk/rust/src/advance.rs`): trait, one process-wide write-once catalog (`register_stops`, as `ARC-62` catalogs do), lookup by name. The server gains a `mineworld-sdk` dependency and names no pack |
+| D-N2-9 | Wire spelling of the C2 refusals | every existing wire code is `snake_case` (`RefusalCode`, `fast_forward_solo_only`, `world_stopped`); the admin bearer check answers every permission failure `401 unauthorized` after 500 ms (`PROTOCOL.md` §11.1) | the design's kebab names are written `snake_case` (`not_solo`, `other_controller_connected`, …); `unauthenticated` **is** the existing `401 unauthorized` — no second code. `advance_in_progress` is a new `RefusalCode` (WS) and a `409` (admin) |
+| D-N2-10 | The instant on operation records and `interrupted` | the world may advance in memory past its last commit when nothing fires; a restart resumes at the committed instant | records carry `world.now()`; coherence requires non-decreasing instants **except** at an `interrupted` end, which states the durable instant the world resumed at (could be earlier than the start record's). Revisions never decrease |
+| D-N2-11 | The external agent adapter (`clients/agent`) and `advance_in_progress` | its join-refusal vocabulary is a closed `Literal`; an unknown code maps to `protocol_violation` (`player.py::_join_code`) | not extended in N2 (out of scope; an outside agent seated in a solo world already refuses the advance by N2-I3). Follow-up if an agent may join a sleeping solo world mid-advance |
+| D-N2-8 | Main merged into the branch (2026-11-27, after the disk-full stop) | `origin/main` 805498ce: #564 (worlds begin at their authored time, Market Town 07:00, ARC-371) and #568 | merged cleanly; C1 targets re-run on the merge (evidence below); C1's frozen two-day summary and pre-N2 fixture re-checked against the 07:00 start |
 
 ### N2-C1 evidence (local, macOS arm64, 2026-11-27)
 
@@ -905,3 +920,32 @@ Cargo target:        /Users/yuema137/mineworld-worktrees/_targets/nightlife-n2 (
 | Counterfactual (F1): the same run with `sleep-until` removed from `DECIDED_BY_NAME` | differs: revision 6 564 vs 6 459; `sleep-until accepted 6`, `sleep accepted 27` (base 33) — the exclusion is load-bearing |
 | Mutation M1: `may_sleep` skips the place rule for `sleep-until` | `until.rs` 2 tests FAIL (caught) |
 | Long records (baselines re-record + AC-S35-8) | NOT RUN yet — once on the final head (§7, contract budget) |
+
+### Merge of `origin/main` 805498ce (D-N2-8), C1 re-checked (local, macOS arm64, 2026-11-28)
+
+| Check | Result |
+| --- | --- |
+| `sleep_until::residents_decide_exactly_as_before_sleep_until` against the bdb83457 summary | FAIL as expected: #564 begins Market Town at 07:00 and moves every resident's day (revision 6 743 vs 6 459) |
+| Base re-recorded from `origin/main` 805498ce's binary (temporary worktree + cloned target, both removed); `run-seed-7-days-2.txt` sha256 `d9e49fd2…`, `SOURCE.md` updated | done |
+| `cargo test -p mineworld-cli --test sleep_until` on the merge | PASS (2/2) |
+| Journal-row identity, base 805498ce binary vs this tree, `run … --seed 7 --days 2` | **6 742 rows after genesis byte-identical** (sha256 `747047f6…` both) |
+| `cargo test -p mineworld-cli --test sleep_sections --test host_clock` | PASS (2, 5) |
+
+### N2-C2 evidence (local, macOS arm64, 2026-11-28)
+
+| Check | Result |
+| --- | --- |
+| `cargo test -p mineworld-server` (lib incl. `runtime::advance::tests` 7/7; integration incl. `admin` 8/8 with the new advance-route test) | PASS (all targets, 0 failed) |
+| `cargo test -p mineworld-persistence` (incl. new `host_operations` 3/3, `operation` unit 1/1; `host_journal`, `save`, `retention`, `kill_and_resume` unchanged) | PASS |
+| `cargo test -p mineworld-sleep` (incl. `until::the_advance_stop_identifies_a_sleep_its_alarm_and_its_end`) | PASS (11/11 in `until`) |
+| `cargo test -p mineworld-installed-systems -p mineworld-sdk` (extension lines 6, guard passes) | PASS |
+| `cargo test -p mineworld-cli --test advance` (real binary, Market Town: real adapter found by name → `not_asleep`; `unknown_adapter`; asleep → `stopped/not_yet_executable`, revision unchanged; repeat, conflict; kill → restart → same status by id; shared host → `not_solo`, nothing recorded) | PASS (2/2) |
+| `cargo clippy -p mineworld-server -p mineworld-persistence -p mineworld-sleep -p mineworld-sdk -p mineworld-installed-systems --all-targets -D warnings`; `cargo fmt --all`; `cargo check --workspace --all-targets`; `mineworld reference --check docs/reference` | PASS |
+| Remote CI | NOT RUN (no push yet) |
+
+Maintainability (§7): `runtime.rs` 509 → 533 (+24: two fields, the startup close, three guard lines; the operation
+logic lives in `runtime/advance.rs`, 343 lines incl. docs); `admin.rs` 348 → 465 (three thin routes and their view;
+under the 500 review line); `control.rs` +40 (the N2-I12 guard). `persistence/src/sqlite.rs` host journal and host
+operations now share `append_lazy`/`lazy_rows` (no duplicated SQL). Two `#[expect(dead_code)]` fields on `Running`
+(the adapter, occurrence and sleeper) are read by C3's loop and go with it. No new dependency beyond the server's
+use of the workspace's own `mineworld-sdk` (D-N2-7).

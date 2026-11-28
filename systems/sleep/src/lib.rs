@@ -19,6 +19,7 @@
 //! hears       arrived            presence's: a sleeper who walks wakes (`acted`)
 //!             spoke              conversation's: the listener wakes (`addressed`), the speaker too
 //!                                (`acted`) — decoded through its published type, no dependency
+//! advance     AdvanceStop "sleep": a host's single-player night stops when this sleep ends (ARC-374)
 //! section     configure/sleep.yaml (ARC-63)
 //! depends on  presence
 //! ```
@@ -29,6 +30,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+mod advance;
 mod codec;
 mod offer;
 mod place;

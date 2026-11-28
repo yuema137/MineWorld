@@ -1594,6 +1594,7 @@ dependencies = [
  "mineworld-contracts",
  "mineworld-kernel",
  "mineworld-persistence",
+ "mineworld-sdk",
  "serde",
  "serde_json",
  "subtle",

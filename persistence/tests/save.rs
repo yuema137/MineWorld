@@ -977,6 +977,17 @@ impl PersistenceBackend for Failing {
     fn host_records(&self) -> Result<Vec<mineworld_persistence::backend::HostRow>, PersistError> {
         self.inner.host_records()
     }
+    fn append_operation_record(
+        &mut self,
+        row: &mineworld_persistence::backend::HostRow,
+    ) -> Result<(), PersistError> {
+        self.inner.append_operation_record(row)
+    }
+    fn operation_records(
+        &self,
+    ) -> Result<Vec<mineworld_persistence::backend::HostRow>, PersistError> {
+        self.inner.operation_records()
+    }
 }
 
 #[test]

@@ -25,7 +25,8 @@
 //! actually achieves (`ARC-39`) — movement's — the packs that plan the route a walk follows through
 //! a place they know the geometry of (`ARC-75`) — relationships' — the decay curves a world may
 //! select by name in `configure/relationships.yaml`, none listed yet (`ARC-86`) — and happenings' — the
-//! packs that contribute happening generators, empty until one is installed (`ARC-88`). A type on an
+//! packs that contribute happening generators, empty until one is installed (`ARC-88`) — and the advance
+//! stops a host runs a single-player night until, which sleep answers (`ARC-374`). A type on an
 //! extension line is listed below as well,
 //! and a test
 //! (`tests/resolution.rs`) refuses one that is not, or one listed twice on a line. A world that does not
@@ -43,6 +44,7 @@ mineworld_sdk::installed! {
     extension mineworld_bodies::Anchoring => mineworld_bodies::register_anchorings: [mineworld_posture::PostureSystem,];
     extension mineworld_relationships::DecayCurve => mineworld_relationships::register_curves: [];
     extension mineworld_happenings::HappeningGenerator => mineworld_happenings::register_generators: [];
+    extension mineworld_sdk::advance::AdvanceStop => mineworld_sdk::advance::register_stops: [mineworld_sleep::SleepSystem,];
     Presence => mineworld_presence::PresenceSystem,
     Movement => mineworld_movement::MovementSystem,
     Conversation => mineworld_conversation::ConversationSystem,

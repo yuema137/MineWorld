@@ -113,15 +113,15 @@ pub struct ManifestRow {
     pub body: Vec<u8>,
 }
 
-/// One host-journal record, encoded: its revision and instant, which the storage keeps beside it so that
-/// the journal can be checked without decoding (`ARC-69`).
+/// One host-journal or host-operation record, encoded: its revision and instant, which the storage keeps
+/// beside it so that the table can be checked without decoding (`ARC-69`, `ARC-374`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HostRow {
     /// The save's head when the record was written.
     pub revision: WorldRevision,
     /// The host clock's reading, in whole world seconds.
     pub at: i64,
-    /// The encoded `HostRecord`.
+    /// The encoded `HostRecord` or `OperationRecord`.
     pub record: Vec<u8>,
 }
 
@@ -190,4 +190,11 @@ pub trait PersistenceBackend {
 
     /// Every host-journal record in the order appended. Empty when the save has no journal.
     fn host_records(&self) -> Result<Vec<HostRow>, PersistError>;
+
+    /// Appends one host-operation record, all or nothing (`ARC-374`). The table is created by the first
+    /// append, apart from the host journal; no other row refers to it.
+    fn append_operation_record(&mut self, row: &HostRow) -> Result<(), PersistError>;
+
+    /// Every host-operation record in the order appended. Empty when the save has none.
+    fn operation_records(&self) -> Result<Vec<HostRow>, PersistError>;
 }

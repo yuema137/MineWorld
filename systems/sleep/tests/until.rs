@@ -408,3 +408,40 @@ fn a_world_saved_mid_sleep_until_wakes_at_its_alarm_after_reopening() {
         "the same woke, instant and payload"
     );
 }
+
+/// The advance stop (`ARC-374`, N2-I4): a sleep is identified by its Process, its horizon is the alarm, and it
+/// holds until it ends — however it ends — and no later sleep is mistaken for it.
+#[test]
+fn the_advance_stop_identifies_a_sleep_its_alarm_and_its_end() {
+    use mineworld_sdk::advance::AdvanceStop;
+    use mineworld_sleep::SleepSystem;
+
+    let stop = SleepSystem;
+    assert_eq!(stop.name(), "sleep");
+    let mut town = Town::new(Kind::FlatAndPark);
+    town.pass_to(hms(0, 23, 0, 0));
+    let ana = town.person("ana");
+    assert_eq!(stop.identify(&town.world.read(), ana), None, "awake");
+    let (result, _) = town.submit_now(ana, None, until(MORNING_1));
+    assert!(accepted(&result));
+    let occurrence = stop
+        .identify(&town.world.read(), ana)
+        .expect("asleep, so identified");
+    assert_eq!(
+        stop.horizon(&town.world.read(), ana, occurrence),
+        Some(WorldTime::from_seconds(MORNING_1)),
+        "the horizon is the alarm"
+    );
+    assert!(stop.holds(&town.world.read(), ana, occurrence));
+    town.pass(600);
+    let _ = town.wake("ana");
+    assert!(!stop.holds(&town.world.read(), ana, occurrence), "woken");
+    assert_eq!(stop.horizon(&town.world.read(), ana, occurrence), None);
+    let (result, _) = town.sleep("ana", 60);
+    assert!(accepted(&result));
+    let again = stop
+        .identify(&town.world.read(), ana)
+        .expect("asleep again");
+    assert_ne!(again, occurrence, "a new sleep is a new occurrence");
+    assert!(!stop.holds(&town.world.read(), ana, occurrence));
+}

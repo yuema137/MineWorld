@@ -207,6 +207,7 @@ impl WorldRuntime {
             let subscriber = self.subscribers.swap_remove(index);
             let _ = subscriber.released.send(reason);
         }
+        self.connection_lost(subscription, reason == ClosingReason::Lagged);
     }
 
     /// A connection ended: it stops counting as a client, and its seat is held or returned.
@@ -215,6 +216,7 @@ impl WorldRuntime {
             .retain(|subscriber| subscriber.subscription != subscription);
         self.table
             .depart(subscription, departure, Instant::now(), self.clock.now());
+        self.connection_lost(subscription, false);
     }
 
     /// Sends every connected client the observation *its* observer is entitled to.

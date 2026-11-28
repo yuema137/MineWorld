@@ -493,6 +493,7 @@ the seat's budget will admit one request.
 | `lagged` | From S11-C: this connection's `perceived` stream fell further behind than the server holds for it. Followed by `closing { reason: "lagged" }`; the client rejoins with its `resume` and its last `perceived` cursor, and loses nothing. |
 | `paused` | The host has paused the world's clock (§5.9, §11.3): a `submit` is refused before the server allocates an `ActionId` for it, so nothing is half-done and nothing is journaled. The client may submit again after a `clock` frame says `paused: false`. From S11-D. |
 | `not_granted` | From S27-a: the `join` presented a seat grant (§4.1) that does not name this seat (check 4a), or asked `take_over: true` of a connected or held seat with a grant that does not carry take-over (§4.2 rule 4). Nothing is granted and nobody is displaced; the connection stays and may join again. Retrying the same join with the same grant gets the same answer. |
+| `advance_in_progress` | From N2 (`ARC-374`): the host is running a single-player advance (§11.4) for another seat. A `join` (any seat), and a `submit` from any connection but the sleeper's, is refused before anything is granted, allocated or dispatched. Not final: join or submit again once the advance has ended. On a world not started `--solo` it is never sent. |
 | `rate_limited` | From S27-a: this seat's request budget (§8) is spent. The `submit` is refused before the server allocates an `ActionId` for it, so nothing is half-done and nothing is journaled; `retry_after_ms` says when the budget will admit one request, and the client may submit again after it. Not final: the next request after the wait is answered as usual. |
 
 A refusal is **not** a `Rejection`. A rejection means the world considered a well-formed request and
@@ -901,6 +902,13 @@ POST /admin/seats/wanderer/release → 200 { "seat": "wanderer", "released": tru
 GET  /admin/clock      → 200 { "at": 4112, "time_scale": 1, "paused": false }
 POST /admin/clock { "paused": true } → 200 { "at": 4112, "time_scale": 1, "paused": true }
 POST /admin/stop  {}                 → 202 { "stopping": true }
+POST /admin/advance { "operation": "0123456789abcdef0123456789abcdef", "seat": "visitor",
+                      "until": "sleep" }
+                                     → 200 { "operation": "0123…cdef", "seat": "visitor", "until": "sleep",
+                                             "state": "ended", "outcome": "stopped",
+                                             "reason": "not_yet_executable" }
+GET  /admin/advance/0123456789abcdef0123456789abcdef         → 200 (the same status)
+POST /admin/advance/0123456789abcdef0123456789abcdef/cancel  → 200 (the status after cancelling)
 ```
 
 | Route | Answer |
@@ -919,8 +927,10 @@ Identities are decimal strings (§7). Errors are `{ "error": <code>, "detail": <
 | --- | --- | --- |
 | 400 | `malformed` | A body that is not JSON, lacks a required field, or carries a field the route does not define — `{}`, `{ "at": 999999 }`, `{ "paused": true, "at": 5 }` — or a session or seat that is not one syntactically; or a `time_scale` that is not an integer from 1 to 3600 (`0`, `3601`, `-1`, `12.5`, `"12"`). Nothing changes. |
 | 401 | `unauthorized` | §11.1. |
-| 404 | `unknown_session`, `unknown_seat` | As above. |
+| 404 | `unknown_session`, `unknown_seat`, `unknown_operation` | As above; `unknown_operation` for an advance route naming an operation the world has no record of (§11.4). |
 | 409 | `fast_forward_solo_only` | A `POST /admin/clock` body whose `time_scale` is above 24 on a world not started `--solo`. Nothing changes, including `paused` if the body also named it. (`time_scale_fixed`, the S11-D transitional answer, is retired by TW-c, `ARC-69`.) |
+| 409 | `advance_in_progress` | From N2: a `POST /admin/clock`, or a kick or release of anyone but the sleeper, while a single-player advance runs (§11.4). Nothing changes. |
+| 409 | `not_solo`, `seat_mismatch`, `other_controller_connected`, `paused`, `not_asleep`, `busy`, `unknown_adapter`, `operation_conflict` | `POST /admin/advance` refused (§11.4). Nothing is recorded and nothing moves. |
 | 503 | `world_stopped` | The world is no longer running. |
 
 ### 11.3 What the admin surface may and may not change
@@ -940,3 +950,43 @@ rather than from its last revision (`ARC-69` item 8).
 A pause is not persisted: a server restarted while paused starts running (the world did not age while
 no process hosted it). A kicked player may rejoin at once with the invite: there is no ban without
 per-player identity; to remove someone for good, restart the server with a new `--invite`.
+
+### 11.4 The single-player advance (from N2)
+
+**Implemented by** `server/src/admin.rs` (routes), `server/src/runtime/advance.rs` (admission, lifecycle),
+`mineworld-persistence`'s `operation` module (the `host_operations` table), `mineworld-sdk`'s `advance`
+module (the stop adapter's trait and catalog). **Decision** `docs/DECISIONS.md` `ARC-374`.
+
+A player asleep in a world started `--solo` may have the host run the night faster than wall time. The
+advance is a **host operation**: never a fact, an input or a revision, and never a rescale. No field names
+an instant; a stop adapter, named by `until`, says from authoritative state when the advance must end
+(`"sleep"`: when the sleeper's sleep ends — the alarm or any other wake). A world in which the adapter's
+System Pack is not enabled has no such adapter.
+
+| Route | Answer |
+| --- | --- |
+| `POST /admin/advance` | Body `{ "operation", "seat", "until" }`, every field required, any other `malformed`. `operation` is 32 hexadecimal digits the **client** generates (`malformed` otherwise). A known operation with the same `seat` and `until` answers its recorded status and runs nothing; with another payload it is `409 operation_conflict`. Otherwise the request is admitted only when, in this order: the world was started `--solo` (`not_solo`); no other advance runs (`busy`); the world has the adapter (`unknown_adapter`); exactly one connection drives `seat` (`seat_mismatch`); no other seat is connected or held for a dropped connection — hosted and free seats may be anything (`other_controller_connected`); the clock runs (`paused`); the seat's Person is in the adapter's state (`not_asleep`). An admitted advance answers its status. |
+| `GET /admin/advance/{operation}` | The operation's status; `404 unknown_operation` for none. |
+| `POST /admin/advance/{operation}/cancel` | A running advance stops at the current instant, `cancelled`: the server submits nothing, so the sleeper is still asleep; a client whose player chose "get up" sends `wake` through its own session. An ended operation answers its status unchanged. |
+
+A status is `{ operation, seat, until, state: "running" | "ended", outcome?, reason? }`. The outcomes:
+`woke` (the adapter's state ended — the alarm, or any wake, including the sleeper's own `wake`),
+`cancelled`, `disconnected` (the sleeper's connection left, dropped, was kicked or released, or lagged —
+`reason: "lagged"`), `stopped` (a graceful stop, or `reason: "not_yet_executable"`), `interrupted` (the
+process ended during it; recorded at the next start, and nothing resumes) and `failed` (the save could not be
+written). **In this build an admitted advance moves no time**: it is recorded and ends at once
+`stopped { not_yet_executable }` (pr-nightlife N2-C2; the loop is N2-C3's).
+
+While an advance runs, a `join` and any other connection's `submit` are refused `advance_in_progress`
+(§5.5); `POST /admin/clock`, and a kick or release of anyone but the sleeper, are `409 advance_in_progress`;
+kicking or releasing the sleeper, or the sleeper's connection ending, ends the advance `disconnected`; a stop
+ends it `stopped` before the ordinary graceful stop. The ticker's sweep still delivers observations and
+releases ended holds, and never consults or advances the world itself.
+
+Each advance's lifecycle is written to the save as **host records** in a table of their own,
+`host_operations`, created by the first advance: `advance_started { operation, seat, adapter, prior_scale }`
+before the first instant and `advance_ended { operation, outcome, reason }` after the last, each with the
+world's instant and the save's head. A binary from before N2 reads past the table; `verify` checks that the
+history is coherent (an operation starts once, ends once after its start, one at a time; revisions and
+instants never decrease, except that an `interrupted` end states the durable instant the world resumed at)
+and never re-executes it. A record the save cannot take stops the world.

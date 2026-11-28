@@ -86,3 +86,8 @@ changes are host records), `INV-TWc-1` (a hosted cadence is unchanged by a live 
 "doze" is `POST /admin/clock {"time_scale": n}` with n > 24 on a `--solo` world, restored by the client
 (no route names an instant or an arrival). `ARC-67`'s FX-24 remains the feasibility test; its remedy is content,
 never a controller that reads the scale.
+
+**Note, 2026-11-27 (`ARC-374`).** Item 5 is amended: `--solo` now widens **two** permissions — scales above 24, and
+the single-player advance operation (`POST /admin/advance`); the advance loop is reachable only through the second.
+World rules, authority and persistence remain one path; shared worlds never advance. The advance's lifecycle is kept
+in its own `host_operations` table beside the host journal (item 6's table and `PacingChange` are unchanged).
