@@ -544,6 +544,7 @@ separately and stops the run if the total (ledger calls + warm-up) would exceed 
 | 5 | Unrelated short line (T1) | 1 |
 | 6 | Restart; player re-enters; T3 fires once (greeted set is process memory) | 1 |
 | 7 | Player asks current location and code (T1) | 1 |
+| F | `feeling` (S35 N-e): a need word changes, or waking — *row added 2026-11-28 after the gate, red-team #565; cap unchanged; see §10 PR-B follow-ups* | 0–2 |
 | | **Total expected / cap** | **7 / 8** (one spare for a single failure) |
 
 **Other bounds.** Inference wall ≤ 180 s total; ≤ 20 s trigger-to-submit per reply; each real-process run
@@ -714,7 +715,7 @@ shared); `lib.rs` (profile read, `--fresh` store deletion, preflight/assignment/
   added); `cognition/lm-controller/tools/reference.py` intro (supervised link) and regenerated
   `docs/reference/cognition-toml.md`; `examples/local.toml` stale "format 1"/"FG-c is not merged" fixed;
   `packaging/cognition-profile.template.toml`; `packaging/decisions/market-town-alice-lm.yaml`;
-  `docs/decisions/ARC-371.md` + index.
+  `docs/decisions/ARC-372.md` + index.
 
 **Bounded deviations (C2).**
 
@@ -872,8 +873,9 @@ Observed (decision log + transcript):
   §6 table did not pin), `spoken_to` ×4.
 - Turn 1 (code + place): no reply within the turn (62 s), the consult fell back → rubric (f) fails.
 - Turn 2 (question, via the MCP agent): fell back, no reply. Turn 3 (correction): "Good morning, Ms. Lindgren. I see
-  you've updated your location." Elsewhere Alice repeated a line said to Bob and once replied
-  "I remember you. You said 'Not too long…'" — her own words attributed to the player.
+  you've updated your location." Alice repeated her own line to Vera ("feeling a bit rough") in consults 2, 3 and
+  the rejected consult 6. (Correction, red-team #565 finding 2: an earlier version of this entry said she replied
+  "I remember you. You said 'Not too long…'"; that line is Bob's rule template, event 741, shown to her as memory.)
 - The harness stopped before turn 4 (unrelated line) because one more call would pass the cap of 8; turn 5 (the
   post-restart question = §6 turn 7) was never asked; rubric (a)–(e) not exercisable.
 - `other_resident_actions` during inference counted 0 by the harness (recorded, not interpreted; the
@@ -889,3 +891,37 @@ raised, no model swapped, no rerun.
 **Status.** C2–C5 implemented; deterministic validation complete; live gate FAIL ("check 2 NOT MET"); PR #565 open;
 CI on the final head pending at the time of this entry. READY FOR OPERATOR REVIEW once CI is green — awaiting the
 §0 operator choice. Never merge without authorization.
+
+#### Red-team #565 follow-ups (2026-11-28; review `_reviews/pr565.md`, PASS-WITH-FOLLOWUPS)
+
+**Attribution of the gate FAIL (finding 3), corrected.** Not the model alone:
+
+| Failure | Cause | Disposition |
+| --- | --- | --- |
+| Turn 1 never answered | **Code**: `Pending` kept only the newest trigger. Consult 1 (`arrived`, nobody in talk reach) fell back with `unknown_person` and handed back; Bob's `arrived` then overwrote Vera's waiting line, uncounted (`dropped: 0`) | Fixed: `triggers.Pending.offer` never lets another kind of trigger displace a waiting `spoken_to` (the newer one is dropped); every lost trigger is counted in the new counter `superseded_triggers`. Regression `test_a_waiting_persons_words_are_never_displaced_by_another_kind_of_trigger`; mutation (guard removed) caught. `seat.py` 765 → 764 |
+| Unplanned `feeling` call | **Harness**: Alice held still from 00:00 to 07:00 was famished/exhausted; her rule fallback ate between holders and the hunger word changed | Harness now feeds her from what she carries (offered `eat`/`drink`) before cognition starts and records her `needs` in the `positioned` note. Tiredness cannot be reset at the café (sleep needs a `residential` place; walking is wall-bound), so she is still tired: recorded, not hidden |
+| `unknown_person`, `forged_recall` ×2 | **Model + prompt/validator design**: `say` to nobody when no one was in reach; two recall tokens with wrong syntax over shown ids (`#[741]`, `#525`) | Operator amendment (pending): known-persons list in the prompt and a structured citation format |
+| Irrelevant content | **Model capability** | Operator amendment / model choice |
+
+**§6 trigger table (finding 6, coordinator direction).** A `feeling` row is added below as an amendment of the live
+table, without changing the cap: `feeling` (S35 N-e) fires once when a need word changes and once on waking; in a
+07:00–13:00 window (6 world hours) tiredness rises 60/h and hunger 120/h, so even a fed seat can cross a word: 0–2
+calls. The cap of 8 is unchanged; whether the next gate needs a larger cap or a needs-quiet scenario is part of the
+operator's amendment. Expected calls now: warm-up 1 + `arrived` ×2 (C4 finding 1) + T1 ×5 + `feeling` 0–2 → 8–10,
+i.e. **over the cap by design** until the amendment decides.
+
+**Process (findings 5, 7, 9).** The §6 spare call was removed (7 → 7 + 1 = 8, no spare) by C4 finding 1, recorded
+5 s before the run, **without escalation**: a change in gate tolerance that should have gone to the operator first;
+recorded here as a deviation. `other_resident_actions: 0` in `evidence.json` was not measured (the harness writes
+0 unless all turns run): read it as "not measured". The §6 baseline comparison (rule-only vs one-LM) was NOT RUN.
+The FAIL cassette is not used as the C4 replay fixture; C4 stays on its scripted model (deviation from §6 Cassette).
+
+**CI (finding 1).** The PR's CI on `1bce2b18` ran in `deferred` mode: only `fast`, `changes`, `removability`. The
+cross-platform launcher tests (core `test`, `test-windows`, `test-macos`) and the `python` layer on three OSes did
+**not** run; §7 "Cross-platform" stays NOT RUN until a full-mode run on the exact final head (needs a milestone label
+or a manual dispatch, the coordinator's call).
+
+**PLAY.txt (finding 8).** Start-over text now names `cognition/<world>/` beside `saves/<world>/`; conversation is
+marked "checked on macOS only so far" (EN and zh-CN).
+
+**Record renumbered.** The R1 runtime record is `ARC-372` (was ARC-371, which #564 also took first); every citation moved in the same commit.

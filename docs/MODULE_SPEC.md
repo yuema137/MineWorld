@@ -2409,7 +2409,7 @@ property, and it never changes who a Person is (INV-1).
   the SDK's pacer (`mineworld_sdk.pacer`), one offered `walk-step` per wall second, under the seat's one
   submit lock; it never chooses a position or a stride. A launcher may run it as its supervised child
   ([`reference/cognition-supervised.md`](reference/cognition-supervised.md); `tools/launch/LAUNCHER.md` §10;
-  `ARC-371`). When it cannot decide (a failed consult, an exhausted retry layer, a breached bound, an open
+  `ARC-372`). When it cannot decide (a failed consult, an exhausted retry layer, a breached bound, an open
   breaker), it gives the seat back with `leave`, and the server's fallback model for that seat drives it
   (`took_over: "hosted"`). The hand-back is host state: no fact is written and no world state changes.
   Retry layers (transport, content, semantic), the per-seat circuit breaker, the consult deadline and the

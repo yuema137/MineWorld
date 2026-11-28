@@ -212,7 +212,7 @@ Conversation never fails a run: a cognition process that cannot start, or stops,
 ## 10. Conversation: the cognition profile and the cognition child
 
 Design and evidence: `.structured-coding/plans/mvp0/pr-playable-dialogue-memory.md` (DM-20261127-3) §§3–4;
-the runtime route is `docs/decisions/ARC-371.md`; the cognition side of every contract below is
+the runtime route is `docs/decisions/ARC-372.md`; the cognition side of every contract below is
 [`docs/reference/cognition-supervised.md`](../../docs/reference/cognition-supervised.md). The launcher handles
 only opaque paths and the closed status vocabulary: it never reads the cognition configuration, never names a
 model, endpoint or key, never downloads a model or a runtime, and never starts or stops a model service.

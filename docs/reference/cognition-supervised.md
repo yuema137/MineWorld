@@ -6,7 +6,7 @@ Controller Pack (`cognition/lm-controller`, module `mineworld_cognition.supervis
 `mineworld_cognition.runtime_manifest`). The launcher's side — the profile that turns conversation on, the child's
 lifecycle and the `--fresh` rule — is [`tools/launch/LAUNCHER.md`](../../tools/launch/LAUNCHER.md) §10. Design and
 evidence: `.structured-coding/plans/mvp0/pr-playable-dialogue-memory.md` (DM-20261127-3) §3.4; the runtime route is
-[`ARC-371`](../decisions/ARC-371.md). The configuration file itself is [`cognition-toml.md`](cognition-toml.md).
+[`ARC-372`](../decisions/ARC-372.md). The configuration file itself is [`cognition-toml.md`](cognition-toml.md).
 
 Without `--supervised`, `--preflight` and `--write-runtime-manifest` the command behaves exactly as before:
 `python -m mineworld_cognition --config FILE`.
@@ -104,7 +104,7 @@ The launcher's own, never accepted from the process: `readiness_timeout`, `child
 
 ## 3 Runtime manifest and preflight
 
-The R1 runtime is a MineWorld source checkout's `uv sync --locked` environment on this machine (`ARC-371`). Its
+The R1 runtime is a MineWorld source checkout's `uv sync --locked` environment on this machine (`ARC-372`). Its
 manifest is written by that environment's interpreter:
 
 ```sh

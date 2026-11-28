@@ -181,3 +181,37 @@ impl Agent {
         );
     }
 }
+
+/// Feeds the held person from what she carries, through meals the world offers her, until none is offered (at most
+/// four): a person held still from genesis to the gate's opening is otherwise famished there, and her rule
+/// fallback eating during the conversation changes a need word and asks a `feeling` consult the §6 scenario never
+/// meant (red-team #565). Returns the action types eaten or drunk.
+pub async fn feed(held: &mut Held) -> Vec<String> {
+    let mut meals = Vec::new();
+    for _ in 0..4 {
+        let observation = held.client.observation().await;
+        let Some(meal) = observation
+            .affordances()
+            .iter()
+            .find(|offer| {
+                matches!(offer.action_type().as_str(), "eat" | "drink")
+                    && offer.is_available()
+                    && offer.payload().is_some()
+            })
+            .cloned()
+        else {
+            break;
+        };
+        let kind = meal.action_type().as_str().to_owned();
+        let request = json!({
+            "actor": held.id,
+            "action_type": kind,
+            "target": meal.target(),
+            "payload": { "action_type": kind, "payload": meal.payload() },
+            "actor_location": null,
+        });
+        held.client.submit_accepted(request).await;
+        meals.push(kind);
+    }
+    meals
+}

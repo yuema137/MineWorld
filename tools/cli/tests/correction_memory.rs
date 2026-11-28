@@ -50,7 +50,7 @@ use correction::evidence::{
     dir_size, facts, isolated, machine_checks, no_trigger_replayed, others_acted, store_resumed,
     write_evidence,
 };
-use correction::people::{Agent, Held, Player, hold, leave, own_component, whereabouts};
+use correction::people::{Agent, Held, Player, feed, hold, leave, own_component, whereabouts};
 use correction::{
     ADMIN_TOKEN, ALICE_AND_DEV, ALICE_ONLY, ALICE_SPOT, AT_THE_COUNTER, CALL_CAP, CLOSES,
     COUNTER_MM, FAST, LAST, Lines, Mode, NOT_STOLEN, OPENS, PLAYED, QUESTION, Run, SERVER_STOP,
@@ -133,6 +133,8 @@ async fn position(mode: &Mode) -> (Run, Hosting, Positioned) {
         None
     };
     let t0 = fast_forward_to(&hosting.server, OPENS).await;
+    let meals = feed(&mut alice).await;
+    let needs = own_component(&mut alice, "needs").await;
     let (place, spot) = whereabouts(&mut alice).await;
     let off = i64::from(spot.0 - ALICE_SPOT.0).pow(2) + i64::from(spot.1 - ALICE_SPOT.1).pow(2);
     assert!(
@@ -169,6 +171,7 @@ async fn position(mode: &Mode) -> (Run, Hosting, Positioned) {
         json!({ "world_at": t0, "alice_place": place.raw(), "alice_at": [spot.0, spot.1],
                 "alice_took_over": format!("{:?}", alice.took_over),
                 "holdings": run.holdings.0, "wallet": run.holdings.1,
+                "meals": meals, "needs": needs,
                 "store_bytes": dir_size(&run.store), "save_bytes": dir_size(Path::new(&run.save)) }),
     );
     assert_eq!(

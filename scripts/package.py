@@ -74,7 +74,7 @@ PACK_3D = "presentation/mineworld-default/3D"
 PACK_3D_PARTS = ("far_field", "characters/cast.yaml", "characters/cast", "manifest.yaml", "pack.yaml",
                  "assets", "depictions", "furniture", "i18n", "materials", "places", "sit_points", "stations")
 SHARED_FILES = ("clients/shared/settings/locale", "clients/shared/settings/fonts")
-# Conversation, off by default (tools/launch/LAUNCHER.md §10; ARC-371): the decision list a cognition profile names,
+# Conversation, off by default (tools/launch/LAUNCHER.md §10; ARC-372): the decision list a cognition profile names,
 # and an inactive profile template. Nothing reads either unless the player writes cognition/profile.toml.
 COGNITION_FILES = (("packaging/decisions/market-town-alice-lm.yaml", "decisions/market-town-alice-lm.yaml"),
                    ("packaging/cognition-profile.template.toml", "cognition-profile.template.toml"))
