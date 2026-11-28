@@ -370,3 +370,26 @@ Head `6fd6b533`, merged locally with #551 `880b86f8` (scratch merge `6fe5aa89`).
 Market Town save with #551 is under 96 MiB on both seeds) and the remaining stops are walker-to-walker.
 Avoidance between walkers becomes a follow-up, analysed in
 `/Users/yuema137/mineworld-worktrees/_planning/walker-avoidance-20261128.md`.
+
+**Stops by stopper, 2026-11-28 (red-team follow-up on #576; this is the quantity AC-b-A4 meant).**
+Method: Market Town, seed 7, 300 days, release, with #551 merged. Each save's facts are streamed in
+order. Each `stopped-short` is classified by its `by`: no one (a solid); a person seated at that moment
+(tracked from `sat-down` / `stood-up`); a person with a walk in progress (`walk-started` / `walk-ended`);
+or an idle person. The reader is a scratch test, not committed.
+
+| Stopper | Base (#551) | Head (#551 + A1) | Change |
+| --- | --- | --- | --- |
+| seated | 5 032 | 1 084 | **−3 948 (−78.5 %)** |
+| walker | 55 509 | 54 485 | −1 024 |
+| idle | 2 454 | 1 998 | −456 |
+| solid | 5 264 | 4 654 | −610 |
+| total | 68 259 | 62 221 | −6 038 |
+
+**Coverage hole (sitters beyond 3 m of the straight line, or beyond the cap of 16), measured not
+patched.** The 1 084 remaining stops at a sitter are 1.7 % of all stops, over 300 days. About 70 % of them
+are in the café, within 1 m of `window-stools.1` / `table-1.1`. After such a stop, the existing re-plan
+already plans round everyone within 3 m of the walker, the sitter included (`still_people`), and now also
+round the sitters near the new line. So a detour that meets a sitter costs one stop, not a storm. A
+re-plan triggered when a seated body blocks the planned path would add a path-versus-sitter check to
+every leg to save about 3.6 stops a day. It is not added. The red team's option (b), "document and
+measure", is taken.
