@@ -355,4 +355,12 @@ measurement. The bound is not raised and nothing is tuned to pass.
 
 ### A1.5 Evidence ledger
 
-(empty until implementation)
+Head `6fd6b533`, merged locally with #551 `880b86f8` (scratch merge `6fe5aa89`). Base = #551 `880b86f8`, which already contains origin/main @ bdb83457. Release builds on macOS arm64, 2026-11-27/28. The thresholds were committed in `6fd6b533`, before any run.
+
+- **AC-b-A1, A2, A6: PASS.** `cargo test -p mineworld-bodies -p mineworld-posture` all green, `clippy -D warnings` clean. Mutation: with `SEATED_MAX` = 0, AC-b-A1 turns red (dave is stopped short at alice).
+- **AC-b-A3: PASS.** AC-b-6's seeded run is unchanged and green.
+- **AC-b-A4: FAIL.** Total `stopped-short`, seed 7: 68 259 → 62 221 (−6 038). Seed 8: 66 241 → 61 700 (−4 541). The frozen threshold was −8 759. Other seed-7 deltas: `arrived` 1 012 510 → 1 003 083 (−9 427); `gave-way` 67 683 → 67 655; `sat-down` 5 225 → 5 240; `person-entered-place` 81 713 → 81 837; history 1 620 192 → 1 604 738 facts (−15 454).
+- **AC-b-A5: PASS.** Seed 7: 100 352 000 B = 95.70 MiB, 0.30 MiB under the bound, and `market_town` passes in full (ASRB-1 95.7 MiB, ASRB-2 0.270 MiB/day, ASRB-3 22.7 MiB). Seed 8: 99 831 808 B = 95.21 MiB, 0.79 MiB under. Base: 96.48 / 95.89 MiB.
+- **AC-b-A7: PASS, with a caveat.** Market Town, 30 days, seed 7: main took 22.59 / 32.91 / 24.89 s (median 24.89 s) and this head alone 20.53 / 65.88 / 21.52 s (median 21.52 s, 86 %). The machine was shared with other sessions, so the spread is large.
+
+**Disposition.** A4 fails while A1–A3, A5 and A7 pass, so by §A1.3 this goes to the operator with the measurement. Nothing was tuned. Most remaining `stopped-short` are not at sitters: base before #551 already had about 50 700 (S34-d1 ledger, +17 518 with #551). A1 removes about a third of the stops #551 added. The rest are walkers meeting walkers or idle people, which A1 does not cover. The 300-day save fits 96 MiB on both seeds.
