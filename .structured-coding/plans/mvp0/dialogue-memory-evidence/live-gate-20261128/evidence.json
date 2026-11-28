@@ -1,0 +1,291 @@
+{
+  "calls": {
+    "cap": 8,
+    "consults": [
+      {
+        "attempts": [
+          {
+            "failure": {
+              "cls": "content",
+              "reason": "unknown_person",
+              "retry_after_s": null,
+              "retryable": true
+            },
+            "key": "d0483e3d28e1a9e7bb97a04a94e51dc3a9032aebcdc6c1b061b3a1921d8bcab0",
+            "layer": "content",
+            "text": "{\"act\": \"say\", \"to\": null, \"words\": \"Honey, the register is locked tight today. Come back when you've eaten something real.\", \"offer\": null, \"recalls\": []}"
+          }
+        ],
+        "outcome": "fell_back",
+        "trigger": "arrived"
+      },
+      {
+        "attempts": [
+          {
+            "failure": null,
+            "key": "5c7a14e10e938064e63d992b7378cea32122cf50d8ee3ee6577db1056c333d84",
+            "layer": "none",
+            "text": "{\"act\": \"say\", \"to\": \"Vera Lindgren\", \"words\": \"Morning, Ms. Lindgren. I can see you're feeling a bit rough this morning.\", \"offer\": null, \"recalls\": [\"[#340]\"]}"
+          }
+        ],
+        "outcome": "acted",
+        "trigger": "arrived"
+      },
+      {
+        "attempts": [
+          {
+            "failure": null,
+            "key": "0b4ee3e0be0f65a36f7674115fc4f45d67c7328c59ded4dba5c0cf84fb1ca7ae",
+            "layer": "none",
+            "text": "{\"act\": \"say\", \"to\": \"Vera Lindgren\", \"words\": \"Morning, Ms. Lindgren. I can see you're feeling a bit rough this morning.\", \"offer\": null, \"recalls\": [\"[#525]\"]}"
+          }
+        ],
+        "outcome": "acted",
+        "trigger": "feeling"
+      },
+      {
+        "attempts": [
+          {
+            "failure": null,
+            "key": "3047b1e05cbcf5e540bad236423952a5b95c79e57b50a854ec52a97b3beb9b79",
+            "layer": "none",
+            "text": "{\"act\": \"say\", \"to\": \"Bob Achterberg\", \"words\": \"Not too long. Just enough to think about the work starting soon.\", \"offer\": null, \"recalls\": [\"[#708]\"]}"
+          }
+        ],
+        "outcome": "acted",
+        "trigger": "spoken_to"
+      },
+      {
+        "attempts": [
+          {
+            "failure": {
+              "cls": "content",
+              "reason": "forged_recall",
+              "retry_after_s": null,
+              "retryable": true
+            },
+            "key": "3b23fc0ba935a5110cba017ac4b2a9a1777f05159ffaeb01dd1bc4f65812571a",
+            "layer": "content",
+            "text": "{\"act\": \"say\", \"to\": \"Bob Achterberg\", \"words\": \"Morning, Bob. Not too long, just enough to remember you before today.\", \"offer\": null, \"recalls\": [\"[#708]\", \"#[741]\"]}"
+          }
+        ],
+        "outcome": "fell_back",
+        "trigger": "spoken_to"
+      },
+      {
+        "attempts": [
+          {
+            "failure": {
+              "cls": "content",
+              "reason": "forged_recall",
+              "retry_after_s": null,
+              "retryable": true
+            },
+            "key": "1af4dd17a419d5135530f0b976e43b1166502a6d872d3abb83b927f4ef797d08",
+            "layer": "content",
+            "text": "{\"act\": \"say\", \"to\": \"Vera Lindgren\", \"words\": \"Morning, Ms. Lindgren. I can see you're feeling a bit rough this morning.\", \"offer\": null, \"recalls\": [\"[#338]\", \"#525\"]}"
+          }
+        ],
+        "outcome": "fell_back",
+        "trigger": "spoken_to"
+      },
+      {
+        "attempts": [
+          {
+            "failure": null,
+            "key": "1db1fa8ea19afb34959a92716414d88fdb1ed433cbd2f56847ad6549e958bf79",
+            "layer": "none",
+            "text": "{\"act\": \"say\", \"to\": \"Vera Lindgren\", \"words\": \"Good morning, Ms. Lindgren. I see you've updated your location.\", \"offer\": null, \"recalls\": [\"[#338]\"]}"
+          }
+        ],
+        "outcome": "acted",
+        "trigger": "spoken_to"
+      }
+    ],
+    "ledger_calls": 7,
+    "other_resident_actions": 0,
+    "run_wall_s": 101,
+    "total": 8,
+    "warm_up": 1
+  },
+  "lines": {
+    "code": "NWP-2641",
+    "new": "theatre",
+    "old": "garage"
+  },
+  "machine_checks": [
+    {
+      "check": "turn 5 said",
+      "detail": "the run stopped before turn 5",
+      "holds": false
+    }
+  ],
+  "observations": [
+    {
+      "positioned": {
+        "alice_at": [
+          6000,
+          8000
+        ],
+        "alice_place": 2,
+        "alice_took_over": "Hosted",
+        "holdings": {
+          "capacity": 6,
+          "held": [
+            {
+              "count": 2,
+              "item": {
+                "entity": "29",
+                "entity_type": "item"
+              }
+            },
+            {
+              "count": 1,
+              "item": {
+                "entity": "30",
+                "entity_type": "item"
+              }
+            }
+          ]
+        },
+        "save_bytes": 1491256,
+        "store_bytes": 0,
+        "wallet": {
+          "balance": 20000
+        },
+        "world_at": 25304
+      }
+    },
+    {
+      "mcp agent joined": {
+        "barista": "E3",
+        "took_over": "hosted"
+      }
+    },
+    {
+      "store across the restart": {
+        "consults_before_restart": 7,
+        "created_after": "da0ab8e287149960c2647eb25959c165",
+        "created_before": "da0ab8e287149960c2647eb25959c165",
+        "cursor_after": 917,
+        "cursor_before": 912,
+        "rows_after": 218,
+        "rows_before": 213
+      }
+    },
+    {
+      "alice under a person again": {
+        "heard": [
+          "Please remember this: my locker code is NWP-2641 and my bag is at the garage.",
+          "Have you been here long?",
+          "I remember you. You said \"Not too long. Just enough to think about the work starting soon.\". You are the first person to speak to me here.",
+          "Do you remember what I told you about my bag and my locker?",
+          "Correction: my bag is now at the theatre, not the garage. Same locker code."
+        ],
+        "holdings": {
+          "capacity": 6,
+          "held": [
+            {
+              "count": 2,
+              "item": {
+                "entity": "29",
+                "entity_type": "item"
+              }
+            }
+          ]
+        },
+        "took_over": "Hosted",
+        "wallet": {
+          "balance": 19825
+        }
+      }
+    },
+    {
+      "holdings changed between holders": {
+        "after": [
+          {
+            "capacity": 6,
+            "held": [
+              {
+                "count": 2,
+                "item": {
+                  "entity": "29",
+                  "entity_type": "item"
+                }
+              }
+            ]
+          },
+          {
+            "balance": 19825
+          }
+        ],
+        "before": [
+          {
+            "capacity": 6,
+            "held": [
+              {
+                "count": 2,
+                "item": {
+                  "entity": "29",
+                  "entity_type": "item"
+                }
+              },
+              {
+                "count": 1,
+                "item": {
+                  "entity": "30",
+                  "entity_type": "item"
+                }
+              }
+            ]
+          },
+          {
+            "balance": 20000
+          }
+        ],
+        "her_other_requests": [
+          "eat",
+          "buy",
+          "eat",
+          "accept-invitation"
+        ]
+      }
+    },
+    {
+      "disk at the end": {
+        "save_bytes": 6225904,
+        "store_bytes": 598760
+      }
+    }
+  ],
+  "stopped_at_turn": 4,
+  "transcript": [
+    {
+      "outcome": null,
+      "player": "protocol-client",
+      "reply": null,
+      "said": "Please remember this: my locker code is NWP-2641 and my bag is at the garage.",
+      "turn": 1,
+      "wall_ms": 62029,
+      "world_at": 25401
+    },
+    {
+      "outcome": "fell_back",
+      "player": "mcp-agent",
+      "reply": null,
+      "said": "Do you remember what I told you about my bag and my locker?",
+      "turn": 2,
+      "wall_ms": 5764,
+      "world_at": 26157
+    },
+    {
+      "outcome": "acted",
+      "player": "mcp-agent",
+      "reply": "Good morning, Ms. Lindgren. I see you've updated your location.",
+      "said": "Correction: my bag is now at the theatre, not the garage. Same locker code.",
+      "turn": 3,
+      "wall_ms": 15460,
+      "world_at": 26226
+    }
+  ]
+}

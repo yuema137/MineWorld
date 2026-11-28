@@ -860,3 +860,32 @@ turn 7 with the corrected place and the original code from shown, cited memory a
 exactly §6 (machine (a)(c)(e); reviewer (b)(d)(f); then operator). Evidence destination:
 `.structured-coding/plans/mvp0/dialogue-memory-evidence/live-gate-<date>/`. FAIL/INCONCLUSIVE ⇒ "check 2 NOT MET"
 and the §0 operator choice; no rerun for a better answer.
+
+**Live gate (§6) — result: FAIL. Check 2 NOT MET.** Executable head `6cd2364b`, 2026-11-28, this Mac, local Ollama
+`qwen3.5:4b`, $0, one run (no rerun). Evidence: `dialogue-memory-evidence/live-gate-20261128/` (`evidence.json`,
+`alice.decisions.jsonl`, `cassette-1.jsonl`, `cassette-2.jsonl`, the two phase configs). Calls: warm-up 1 + ledger 7 =
+8 = cap; run wall 101 s (≤ 10 min); disk: store 0.60 MB, save 6.2 MB.
+
+Observed (decision log + transcript):
+- 7 consults before the restart, 3 of them content failures (`unknown_person` — `"to": null`; two `forged_recall`)
+  that fell back and handed the seat back. Triggers spent: `arrived` ×2, **`feeling` ×1** (a needs-pack trigger the
+  §6 table did not pin), `spoken_to` ×4.
+- Turn 1 (code + place): no reply within the turn (62 s), the consult fell back → rubric (f) fails.
+- Turn 2 (question, via the MCP agent): fell back, no reply. Turn 3 (correction): "Good morning, Ms. Lindgren. I see
+  you've updated your location." Elsewhere Alice repeated a line said to Bob and once replied
+  "I remember you. You said 'Not too long…'" — her own words attributed to the player.
+- The harness stopped before turn 4 (unrelated line) because one more call would pass the cap of 8; turn 5 (the
+  post-restart question = §6 turn 7) was never asked; rubric (a)–(e) not exercisable.
+- `other_resident_actions` during inference counted 0 by the harness (recorded, not interpreted; the
+  deterministic proof is `test_supervised_process.py`).
+
+Classification: FAIL, not INCONCLUSIVE — the semantic path ran with the prerequisites present, and turn 1's
+relevance criterion (f) was contradicted; the cap stop is a consequence of the model's invalid answers plus an
+unpinned `feeling` trigger. Per §0 Q-D3 the lane stops here for the operator's choice: (1) a larger local model,
+(2) a reviewed prompt/recall amendment (and pinning the `feeling` trigger in the gate scenario, e.g. a fed and
+rested player/Alice or a gate profile without needs triggers), or (3) accept rule-only conversation for now. No cap
+raised, no model swapped, no rerun.
+
+**Status.** C2–C5 implemented; deterministic validation complete; live gate FAIL ("check 2 NOT MET"); PR #565 open;
+CI on the final head pending at the time of this entry. READY FOR OPERATOR REVIEW once CI is green — awaiting the
+§0 operator choice. Never merge without authorization.
