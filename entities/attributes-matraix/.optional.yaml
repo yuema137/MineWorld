@@ -1,0 +1,19 @@
+{
+  "format": 1,
+  "optional": "attributes-matraix",
+  "words": ["matraix"],
+  "may_name": [
+    "README.md",
+    "README.zh-CN.md",
+    "docs/MODULE_SPEC.md",
+    "docs/assets/readme/",
+    "docs/decisions/",
+    ".structured-coding/plans/",
+    "tests/acceptance/tests/attribute_consumers.rs"
+  ],
+  "dependents": [],
+  "checks": [
+    ["python3", "-I", "entities/attributes-matraix/.tools/import.py", "--check"],
+    ["python3", "-I", "-m", "unittest", "discover", "-s", "entities/attributes-matraix/.tools", "-p", "test_*.py"]
+  ]
+}

@@ -1,0 +1,203 @@
+cff-version: 1.2.0
+message: If you use MatrAIx, please cite the paper below.
+type: software
+title: MatrAIx
+license: MIT
+repository-code: https://github.com/MatrAIx-ai/MatrAIx-Persona-8B
+url: https://matraix.ai
+preferred-citation:
+  type: article
+  title: "MatrAIx: Simulating the World with 8.3 Billion Persona Agents"
+  year: 2026
+  journal: arXiv
+  identifiers:
+    - type: arxiv
+      value: "2608.04205"
+  url: https://arxiv.org/abs/2608.04205
+  authors:
+    - family-names: Li
+      given-names: Xiaomin
+    - family-names: Hao
+      given-names: Yuexing
+    - family-names: Hou
+      given-names: Jianheng
+    - family-names: Huang
+      given-names: Jintao
+    - family-names: Wen
+      given-names: Qianfeng
+    - family-names: Huang
+      given-names: Shirley
+    - family-names: Liu
+      given-names: Yifan
+    - family-names: Liu
+      given-names: Xiaoyi
+    - family-names: Fan
+      given-names: Yilan
+    - family-names: Wang
+      given-names: Yijun
+    - family-names: Wu
+      given-names: Koutian
+    - family-names: Gao
+      given-names: Ruoqi
+    - family-names: Mohsin
+      given-names: Muhammad Ahmed
+    - family-names: Tang
+      given-names: Jing
+    - family-names: Joshi
+      given-names: Brihi
+    - family-names: Liu
+      given-names: Heming
+    - family-names: Deng
+      given-names: Zheyuan
+    - family-names: Di
+      given-names: Zonglin
+    - family-names: Jajee
+      given-names: Sankalp
+    - family-names: Lu
+      given-names: Jiuyao
+    - family-names: Zhang
+      given-names: Zhiwei
+    - family-names: Kapoor
+      given-names: Saksham
+    - family-names: Gupta
+      given-names: Ishan
+    - family-names: Zhao
+      given-names: Yunhan
+    - family-names: Park
+      given-names: Chanwoo
+    - family-names: Lu
+      given-names: Yucheng
+    - family-names: Hu
+      given-names: Bing
+    - family-names: Xiao
+      given-names: Weihang
+    - family-names: Mohan
+      given-names: Aravind
+    - family-names: Xing
+      given-names: Hanwen
+    - family-names: Zhang
+      given-names: Runyu
+    - family-names: Kulshreshtha
+      given-names: Mihir
+    - family-names: Xu
+      given-names: Yuanda
+    - family-names: Zhu
+      given-names: Qianyu
+    - family-names: Wang
+      given-names: Dianzhuo
+    - family-names: Xiao
+      given-names: Yuxin
+    - family-names: Jiang
+      given-names: Bowen
+    - family-names: Su
+      given-names: Yongye
+    - family-names: Chai
+      given-names: Wenhao
+    - family-names: Liu
+      given-names: Zuxin
+    - family-names: Chen
+      given-names: Lawrence Yunliang
+    - family-names: Zhao
+      given-names: Xuandong
+    - family-names: Ye
+      given-names: Ethan
+    - family-names: Patel
+      given-names: Shivam
+    - family-names: Xie
+      given-names: Jason
+    - family-names: Richmond
+      given-names: Alex Martin
+    - family-names: Ding
+      given-names: Weixiang
+    - family-names: Okcular
+      given-names: Emre
+    - family-names: Mathew
+      given-names: Diya
+    - family-names: Wang
+      given-names: Ziheng
+    - family-names: Khan
+      given-names: Rana M. Shahroz
+    - family-names: Peng
+      given-names: Zhejian
+    - family-names: Wu
+      given-names: Fang
+    - family-names: Nie
+      given-names: Fan
+    - family-names: Han
+      given-names: Xinyang
+    - family-names: Kim
+      given-names: Yubin
+    - family-names: Zhang
+      given-names: Jiawei
+    - family-names: Qi
+      given-names: Zhenting
+    - family-names: Su
+      given-names: Huangyuan
+    - family-names: Pan
+      given-names: Xu
+    - family-names: Gourabathina
+      given-names: Abinitha
+    - family-names: Jeong
+      given-names: Hyewon
+    - family-names: Ramesh
+      given-names: Hemanth Neelgund
+    - family-names: Alhamoud
+      given-names: Kumail
+    - family-names: Hamidieh
+      given-names: Kimia
+    - family-names: Xiong
+      given-names: Zidi
+    - family-names: Schmidgall
+      given-names: Samuel
+    - family-names: Han
+      given-names: Pengrui
+    - family-names: Huang
+      given-names: Yepeng
+    - family-names: Wang
+      given-names: Yongheng
+    - family-names: Yang
+      given-names: Bowen
+    - family-names: Gu
+      given-names: Alex
+    - family-names: Wang
+      given-names: Yuchu
+    - family-names: Paruchuri
+      given-names: Akshay
+    - family-names: Li
+      given-names: Brenna
+    - family-names: Cui
+      given-names: Hejie
+    - family-names: Ding
+      given-names: Jiayuan
+    - family-names: Dong
+      given-names: Chaosheng
+    - family-names: Wang
+      given-names: Jiahao
+    - family-names: He
+      given-names: Yixuan
+    - family-names: Wang
+      given-names: Chi
+    - family-names: Bhattacharya
+      given-names: Pamela
+    - family-names: Peng
+      given-names: Tianyi
+    - family-names: Liang
+      given-names: Paul Pu
+    - family-names: Gordon
+      given-names: Mitchell
+    - family-names: Du
+      given-names: Yilun
+    - family-names: Zitnik
+      given-names: Marinka
+    - family-names: Zou
+      given-names: James
+    - family-names: Tambe
+      given-names: Prasanna
+    - family-names: Torr
+      given-names: Philip
+    - family-names: Fox
+      given-names: Emily
+    - family-names: Ozdaglar
+      given-names: Asu
+    - family-names: Song
+      given-names: Dawn

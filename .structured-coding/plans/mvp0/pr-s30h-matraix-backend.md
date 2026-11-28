@@ -990,7 +990,8 @@ the pack carries upstream's), D-h-9 (the demo stays at `worlds/matraix-demo` and
 | h1 | C0 | (this commit) | [x] | [x] | [x] |
 | h1 | C1 | (next commit) | [x] | [x] | [x] |
 | h1 | C2 | (this commit) | [x] | [x] | [x] |
-| h1 | C3 … C7 | | [ ] | [ ] | [ ] |
+| h1 | C3 | (this commit) | [x] | [x] | [x] |
+| h1 | C4 … C7 | | [ ] | [ ] | [ ] |
 | h2 | C0 … C3 | | [ ] | [ ] | [ ] |
 | h3 | C0 … C4 | | [ ] | [ ] | [ ] |
 
@@ -1036,12 +1037,36 @@ Review (C2): fails closed (malformed JSON, unknown keys, missing paths, unreadab
 check are each a failure); `run` executes only the commands a tracked `.optional.yaml` lists, replacing the word
 `mineworld` by the given binary; the script's own text names no pack (its docstring cites "the S30-h design").
 
+**h1-C3 (2026-11-28).** Upstream fetched read-only (`git clone --filter=blob:none --no-checkout`, sparse checkout of
+`LICENSE`, `CITATION.cff`, `persona/schema/dimensions.json`, `persona/schema/labels/*.json`, checkout of
+`3633d8da…`, into `_scratch/matraix-upstream`, deleted afterwards; no upstream code run). Digests: `dimensions.json`
+`cbf4db9d…` = M-h-3; zh-Hans `7abbcef3…` = §5.9; the other seven pinned in `overlay.yaml` and `NOTICE`.
+`python3 -I .tools/import.py --upstream <clone>` printed `dropped by licence: {"citation-only": 28,
+"research-use-reference": 22}`; 1,240 declarations in **42** category files (the 43rd category, `Personality:
+Relationships`, holds 4 dimensions, all excluded by licence), `backends/matraix.yaml` with the upstream provenance
+(the engine accepts its shape). `import.py --check` PASS; `python3 -I -m unittest discover -s .tools` 9/9 PASS;
+`ruff check` clean. With the debug binary: `packs list --packs entities` lists `attributes-matraix 1.0.0 MIT`;
+`attributes check` on a scratch copy of the S30-e backends fixture world requiring the pack with `backend: matraix`
+(mask `all`): "attributes-matraix: 1240 attribute(s); core: 25 attribute(s); 1265 attribute(s); clean" in 0.07 s;
+`attributes show` renders Alice's holder line "their sleep schedule is Early bird". `check_optional_packs.py scan`:
+"1 optional pack(s); 5372 tracked files free of their words"; `run --binary` 2/2 declared checks PASS.
+`cargo test -p mineworld-cli --test packs` 7/7, `--test entity_packs` 5/5, `--test attributes_builtin` 8/8;
+`-p mineworld-acceptance --test attribute_consumers` 2/2; `check_pack_size.py`, `check_scratch.py scan` PASS.
+
+Review (C3): `.upstream/` byte-identical (digests verified by the tool on every run); no `default:` line in any
+generated declaration (tested); labels, phrases and words verbatim (tested on `lstyle_sleep_schedule`); the 50
+excluded ids absent from every generated file (tested: the declared set is 1,240 and disjoint from the 50).
+Until C4 the backend's default mask is the built-in `all` (C4 writes `matraix-core-100`, `keeps` and `mapping`).
+
 ### Mutations
 
 | Id | Planted | Red test | Restored |
 | --- | --- | --- | --- |
 | M-h-1 | `catalogue.rs::views` leaves the view's own mutability (not `derived`), so it could be stated | `mapping::tests::a_view_is_derived_from_its_source_and_kept_ids_stay_mineworlds` FAILED | `cmp` equal; green |
 | M-h-2 | `MappingWidens` check disabled | `mapping::tests::a_view_wider_than_its_source_is_refused` FAILED | `cmp` equal; green |
+| M-h-3 | one excluded dimension let through (its `source_origin` removed, digest re-pinned) | planted as `test_one_excluded_dimension_let_through_fails_the_count` → `ExcludedCount` | test-owned plant |
+| M-h-4 | a value slug collision (a value upper-cased onto its neighbour) | planted as `test_a_value_slug_collision_is_refused` → `ValueSlugCollision` | test-owned plant |
+| AC-h1-7 | `// matraix` appended to `authoring/attributes/src/lib.rs` | `check_optional_packs.py scan` FAIL "authoring/attributes/src/lib.rs:79: names 'matraix'", exit 1 | `cmp` equal; scan green |
 
 ### Deviations and findings
 
@@ -1054,7 +1079,8 @@ F-S30h-1 … F-S30h-13 (§3.3), recorded at design time.
   branch holds the snapshot.
 - **D-h1-2 (bounded).** `.optional.yaml` is written in YAML's JSON-compatible form and read with Python's `json`:
   the checks run with the bare `python3` of `fast` (no PyYAML there), and a hand-written YAML subset parser would be
-  new infrastructure for one file. The file stays valid YAML; it carries no comments.
+  new infrastructure for one file. The file stays valid YAML; it carries no comments. The same holds for
+  `.tools/overlay.yaml` (C3): the import tool and its `--check` run under `python3 -I` with the standard library.
 - **D-h1-3 (bounded, sequencing).** With no optional pack on the tree, `run` and `without` have nothing to do, so
   their CI wiring lands with the first pack: `run --binary` in `core` with C5 (when the declared checks exist and the
   binary's path in the sharded `core` jobs is confirmed), the nightly `without` job with C7 (AC-h1-8's dispatch).

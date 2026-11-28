@@ -18,8 +18,8 @@ Heavy jobs: /Users/yuema137/mineworld-worktrees/cast-slots/with-slot.sh
 | C0 base and ledger | done |
 | C1 engine: `keeps`, `mapping`, `map`, upstream provenance | done, validated locally (§16) |
 | C2 optional-pack check | done (fast: scan, self-test; run/without wiring with C5/C7, D-h1-3) |
-| C3 verbatim import and tool | next (read F-h1-1 first) |
-| C4 overlay, mask, mapping, priors | not started |
+| C3 verbatim import and tool | done |
+| C4 overlay, mask, mapping, priors | next |
 | C5 fixtures, declared checks, sizes | not started |
 | C6 specification sync, `DEP-69` | not started |
 | C7 close-out | not started |
@@ -31,6 +31,7 @@ Heavy jobs: /Users/yuema137/mineworld-worktrees/cast-slots/with-slot.sh
 
 ## Next step
 
-C3 per §9.1: a read-only partial clone of the upstream at the pinned commit in a scratch directory (never run its
-code), the verbatim files into `.upstream/`, `.tools/import.py` and its tests. Read §16 F-h1-1 (priors need the
-uncommitted graph) and D-h1-2 (no PyYAML in `fast`: the overlay must be read by the standard library too).
+C4 per §9.1: §§5.4–5.6 and Appendices A, B into `.tools/overlay.yaml` (JSON-compatible, D-h1-2), the tool
+writing `masks/matraix-core-100.yaml`, `mappings/matraix.yaml`, `keeps`, levels, private list, facets and ranks;
+the priors per F-h1-1 (needs the graph from the pinned commit; read-only fetch into `_scratch`). The upstream
+clone for C3 was deleted; re-fetch with the sparse partial clone recorded in §16 C3.
