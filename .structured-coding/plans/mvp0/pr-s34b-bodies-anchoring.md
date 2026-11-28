@@ -267,3 +267,83 @@ Escalate:               any change to presence, movement, kernel or contracts; a
 | **Q-S34b-1** | The step said bodies' version bumps (5 → 6), which re-baselines bodies-yard, Social Café and Market Town although none of them has a seated person. Bump posture's version instead? | **Yes, bump posture (1 → 2), keep bodies at 5.** Only worlds with posture behave differently, and posture's version is in their saves; three worlds stay byte-identical |
 | **Q-S34b-2** | The "sit point inside furniture" load check: run it in whichever of the two reductions comes second (order-free), or require `bodies` before `posture` in `systems:`? | **Order-free, one shared bodies function.** No new ordering rule for world authors |
 | **Q-S34b-3** | Should the walk planner route around seated people (treat them as fixed discs), or only stop walkers short? | **Stop short now; add routing only if AC-b-6's seeded run shows walkers stuck.** Smallest change first |
+
+## 13. Amendment A1 (2026-11-27): walkers route around seated people
+
+```text
+Design revision:        A1 to revision 1 — DRAFT, awaiting red-team review and the operator's freeze
+Ruled by:               operator, 2026-11-27 ("存档选 C": option (c) of S34-d1's storage finding)
+Revises:                Q-S34b-3 ("stop short now; add routing only if walkers get stuck"); §1, §5, §9 row 2
+Implementation base:    origin/main @ bdb83457 (bodies v8, after #557)
+Branch / worktree:      fix/route-around-seated · /Users/yuema137/mineworld-worktrees/seated-routing
+```
+
+### A1.1 Why
+
+S34-d1 (#551) seats people who stay put. Its ledger (§ "Storage finding", 2026-11-27) measured Market
+Town, seed 7, 300 days, with #557: the save is 96.8 MiB against ASRB-1's 96 MiB bound. Most of the growth
+is walking, not posture's own facts: `arrived` +62 802, `walk-step` +53 476, `stopped-short` +17 518, and
+`gave-way` +4 896. Walkers whose route crosses a seated (anchored) person are stopped short at them stride
+after stride, because Q-S34b-3 kept the planner blind to sitters. The re-plan after a stop already plans
+round people within 3 m (`route.rs` `still_people`), so each sitter costs at least one wasted stride, a
+`stopped-short`, a re-plan and its requests per walk that meets them. The operator chose option (c) over
+raising the bound (a) or thinning the fact (b).
+
+### A1.2 Decision
+
+**SD-b-A1. A seated person is a static obstacle to route planning.** Bodies' wayfinder (`route.rs`
+`Wayfinder::route`) adds every person standing in the asked place whom the `Anchoring` catalog holds
+(`anchoring.rs` `anchored_in`, the catalog that already exempts them from nudges and shoves), other than
+the walker, to the plan's obstacles from the first plan of every leg. It uses the same mechanism as the
+person to avoid after a stop: `obstacles(…, avoid, GROWN)` grows a PERSON_RADIUS square by
+R + GAP + PLAN_MARGIN. This adds no solver, no new obstacle kind and no new constant.
+
+1. **Fallback, so no walk is lost.** When the plan round the sitters is `Unreachable` (for example, a
+   sitter blocks the only way through), the wayfinder plans as today, without them. The walker then meets
+   the sitter and is stopped short, exactly as S34-b's frozen behaviour does. Liveness is never worse than
+   today.
+2. **Unchanged.** The resolver: a stride still treats an anchored person as unmovable (nudge fails, the
+   walker is blocked at contact, V1–V4 verify). The start rule (`Starts`, #557): sitters move only when
+   they stand, so they are not part of it. `arrival_spot`: it already keeps 2R + GAP from everyone.
+   Movement's contract (`Wayfinder`, `RouteAsk`, `RouteAnswer`) and posture are untouched, and no
+   client-side logic is added.
+3. **The goal.** A goal inside a sitter's grown box snaps to the nearest free lattice point by the
+   planner's existing goal rule (SD-N5). Sit points are at least 600 mm apart (Q-S34-8), and a sitter's
+   grown half-width is 560 mm, so a walk to the next sit point still ends on it.
+4. **Version.** Bodies 8 → 9: routes change, so the results of every world with seated people change. A
+   v8 save is refused by name (`ARC-25`). `rapier_pin.rs` moves with it, and the CHANGELOG records the
+   break. A dated note on `ARC-147` records the revision of Q-S34b-3.
+
+**Options considered.** (a) raising ASRB-1 to 98 MiB and (b) recording `stopped-short` once per walk were
+both offered by S34-d1 and not chosen by the operator. Planning round *every* standing person from the
+first plan was rejected: people who are walking or idle move or give way (`ARC-330`/`ARC-333`), and
+planning round all of them would detour walks for no reason and slow the planner (`AROUND`). Velocity
+avoidance (ORCA/RVO) was already rejected in `ARC-330`.
+
+### A1.3 Acceptance (decided before measuring, `ARC-23`)
+
+| Id | Criterion | Test |
+| --- | --- | --- |
+| AC-b-A1 | A walker whose straight line to its goal passes through a seated person, with room to pass, arrives with **no** `stopped-short` naming the sitter, and the sitter's position and `Seated` row are unchanged. Before the change, the same scenario records at least one such stop | `systems/posture/tests/anchoring.rs` (new scenario) |
+| AC-b-A2 | Fallback: a sitter who blocks a corridor's only passage. The walk is still accepted, not refused `no-route`, and the walker is stopped short at the sitter as before | same file |
+| AC-b-A3 | No interpenetration: AC-b-6's seeded run (2 000 requests) still holds after every request. Every seated person stays at their point, and every pair stays at least CLEARANCE apart | existing AC-b-6 |
+| AC-b-A4 | No stopped-short storms, measured: Market Town, seed 7, 300 days, release, on this head merged locally with #551. The total of `stopped-short` naming an anchored person falls, and the total of all `stopped-short` is reported against #551's ledger figures | local run, recorded in §A1.5 |
+| AC-b-A5 | Save size: the same run passes `tools/cli/tests/market_town.rs` in full, including ASRB-1 (≤ 96 MiB) and ASRB-2. On this head alone (without #551), `market_town` passes too | local runs, recorded in §A1.5 |
+| AC-b-A6 | Every existing `mineworld-bodies` and `mineworld-posture` test passes unchanged | `cargo test -p mineworld-bodies -p mineworld-posture` |
+
+If AC-b-A5 fails while A1–A4 pass, the implementer stops and reports to the operator with the
+measurement. The bound is not raised and nothing is tuned to pass.
+
+### A1.4 Commit plan
+
+- **A1-C0, design:** this section. Docs only.
+- **A1-C1, implementation:** `route.rs` `Wayfinder::route`, sitters as obstacles with the fallback;
+  bodies v9; `rapier_pin.rs`; CHANGELOG; a dated note on `ARC-147`.
+  - Validation: AC-b-A1, A2, A6; `clippy -D warnings`.
+  - Logic review: red team.
+- **A1-C2, evidence:** AC-b-A3 to A5 in §A1.5. Goldens and long baselines that move are listed;
+  `scripts/baselines.txt` is left to main's next re-record, as #557 did.
+
+### A1.5 Evidence ledger
+
+(empty until implementation)
