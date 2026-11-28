@@ -16,8 +16,8 @@ Start condition:        S30-c, S30-d, S30-e and S30-f merged (all four are on ma
 Execution contract:     §13
 Recommended split:      three PRs from this one design (Q-S30h-1): S30-h1 the backend pack, S30-h2 the
                         `log-linear` mode, S30-h3 the demo world and the guide page
-Lifecycle:              FROZEN 2026-10-27 (header reconciled 2026-11-27); not yet implemented (S30-h1 WIP
-                        preserved unreviewed on branch mvp0/pr-s30h1)
+Lifecycle:              FROZEN 2026-10-27 (header reconciled 2026-11-27); S30-h1 IN PROGRESS (2026-11-28, worktree impl-s30h1-2,
+                        branch mvp0/pr-s30h1-2; the 2026-10-27 WIP on mvp0/pr-s30h1 reconciled, §16 D-h1-1)
 ```
 
 **Effort:** `mvp0` · **Step:** [`step-30-person-attributes.md`](step-30-person-attributes.md) (APPROVED 2026-10-15; amended)
@@ -987,21 +987,57 @@ the pack carries upstream's), D-h-9 (the demo stays at `worlds/matraix-demo` and
 
 | Part | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- | --- |
-| h1 | C0 … C7 | | [ ] | [ ] | [ ] |
+| h1 | C0 | (this commit) | [x] | [x] | [x] |
+| h1 | C1 | (next commit) | [x] | [x] | [x] |
+| h1 | C2 … C7 | | [ ] | [ ] | [ ] |
 | h2 | C0 … C3 | | [ ] | [ ] | [ ] |
 | h3 | C0 … C4 | | [ ] | [ ] | [ ] |
 
 ### Evidence
 
-(none yet)
+**h1-C0 (2026-11-28).** Base `origin/main @ c373b802` (#567). Worktree `impl-s30h1-2`, branch `mvp0/pr-s30h1-2`
+(the 2026-10-27 branch `mvp0/pr-s30h1` @ `2b0217c2` holds the unreviewed WIP snapshot on the old base `315a50a9`;
+it is left as it is, and its tracked diff was applied onto this base, see D-h1-1). Merged since the design's audit:
+S30-g, S30-i, S30-j (#545, `newcomers:` in `AttributesConfiguration`), S31-b2 (#533). Upstream:
+`git ls-remote https://github.com/MatrAIx-ai/MatrAIx-Persona-8B HEAD` → `3633d8dab149a9482a71b024418a49ae828cc941`,
+still the pinned commit. §15 ruled as recommended (header); nothing in §§5, 8 changes. Anchors re-read: A-h-1
+(`backend.rs` — `mapping` refused, provenance `{ source: mineworld }` only) and A-h-2 (`catalogue.rs` removal by
+backend) hold at moved lines; A-h-6 (`systems/attributes/src/data.rs` six directories) holds; A-h-9's
+`backend/tests.rs:19` sample still names the word. S30-k1 (`impl-s30k1-2`, in progress) also edits
+`authoring/attributes/src/{context.rs, lib.rs}` and `tools/cli/src/attributes.rs`: this part's edits there are
+additive (a field, a module line, four printed lines) so the merge is mechanical.
+
+**h1-C1 (2026-11-28).** Local, macOS arm64, own target dir, heavy slot:
+`cargo test -p mineworld-attributes-model` all targets PASS (lib 38, incl. 6 `mapping::tests` and the new
+`backend::tests::an_upstream_provenance_is_checked_for_its_shape`); `-p mineworld-cli --test attributes_builtin` 8/8
+PASS (new: `backend_toy_keeps_natal_sex_and_maps_its_rhythm_onto_chronotype`); `--test attributes` 4/4,
+`--test attributes_resolve` 6/6, `--test attributes_consumers` 2/2 PASS (S30-c/d/f unchanged);
+`cargo clippy -p mineworld-attributes-model -p mineworld-attributes -p mineworld-cli --all-targets -D warnings` clean;
+`cargo fmt --all --check` clean. The existing `backend_toy_composes_…` assertions (AC-e-6) are unchanged and pass:
+under `toy-small` the view is absent because its source is masked out.
+
+Review (C1): no MatrAIx word or id in the engine (`git grep -i matraix -- authoring systems tools/cli/src` → none;
+the refused provenance sample now says `elsewhere`); a mapping never targets an owner's attribute
+(`MappingTargetOwned`, tested); `keeps` cannot name appearance or a quantity (they are never removed, so
+"not a `core` attribute this backend removes", tested with `core.stature`) nor a mapped target ("both kept and
+mapped", tested); the default backend's path is untouched (`mapping` is `None` for `mineworld`; `keeps` empty).
 
 ### Mutations
 
-(none yet; M-h-1 … M-h-6 as §9 lists them)
+| Id | Planted | Red test | Restored |
+| --- | --- | --- | --- |
+| M-h-1 | `catalogue.rs::views` leaves the view's own mutability (not `derived`), so it could be stated | `mapping::tests::a_view_is_derived_from_its_source_and_kept_ids_stay_mineworlds` FAILED | `cmp` equal; green |
+| M-h-2 | `MappingWidens` check disabled | `mapping::tests::a_view_wider_than_its_source_is_refused` FAILED | `cmp` equal; green |
 
 ### Deviations and findings
 
 F-S30h-1 … F-S30h-13 (§3.3), recorded at design time.
+
+- **D-h1-1 (bounded, process).** The C1 code began as the 2026-10-27 WIP (`2b0217c2`, unreviewed); it was applied
+  onto the current base, reviewed line by line, and corrected: S30-j's `newcomers` field added to the two test
+  configurations; the old refused-mapping sample in `backend/tests.rs` replaced (a `mapping:` is now a file stem);
+  a `type Views` alias replaces an `allow(clippy::type_complexity)`. The branch name gains `-2` because the old
+  branch holds the snapshot.
 
 ---
 

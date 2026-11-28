@@ -6,12 +6,14 @@
 //!        floor((at − birth) × 400 / (146 097 × 86 400)) — integers only; a birthday-exact age needs a
 //!        calendar and is not MVP-0's
 //! band   the level value of the first threshold the source is below, else the last
+//! map    a backend's category or level value through its mapping's value table (S30-h1)
 //! ```
 
 use mineworld_contracts::WorldTime;
 
 use crate::catalogue::Catalogue;
 use crate::declaration::{Declaration, Derive, Mutability, Threshold};
+use crate::id::ValueSlug;
 use crate::kind::Kind;
 use crate::traits::Traits;
 use crate::value::{AttributeValue, LevelValue, ScaledInt};
@@ -102,6 +104,37 @@ fn value_bounded(
             }))
         }
         Derive::Projection => None,
+        Derive::Map { from, values } => {
+            let slug = match source(from)? {
+                AttributeValue::Category(slug) => slug,
+                AttributeValue::Level(level) => level.slug,
+                _ => return None,
+            };
+            mapped(&declaration.kind, values.get(&slug)?)
+        }
+    }
+}
+
+/// `target` as a value of `kind`: a category value, a level value with its rank, or a flag
+/// (`true`/`false`).
+fn mapped(kind: &Kind, target: &ValueSlug) -> Option<AttributeValue> {
+    match kind {
+        Kind::Category { values, .. } => values
+            .contains(target)
+            .then(|| AttributeValue::Category(target.clone())),
+        Kind::Level { values } => {
+            let rank = values.iter().position(|value| value == target)?;
+            Some(AttributeValue::Level(LevelValue {
+                slug: target.clone(),
+                rank: u16::try_from(rank).ok()?,
+            }))
+        }
+        Kind::Flag => match target.as_str() {
+            "true" => Some(AttributeValue::Flag(true)),
+            "false" => Some(AttributeValue::Flag(false)),
+            _ => None,
+        },
+        _ => None,
     }
 }
 

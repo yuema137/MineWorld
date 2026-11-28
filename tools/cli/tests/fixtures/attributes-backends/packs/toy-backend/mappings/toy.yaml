@@ -1,0 +1,7 @@
+# The toy backend's mapping (the S30-h design §5.7): the second user of `map`.
+format: 1
+backend: toy
+views:
+  core.chronotype:
+    from: rhythm
+    values: { dawn: early-bird, dusk: night-owl, any: neutral }

@@ -139,6 +139,14 @@ pub enum Derive {
     },
     /// The owner's code, through `AttributeOwner::project`.
     Projection,
+    /// A backend's value, through its mapping's value table (the S30-h design §5.7). Only a
+    /// backend's mapping makes one; an author never writes it.
+    Map {
+        /// The backend attribute, a `category` or `level`.
+        from: QualifiedId,
+        /// Each source value, with this attribute's value.
+        values: BTreeMap<ValueSlug, ValueSlug>,
+    },
 }
 
 /// One band of `perceived_as`: what another observer is told while the value is below `below`; the
@@ -550,6 +558,8 @@ pub enum DataFile {
     Backend(Box<crate::backend::BackendFile>),
     /// `masks/*.yaml` (S30-e).
     Mask(Box<crate::mask::MaskFile>),
+    /// `mappings/*.yaml` (S30-h1).
+    Mapping(Box<crate::mapping::MappingFile>),
 }
 
 // ---- One declaration, resolved ---------------------------------------------------------------

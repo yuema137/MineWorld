@@ -308,3 +308,105 @@ fn every_consumer_faceted_builtin_has_its_own_prompt_rank() {
     }
     assert_eq!(ranks.len(), 60);
 }
+
+/// S30-h1 AC-h1-4, AC-h1-5 on the toy backend (the S30-h design §§5.7, 5.8): under
+/// `toy-all`, `core.chronotype` is a derived view of `toy-backend.rhythm` — never a stated value, read
+/// in the holder's block with `core`'s own words — and `core.natal-sex` is kept; under `toy-small`,
+/// whose mask leaves `rhythm` out, the view is absent and `backends` says why.
+#[test]
+fn backend_toy_keeps_natal_sex_and_maps_its_rhythm_onto_chronotype() {
+    let world = format!("{BACKENDS}/attributes-backends");
+    let packs = format!("{BACKENDS}/packs");
+    let output = mineworld(&[
+        "attributes",
+        "backends",
+        &world,
+        "--packs",
+        ENTITIES,
+        "--packs",
+        &packs,
+    ]);
+    let printed = stdout(&output);
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert!(printed.contains("keeps: core.natal-sex\n"), "{printed}");
+    assert!(
+        printed.contains(
+            "view: core.chronotype <- toy-backend.rhythm: the backend 'toy' (not provided: the mask \
+             leaves out the source 'toy-backend.rhythm')\n"
+        ),
+        "{printed}"
+    );
+
+    let root = fresh("s30h1-toy-mapping");
+    copy_tree(Path::new(BACKENDS), &root);
+    let world = root.join("attributes-backends");
+    std::fs::write(
+        world.join("configure/attributes.yaml"),
+        "format: 1\nbackend: toy\nmask: toy-all\n",
+    )
+    .expect("written");
+    std::fs::write(
+        world.join("people/alice.yaml"),
+        "name: Alice\nlocation: { place: cafe }\nattributes:\n  mood: calm\n  rhythm: dawn\n  \
+         natal-sex: female\n",
+    )
+    .expect("written");
+    let world = world.to_str().expect("utf-8");
+    let packs = root.join("packs");
+    let packs = packs.to_str().expect("utf-8");
+    let catalogue = json(&[
+        "attributes",
+        "catalogue",
+        world,
+        "--json",
+        "--packs",
+        ENTITIES,
+        "--packs",
+        packs,
+    ]);
+    let declared = |id: &str| {
+        attributes(&catalogue)
+            .into_iter()
+            .find(|declaration| declaration["id"] == id)
+            .cloned()
+    };
+    let chronotype = declared("core.chronotype").expect("the view");
+    assert_eq!(chronotype["mutability"], "derived", "{chronotype}");
+    assert!(declared("core.natal-sex").is_some(), "kept");
+    assert!(
+        declared("core.religion").is_none(),
+        "removed by the backend"
+    );
+
+    let shown = json(&[
+        "attributes",
+        "show",
+        world,
+        "--person",
+        "alice",
+        "--json",
+        "--packs",
+        ENTITIES,
+        "--packs",
+        packs,
+    ]);
+    let alice = &shown["people"][0];
+    let stated: Vec<&str> = alice["values"]
+        .as_array()
+        .expect("values")
+        .iter()
+        .filter_map(|value| value["attribute"].as_str())
+        .collect();
+    assert!(stated.contains(&"toy-backend.rhythm"), "{stated:?}");
+    assert!(stated.contains(&"core.natal-sex"), "{stated:?}");
+    assert!(
+        !stated.contains(&"core.chronotype"),
+        "never stated: {stated:?}"
+    );
+    let holder = alice["holder"].as_array().expect("holder");
+    let view = holder
+        .iter()
+        .find(|entry| entry["attribute"] == "core.chronotype")
+        .expect("the view in the holder's block");
+    assert_eq!(view["text"], "an early bird", "{view}");
+}
