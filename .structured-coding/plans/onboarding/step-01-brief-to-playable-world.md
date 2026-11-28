@@ -25,7 +25,7 @@ INV-S25-6, INV-S25-7; `mvp1/step-21-regions-travel.md` §§5.3–5.6, 5.12; `mvp
 | QON-4 | How does a world an agent just wrote get **played in 2D and 3D**, when today the clients refuse a world with no `far_field/<world-key>.yaml` (no fallback, `ARC-102`) and the 3D launcher accepts only `worlds/<key>` inside the checkout? | **Keep `ARC-102`. Add a world-local Presentation Pack that the agent writes beside the world** (far field + 3D depiction), seeded from a small, reviewed set of setting archetypes (coast, city, mountain, plain …), validated by the existing `mineworld packs validate`; and let the launch path take a world directory. Do not add a generic fallback far field (§6, PR ON-c). This is the largest framework gap and needs the presentation owners' review. |
 | QON-5 | Which example briefs gate acceptance? | **The seaside resort gates; the metropolis gates as a declared neighbourhood slice** (a few connected blocks, a few hundred residents at most, transit stubbed and listed as a gap); **the Italian mountain village is run and reported but does not gate** until the required `vehicles` step (§10, QON-9) delivers driving; S21 §5.4.1 is design-only today. Its round must end with the driving requirement classified **real product gap**, not faked (§5.3). |
 | QON-6 | Release placement. | **After the first playable MVP.** PR ON-a (documents only) can merge now; it touches no MVP lane. ON-b … ON-f wait until the playable MVP is accepted, then queue in §9's order. The 11-22 acceptance (§8) is not claimed by ON-a. |
-| QON-7 | Agent harness and spending. | **Reuse `tools/onboarding` unchanged in kind** (allowlisted Claude Code, operator-run, never in CI, USD 5 and 80 turns per round). Add brief instruction sets; ask the operator before any round over USD 5 (the metropolis may need it). A Codex round is **reported, not gating**, and only once an equally strict allowlist is shown for it (no `bypass` mode). |
+| QON-7 | Agent harness and cost. | **Real-agent brief rounds run on the operator's existing subscription logins on this machine (Claude Code; Codex CLI), not metered API keys: $0 incremental** (operator correction, 2026-11-27, §8.1). Reuse `tools/onboarding` (allowlisted, sandboxed, never in CI, ≤ 80 turns). Bounded: at most 3 brief rounds per agent CLI per milestone, one at a time, started and attended by the operator, within the plan's normal interactive limits and the vendors' terms (§8.1). A Codex round is reported, not gating, until an equally strict allowlist is shown for it (no `bypass` mode). |
 | QON-9 | Vehicles are required (operator, 2026-11-27). How do they enter the plan? | **As their own step and PR series (`vehicles`), after the playable MVP, not inside onboarding.** Direction in §10: a `vehicles` System Pack owns vehicle state; the server simulates driving with Rapier's ray-cast vehicle controller (already our physics engine, `DEP-13`) for player-driven cars and a road-graph `Process` for NPC and distant cars; clients send throttle/steer as intents and render wheels with Godot/Jolt. `transport` (S21) builds on `vehicles` rather than owning the fleet. One `ARC-VH-*` and one `DEP-VH-*` record before code. Onboarding's BR-3 becomes gating once `vehicles` lands. |
 | QON-8 | Does the agent author through MCP? | **No.** Authoring is files + the `mineworld` CLI, which every agent (Claude Code, Codex, any shell-capable agent) already has. The MCP adapter (`clients/agent`) is used for what it is for: the agent (or a second agent) *plays* the world it built, which is the "real server/client interaction" evidence (§8). |
 
@@ -323,6 +323,37 @@ reference + binary (+ clients):
 **Step acceptance:** BR-1 (resort) and BR-2 (metropolis slice) pass A1–A9 on one commit, plus a human hands-on play of
 each in 2D and 3D by the operator; BR-3 (mountain village) runs and passes A1–A3, A5–A9 with driving recorded as a
 product gap. Two materially different briefs therefore gate, as the 11-22 requirement asks.
+
+### 8.1 Running real agents: subscriptions, limits and terms
+
+Operator correction, 2026-11-27, verbatim:
+
+> 用真实 agent 跑示例测试 不会花钱啊，用订阅就行
+
+- **Cost.** Brief rounds run under the operator's own logged-in subscription CLIs (Claude Code, Codex CLI) on the
+  operator's machine. No metered API key is used, so incremental spend is $0. `tools/onboarding` already runs Claude
+  Code "under the operator's own login" and passes no API key or token to the agent (PROTOCOL §3.2); a Codex runner
+  must keep the same rule. `--max-budget-usd` stays as a ceiling on what the CLI reports and does not mean money is spent.
+- **Limits.** Runs stay within the subscription's normal interactive-use limits: one round at a time (R-LOAD-1), each
+  started by the operator and watched by the operator. At most 3 brief rounds per agent CLI per milestone (BR-1, BR-2, BR-3,
+  plus re-runs only after a recorded fix). No loops, no scheduled or unattended batches, no parallel accounts. Usage
+  caps are never worked around: a round that hits the plan's rate limit stops and is recorded `INCONCLUSIVE`, not retried in a loop.
+- **Terms checked 2026-11-27.** These need the operator's confirmation before the first round:
+  - Anthropic Consumer Terms (effective 2025-10-08), §3 "Use of our Services", item 7, prohibits accessing the
+    Services "through automated or non-human means, whether through a bot, script, or otherwise" *except* via an
+    Anthropic API key "or where we otherwise explicitly permit it". Claude Code's documented non-interactive mode
+    (`claude -p`) is Anthropic's own client. The design relies on it only for operator-started, operator-attended,
+    bounded rounds. The operator confirms, against the current Claude Code documentation, that this use is permitted
+    under the plan. If it is not, the rounds fall back to the operator typing the brief into an interactive session.
+    That keeps the same sandbox and evidence, and the transcript is taken from the session log.
+  - OpenAI Terms of Use (effective 2026-01-01), "Using our Services" → "What you cannot do", forbids "Automatically
+    or programmatically extract data or Output" and circumventing "any rate limits or restrictions". Codex CLI signed
+    in with the operator's ChatGPT plan is OpenAI's own client used as intended. The harness reads only the files the
+    agent wrote in the sandbox, plus the CLI's own transcript, for the operator's evaluation. It makes no bulk
+    extraction and does not get around any limit.
+  - The earlier ruling that bars routing a *third-party app* through Claude Pro/Max credentials (`lm-backends`,
+    S10 P5) is unchanged. This section covers running the vendor's own CLI as the vendor ships it. It does not cover
+    MineWorld calling a model through a subscription.
 
 ---
 
