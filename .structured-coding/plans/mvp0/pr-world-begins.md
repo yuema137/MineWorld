@@ -8,7 +8,7 @@ Scope approval: coordinator, 2026-11-27: implement as a follow-up PR from origin
 Base:          origin/main 2bcae8a9 (#552 merged)
 Branch:        mvp0/pr-world-begins @ /Users/yuema137/mineworld-worktrees/impl-world-begins (one session)
 Decision:      docs/decisions/ARC-371.md
-Lifecycle:     design (this commit) → implementation → validation → READY FOR OPERATOR REVIEW (no merge)
+Lifecycle:     mechanism ratified by the operator 2026-11-27 ("begins 字段按设计确认"); READY FOR OPERATOR REVIEW (no merge)
 ```
 
 ## 1. Problem
@@ -118,3 +118,17 @@ the counter before buying, the 3D one does not. **Follow-up for the client lane*
 | F8 third HH:MM parser; `epoch` naming | Recorded as follow-up (a contracts-level time-of-day type); not changed here |
 
 Market Town's baselines move again (needs content); re-recorded below after this commit.
+
+### Operator ratification
+
+2026-11-27, relayed by the primary coordinator: "begins 字段按设计确认" — the mechanism (§3; the three questions in
+the PR body) is ratified as designed. `ARC-371` status: accepted.
+
+### After the follow-ups (27665e68)
+
+- Market Town re-recorded (rested residents): long-profile record of `27665e68`, `baseline write`, spliced; other worlds
+  unchanged since e12492b3.
+- AC-S35-8 (release, 27665e68): PASS every row — Market Town 03:00 1000 ‰, 14:00 0 ‰, sleep 7.45 / 7.46 / 7.45 h,
+  TV 281 / 280 / 271 ‰, longest famished 7.0 / 7.2 / 8.8 h (was 10.1 / 6.5 / 7.1 h with the midnight levels).
+- Local: `begins_resume` 2/2, `shop_hours` 4/4 (incl. the day-0 bedtime guard), `ac5_takeover` 2/2 with the end-instant
+  assertion.

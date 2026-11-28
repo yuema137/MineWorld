@@ -56,12 +56,13 @@ reason milestone F re-record (2026-10-20, one re-record for the step): every key
 reason N1 #552 (ARC-364, operator ruling Q-L1; coordinator 2026-11-27): Market Town's three shops author daily hours, so genesis shop-opened carries them and every key moves; recorded from a long-profile record of 9af926e7 (merge with main 29401a26; Darwin/arm64, ci_parity record --root of a root holding only worlds/market-town + entities + presentation, 1401 s) and written by ci_parity baseline write; the keys also absorb main's Market Town drift since the milestone F re-record; no other world written
 reason N1 #552 merged with main a2be71e4 (after FE-a #555, needs v2): re-recorded again from a long-profile record of ae34d202 (Market Town only, --root, Darwin/arm64, 1674 s) by ci_parity baseline write
 reason world-begins #564 (ARC-371, operator ruling 2026-11-27 "新世界早上 7 点开始"): the world begins at 07:00, so genesis and every later fact move; recorded from a long-profile record of e12492b3 (merge with main 8745f572, after #557 bodies v8; market-town only, ci_parity record --root, Darwin/arm64) and written by ci_parity baseline write
-summary-300 400 f78df32b9b1af8270940d0094df08759485d0960e7dfbcb29b501f0a65fd4feb
-summary-1000 1127 85a93856b2be4e4b729fa6016070df1973fc16405df02cd80b6a94f166b94e2a
-summary-300s 399 cc8096076ef46f2cc5c1fe3e7cdf59a0cccbc777448145897473903437e5e9d7
-facts-300s 6247 5aac8ecd4dd951ed6ee91f57d4249f05d79ec6108b06e6ed31aaf20dd1bef954
-journal-300s 4240 4288e7099d83860f2976021693a2d39a4aa8e93cd7a920f89440e5b0a5f8a593
-sealed-300s 263 718285e3ccec2a1f555a2f4f29eab8dd44f370b3b3fb20e25c8c97926a912b7f
+reason world-begins #564 follow-up: Market Town's residents begin rested at 07:00 (needs hunger 510, tiredness 0); re-recorded from a long-profile record of 27665e68 (market-town only, --root, Darwin/arm64) by ci_parity baseline write
+summary-300 401 0481bb30f3b646b24fa99ac95736b66e9206c2a021e708584d89abc7756cb2f8
+summary-1000 1127 3f91a50fb689eb1f64e13b514f96ac0454e59ab4bf1b3f39aaa7d0db70e49b90
+summary-300s 400 a5f23d5b9b8d204d99313f1f3c51356d01606588ddaa2fce3d4b7f1372c4ce74
+facts-300s 10560 ab2fa7ab48fdba48174a5f0fb94a0a74615da79a3e78e2fe31fb8e58c6f73123
+journal-300s 7361 29b1db9b7b2bf8e91b57c2c971c7e70cd976061996d8f16b48ce63437b6b3da0
+sealed-300s 262 eb55d78fc1250998e4d7f96a174aa7036b357fca83a2720724ecf023bce99cb0
 [world social-cafe]
 reason 13c #162: journal-300s re-recorded on main 9f853e1 (after #153, #157, #159); journal bytes moved in every world, summaries and facts did not (F-13c-impl-3)
 reason FG-a: re-recorded on mvp0/pr-fg-a eadc5df. Summaries and facts-300s were stale on main 6306977 (nightly issue #170, walking towns) and now equal that commit's own record; journal-300s moves at its genesis row only, which carries the composition (relationships v3, conversation v4, acquaintance-forgotten declared); no fact or summary moved by FG-a (pr-fg-a FA-1, F-FGA-16)
