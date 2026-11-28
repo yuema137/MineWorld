@@ -6,7 +6,8 @@ mod support;
 use mineworld_authoring::{AuthoredSection, Seeding};
 use mineworld_contracts::{EntityKey, Rejection, SystemId};
 use mineworld_needs::{
-    AuthoredNeeds, Mode, NeedsAssigned, NeedsSystem, NourishmentAssigned, SECTION_KIND,
+    AuthoredNeeds, Hunger, Mode, NeedsAssigned, NeedsSystem, Nourishment, NourishmentAssigned,
+    Quantity, QuantityUnit, SECTION_KIND, Serving, StartingHunger,
 };
 use support::{GENESIS, Kind, Town, assemble, facts_of};
 
@@ -14,33 +15,109 @@ fn decode(yaml: &str) -> Result<AuthoredNeeds, String> {
     serde_saphyr::from_str::<AuthoredNeeds>(yaml).map_err(|error| error.to_string())
 }
 
+fn unitless(hunger: u16, tiredness: u16) -> AuthoredNeeds {
+    AuthoredNeeds::Person {
+        hunger: StartingHunger::Unitless { hunger },
+        tiredness,
+    }
+}
+
 #[test]
 fn the_person_form_takes_its_defaults_and_the_item_form_its_amount() {
-    assert_eq!(
-        decode("{}"),
-        Ok(AuthoredNeeds::Person {
-            hunger: 300,
-            tiredness: 700
-        })
-    );
-    assert_eq!(
-        decode("hunger: 200"),
-        Ok(AuthoredNeeds::Person {
-            hunger: 200,
-            tiredness: 700
-        })
-    );
+    assert_eq!(decode("{}"), Ok(unitless(300, 700)));
+    assert_eq!(decode("hunger: 200"), Ok(unitless(200, 700)));
     assert_eq!(
         decode("{ hunger: 0, tiredness: 1000 }"),
-        Ok(AuthoredNeeds::Person {
-            hunger: 0,
-            tiredness: 1_000
-        })
+        Ok(unitless(0, 1_000))
     );
     assert_eq!(
         decode("nourishment: { hunger: 600 }"),
-        Ok(AuthoredNeeds::Item { hunger: 600 })
+        Ok(AuthoredNeeds::Item(Nourishment::Unitless { hunger: 600 }))
     );
+}
+
+/// The food-energy forms (`ARC-370`): a person's `food_energy.initial_kcal` (tiredness keeps its
+/// default) and an item's `energy_kcal` with its `serving`.
+#[test]
+fn the_food_energy_forms_decode_with_their_serving() {
+    assert_eq!(
+        decode("food_energy: { initial_kcal: 1500 }"),
+        Ok(AuthoredNeeds::Person {
+            hunger: StartingHunger::FoodEnergy {
+                initial_kcal: 1_500
+            },
+            tiredness: 700
+        })
+    );
+    assert_eq!(
+        decode(
+            "nourishment: { energy_kcal: 0, serving: { label: \"1 glass\", quantity: { unit: ml, amount: 250 } } }"
+        ),
+        Ok(AuthoredNeeds::Item(Nourishment::FoodEnergy {
+            energy_kcal: 0,
+            serving: Serving {
+                label: "1 glass".to_owned(),
+                quantity: Quantity {
+                    unit: QuantityUnit::Ml,
+                    amount: 250
+                }
+            }
+        }))
+    );
+}
+
+/// NE-1's decode refusals: the models' keys mixed, energy without a serving (and the reverse), a kcal
+/// or amount out of bound, a bad label — each at the section, the bounds at their line.
+#[test]
+fn the_food_energy_forms_are_refused_for_mixed_keys_and_bounds() {
+    let serving = "serving: { label: cup, quantity: { unit: ml, amount: 200 } }";
+    for (yaml, words) in [
+        (
+            "{ hunger: 1, food_energy: { initial_kcal: 1 } }".to_owned(),
+            "never both",
+        ),
+        (
+            format!("nourishment: {{ hunger: 1, energy_kcal: 5, {serving} }}"),
+            "never both",
+        ),
+        (
+            "nourishment: { energy_kcal: 5 }".to_owned(),
+            "needs a `serving`",
+        ),
+        (
+            format!("nourishment: {{ {serving} }}"),
+            "needs an `energy_kcal`",
+        ),
+        (
+            format!("nourishment:\n  energy_kcal: 100001\n  {serving}\n"),
+            "not 100001",
+        ),
+        (
+            "food_energy:\n  initial_kcal: 100001\n".to_owned(),
+            "not 100001",
+        ),
+        (
+            "nourishment: { energy_kcal: 5, serving: { label: \"\", quantity: { unit: g, amount: 1 } } }"
+                .to_owned(),
+            "label",
+        ),
+        (
+            "nourishment: { energy_kcal: 5, serving: { label: x, quantity: { unit: g, amount: 0 } } }"
+                .to_owned(),
+            "amount",
+        ),
+        (
+            "nourishment: { energy_kcal: 5, serving: { label: x, quantity: { unit: oz, amount: 1 } } }"
+                .to_owned(),
+            "oz",
+        ),
+    ] {
+        let refusal = decode(&yaml).expect_err(&yaml);
+        assert!(refusal.contains(words), "{yaml}: {refusal}");
+    }
+    let refusal = decode("nourishment:\n  energy_kcal: 100001\n  serving: { label: cup, quantity: { unit: ml, amount: 200 } }\n")
+        .expect_err("over 100 000");
+    assert!(refusal.contains("line 2"), "at its line: {refusal}");
 }
 
 #[test]
@@ -142,15 +219,18 @@ fn genesis_states_one_fact_per_form_with_the_authored_numbers() {
                 .expect("assigned");
             assert_eq!(fact.0, GENESIS);
             assert_eq!(
-                (fact.1.levels().hunger, fact.1.levels().tiredness),
-                (hunger, tiredness)
+                (fact.1.hunger(), fact.1.tiredness()),
+                (StartingHunger::Unitless { hunger }, tiredness)
             );
             let needs = town.needs(name).expect("stored");
+            let Hunger::Unitless(stored) = needs.hunger() else {
+                panic!("a unitless world stores a unitless hunger");
+            };
             assert_eq!(
-                (needs.hunger().stored(), needs.tiredness().stored()),
+                (stored.stored(), needs.tiredness().stored()),
                 (hunger, tiredness)
             );
-            assert_eq!((needs.hunger().at(), needs.mode()), (GENESIS, Mode::Awake));
+            assert_eq!((stored.at(), needs.mode()), (GENESIS, Mode::Awake));
         }
         let nourished = facts_of::<NourishmentAssigned>(&town.log);
         assert_eq!(nourished.len(), 2, "{kind:?}");
@@ -158,7 +238,8 @@ fn genesis_states_one_fact_per_form_with_the_authored_numbers() {
             assert!(
                 nourished
                     .iter()
-                    .any(|(_, fact)| fact.item() == town.item(name) && fact.hunger() == hunger),
+                    .any(|(_, fact)| fact.item() == town.item(name)
+                        && *fact.nourishment() == Nourishment::Unitless { hunger }),
                 "{name}"
             );
         }

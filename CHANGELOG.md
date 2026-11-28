@@ -12,9 +12,14 @@ First pre-alpha. Packaged clients for macOS, Windows and Linux are not yet publi
 
 - Runtime foot grounding for 3D people: each foot finds its ground, and a two-bone IK solver places it (#407).
 - A route step may name a point inside a place, so a probe walk can end at a named spot (#494).
+- Food energy: a world may choose `hunger_model: food-energy`, so hunger is a kcal reserve (2000 kcal per world
+  day by default, configurable per world and per actor class) that food refills by its kcal per serving
+  (PR FE-a).
 
 ### Changed
 
+- Saves of worlds that enable `needs` made by earlier builds no longer load: keep the previous build to play
+  them (PR FE-a).
 - The MCP surface exposes one `act` tool instead of five, which halves the tool list size (#261).
 - Cast base colours ship as Basis UASTC with RDO, and the release stays within its asset budget, with
   textures sized by role (#385, #401).

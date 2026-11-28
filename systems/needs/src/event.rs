@@ -1,38 +1,51 @@
 //! The facts this pack records: both at genesis only, both reduced by it alone. Neither has a public
-//! constructor: only this pack states them.
+//! constructor: only this pack states them. Schema 2 (`ARC-370`).
 
 use mineworld_contracts::{Event, EventSchemaVersion, EventTypeId, ItemId, PersonId, SystemId};
 use mineworld_kernel::SystemIdentity;
 use serde::{Deserialize, Serialize};
 
+use crate::component::Nourishment;
 use crate::system::NeedsSystem;
 
-/// Two needs' levels.
+/// A person's hunger at genesis, in the form their file wrote it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Levels {
-    /// Hunger, 0 … 1 000.
-    pub hunger: u16,
-    /// Tiredness, 0 … 1 000.
-    pub tiredness: u16,
+#[serde(rename_all = "kebab-case")]
+pub enum StartingHunger {
+    /// A unitless deficit, 0 … 1 000.
+    Unitless {
+        /// The deficit.
+        hunger: u16,
+    },
+    /// A kcal reserve, 0 … the person's daily use (checked when genesis is reduced).
+    FoodEnergy {
+        /// Whole kcal.
+        initial_kcal: u32,
+    },
 }
 
-/// `person` has needs, starting at `levels`: the person form of the `needs:` section, at genesis.
-/// Perceived by the person alone; never biographical.
+/// `person` has needs, starting at `hunger` and `tiredness`: the person form of the `needs:` section,
+/// at genesis. Perceived by the person alone; never biographical.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NeedsAssigned {
     person: PersonId,
-    levels: Levels,
+    hunger: StartingHunger,
+    tiredness: u16,
 }
 
 impl Event for NeedsAssigned {
     const EVENT_TYPE: EventTypeId = EventTypeId::from_static("needs-assigned");
     const OWNER: SystemId = NeedsSystem::ID;
-    const SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(1);
+    const SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(2);
 }
 
 impl NeedsAssigned {
-    pub(crate) const fn new(person: PersonId, levels: Levels) -> Self {
-        Self { person, levels }
+    pub(crate) const fn new(person: PersonId, hunger: StartingHunger, tiredness: u16) -> Self {
+        Self {
+            person,
+            hunger,
+            tiredness,
+        }
     }
 
     /// Whose.
@@ -40,29 +53,34 @@ impl NeedsAssigned {
         self.person
     }
 
-    /// The starting levels.
-    pub const fn levels(&self) -> Levels {
-        self.levels
+    /// The starting hunger.
+    pub const fn hunger(&self) -> StartingHunger {
+        self.hunger
+    }
+
+    /// The starting tiredness, 0 … 1 000.
+    pub const fn tiredness(&self) -> u16 {
+        self.tiredness
     }
 }
 
-/// One of the item kind `item` lowers hunger by `hunger`: the item form of the `needs:` section, at
-/// genesis (`ARC-285`). Nobody's perception (`SystemInternal`).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+/// One of the item kind `item` nourishes as `nourishment` says: the item form of the `needs:` section,
+/// at genesis (`ARC-285`). Nobody's perception (`SystemInternal`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NourishmentAssigned {
     item: ItemId,
-    hunger: u16,
+    nourishment: Nourishment,
 }
 
 impl Event for NourishmentAssigned {
     const EVENT_TYPE: EventTypeId = EventTypeId::from_static("nourishment-assigned");
     const OWNER: SystemId = NeedsSystem::ID;
-    const SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(1);
+    const SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(2);
 }
 
 impl NourishmentAssigned {
-    pub(crate) const fn new(item: ItemId, hunger: u16) -> Self {
-        Self { item, hunger }
+    pub(crate) const fn new(item: ItemId, nourishment: Nourishment) -> Self {
+        Self { item, nourishment }
     }
 
     /// Which kind.
@@ -70,8 +88,8 @@ impl NourishmentAssigned {
         self.item
     }
 
-    /// Hunger one lowers by.
-    pub const fn hunger(&self) -> u16 {
-        self.hunger
+    /// What one does.
+    pub const fn nourishment(&self) -> &Nourishment {
+        &self.nourishment
     }
 }

@@ -149,16 +149,21 @@ fn measure(run: &Run) -> Measured {
         match fact.event_type().as_str() {
             "needs-assigned" => {
                 let person = person().expect("needs-assigned names a person");
-                let level = value["levels"]["hunger"]
+                // Schema 2 (`ARC-370`): `{ hunger: { unitless: { hunger } }, tiredness }` in these
+                // unitless worlds; schema 1's `levels.hunger` is still read.
+                let level = value["hunger"]["unitless"]["hunger"]
                     .as_i64()
-                    .or_else(|| value["hunger"].as_i64())
-                    .expect("needs-assigned states hunger");
+                    .or_else(|| value["levels"]["hunger"].as_i64())
+                    .expect("needs-assigned states a unitless hunger");
                 measured.with_needs.insert(person);
                 hunger.insert(person, Hunger::new(at, level));
             }
             "nourishment-assigned" => {
                 let item = id_of(&value["item"]).expect("an item");
-                nourishment.insert(item, value["hunger"].as_i64().unwrap_or(0));
+                let amount = value["nourishment"]["unitless"]["hunger"]
+                    .as_i64()
+                    .or_else(|| value["hunger"].as_i64());
+                nourishment.insert(item, amount.unwrap_or(0));
             }
             "walk-started" => {
                 walked.extend(person());
