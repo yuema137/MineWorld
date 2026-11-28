@@ -97,6 +97,8 @@
         "furnishing.shelves": "gen_int_shelf",
         "furnishing.plant": "gen_int_plant",
         "furnishing.bench": "bench",
+        "furnishing.bench.park": "bench_backless",
+        "furnishing.bench.pier": "bench_backless",
         "furnishing.well": "planter",
         "furnishing.pump": "signpost",
         "furnishing.boat": "gen_int_banquette",
@@ -322,6 +324,17 @@
       ],
       "file": "art/svg/bench.svg",
       "ink": "prop",
+      "scale": 0.26
+    },
+    "bench_backless": {
+      "anchor": [
+        150.0,
+        198.0
+      ],
+      "file": "art/svg/bench_backless.svg",
+      "front_md": 180000,
+      "ink": "prop",
+      "reverse": "bench_backless",
       "scale": 0.26
     },
     "bicycle": {

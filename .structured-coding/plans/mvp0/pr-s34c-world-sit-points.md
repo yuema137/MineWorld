@@ -266,13 +266,13 @@ ruled with S34-c3's freeze) widen S34-c2. Every prerequisite is merged: S33-b #3
   corrected: `bench.head` 180 000 → 0; `bench.west` 180 000 → 0; `bench.east` 270 000 → 90 000. The sit
   points keep S33-f's sides (north / north / east). Moving the pier bench 220 mm north instead
   (Q-S33f-2 (B)) was ruled out by Q-S33f-2 (A).
-  **Correction (red-team F1, `_reviews/pr553.md`): the claim "no drawing change" held for 3D only.** The 2D
-  client mirrors the bench sprite by `facing` (A-c2-6), so all three benches flip on screen in 2D. That flip
-  is the intended consequence: the sprite now faces the side people sit on. Evidence: before (base facings
-  on the head world) and after (head) stills, the same seat (Finn), the same walk (`steps-2d.json`, via
-  `--drive=steps --capture`, windowed Godot 4.7, `shoot2d.sh`), cropped round the benches, in
-  [`s34c2-evidence/`](s34c2-evidence/): `pier-before.png` / `pier-head.png`, `square-before.png` /
-  `square-head.png`. The pier bench's sprite visibly mirrors, and so do the square benches.
+  **Correction (red-team F1, `_reviews/pr553.md`): the claim "no drawing change" held for 3D only.**
+  `8f4a8af7` called the 2D flip "intended". It was not: red-team (at `0470e5eb`) showed that the 2D client
+  then drew all three benches lying across their footprints. The 2D rule mirrors a sprite when its
+  facing points screen-left, and on this projection a mirror swaps the plan's x and y. A long piece with
+  a single drawing can therefore lie along its footprint only for two of the four facings, and those were
+  the old (wrong-side) values. That was a defect introduced by this PR's facing correction, and it is
+  fixed by BC-c2-9.
 - **BC-c2-2 (SD-c-2 on merged data).** S33-f's three points on the square's north bench assumed a 1.8 m
   bench; main's is 1.6 m (S33-f D-S33f-2 kept three). One person per 600 mm gives floor(1 600 / 600) = 2,
   centred: (11 400, 10 260), (12 000, 10 260). The depiction file loses `tree-bench-north.3`.
@@ -363,6 +363,36 @@ ruled with S34-c3's freeze) widen S34-c2. Every prerequisite is merged: S33-b #3
     - `cargo test -p mineworld-posture --test worlds --test shipped`: 2 + 3 passed.
     - Mutation: `tree-bench-east.2` y 9 000 → 9 050 in the place file turns the corpus test red ("the corpus
       row is the world's point"); reverted.
+- **BC-c2-9 (2D: long furnishings lie along their footprint whatever their facing; red-team blocker at
+  `0470e5eb`).** The fix is presentation only, generic, and opt-in per sprite.
+  - **Format** (`clients/2d/PRESENTATION.md`, "A furnishing sprite's orientation"): a sprite binding may
+    state `front_md`, the plan facing its drawn front faces, and a `reverse` sprite, the same piece from its
+    other side.
+  - **Client:** `clients/2d/scripts/scene/furnishings.gd` `view()` draws the view (as drawn, mirrored,
+    reverse, reverse mirrored; fronts F, 90 000 − F, F + 180 000, −90 000 − F) whose front is nearest the
+    disclosed `facing`. `clients/2d/scripts/presentation.gd` loads the two fields. A sprite without
+    `front_md` keeps the old rule byte for byte, so every existing binding draws as before. The client
+    reads only the disclosed facing and applies no game rule.
+  - **Data:** Lakeside's `bench.pier` and `bench.park` are bound to `bench_backless`
+    (`presentation/mineworld-default/2D/art/svg/bench_backless.svg`, `s34c2-evidence/backless.py`). It is
+    `bench.svg` without its back slats and back posts: the 2D counterpart of the 3D backless
+    `form: bench` (S33-f D-S33f-9), the same from either side (`front_md: 180000`,
+    `reverse: bench_backless`). No other kind's binding changed.
+  - **Evidence** (windowed Godot 4.7, `shoot2d.sh` with `--drive=steps --capture`, the same walk):
+    - Lakeside: `pier-before.png` / `square-before.png` (main's rendering: old facings, old client) and
+      `pier-after-fix.png` / `square-after-fix.png` (head). Each bench now lies along its footprint, as on
+      main, drawn backless. The square's benches are partly hidden by the lime's sprite in this framing.
+    - Café and Market: stills of both towns' café and station hall with the 2D change stashed and
+      restored (`steps-cafe.json`). The only differing pixels are the HUD's world-instance id (y 60–70);
+      every furnishing pixel is equal (`cafe-market-2d-diff.txt`; one pair kept in `cafe-market-2d/`).
+  - **Known, not this PR's:** the halt's `bench.platform` rows (facing 0 in the waiting room, 90 000 on the
+    platform) draw the backed `bench` sprite across their footprints on main already. They need a reverse
+    view of the backed bench, which is art for the S34-e/S34-f lanes; recorded as a follow-up.
+  - *Validation* (head working tree, Godot 4.7): all PASS.
+    - `cargo test -p mineworld-cli --test client_2d_station --test furnishings --test client_sit_checks
+      --test client_sit_rule -- --include-ignored`: 5 + 5 + 3 + 3 passed. `r3_lakeside` drives the 2D
+      client through Lakeside.
+    - `scripts/check_client_rules.py`: PASS (0 findings).
 
 **Final table (29 points).** pier 5 (800 … 3 200, 1 010; 0); square north 2 (11 400, 12 000; 10 260;
 0), east 3 (13 260; 8 400, 9 000, 9 600; 90 000); bakery 5 (1 660; 1 800 … 4 200; 270 000); station 8

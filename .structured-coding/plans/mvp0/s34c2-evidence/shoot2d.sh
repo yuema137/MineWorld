@@ -8,7 +8,7 @@ mkdir -p "$OUT"
 SP=$!
 sleep 4
 godot --path clients/2d -- --server=127.0.0.1:$PORT --seat=$SEAT --invite=s34c2-shots --nickname=shots \
-  --world-key=lakeside --drive=steps --steps=/Users/yuema137/mineworld-worktrees/_scratch/s34c2/steps.json --capture --shots="$OUT" > "$OUT/client.log" 2>&1
+  --world-key=${KEY:-lakeside} --drive=steps --steps=${STEPS:-/Users/yuema137/mineworld-worktrees/_scratch/s34c2/steps.json} --capture --shots="$OUT" > "$OUT/client.log" 2>&1
 echo "client exit $?"
 kill $SP
 grep -E "PLACE|EVIDENCE|drive complete" "$OUT/client.log"
