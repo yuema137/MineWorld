@@ -24,6 +24,7 @@
 
 pub mod manifest;
 pub mod process;
+mod remove;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::OsStr;
@@ -156,7 +157,7 @@ impl Scratch {
             panic!("scratch {name:?} is already in use by another test in this process");
         }
         // A stale directory of the same name can only be left by a dead process whose pid was reused.
-        let _ = std::fs::remove_dir_all(&path);
+        let _ = remove::remove_tree(&path);
         let made = match shape {
             Shape::Absent => std::fs::create_dir_all(&container),
             Shape::Empty => std::fs::create_dir_all(&path),
@@ -216,13 +217,13 @@ impl Drop for Scratch {
         let mut live = live();
         if kept {
             eprintln!("[scratch] kept {}", self.owned.display());
-        } else if let Err(error) = std::fs::remove_dir_all(&self.owned)
-            && error.kind() != std::io::ErrorKind::NotFound
-        {
-            eprintln!(
-                "[scratch] could not remove {}: {error}",
+        } else if let Err(error) = remove::remove_tree(&self.owned) {
+            // Past the test harness's capture, so a passing test's log still says why its scratch stayed.
+            let line = format!(
+                "[scratch] could not remove {}: {error}\n",
                 self.owned.display()
             );
+            let _ = std::io::Write::write_all(&mut std::io::stderr(), line.as_bytes());
         }
         let last = live.get_mut(&self.container).is_some_and(|names| {
             names.remove(&self.name);
