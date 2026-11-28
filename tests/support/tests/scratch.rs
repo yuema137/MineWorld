@@ -141,3 +141,22 @@ fn the_keep_variable_accepts_failed_and_all_and_refuses_anything_else() {
     let refusal = Keep::parse(Some("1")).expect_err("a typo is refused");
     assert!(refusal.contains("MINEWORLD_KEEP_SCRATCH"), "{refusal}");
 }
+
+#[test]
+fn a_scratch_holding_read_only_files_is_removed_like_a_git_clone_in_it() {
+    // Git marks its object files read-only; the guide's chapter 01 clones into a scratch home (§4.6 of
+    // docs/GUIDE_FORMAT.md), and a Windows run must not leave that clone behind.
+    let home = scratch!(empty "helper-read-only");
+    let path = home.path().to_path_buf();
+    let object = path.join(".git/objects/ab/cdef");
+    std::fs::create_dir_all(object.parent().expect("a parent")).expect("the folders are made");
+    std::fs::write(&object, "blob").expect("the object is written");
+    let mut permissions = std::fs::metadata(&object).expect("readable").permissions();
+    permissions.set_readonly(true);
+    std::fs::set_permissions(&object, permissions).expect("the object is made read-only");
+    drop(home);
+    assert!(
+        !path.exists(),
+        "dropping the guard removes read-only files too"
+    );
+}
