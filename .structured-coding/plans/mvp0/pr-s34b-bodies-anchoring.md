@@ -271,10 +271,12 @@ Escalate:               any change to presence, movement, kernel or contracts; a
 ## 13. Amendment A1 (2026-11-27): walkers route around seated people
 
 ```text
-Design revision:        A1 to revision 1 — DRAFT, awaiting red-team review and the operator's freeze
-Ruled by:               operator, 2026-11-27 ("存档选 C": option (c) of S34-d1's storage finding)
+Design revision:        A1 to revision 1, with the red team's fixes 1–3 (_reviews/s34b-a1.md)
+Approved by / evidence: operator, 2026-11-27, "S34-b 修订冻结" (after red-team FREEZE-AFTER-FIXES); ruled
+                        option (c) the same day ("存档选 C")
+Lifecycle:              DESIGN FROZEN — 2026-11-27
 Revises:                Q-S34b-3 ("stop short now; add routing only if walkers get stuck"); §1, §5, §9 row 2
-Implementation base:    origin/main @ bdb83457 (bodies v8, after #557)
+Implementation base:    origin/main @ bdb83457112b08977997f5e4b8d8716fb065a4be (bodies v8, after #557)
 Branch / worktree:      fix/route-around-seated · /Users/yuema137/mineworld-worktrees/seated-routing
 ```
 
@@ -297,6 +299,12 @@ raising the bound (a) or thinning the fact (b).
 the walker, to the plan's obstacles from the first plan of every leg. It uses the same mechanism as the
 person to avoid after a stop: `obstacles(…, avoid, GROWN)` grows a PERSON_RADIUS square by
 R + GAP + PLAN_MARGIN. This adds no solver, no new obstacle kind and no new constant.
+
+**Bounded cost (red-team fix 3).** Only sitters within `AROUND` (3 m, the re-plan's existing radius) of the
+leg's straight segment from `from` to `to` are added, and at most `SEATED_MAX` = 16 of them, nearest `from`
+first. Each one adds a box and four corners to the visibility graph. A sitter farther off is met, if at all,
+by a later leg's plan or by the existing re-plan after a stop. `SEATED_MAX` is a pack constant, not world
+data.
 
 1. **Fallback, so no walk is lost.** When the plan round the sitters is `Unreachable` (for example, a
    sitter blocks the only way through), the wayfinder plans as today, without them. The walker then meets
@@ -327,11 +335,12 @@ avoidance (ORCA/RVO) was already rejected in `ARC-330`.
 | AC-b-A1 | A walker whose straight line to its goal passes through a seated person, with room to pass, arrives with **no** `stopped-short` naming the sitter, and the sitter's position and `Seated` row are unchanged. Before the change, the same scenario records at least one such stop | `systems/posture/tests/anchoring.rs` (new scenario) |
 | AC-b-A2 | Fallback: a sitter who blocks a corridor's only passage. The walk is still accepted, not refused `no-route`, and the walker is stopped short at the sitter as before | same file |
 | AC-b-A3 | No interpenetration: AC-b-6's seeded run (2 000 requests) still holds after every request. Every seated person stays at their point, and every pair stays at least CLEARANCE apart | existing AC-b-6 |
-| AC-b-A4 | No stopped-short storms, measured: Market Town, seed 7, 300 days, release, on this head merged locally with #551. The total of `stopped-short` naming an anchored person falls, and the total of all `stopped-short` is reported against #551's ledger figures | local run, recorded in §A1.5 |
-| AC-b-A5 | Save size: the same run passes `tools/cli/tests/market_town.rs` in full, including ASRB-1 (≤ 96 MiB) and ASRB-2. On this head alone (without #551), `market_town` passes too | local runs, recorded in §A1.5 |
+| AC-b-A4 | No stopped-short storms (red-team fix 1; threshold fixed before measuring). Market Town, seed 7, 300 days, release, `mineworld run … --save`. Compare this head merged with #551 against **base** = origin/main @ bdb83457 merged with the same #551 head, both read from the `run` summary. The total of `stopped-short` must fall by **at least 8 759**, half of the +17 518 that S34-d1's ledger attributes to walkers stopped by sitters. The summary does not separate `stopped-short` naming a sitter from the rest, so the total is the measured quantity. The per-fact-type deltas (`arrived`, `walk-step`, `stopped-short`, `gave-way`, `walk-to`) are recorded | local runs, §A1.5 |
+| AC-b-A5 | Save size (red-team fix 2). On this head merged with #551, the 300-day save is **≤ 96 MiB for seed 7 and for seed 8**, and the margin under the bound is reported for each. Seed 7 is measured by `tools/cli/tests/market_town.rs` passing in full, ASRB-1 and ASRB-2 included. Seed 8 is `mineworld run worlds/market-town --headless --seed 8 --days 300 --save`, file size. On this head alone (without #551), `market_town` passes too | local runs, §A1.5 |
+| AC-b-A7 | Planning cost (red-team fix 3). Market Town, seed 7, 30 days, release, three runs each: this head's median wall time is **≤ 110 %** of origin/main @ bdb83457's median, both measured on the same machine, one after the other | local runs, §A1.5 |
 | AC-b-A6 | Every existing `mineworld-bodies` and `mineworld-posture` test passes unchanged | `cargo test -p mineworld-bodies -p mineworld-posture` |
 
-If AC-b-A5 fails while A1–A4 pass, the implementer stops and reports to the operator with the
+If AC-b-A4, A5 or A7 fails while A1–A3 pass, the implementer stops and reports to the operator with the
 measurement. The bound is not raised and nothing is tuned to pass.
 
 ### A1.4 Commit plan
