@@ -768,3 +768,42 @@ Validation consequence:
    `client_2d_interact.rs`, `ac13_clients.rs`, `demo_a.rs` (all `#[ignore]` locally; run by the client lanes).
    `market::AlwaysOpen` (in `tools/cli/tests/market/mod.rs`) is available to them if the operator keeps 00:00.
 3. `fast` green on the final head.
+
+### Market Town baselines re-recorded (coordinator ruling 1)
+
+```text
+Run:     ci_parity.py record --binary target/release/mineworld --root <root> --profile long, where <root> holds only
+         worlds/market-town (+ entities, presentation/mineworld-default) as links into this checkout; commit 9af926e7
+         (merge with main 29401a26); Darwin/arm64; 1 401 s in the shared heavy slot (projection ≤ 40 min, budget 60).
+Write:   ci_parity.py baseline write <record> <copy of baselines.txt>; only the [world market-town] keys spliced back,
+         with a reason line; Social Café, Bodies Yard and Lakeside untouched (Lakeside: #553).
+Check:   baseline check <record> scripts/baselines.txt — market-town's 6 keys equal; the only failures are the three
+         worlds the single-world record does not carry (expected).
+```
+
+| Key | Before (milestone F) | After (9af926e7) |
+| --- | --- | --- |
+| summary-300 | 399 4a7c7a1d… | 401 bb959647… |
+| summary-1000 | 1123 4448c2d4… | 1127 8d27edd3… |
+| summary-300s | 398 5074ddc0… | 400 c43a95c0… |
+| facts-300s | 6135 460d89d0… | 6032 0bb704b8… |
+| journal-300s | 4540 c19fd50b… | 4170 b825bc57… |
+| sealed-300s | 528 e97e994d… | 263 9e90d6b6… |
+
+The before keys date from the milestone F re-record (2026-10-20); the after keys therefore also absorb main's
+Market Town drift since then (summaries +2/+4 lines), not only N1's genesis `shop-opened` bytes. A full-world
+nightly record on the merged head is the cross-check.
+
+### Review minors (coordinator, red-team `_reviews/pr552.md`)
+
+- **N1-I7 now met, not just absent**: `shop_hours.rs::residents_meet_a_lunchtime_closure_and_neither_buy_there_nor_haunt_it`
+  — a copy of Market Town with the café closed 12:00–14:00: 8 entries into the closed café over 2 days, 0 sales
+  and 0 `shop-closed` refusals inside the window, 16 café sales 14:00–22:00. Mutation M5 (drop `judge_open`):
+  the test fails ("sold at shop 2 at 49502 s, outside its hours") — caught. `motivated` buys nothing in Market
+  Town on base content either (7 days: no `buy`, no `eat` request), so its run remains a bound on walks; a
+  purchase cannot be attempted by that model without changing it (out of N1 scope).
+- **Helpers deduplicated**: `tools/cli/tests/market/mod.rs::MarketCopy` (`always_open`, `with_hours`) replaces
+  `AlwaysOpen` and `shop_hours.rs`'s private copy-and-strip.
+- **Locale**: `reason.shop-closed` in `clients/shared/settings/locale/en.po` ("the shop is closed") and
+  `zh_Hans.po` ("店铺已打烊"); `messages.pot` regenerated (`MINEWORLD_WRITE_POT=1`); `mineworld-acceptance
+  --test client_text` 6/6 PASS.
