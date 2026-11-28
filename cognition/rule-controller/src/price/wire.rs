@@ -56,12 +56,16 @@ pub struct ListedSeen {
     pub item: ItemId,
     /// What it costs here now, in minor units (after any active adjustment).
     pub price: u64,
+    /// The operator's ask before the shop's adjustments, disclosed only while one is in force: the
+    /// price `set-price` moves (F-S31d-13).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ask: Option<u64>,
     /// How many the operator holds now.
     pub in_stock: u32,
 }
 
-/// economy's shop listing on a place: `{ operator, listed: [{ item, price, in_stock }] }`, under the
-/// `shop` component's labels (schema 2 since WE-a).
+/// economy's shop listing on a place: `{ operator, listed: [{ item, price, ask?, in_stock }] }`, under
+/// the `shop` component's labels (schema 2 since WE-a; `ask` since F-S31d-13, absent unless adjusted).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ListingSeen {

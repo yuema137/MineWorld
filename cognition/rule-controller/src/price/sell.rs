@@ -2,7 +2,8 @@
 //!
 //! ```text
 //! priceable   my own asks (my `asks` view), by item; then — when set-price is offered, I have no asks
-//!             of my own and the place I stand in shows a listing — the shop's, by item (F-S31d-6)
+//!             of my own and the place I stand in shows a listing — the shop's, by item (F-S31d-6), each
+//!             at its disclosed `ask` while an adjustment is in force, else its price (F-S31d-13)
 //! index       j = floor((t mod every) / pace)                                     (slots.rs)
 //! j = 0       list: the first held kind, by item, of a listed category, with no ask of mine and a
 //!             reference value → list-for-sale { item, price: reference }
@@ -108,7 +109,8 @@ fn priceable(observation: &Observation<Value>) -> Vec<Priceable> {
         .iter()
         .map(|line| Priceable {
             item: line.item,
-            price: line.price,
+            // The ask `set-price` moves: the base while an adjustment is in force (F-S31d-13).
+            price: line.ask.unwrap_or(line.price),
             side: Some(ShopSideSeen::Shop),
             stock: line.in_stock,
         })

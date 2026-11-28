@@ -261,10 +261,16 @@ owned_component! {
 }
 
 /// One line of a shop's listing.
+///
+/// `price` is what the line costs here now, after the shop's adjustments. While any adjustment is in
+/// force the line also discloses `ask`, the operator's own asking price before it: the price `set-price`
+/// moves and `price-set` states (F-S31d-13). A shop with no adjustment in force encodes without it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Listed {
     item: ItemId,
     price: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    ask: Option<u64>,
     in_stock: u32,
 }
 
@@ -274,9 +280,15 @@ impl Listed {
         self.item
     }
 
-    /// What it costs.
+    /// What it costs here now, after any adjustment in force.
     pub const fn price(&self) -> u64 {
         self.price
+    }
+
+    /// The operator's asking price before the shop's adjustments, while any is in force; `None` when
+    /// none is, and then the ask is [`Listed::price`].
+    pub const fn ask(&self) -> Option<u64> {
+        self.ask
     }
 
     /// How many the operator holds now.
@@ -286,7 +298,8 @@ impl Listed {
 }
 
 /// What a shop discloses to whoever perceives its place: who runs it, and per kind the operator asks
-/// for, its price and how many the operator holds (step-10 QS-45). The `shop` component as an observer
+/// for, its price, its ask while an adjustment is in force, and how many the operator holds (step-10
+/// QS-45). The `shop` component as an observer
 /// sees it; its shape did not change when prices moved to the operator's asks (SD-S31a-12).
 ///
 /// A view, built when it is disclosed, never stored: the stock count is read from inventory's
@@ -307,6 +320,7 @@ impl Listing {
                 .map(|ask| Listed {
                     item: ask.item,
                     price: shop.adjust(ask.price),
+                    ask: (!shop.adjustments.is_empty()).then_some(ask.price),
                     in_stock: in_stock(ask.item),
                 })
                 .collect(),
