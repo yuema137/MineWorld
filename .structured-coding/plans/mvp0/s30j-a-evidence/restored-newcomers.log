@@ -1,0 +1,13 @@
+   Compiling mineworld-attributes-model v0.1.0 (/Users/yuema137/mineworld-worktrees/recovered-s30j/.recovery/replay/tmp/mineworld-s30j-fidelity-a-recovery/authoring/attributes)
+    Finished `test` profile [optimized + debuginfo] target(s) in 8.09s
+     Running tests/newcomers.rs (/Users/yuema137/mineworld-worktrees/recovered-s30j/.recovery/target-fida/debug/deps/newcomers-82890d7d2440289b)
+
+running 6 tests
+test covers_adults_is_checked_at_arrival ... ok
+test a_fixed_value_is_kept_and_an_empty_world_draws_by_weight ... ok
+test the_cause_is_never_mixed_into_the_draw ... ok
+test a_birth_is_relative_to_the_instant_of_arrival ... ok
+test the_value_the_population_lacks_is_the_one_drawn ... ok
+test a_mask_and_a_restriction_hold_and_an_impossible_restriction_is_refused ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s

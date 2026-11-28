@@ -131,6 +131,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-124](ARC-124.md) | The attribute owner interface, with S31's subscriptions and wealth band as its first users |
 | [ARC-125](ARC-125.md) | Apparent descriptors are perceivable attributes; `look` stays opaque (amends `ARC-91` item 3) |
 | [ARC-126](ARC-126.md) | Person-generation backends and masks are data; the MineWorld backend is the default; a backend runs no code |
+| [ARC-128](ARC-128.md) | Runtime sampling for predeclared people admitted later |
 | [ARC-138](ARC-138.md) | Route B: a modular character is a Meshy base-layer body, a hidden `hm08` fitting template registered to it, and separately generated parts |
 | [ARC-140](ARC-140.md) | The runtime garment format: a neutral-rest mesh plus a `.mhclo`-style binding to the `hm08` template, fitted at load (format part) |
 | [ARC-141](ARC-141.md) | The S26 gates restated per assembled outfit, the wardrobe gates W-1…W-12 and the no-stock scan V-1 |
@@ -232,7 +233,10 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [DEP-36](DEP-36.md) | Noto Sans SC Regular bundled as the clients' CJK fallback font |
 | [DEP-37](DEP-37.md) | The memory store: standard-library `sqlite3`, with FTS5 as a match filter and integer ranking |
 | [DEP-38](DEP-38.md) | `cargo-about` generates the Rust third-party notices of a bundle |
+| [DEP-39](DEP-39.md) | `butler` pushes the release bundles to itch.io, pinned by version and SHA-256 |
+| [DEP-40](DEP-40.md) | SBOM: `anchore/sbom-action` (syft), SPDX JSON, attested with `actions/attest` |
 | [DEP-41](DEP-41.md) | Official Godot 4.7.2 export templates, checksum-pinned |
+| [DEP-42](DEP-42.md) | Provenance: GitHub artifact attestations through `actions/attest` |
 | [DEP-43](DEP-43.md) | Snapshot compression: `zstd` (bundled libzstd), level 3 |
 | [DEP-44](DEP-44.md) | The resuming seat's reconnect loop is our own, over the adopted `websockets` transport |
 | [DEP-45](DEP-45.md) | Godot in CI: the official 4.7.2 builds, SHA-512 pinned in the repository; Xvfb and Mesa for windowed tests |
@@ -270,3 +274,4 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [DEP-160](DEP-160.md) | Cast base colours: Godot's built-in Basis Universal (UASTC + RDO), 2048² kept |
 | [DEP-161](DEP-161.md) | Prop, surface and town-body textures: Godot's built-in Basis Universal (UASTC + RDO by role); cast meshes unchanged |
 | [DEP-162](DEP-162.md) | Cast base colours ship at 1024² (Basis UASTC, RDO 1.0); amends Q-S26-5 and `DEP-160` |
+| [DEP-163](DEP-163.md) | cargo-nextest runs the `core` suite in CI |

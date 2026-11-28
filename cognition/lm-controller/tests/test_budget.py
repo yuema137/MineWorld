@@ -11,7 +11,13 @@ from typing import assert_never
 from mineworld_sdk.wire.ids import EntityKey
 from support import completion, request, run
 
-from mineworld_cognition.backend.model import BackendFailure, Completion, CompletionRequest
+from mineworld_cognition.backend.model import (
+    BackendFailure,
+    Completion,
+    CompletionRequest,
+    Message,
+    Sampling,
+)
 from mineworld_cognition.backend.scripted import ScriptedBackend
 from mineworld_cognition.budget import BudgetPolicy, Ledger, MemoryLedger, SqliteLedger
 from mineworld_cognition.gateway import (
@@ -22,7 +28,9 @@ from mineworld_cognition.gateway import (
     ModelGateway,
     Refused,
 )
+from mineworld_cognition.memory.retention.assisted import Exhausted, SummaryGateway
 from mineworld_cognition.record import Cassette, RecordingBackend, ReplayBackend
+from mineworld_cognition.summary_boundary import SummaryBoundaryGateway
 
 ALICE = EntityKey("alice")
 BOB = EntityKey("bob")
@@ -238,3 +246,167 @@ def test_record_then_replay_across_a_restart_with_the_sqlite_ledger(tmp_path: Pa
     reopened.close()
     assert replayed == recorded == ["completed:one", "completed:two", "completed:one"]
     assert (window.calls, window.tokens) == (6, 6 * 15)
+
+
+class _Held:
+    """A backend whose calls each wait until the test releases them by name; it records every start."""
+
+    def __init__(self) -> None:
+        self.started: list[str] = []
+        self.release: dict[str, asyncio.Event] = {}
+
+    async def complete(self, request: CompletionRequest) -> Completion | BackendFailure:
+        name = request.messages[0].text
+        self.started.append(name)
+        await self.release.setdefault(name, asyncio.Event()).wait()
+        return completion(name)
+
+    async def aclose(self) -> None:
+        return None
+
+
+def _one_slot(
+    backend: _Held, ledger: MemoryLedger, clock: FakeClock
+) -> tuple[ModelGateway, Budget]:
+    budget = Budget.of(BudgetPolicy(max_in_flight=1), ledger, clock)
+    return ModelGateway(backend, budget), budget
+
+
+def test_a_call_that_expires_in_the_queue_never_reaches_the_backend_and_the_next_one_gets_the_slot() -> (
+    None
+):
+    # DM-20261127-3 C1 (§4.4, §4.7): the caller's bound starts before the in-flight slot. Bob's consult has
+    # 0.2 s left while Alice's call holds the only slot: it ends uncharged without reaching the backend, holds
+    # nothing, and Bob's next call gets the slot Alice frees. Before the fix the bound wrapped only the backend,
+    # so Bob's call waited for the slot as long as Alice's call ran.
+    ledger = MemoryLedger()
+    clock = FakeClock()
+    backend = _Held()
+    gateway, budget = _one_slot(backend, ledger, clock)
+
+    async def session() -> tuple[str, str, str]:
+        first = asyncio.create_task(gateway.complete(ALICE, request("alice")))
+        await asyncio.sleep(0)
+        queued = await asyncio.wait_for(
+            gateway.complete(BOB, request("bob"), timeout_s=0.2), timeout=2
+        )
+        backend.release.setdefault("alice", asyncio.Event()).set()
+        backend.release.setdefault("third", asyncio.Event()).set()
+        third = await asyncio.wait_for(gateway.complete(BOB, request("third"), timeout_s=5), 2)
+        return _describe(await first), _describe(queued), _describe(third)
+
+    assert run(session()) == ("completed:alice", "failed:queue_timeout", "completed:third")
+    assert backend.started == ["alice", "third"]
+    bob = ledger.window(BOB, clock.now(), 3600)
+    assert bob.calls == 1  # the third call only: the expired one cost nothing
+    assert budget.reservations.held(BOB).calls == 0
+
+
+def test_a_call_cancelled_before_its_slot_costs_nothing_and_holds_nothing() -> None:
+    ledger = MemoryLedger()
+    clock = FakeClock()
+    backend = _Held()
+    gateway, budget = _one_slot(backend, ledger, clock)
+
+    async def session() -> str:
+        first = asyncio.create_task(gateway.complete(ALICE, request("alice")))
+        await asyncio.sleep(0)
+        queued = asyncio.create_task(gateway.complete(BOB, request("bob")))
+        await asyncio.sleep(0)
+        queued.cancel()
+        cancelled = (await asyncio.gather(queued, return_exceptions=True))[0]
+        assert isinstance(cancelled, asyncio.CancelledError)
+        backend.release.setdefault("alice", asyncio.Event()).set()
+        backend.release.setdefault("after", asyncio.Event()).set()
+        await first
+        return _describe(await asyncio.wait_for(gateway.complete(BOB, request("after")), 2))
+
+    assert run(session()) == "completed:after"
+    assert backend.started == ["alice", "after"]
+    assert ledger.window(BOB, clock.now(), 3600).calls == 1  # "after" only
+    assert budget.reservations.held(BOB).calls == 0
+
+
+def test_a_call_cancelled_in_the_backend_is_charged_once_at_its_start_and_frees_its_slot() -> None:
+    # §4.7: a started backend call costs exactly one call, also when it is cancelled, charged at the moment it
+    # reached the backend. Bob's call is admitted (pre-checked) at t0 and reaches the backend two wall hours
+    # later, after Alice's call frees the slot; the charge must sit in the hour of its start. Before the fix a
+    # cancelled call was never charged, and a charge was dated at the pre-check.
+    ledger = MemoryLedger()
+    clock = FakeClock()
+    backend = _Held()
+    gateway, budget = _one_slot(backend, ledger, clock)
+
+    async def session() -> str:
+        first = asyncio.create_task(gateway.complete(ALICE, request("alice")))
+        await asyncio.sleep(0)
+        queued = asyncio.create_task(gateway.complete(BOB, request("bob")))
+        await asyncio.sleep(0)
+        clock.at += 7200
+        backend.release.setdefault("alice", asyncio.Event()).set()
+        await first
+        for _ in range(5):
+            await asyncio.sleep(0)
+        assert backend.started == ["alice", "bob"]
+        queued.cancel()
+        cancelled = (await asyncio.gather(queued, return_exceptions=True))[0]
+        assert isinstance(cancelled, asyncio.CancelledError)  # not swallowed
+        backend.release.setdefault("after", asyncio.Event()).set()
+        return _describe(await asyncio.wait_for(gateway.complete(ALICE, request("after")), 2))
+
+    assert run(session()) == "completed:after"  # the slot was freed
+    bob = ledger.window(BOB, clock.now(), 3600)
+    assert (bob.calls, bob.tokens) == (1, 0)
+    assert budget.reservations.held(BOB).calls == 0
+
+
+def test_a_summary_queued_behind_a_consult_past_call_timeout_s_fails_uncharged_instead_of_waiting() -> (
+    None
+):
+    # Red-team follow-up on #547: an assisted seat's summary request goes through the router's shared budget
+    # (`ModelGateway.sharing(SummaryBoundaryGateway)`, then the host's `SummaryGateway`) with no caller bound,
+    # so `call_timeout_s` (1 s here) bounds its wait for the only slot, held by a consult. It ends as an
+    # outcome, `Failed(queue_timeout)`, not an exception: it reached no backend, costs no call and holds
+    # nothing, and the pass's own allowance counts it as asked. Before C1 it waited as long as the consult ran.
+    ledger = MemoryLedger()
+    clock = FakeClock()
+    backend = _Held()
+    budget = Budget.of(BudgetPolicy(max_in_flight=1, call_timeout_s=1), ledger, clock)
+    consults = ModelGateway(backend, budget)
+    summaries = SummaryGateway(consults.sharing(SummaryBoundaryGateway), ALICE, calls_left=2)
+    summarize = CompletionRequest(
+        purpose="summarize",
+        messages=(Message(role="user", text="summary"),),
+        sampling=Sampling(temperature_milli=0, max_output_tokens=64, seed=1),
+    )
+
+    consult_done = asyncio.Event()
+
+    async def consult_holding_the_slot() -> None:
+        # A consult in its backend call holds the one slot (its own bound is not what this test is about).
+        async with budget.limiter:
+            await consult_done.wait()
+
+    async def session() -> tuple[str, float, str]:
+        holder = asyncio.create_task(consult_holding_the_slot())
+        await asyncio.sleep(0)
+        began = time.monotonic()
+        queued = await asyncio.wait_for(summaries.complete(summarize), timeout=5)
+        waited = time.monotonic() - began
+        consult_done.set()
+        await holder
+        backend.release.setdefault("after", asyncio.Event()).set()
+        after = await consults.complete(ALICE, request("after"))
+        assert not isinstance(queued, Exhausted)
+        return _describe(queued), waited, _describe(after)
+
+    queued, waited, after = run(session())
+    assert (queued, after) == (
+        "failed:queue_timeout",
+        "completed:after",
+    )  # the slot is usable again
+    assert 0.9 <= waited < 3
+    assert backend.started == ["after"]  # the summary never reached the backend
+    assert ledger.window(ALICE, clock.now(), 3600).calls == 1  # "after" only
+    assert budget.reservations.held(ALICE).calls == 0
+    assert summaries.calls_made == 1

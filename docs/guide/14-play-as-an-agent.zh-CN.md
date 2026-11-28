@@ -344,7 +344,10 @@ agent 按一个循环来玩：**看**（observe）世界，**想**好做什么�
           "ref": "…",
           "roles": []
         },
-        "view.me.wallet": 5000
+        "view.me.wallet": {
+          "display": "50.00",
+          "minor": 5000
+        }
       }
     },
     {
@@ -480,7 +483,10 @@ agent 按一个循环来玩：**看**（observe）世界，**想**好做什么�
           "ref": "…",
           "roles": []
         },
-        "view.me.wallet": 5000
+        "view.me.wallet": {
+          "display": "50.00",
+          "minor": 5000
+        }
       }
     },
     {
@@ -542,7 +548,10 @@ agent 按一个循环来玩：**看**（observe）世界，**想**好做什么�
           "ref": "…",
           "roles": []
         },
-        "view.me.wallet": 4750
+        "view.me.wallet": {
+          "display": "47.50",
+          "minor": 4750
+        }
       }
     },
     {

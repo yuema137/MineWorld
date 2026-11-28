@@ -308,3 +308,6 @@ fn an_entity_pack_of_data_only_passes_the_package_check() {
     mineworld_packages::check_entity_layout(scratch.path())
         .expect("a data file declares something");
 }
+
+#[path = "data_seam/persistence.rs"]
+mod persistence;

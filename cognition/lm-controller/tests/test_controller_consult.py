@@ -8,6 +8,7 @@ fallback share bound (AP6-4): the expected share is 0.3 cubed, 2.7 %, so the bou
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
+from dataclasses import replace
 
 from garbage import as_gate, garbage_script
 from memory_fixtures import ALICE, BOB
@@ -37,6 +38,7 @@ from mineworld_cognition.controller.consult import (
     breaker_outcome,
     consult,
 )
+from mineworld_cognition.controller.deadline import EXPIRED, Expired, Expiry
 from mineworld_cognition.controller.persona import Persona
 from mineworld_cognition.controller.prompt import Trigger
 from mineworld_cognition.controller.retry import BoundRetry, RetryRegistry
@@ -48,7 +50,7 @@ ANSWER_NOTHING = '{"act": "nothing", "to": null, "words": "", "offer": null, "re
 ANSWER_SAY = '{"act": "say", "to": "Bob", "words": "hello", "offer": null, "recalls": []}'
 
 Ask = Callable[[CompletionRequest, float], Awaitable[GateOutcome]]
-Submit = Callable[[ActionRequest], Awaitable[Answered | RefusedRequest]]
+Submit = Callable[[ActionRequest], Awaitable[Answered | RefusedRequest | Expired]]
 
 
 class FakeClock:
@@ -180,7 +182,7 @@ def _deps(
         clock=clock.clock,
         sleep=clock.sleep,
         policies=_policies(),
-        limits=limits or ConsultLimits(deadline_s=20.0, max_calls=5),
+        limits=limits or ConsultLimits(expiry=Expiry(20.0), max_calls=5),
     )
 
 
@@ -240,7 +242,7 @@ def test_the_call_cap_ends_the_consult_at_max_calls() -> None:
     deps = _deps(
         FakeClock(),
         _answer_ask(BackendFailure(reason="unreachable"), seen),
-        limits=ConsultLimits(deadline_s=20.0, max_calls=2),
+        limits=ConsultLimits(expiry=Expiry(20.0), max_calls=2),
     )
     record = _go(deps)
     assert (record.outcome, record.cause) == ("fell_back", "cap")
@@ -414,3 +416,68 @@ def test_seeded_thirty_percent_garbage_resolves_every_consult_within_bounds() ->
         if record.outcome == "fell_back":
             fell_back += 1
     assert fell_back * 100 <= 5 * 1000  # at most 5 %
+
+
+# ── The absolute deadline (DM-20261127-3 C1, §4.4) ──────────────────────────────────────────────────────────
+
+
+def test_the_consult_spends_the_expiry_it_is_given_and_starts_no_fresh_deadline() -> None:
+    # The trigger was received at 0 and waited 15 s before its consult: the model is asked with 5 s left, not
+    # with a fresh 20 s; and a consult whose expiry has passed asks nothing.
+    clock = FakeClock()
+    clock.now = 15.0
+    bounds: list[float] = []
+
+    async def ask(request: CompletionRequest, timeout: float) -> GateOutcome:
+        bounds.append(timeout)
+        return as_gate(_completion(ANSWER_NOTHING))
+
+    assert _go(_deps(clock, ask)).outcome == "chose"
+    assert bounds == [5.0]
+    clock.now = 20.0
+    record = _go(_deps(clock, ask))
+    assert (record.outcome, record.cause, record.attempts) == ("fell_back", "deadline", ())
+    assert bounds == [5.0]
+
+
+def test_an_answer_that_arrives_at_or_after_the_expiry_is_not_submitted() -> None:
+    clock = FakeClock()
+    submitted: list[ActionRequest] = []
+
+    async def late(request: CompletionRequest, timeout: float) -> GateOutcome:
+        clock.now += 20.0  # the backend answers exactly at the expiry
+        return as_gate(_completion(ANSWER_SAY))
+
+    record = _go(_deps(clock, late, submit=_accepting(submitted)))
+    assert (record.outcome, record.cause) == ("fell_back", "deadline")
+    assert submitted == []
+    assert len(record.attempts) == 1 and record.attempts[0].text == ANSWER_SAY
+
+
+def test_a_submit_that_finds_the_expiry_passed_under_the_lock_is_not_sent() -> None:
+    async def expired(request: ActionRequest) -> Answered | RefusedRequest | Expired:
+        return EXPIRED
+
+    record = _go(_deps(FakeClock(), _answer_ask(ANSWER_SAY), submit=expired))
+    assert (record.outcome, record.cause, record.request) == ("fell_back", "deadline", None)
+    assert record.proposal is not None
+
+
+def test_a_rate_limit_wait_that_overruns_the_expiry_sends_nothing_more() -> None:
+    # A wall sleep can overrun what it was asked for. The rate-limit wait (7.25 s, within the 20 s) ends past the
+    # expiry, so the same request is not sent again.
+    clock = FakeClock()
+    submitted: list[ActionRequest] = []
+
+    async def limited(request: ActionRequest) -> Answered | RefusedRequest:
+        submitted.append(request)
+        return _rate_limited(7_250)
+
+    async def overrun(seconds: float) -> None:
+        clock.sleeps.append(seconds)
+        clock.now += 25.0
+
+    deps = _deps(clock, _answer_ask(ANSWER_SAY), submit=limited)
+    record = _go(replace(deps, sleep=overrun))
+    assert (record.outcome, record.cause) == ("fell_back", "deadline")
+    assert len(submitted) == 1

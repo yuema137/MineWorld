@@ -22,7 +22,10 @@ checked on their own.
   and 3D, invite in 2D. Chinese is typed through your system's input method. A client takes it as
   `res://mineworld_hud`.
 - `sitting/` — who is drawn seated where: the one sit decision both clients make, from what the world
-  disclosed. A client takes it as `res://mineworld_sitting`. See
+  disclosed, plus the shared pelvis pose and one-shot walk-then-sit chain. Clients supply action
+  types and submit the chain’s returned offers unchanged. Format-2 seat depictions may add a
+  place-local east/north drawing displacement; format-1 scalar poses and semantic positions remain
+  unchanged. `checks/sit_pose_check.gd` verifies the frozen scalar corpus and vector validation. A client takes it as `res://mineworld_sitting`. See
   [`clients/3d-spike/PRESENTATION.md`](../3d-spike/PRESENTATION.md) §10 and `docs/decisions/ARC-145.md`.
 - `checks/` — headless checks of the modules.
 

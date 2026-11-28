@@ -406,7 +406,10 @@ async def play(town: Server, tmp_path: Path, launch: Launch) -> None:
             assert hostile_answer["woke"] == plain_answer["woke"] == "spoken_to"
             assert not relay.frames_sent("leave"), "the adapter sent a leave nobody asked for"
 
-            buy = offer_of(view, "buy")
+            # A fresh view, read page by page: Market Town's café offers a `sit` per sit point (S34-c1), so its
+            # `buy` lies beyond the first window of offers. A page keeps its view's number and offer numbers.
+            view = (await call(session, transcript, "observe", {"handle": handle}))["view"]
+            buy = await paged_offer_of(session, transcript, handle, view, "buy")
             assert buy is not None, "no buy offer is available"
             wallet, holdings = (
                 view["me"]["wallet"],

@@ -1,0 +1,52 @@
+   Compiling archive-probe v0.1.0 (/private/var/folders/v6/w270mz6n7bz4zgk94fn07ljc0000gn/T/mineworld-ci-archive-_9fxfb3m)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.34s
+   Archiving 5 binaries (including 1 non-test binary) and 1 standard library to /private/var/folders/v6/w270mz6n7bz4zgk94fn07ljc0000gn/T/mineworld-ci-archive-_9fxfb3m/artifacts/core-archive/tests.tar.zst
+    Archived 8 files to /private/var/folders/v6/w270mz6n7bz4zgk94fn07ljc0000gn/T/mineworld-ci-archive-_9fxfb3m/artifacts/core-archive/tests.tar.zst in 0.04s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.00s
+[ci] layer core shard 1/2 in /private/var/folders/v6/w270mz6n7bz4zgk94fn07ljc0000gn/T/mineworld-ci-archive-_9fxfb3m
+[ci] $ cargo test --workspace --no-fail-fast --doc
+   Compiling archive-probe v0.1.0 (/private/var/folders/v6/w270mz6n7bz4zgk94fn07ljc0000gn/T/mineworld-ci-archive-_9fxfb3m)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.04s
+   Doc-tests archive_probe
+
+running 2 tests
+test src/lib.rs - (line 1) ... ok
+test src/lib.rs - (line 4) ... FAILED
+
+failures:
+
+---- src/lib.rs - (line 4) stdout ----
+Test executable failed (exit status: 101).
+
+stderr:
+
+thread 'main' (13817788) panicked at /var/folders/v6/w270mz6n7bz4zgk94fn07ljc0000gn/T/rustdoctestNn6ch8/doctest_bundle_2024.rs:14:1:
+intentional doctest failure
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+
+failures:
+    src/lib.rs - (line 4)
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+all doctests ran in 0.32s; merged doctests compilation took 0.11s
+error: doctest failed, to rerun pass `--doc`
+error: 1 target failed:
+    `--doc`
+[ci] exit 101 after 0.4 s: cargo test --workspace --no-fail-fast --doc
+[ci] layer core FAILED at: cargo test --workspace --no-fail-fast --doc
+Traceback (most recent call last):
+  File "/private/tmp/mineworld-recover-ci-p1/scripts/test_ci_execution.py", line 174, in <module>
+    integration()
+    ~~~~~~~~~~~^^
+  File "/private/tmp/mineworld-recover-ci-p1/scripts/test_ci_execution.py", line 160, in integration
+    for suite in ci_results.ElementTree.parse(junit).getroot().findall("testsuite"):
+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^
+  File "/Users/yuema137/.local/share/uv/python/cpython-3.14.5-macos-aarch64-none/lib/python3.14/xml/etree/ElementTree.py", line 1214, in parse
+    tree.parse(source, parser)
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "/Users/yuema137/.local/share/uv/python/cpython-3.14.5-macos-aarch64-none/lib/python3.14/xml/etree/ElementTree.py", line 566, in parse
+    source = open(source, "rb")
+FileNotFoundError: [Errno 2] No such file or directory: '/private/var/folders/v6/w270mz6n7bz4zgk94fn07ljc0000gn/T/mineworld-ci-archive-_9fxfb3m/target/nextest/ci/junit.xml'

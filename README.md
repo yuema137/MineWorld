@@ -173,6 +173,12 @@ zero lines.
 Next come regions linked by train, then markets and institutions, one pack at a time
 ([scope](#scope)).
 
+## Download and play
+
+🚧 Downloads for macOS, Windows and Linux arrive with the first release. Until then, use the Quick start below.
+
+The [guide, chapter 01](docs/guide/01-get-mineworld.md) shows both ways to get the `mineworld` command.
+
 ## Quick start
 
 You need [Rust](https://rustup.rs) (the right version installs itself) and

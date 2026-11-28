@@ -1,0 +1,240 @@
+{
+  "base": "b457a94d9a1ace6a39005de683cc393886e19288",
+  "files": [
+    {
+      "path": "kernel/src/error.rs",
+      "sha256": "75a4e11fe97cc158a86b4de6ae1216b8d85ed59f21e0f090396069fa053c23fe",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "kernel/src/dispatch.rs",
+      "sha256": "ff1d446070cc3fc73067e86343e3d5cd4ccb0fa744986d6a350d8931467dbbe1",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "contracts/src/event.rs",
+      "sha256": "145dc575a6800ca4542a0d6ea3f05b94dd043cbad46dcca2dfa8f04a2d40806e",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "persistence/src/world.rs",
+      "sha256": "d5b36d16d039efbb9797a64c03de41abce824d424c38f0a066ec92b89db2da1d",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "persistence/src/backend.rs",
+      "sha256": "832ad895e5c7284d2aace88954f7463811d46e7d06640fb3a1e8f9086cf4731a",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "persistence/src/sqlite.rs",
+      "sha256": "03b3c4983c89101523ee2035bf80ae3bc4e906d8e7541f1bdd1faf46740b3c0c",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "persistence/src/error.rs",
+      "sha256": "ca82f366d2308ccc0623003c091233d61677161f9f294ef1474bd2fa26339a12",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "persistence/src/replay.rs",
+      "sha256": "40521eb6ea0904449ea06e430bb010dd956b66b189bd8a66f5d82bcaefa7ca61",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "persistence/tests/save.rs",
+      "sha256": "16a6d4d455afdb4b4f37110b8810bf92ed347634db3dcd9cb2c50f318357e145",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "persistence/tests/kill_and_resume.rs",
+      "sha256": "04a0fb32d83b8ae4169f8c7249940bbaa2012405566f52f2b4f69b5bd733f807",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "sdk/rust/src/interactions/mod.rs",
+      "sha256": "9b96ccd95a2fc1bb36f08ee35ea98fbeac2f3e0d54862c650797388ba8d1f791",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "sdk/rust/src/interactions/lookup.rs",
+      "sha256": "53d35061184ccc032290ee8f0dd434669d2edaa7af1c3e5208c987f0350da5c6",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "sdk/rust/src/interactions/resolve.rs",
+      "sha256": "d20adc6b99ce9a93006e210882957dc4588691864e961e46bfad2fb33cb5cd19",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "sdk/rust/src/interactions/section.rs",
+      "sha256": "2c5a7db10c09f3248556e1002bf07199274acfc7adacc28520b5febe0001c4b8",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "authoring/src/configuration.rs",
+      "sha256": "b74897bd435502d49d74a0914252db25608844101f63ed8b50dfbe778cd45508",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "worldpack/src/configure.rs",
+      "sha256": "c5f1b93ff505dadcf825f835b7440453bbaa567dc648e1746bbb6b4bfd98e702",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "worldpack/src/error.rs",
+      "sha256": "3bea79b9645db7f1553155c0e893fef3fadd03282f4b3762f54d1c7a5a2df591",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "worldpack/src/load.rs",
+      "sha256": "c6f81565023f1d4df75ce650fb4c4ada78691d6f30755b9299d0b031e3db9690",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "tools/cli/src/serve.rs",
+      "sha256": "b6acef8251ac185f71b58a41c274fed4a446314f0922bedb5ea609cd7aacc69c",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "tools/cli/src/run.rs",
+      "sha256": "6e9ab45053ef7d56956dcb5a4274075971c24bd00b1450bf5060eacc23eaf43c",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "tools/cli/src/main.rs",
+      "sha256": "834831edc5949dea7053de4136f895649433cdd698a07383b8a022fdd04b3152",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "tools/cli/src/create.rs",
+      "sha256": "9ed487e64e163ca3ce56313aa10176ad25f069a4b2921489470d3cc4754c3a51",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "systems/needs/src/component.rs",
+      "sha256": "6142496c3ba20c8eaf14e2f36c3b650ba29e516bf0ea915949f345223f34790d",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "systems/needs/src/event.rs",
+      "sha256": "55ac1acb246fea6fe2e44c787743904c7fee7d222cc5208f096cb568086963dc",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "systems/needs/src/section.rs",
+      "sha256": "a20d5c823647279b745b5f5c7a1a5c61e6ef259daad7ae73b4adf7a09c87a68a",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "systems/needs/src/interactions.rs",
+      "sha256": "af79b32320c228a9016fa15a612924f4a237be34ba74d2eaec7463d3cacbc9e9",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "systems/needs/src/level.rs",
+      "sha256": "9fda249c92f6301cdbf67bd7bb881c8c50047bc7093335c213c61119c420fa91",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "systems/needs/src/system.rs",
+      "sha256": "828452fa27645f8ec2531993c636eb8661d6ca5a04c81449e803834012a012cb",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "systems/needs/src/disclose.rs",
+      "sha256": "a4a8dfc608d2178ad745fd8f87b91f2ee3625aeecd86dde57ad2b719853d4778",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "cognition/rule-controller/src/needs.rs",
+      "sha256": "d0b33036d578bf486b53df823e64cfb6200b88cc7611ee1c8b59caa9acda23c6",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "cognition/rule-controller/src/fetch.rs",
+      "sha256": "0269d7e79fb2ec543586fb560ce201d3fb19484805f94ebf5e16201dbb7e98b9",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "cognition/rule-controller/src/paced.rs",
+      "sha256": "fa576c3a880bf82db50946ed91871fbf5d59fb45090d8e13ed2652ae49ee20b4",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "cognition/rule-controller/src/offered.rs",
+      "sha256": "59d142c5307ddbb8635011963ef9c6da0db117105e7f77b3a7ccca85d4668dd6",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "cognition/motivated/src/considerations.rs",
+      "sha256": "6b8571b63b1d698f674129d017d7d73849813d686b0a0a15bb2cd613c6c6e90f",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "clients/protocol/mineworld/needs.gd",
+      "sha256": "7be05662f17f66330dcc8a5c824865dc8593171bc564e936b5d6d0d3254f3ac1",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "clients/protocol/mineworld/observation.gd",
+      "sha256": "f9dce61026c5329bc9e562a4ad90b6be62a20acbb8d6f4f398f363cafdb4caac",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "clients/2d/scripts/hud/readers.gd",
+      "sha256": "a62990a68d0fff78ab1a61a93a44243bc33a3d50be3a7de97250eee169e5140a",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "clients/2d/scripts/hud/panels.gd",
+      "sha256": "62e73d4c430c0697cdaebaa27f544ab81c8d10061b1ef681881fb7c58c5f14a7",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "clients/3d-spike/scripts/slice/needs_hud.gd",
+      "sha256": "f2f0fb07b3cbd392941d2b387b7662976bc753cb098ff70fa7ec116dca182e1d",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "clients/agent/src/mineworld_agent/models.py",
+      "sha256": "83ccc6ae39895e59156410c913238f23a5c93d65e78f92182291a100e8b4d088",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "clients/agent/src/mineworld_agent/disclosed.py",
+      "sha256": "011d55dc553560a3022ae86e7a3e79e124014c3b29f93a3b628a3300b6d67554",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "clients/agent/src/mineworld_agent/view.py",
+      "sha256": "b13314e78b79dac95dbdc8f8bc2911db391b624c7d9f3e4e4ff77b132df48cc4",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "cognition/lm-controller/src/mineworld_cognition/controller/situation.py",
+      "sha256": "6aef9034ebefb37ddd6ba7cec0177f043ded798fb576041c23ed0dee73e1749e",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "cognition/lm-controller/src/mineworld_cognition/controller/prompt.py",
+      "sha256": "9b2967b0cbc37a669ccfb8907083b8ee720dc9dd862b8649a5d9983b4ad6c086",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "cognition/lm-controller/src/mineworld_cognition/controller/seat.py",
+      "sha256": "9c549bb8e8a5f04b9fbc9a0a7d5f318107fc099abc0552e416dd8ffcbca8a805",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "sdk/python/src/mineworld_sdk/wire/contract.py",
+      "sha256": "561dec31d5e7e5d482b94fb1dede41faaf48838eb3d3abf075dc2cad141b5585",
+      "equals_audited_candidate_base": true
+    },
+    {
+      "path": "scripts/check_client_rules.py",
+      "sha256": "c7c41696877e103acff2d3950591cc6db503f113edf2080e535b201bee94a561",
+      "equals_audited_candidate_base": true
+    }
+  ]
+}

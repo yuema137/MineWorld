@@ -44,7 +44,7 @@ The `[budgets]` table: the limits of `BudgetPolicy`, and where the spend is kept
 | `calls_per_wall_hour` | whole number | no | `20` | >= 1 | The most model calls one person's seat may make in any rolling hour of real time. Real time is wall-clock seconds, not simulated days. |
 | `tokens_per_wall_day` | whole number | no | `30000` | >= 1 | The most tokens one seat may use in any rolling 24 hours of real time. |
 | `max_in_flight` | whole number | no | `2` | >= 1 | The most model calls that may run at the same time in this process. |
-| `call_timeout_s` | whole number | no | `20` | >= 1 | Seconds to wait for one model call before it is abandoned. |
+| `call_timeout_s` | whole number | no | `20` | >= 1 | Seconds to wait for one model call, its wait for an in-flight slot included, before it is abandoned. |
 | `ledger` | text, or unset | no | unset | none | A SQLite file that keeps the spend, so a restart neither resets it nor counts a call twice. Unset keeps the spend in memory only. A relative path is resolved against this configuration file. |
 
 ## `[backends.<name>]`

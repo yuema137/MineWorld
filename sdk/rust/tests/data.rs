@@ -7,10 +7,12 @@
 use std::any::Any;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use mineworld_authoring::{
     ContentKind, DataDirectory, DataOrigin, DataRefusal, DataSource, ErasedSubject, OwnsData,
     ResolveRefusal, ResolvesSubjects, SectionInContext, SectionName, Seeding, ShippedData, Subject,
+    SubjectResolution,
 };
 use mineworld_contracts::{EntityId, EntityKey, Rejection, SystemId, Tags};
 use mineworld_kernel::{Emission, System, SystemDeclaration, SystemIdentity, SystemVersion};
@@ -95,14 +97,15 @@ impl ResolvesSubjects for Owner {
 
     /// Each subject's seed is how many subjects there were.
     fn resolve_subjects(
-        _: &Self::Context,
+        context: Arc<Self::Context>,
         _: Option<&dyn Any>,
         subjects: &[Subject<'_, u32>],
-    ) -> Result<BTreeMap<EntityKey, usize>, ResolveRefusal> {
-        Ok(subjects
+    ) -> Result<SubjectResolution<Self::Context, Self::Seed>, ResolveRefusal> {
+        let seeds = subjects
             .iter()
             .map(|subject| (subject.key.clone(), subjects.len()))
-            .collect())
+            .collect();
+        Ok(SubjectResolution { context, seeds })
     }
 
     fn seed_resolved(
@@ -176,7 +179,7 @@ fn limited(
     capability: Capability,
     value: u32,
     context: Option<&dyn mineworld_authoring::OwnerContext>,
-) -> Result<std::sync::Arc<dyn mineworld_authoring::AuthoredContent>, Error> {
+) -> Result<Arc<dyn mineworld_authoring::AuthoredContent>, Error> {
     let mut map = MapDeserializer::<_, Error>::new([("limited", value)].into_iter());
     let _: Option<String> = map.next_key().expect("a key");
     capability.decode_section_in(&mut map, context)

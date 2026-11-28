@@ -72,6 +72,8 @@ var people: Node
 var furnishings: Node
 ## Who is drawn seated where: the shared sit decision (S33-f, ARC-145).
 var seating
+## The walk-then-sit chain of a click on a sit point, shared with the 3D client (S34-e §5.2).
+var chain: MineWorldSitChain
 ## The loose objects of the observer's place, and their motion (ARC-342).
 var objects: Node
 var status: CanvasLayer
@@ -154,7 +156,8 @@ func _ready() -> void:
 	people = People.new()
 	add_child(people)
 	people.setup(projection, presentation, town, world)
-	seating = Seating.new(repo_path("."), String(options.get("world-key", "")))
+	seating = Seating.new(repo_path(".", root), String(options.get("world-key", "")))
+	chain = MineWorldSitChain.new(Intents.SIT, Intents.STAND)
 	link = Link.new()
 	add_child(link)
 	link.client.clock_changed.connect(_on_clock)
@@ -166,6 +169,8 @@ func _ready() -> void:
 	walker.intents = intents
 	walker.projection = projection
 	add_child(walker)
+	walker.walk_ended.connect(_on_walk_ended)
+	walker.keys_pressed.connect(_leave_seat)
 	camera = Camera2D.new()
 	camera.zoom = Vector2.ONE * float(presentation.setting(["camera", "zoom"], 1.0))
 	camera.position_smoothing_enabled = true
@@ -181,6 +186,8 @@ func _ready() -> void:
 	add_child(daylight)
 	daylight.setup(repo_path(pack, root) if pack != "none" else "")
 	_hud()
+	# Another menu choice ends a walk to a seat: the chain forgets it (S34-e §5.2).
+	menu.opened.connect(func(_id: String) -> void: chain.cancel())
 	join_screen = JoinScreen.new()
 	add_child(join_screen)
 	join_screen.join_requested.connect(_on_join_requested)
@@ -434,11 +441,51 @@ func open_menu_at(at: Vector2, walk_otherwise: bool) -> void:
 	if object != "" and latest != null and not Menu.about_object(latest, object).is_empty():
 		if not talk_line.is_open():
 			menu.open(object, latest, get_viewport().get_canvas_transform() * objects.drawn_screen(object), true)
+		return
+	# A click on a sit point (S34-e §5.5) is a click, not a spot menu: only `walk_otherwise` clicks take it.
+	var seat: String = seating.pick(latest, town, projection, at) if walk_otherwise and latest != null else ""
+	if seat != "":
+		_on_sit_clicked(seat)
 	elif object != "" and walk_otherwise:
+		_leave_seat()
 		var lies: Vector3i = objects.disclosed_at(object)
 		walker.walk_to(latest.place(), town.to_plan(latest.place(), {"x": lies.x, "y": lies.y}))
 	elif walk_otherwise:
+		_leave_seat()
 		walker.walk_to_plan(projection.to_plan(at))
+
+
+## A click on a sit point: the chain says whether the sit is sent now or the walk to the seat comes first, from the
+## server's verdict alone (S34-e §5.2). Its answer is carried out as given.
+func _on_sit_clicked(point: String) -> void:
+	if latest != null:
+		_carry_out(chain.choose(latest, point))
+
+
+## The walk to a seat ended: the chain sends the sit when the walk completed (one try, never a retry).
+func _on_walk_ended(completed: bool) -> void:
+	if latest != null:
+		_carry_out(chain.walk_ended(latest, completed))
+
+
+## Carries out one chain answer: `submit` sends the offer as offered; `walk` walks to the seat's position.
+func _carry_out(answer: Dictionary) -> void:
+	if answer.has("submit"):
+		intents.submit_offered(answer["submit"])
+	elif answer.has("walk"):
+		var walk: Dictionary = answer["walk"]
+		var plan: Variant = town.to_plan(String(walk["place"]), walk["local"])
+		if plan != null:
+			walker.walk_to(String(walk["place"]), plan)
+
+
+## A floor click or a walk key while seated: the offered stand goes first, so the server stands the player up
+## before the body moves (S34-e §5.5). Nothing is sent when no stand is offered (a move stands them on the server).
+func _leave_seat() -> void:
+	chain.cancel()
+	if latest == null:
+		return
+	_carry_out(chain.leave(latest))
 
 
 ## "Throw … at…" was chosen: the next floor click aims it (ARC-342). The status line says so.
@@ -489,6 +536,7 @@ func open_menu(id: String) -> void:
 ## whose answer never came is reported as unknown.
 func _on_state_changed(state: String, _reason: String) -> void:
 	if state == "reconnecting" or state == "closed":
+		chain.cancel()
 		var unanswered: String = walker.abandon()
 		if unanswered != "":
 			toasts.toast({"kind": "unknown", "action_type": "", "target": null}, Words.text("ui.walk-unknown"))
@@ -519,6 +567,8 @@ func _on_welcomed(observer: String, world_summary: Dictionary) -> void:
 
 
 func _on_observed(observation: MineWorldObservation) -> void:
+	if latest != null and latest.place() != observation.place():
+		chain.cancel()
 	latest = observation
 	Words.currency = MineWorldMoney.currency_of(observation)
 	world_time.on_observation(observation, Time.get_ticks_usec())
@@ -533,6 +583,10 @@ func _on_observed(observation: MineWorldObservation) -> void:
 	walker.observe(observation)
 	people.reconcile(observation)
 	seating.reconcile(observation)
+	# Drawn = decided (I-e-1): each drawn person sits, or stands, as the shared decision says (S34-e §5.3).
+	var poses: Dictionary = seating.poses(observation, town)
+	for id in people.drawn_ids():
+		people.set_seated(id, poses.get(id))
 	menu.refresh(observation)
 	trade_panel.refresh(observation)
 	_show_prices(observation)
