@@ -94,6 +94,9 @@ class Handle:
     fresh: bool = True
     """Joined without a saved cursor: the backfill up to the connection's head is the world's past, not
     news, and is not put in the inbox (D-c-18)."""
+    locale: str = "en"
+    """The language attribute text is read in (`--locale`, S30-k): the world's offered locale of it, else
+    English."""
     _head: EventId | None = None
     _head_known: bool = False
     _held: list[PerceivedBatch] = field(default_factory=list[PerceivedBatch])
@@ -168,6 +171,7 @@ class Handle:
             self._acted_through(seen),
             max(1, scale),
             lexicon=self.lexicon,
+            locale=self.locale,
         )
         self._renders[number] = made
         self._rendered_seen = seen

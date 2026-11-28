@@ -171,7 +171,7 @@ def test_perceived_traits_are_never_a_memory_record_and_a_trait_change_is_generi
     # AC-f-11 (S30-f, F-S30f-5; I-S30-9): attributes reach memory only as perceived facts. A hundred
     # observations of Alice's `traits` add no record; a `trait-changed` fact renders generically and is citable.
     block = {
-        "schema": 2,
+        "schema": 3,
         "entries": [
             {
                 "attribute": "test.mood",

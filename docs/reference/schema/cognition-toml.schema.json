@@ -212,6 +212,12 @@
           "title": "Horizon Minutes",
           "type": "integer"
         },
+        "locale": {
+          "default": "en",
+          "description": "The language the seat reads people's attribute text in (who I am, how I speak, who I see), such as `zh_Hans` (`zh-Hans` is accepted): the world's offered locale of it, else English. The prompt's own frame stays English.",
+          "title": "Locale",
+          "type": "string"
+        },
         "max_calls": {
           "default": 5,
           "description": "The most model calls one consult may make, from 1 to 10.",
@@ -311,6 +317,19 @@
           "default": null,
           "description": "Overrides `[controller]` horizon_minutes for this seat.",
           "title": "Horizon Minutes"
+        },
+        "locale": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Overrides `[controller]` locale for this seat.",
+          "title": "Locale"
         },
         "max_calls": {
           "anyOf": [

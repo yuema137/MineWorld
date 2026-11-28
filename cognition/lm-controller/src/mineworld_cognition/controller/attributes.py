@@ -34,11 +34,14 @@ class SelfAttributes(CognitionModel):
     manner: str = ""
 
     @staticmethod
-    def of(observation: Observation) -> SelfAttributes:
-        entries = _entries(observation, observation.observer)
+    def of(observation: Observation, locale: str = attributes.ENGLISH) -> SelfAttributes:
+        """In the seat's `locale` where the world offers it (S30-k §5.6); the prompt's own frame stays
+        English (Q-S30k-6)."""
+        disclosed = _disclosed(observation, observation.observer)
+        reading = disclosed.reading(locale)
         return SelfAttributes(
-            about=attributes.compose(entries, ABOUT_FACET, ABOUT_BYTES),
-            manner=attributes.compose(entries, MANNER_FACET, MANNER_BYTES),
+            about=attributes.compose(disclosed.entries, ABOUT_FACET, ABOUT_BYTES, reading),
+            manner=attributes.compose(disclosed.entries, MANNER_FACET, MANNER_BYTES, reading),
         )
 
 
@@ -46,13 +49,19 @@ NO_ATTRIBUTES = SelfAttributes()
 """No attribute disclosed: the default wherever an older caller or log has none."""
 
 
-def description(observation: Observation, person: EntityId) -> str:
-    """Who I see of `person`: composed from that person's own entity record in `observation`."""
-    return attributes.compose(_entries(observation, person), DESCRIPTION_FACET, DESCRIPTION_BYTES)
+def description(
+    observation: Observation, person: EntityId, locale: str = attributes.ENGLISH
+) -> str:
+    """Who I see of `person`: composed from that person's own entity record in `observation`, in
+    `locale` where the world offers it."""
+    disclosed = _disclosed(observation, person)
+    return attributes.compose(
+        disclosed.entries, DESCRIPTION_FACET, DESCRIPTION_BYTES, disclosed.reading(locale)
+    )
 
 
-def _entries(observation: Observation, entity: EntityId) -> tuple[attributes.AttributeEntry, ...]:
+def _disclosed(observation: Observation, entity: EntityId) -> attributes.Disclosed:
     for perceived in observation.entities:
         if perceived.id == entity:
-            return attributes.blocks(perceived)
-    return ()
+            return attributes.read(perceived)
+    return attributes.Disclosed()

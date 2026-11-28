@@ -74,6 +74,12 @@ def _parser() -> argparse.ArgumentParser:
     )
     mcp.add_argument("--inbox", type=int, default=512, help="facts the inbox holds, at most 512")
     mcp.add_argument(
+        "--locale",
+        default="en",
+        help="the language people's attribute text is read in, such as zh_Hans; English when the world"
+        " offers none of it",
+    )
+    mcp.add_argument(
         "--http",
         default=None,
         metavar="HOST:PORT",
@@ -142,6 +148,7 @@ def _config(arguments: argparse.Namespace) -> PlayerConfig | None:
             inbox=arguments.inbox,
             max_result_bytes=arguments.max_result_bytes,
             state_dir=arguments.state_dir,
+            locale=arguments.locale,
         )
     except ValidationError as error:
         for item in error.errors(include_url=False):

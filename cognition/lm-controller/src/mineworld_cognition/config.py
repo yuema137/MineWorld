@@ -17,8 +17,17 @@ from pathlib import Path
 from typing import Annotated, Literal, Self, cast
 from urllib.parse import urlsplit
 
+from mineworld_sdk.attributes import parse_locale
 from mineworld_sdk.wire.ids import JsonValue
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 
 from mineworld_cognition.backend.model import ModelBackend
 from mineworld_cognition.backend.providers import (
@@ -298,6 +307,10 @@ Layer = Literal["transport", "content", "semantic"]
 """The three retry layers of one consult (pr-s10-p6 §5.5)."""
 
 
+SeatLocale = Annotated[str, AfterValidator(parse_locale)]
+"""A seat's locale, as a person types it and normalised (`zh-Hans` → `zh_Hans`; S30-k §5.1)."""
+
+
 class ControllerConfig(ConfigModel):
     """The `[controller]` table: the consult's bounds and the seat's timing (pr-s10-p6 §5.13)."""
 
@@ -337,6 +350,14 @@ class ControllerConfig(ConfigModel):
         description=(
             "World minutes between two `upcoming` asks while the seat has not set out, arrived, or seen the"
             " part begin, from 5 to 120."
+        ),
+    )
+    locale: SeatLocale = Field(
+        default="en",
+        description=(
+            "The language the seat reads people's attribute text in (who I am, how I speak, who I see),"
+            " such as `zh_Hans` (`zh-Hans` is accepted): the world's offered locale of it, else English."
+            " The prompt's own frame stays English."
         ),
     )
 
@@ -402,6 +423,9 @@ class ControllerOverrides(ConfigModel):
     )
     reask_minutes: Annotated[int, Field(ge=5, le=120)] | None = Field(
         default=None, description="Overrides `[controller]` reask_minutes for this seat."
+    )
+    locale: SeatLocale | None = Field(
+        default=None, description="Overrides `[controller]` locale for this seat."
     )
 
 
