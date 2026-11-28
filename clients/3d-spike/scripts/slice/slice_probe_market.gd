@@ -682,6 +682,9 @@ func _own(obs: MineWorldObservation) -> Dictionary:
 	if obs == null:
 		return {}
 	return {"wallet": obs.component_value(obs.observer(), "wallet"),
+		# The raw worth record the money line shows beside the balance (S31-e §5.7): N-2's oracle for its
+		# numbers, never the line itself.
+		"wealth": obs.component_value(obs.observer(), "wealth"),
 		"holdings": obs.component_value(obs.observer(), "holdings"),
 		"shop": obs.component_value(obs.place(), "shop"),
 		"offered": obs.affordances()}
