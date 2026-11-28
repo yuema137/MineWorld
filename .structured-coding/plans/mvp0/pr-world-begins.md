@@ -59,4 +59,47 @@ every shop closed for 5.5 world hours. The operator ruled that new worlds begin 
 
 ## 5. Ledger
 
-(filled during implementation)
+Implementation base 2bcae8a9; origin/main 8745f572 merged in (after #557 bodies v8, #559, #560, #563) before any
+re-record. Commits: `167811f9` design + ARC-371; `4e0e7b1d` worldpack key + hosts + content; `c9b3f9be` tests that
+assumed genesis at midnight; `c44d61fa` merge main; `e12492b3` two 30-day goldens; then baselines + this ledger.
+
+**Implementation.** `worldpack/src/{format,read,error}.rs` (`begins: Option<String>`, strict parse,
+`PackError::Begins`, `WorldPack::begins()`); `tools/cli/src/run.rs` (`Begun::new` creates at `pack.begins()`);
+`tools/cli/src/serve.rs` (`epoch_of`: the save's genesis instant when one exists, else `pack.begins()`, into
+`HostConfig::epoch`, which feeds the ephemeral clock, a new save's genesis and the paced consult origin); reference
+regenerated (`world.schema.json`, `world-pack.md`); `MODULE_SPEC.md` `begins:` entry; three `world.yaml` at 07:00.
+
+**Hidden consumers found by the broad run (worldpack + cli + acceptance, local, 59 min) and their disposition.**
+
+| Test | Assumption | Change (assertion kept) |
+| --- | --- | --- |
+| `ac5_takeover`, `ac7_many_players`, `milestone_c` | a hosted Market Town needs an always-open copy (#552) | host the **real** Market Town: at 07:00 the café sells; `MarketCopy::always_open` dropped there |
+| `ac5_takeover`, `milestone_c`, `milestone_b` | a quiet hour from genesis / the head | genesis/head is 07:00, whose boundaries are already committed; window from +1 s for 1 799 s, re-derived from the routines (Erin 07:30 is the next) |
+| `needs_town` AC-S35-8 / AC-Nd-2 | 03:00 / 14:00 / days = offsets from genesis | the calendar's hours inside the run (`midnight + d·DAY + h`, filtered to the run) — exactly `days` samples each |
+| `routines` | the first agenda at instant 0 | at the genesis instant |
+| `lakeside/history.rs` | the last fact never falls on the run's last instant | ceiling of the span; no bucket opens on the end instant |
+| `shop_hours` N1-I7 | "once a night" bucket 12:00–12:00 | keyed by the closed interval (lunch and night are two) |
+| `decisions` golden, `lakeside_bodies` doorway golden | 30-day summaries at midnight start | re-captured from this build, with reason lines |
+| acceptance `client_rules`, `client_text` | — | **pre-existing on main** (`needs.gd` `capacity`; `loading.*` keys); untouched |
+
+**Validation (local, macOS arm64).** worldpack `hosting` 6/6 (absent/07:00/malformed); re-run of every failing
+target on the merged tree: ac5 2/2, ac7 1/1, milestone_b/c/e PASS, needs_town 2/2 (+6 ignored), routines, shop_hours
+4/4, guide 46/46, decisions 7/7, lakeside_bodies 4/4 PASS. **AC-S35-8** (release, e12492b3): PASS every row — Market
+Town 03:00 1000 ‰, 14:00 0 ‰, sleep 7.54 / 7.55 / 7.53 h, TV 276 / 269 / 283 ‰, longest famished 10.1 / 6.5 /
+7.1 h; Commute Town unchanged. **Godot café-buy tests** (`--ignored`, Godot 4.7.2): `ac13_clients` 3/3,
+`client_2d_interact` 5/5, `demo_a` 4/4 PASS; `client_3d_market` 1/3 — `a_poor_visitor_still_sees_every_buy` and
+`the_3d_market_asks_what_the_2d_market_asks` FAIL. Base check (the same build with Market Town's `begins` removed,
+i.e. main's midnight start): both FAIL too (café closed). At 07:00: O-5 expects only tea and croissant affordable
+on a 250 wallet, but cake costs 110 — stale against the S35 prices, independent of the start; P-1's 2D run walks to
+the counter before buying, the 3D one does not. **Follow-up for the client lane**, not changed here.
+
+**Baselines** (`ci_parity record --profile long --root` one world each, e12492b3, `baseline write`, spliced):
+
+| World | summary-300 | summary-1000 | facts-300s | journal-300s | sealed-300s |
+| --- | --- | --- | --- | --- | --- |
+| market-town | 401→400 | 1127→1127 | 6032→6247 | 4170→4240 | 263→263 |
+| social-cafe | 360→362 | 1085→1086 | 10422→9408 | 7713→6464 | 189→186 |
+| lakeside | 364→364 | 1088→1088 | 6515→6824 | 4214→4394 | 131→131 |
+
+(Digests changed in every key; Bodies Yard not written.) Heavy time used ≈ 2 h 40 min wall in slots, of which
+≈ 1 h queued behind other lanes.
