@@ -1,0 +1,322 @@
+# The onboarding cold-start check (docs/decisions/ARC-362.md; docs/GUIDE_FORMAT.md §4.7;
+# .structured-coding/plans/mvp0/pr-25g-cold-start.md). Can a stranger with a clean computer follow the guide?
+#
+#   cold-start-harness (<os>)  a normal runner builds the guide test executable once (the runner never compiles
+#                              test code on a clean machine)
+#   cold-start-a (<os>)        layer A, from source: a fresh runner, its Rust and Git LFS removed and shown
+#                              absent, then the guide from chapter 01's own install, a real clone of GitHub, the
+#                              reader's own release build, chapters 01-14 with that binary, and substitutes for
+#                              the operator-only blocks
+#   cold-start-b (<target>)    layer B, from the download: a release run's bundle on a runner without Rust and
+#                              Godot, chapters 02-06 with the bundled binary
+#   cold-start                 one table of every leg's verdict
+#
+# Never a required check: no pull_request trigger, and no job here is named in branch protection (ARC-48 note).
+# No cache, no checkout and no setup action in the clean jobs (`scripts/ci_cold_start.py lint`). No language
+# model, ever (INV-S25-6). Every command is a subcommand of scripts/ci_cold_start.py; inputs reach scripts
+# through env:, never by expression inside run:.
+name: Cold start
+
+on:
+  schedule:
+    - cron: "41 13 * * 0" # Sundays 13:41 UTC: off the hour, away from the nightly's 10:17
+  workflow_dispatch:
+    inputs:
+      layers:
+        description: Which layers to run.
+        type: choice
+        options: [all, a, b]
+        default: all
+      release-run-id:
+        description: Layer B, the release run whose bundles to test (default, the newest successful one on main).
+        type: string
+        default: ""
+      mutation:
+        description: An adversarial run (pr-25g §9); empty for a real run.
+        type: string
+        default: ""
+      budget-minutes:
+        description: Zero to Corner Shop, machine minutes per OS (AC-25g-2).
+        type: string
+        default: "60"
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
+  push:
+    branches: ["cold-start/**"] # pre-merge evidence only; ci.yml does not run on this prefix
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cold-start-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  # A mutation is accepted from a dispatch only; a schedule, a push and a workflow_run carry none.
+  MUTATION: ${{ github.event_name == 'workflow_dispatch' && inputs.mutation || '' }}
+  BUDGET_MINUTES: ${{ github.event_name == 'workflow_dispatch' && inputs.budget-minutes || '60' }}
+
+jobs:
+  cold-start-harness:
+    name: cold-start-harness (${{ matrix.os }})
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: linux, runner: ubuntu-24.04 }
+          - { os: macos, runner: macos-26 }
+          - { os: windows, runner: windows-2025 }
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Test tooling only (Q-25g-8): the core layer's Cargo cache, read, never saved. Nothing from it reaches a
+      # clean job except the one executable.
+      - name: Restore the Cargo cache (read only)
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: native-${{ runner.os }}-core-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
+          restore-keys: native-${{ runner.os }}-core-
+      - name: Build the guide test executable
+        run: cargo test --no-run --locked -p mineworld-cli --test guide --message-format=json > "$RUNNER_TEMP/build.json"
+      - name: Gather the harness
+        env:
+          SHA: ${{ github.sha }}
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then python=python; else python=python3; fi
+          "$python" scripts/ci_cold_start.py harness --build-json "$RUNNER_TEMP/build.json" \
+            --dest "$RUNNER_TEMP/harness" --commit "$SHA"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: cold-start-harness-${{ matrix.os }}
+          path: ${{ runner.temp }}/harness
+          retention-days: 3
+
+  cold-start-a:
+    name: cold-start-a (${{ matrix.os }})
+    needs: cold-start-harness
+    if: >-
+      github.event_name == 'schedule' || github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' && inputs.layers != 'b')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: linux, runner: ubuntu-24.04 }
+          - { os: macos, runner: macos-26 }
+          - { os: windows, runner: windows-2025 }
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    steps:
+      - name: Start the clock
+        run: echo "STARTED=$(date +%s)" >> "$GITHUB_ENV"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: cold-start-harness-${{ matrix.os }}
+          path: ${{ runner.temp }}/harness
+      - name: Remove Rust and Git LFS
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then python=python; else python=python3; fi
+          echo "PY=$python" >> "$GITHUB_ENV"
+          "$python" "$RUNNER_TEMP/harness/scripts/ci_cold_start.py" clean
+      - name: Assert they are gone
+        run: '"$PY" "$RUNNER_TEMP/harness/scripts/ci_cold_start.py" assert-clean --layer a'
+      - name: The guide, as a stranger follows it
+        id: guide
+        run: |
+          echo "GUIDE_STARTED=$(date +%s)" >> "$GITHUB_ENV"
+          chmod +x "$RUNNER_TEMP/harness/guide"* || true
+          "$PY" "$RUNNER_TEMP/harness/scripts/ci_cold_start.py" config --layer a --phase guide \
+            --harness "$RUNNER_TEMP/harness" --out "$RUNNER_TEMP/cold-guide.toml"
+          MINEWORLD_COLD_START="$RUNNER_TEMP/cold-guide.toml" \
+            "$RUNNER_TEMP/harness/guide" --ignored --exact cold_start --nocapture
+      # Godot for 06.3's substitute, with CI's pin, only after chapters 01-05 have run (pr-25g §6.1).
+      - name: Godot for the 2D substitute (Linux, macOS)
+        if: always() && steps.guide.outcome == 'success' && runner.os != 'Windows'
+        run: |
+          "$PY" "$RUNNER_TEMP/harness/scripts/ci_godot.py" fetch --dest "$HOME/.mineworld-godot" \
+            --github-env "$GITHUB_ENV" --github-path "$GITHUB_PATH"
+      - name: uv for chapter 14's substitutes
+        if: always() && steps.guide.outcome == 'success'
+        run: '"$PY" "$RUNNER_TEMP/harness/scripts/ci_cold_start.py" install-uv'
+      - name: Substitutes for the operator-only blocks
+        id: substitutes
+        if: always() && steps.guide.outcome == 'success'
+        run: |
+          "$PY" "$RUNNER_TEMP/harness/scripts/ci_cold_start.py" config --layer a --phase substitutes \
+            --harness "$RUNNER_TEMP/harness" --godot "${GODOT:-}" --out "$RUNNER_TEMP/cold-substitutes.toml"
+          MINEWORLD_COLD_START="$RUNNER_TEMP/cold-substitutes.toml" \
+            "$RUNNER_TEMP/harness/guide" --ignored --exact cold_start --nocapture
+      - name: Summary and budget
+        id: summary
+        if: always()
+        run: |
+          "$PY" "$RUNNER_TEMP/harness/scripts/ci_cold_start.py" summary --report "$RUNNER_TEMP/cold-start/report" \
+            --layer a --started "$STARTED" --guide-started "${GUIDE_STARTED:-$STARTED}" \
+            --budget-minutes "$BUDGET_MINUTES"
+      - name: Verdict
+        if: always()
+        env:
+          GUIDE: ${{ steps.guide.outcome }}
+          SUBSTITUTES: ${{ steps.substitutes.outcome }}
+          SUMMARY: ${{ steps.summary.outcome }}
+          LEG: a-${{ matrix.os }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/cold-start/report"
+          if [ "$GUIDE" = success ] && [ "$SUBSTITUTES" = success ] && [ "$SUMMARY" = success ]; then
+            verdict=PASS
+          else
+            verdict="FAIL (guide $GUIDE, substitutes $SUBSTITUTES, summary $SUMMARY)"
+          fi
+          echo "$verdict" > "$RUNNER_TEMP/cold-start/report/verdict-$LEG.txt"
+          echo "$verdict"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: cold-start-a-${{ matrix.os }}
+          path: ${{ runner.temp }}/cold-start/report
+          retention-days: 30
+      - name: Fail unless every phase passed
+        if: always()
+        run: grep -qx PASS "$RUNNER_TEMP/cold-start/report/verdict-a-$OS.txt"
+        env:
+          OS: ${{ matrix.os }}
+
+  cold-start-b:
+    name: cold-start-b (${{ matrix.target }})
+    needs: cold-start-harness
+    if: >-
+      github.event_name == 'schedule' || github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' && inputs.layers != 'a') ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    permissions:
+      contents: read
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: linux-x86_64, os: linux, runner: ubuntu-24.04 }
+          - { target: macos-universal, os: macos, runner: macos-26 }
+          - { target: windows-x86_64, os: windows, runner: windows-2025 }
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: cold-start-harness-${{ matrix.os }}
+          path: ${{ runner.temp }}/harness
+      - name: Find the release run
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_RUN_ID: >-
+            ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id ||
+            github.event_name == 'workflow_dispatch' && inputs.release-run-id || '' }}
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then python=python; else python=python3; fi
+          echo "PY=$python" >> "$GITHUB_ENV"
+          "$python" "$RUNNER_TEMP/harness/scripts/ci_cold_start.py" find-bundle --github-output "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: steps.release.outputs.run-id != ''
+        with:
+          name: MineWorld-${{ matrix.target }}
+          path: ${{ runner.temp }}/archive
+          run-id: ${{ steps.release.outputs.run-id }}
+          github-token: ${{ github.token }}
+      - name: Remove Rust and Git LFS
+        if: steps.release.outputs.run-id != ''
+        run: '"$PY" "$RUNNER_TEMP/harness/scripts/ci_cold_start.py" clean'
+      - name: Assert they are gone (and no Godot, no clone)
+        if: steps.release.outputs.run-id != ''
+        run: '"$PY" "$RUNNER_TEMP/harness/scripts/ci_cold_start.py" assert-clean --layer b'
+      - name: Unpack the bundle as a player would
+        id: unpack
+        if: steps.release.outputs.run-id != ''
+        run: |
+          "$PY" "$RUNNER_TEMP/harness/scripts/ci_cold_start.py" unpack --archive-dir "$RUNNER_TEMP/archive" \
+            --dest "$RUNNER_TEMP/MineWorld 世界" --github-output "$GITHUB_OUTPUT"
+      - name: Chapters 02-06 with the bundled binary
+        id: guide
+        if: steps.release.outputs.run-id != ''
+        env:
+          BUNDLE: ${{ steps.unpack.outputs.bundle }}
+        run: |
+          chmod +x "$RUNNER_TEMP/harness/guide"* || true
+          "$PY" "$RUNNER_TEMP/harness/scripts/ci_cold_start.py" config --layer b --phase guide \
+            --harness "$RUNNER_TEMP/harness" --bundle "$BUNDLE" --out "$RUNNER_TEMP/cold-guide.toml"
+          MINEWORLD_COLD_START="$RUNNER_TEMP/cold-guide.toml" \
+            "$RUNNER_TEMP/harness/guide" --ignored --exact cold_start --nocapture
+      - name: Substitute for 06.2
+        id: substitutes
+        if: always() && steps.guide.outcome == 'success'
+        env:
+          BUNDLE: ${{ steps.unpack.outputs.bundle }}
+        run: |
+          "$PY" "$RUNNER_TEMP/harness/scripts/ci_cold_start.py" config --layer b --phase substitutes \
+            --harness "$RUNNER_TEMP/harness" --bundle "$BUNDLE" --out "$RUNNER_TEMP/cold-substitutes.toml"
+          MINEWORLD_COLD_START="$RUNNER_TEMP/cold-substitutes.toml" \
+            "$RUNNER_TEMP/harness/guide" --ignored --exact cold_start --nocapture
+      - name: Summary
+        if: always() && steps.release.outputs.run-id != ''
+        run: |
+          now=$(date +%s)
+          "$PY" "$RUNNER_TEMP/harness/scripts/ci_cold_start.py" summary --report "$RUNNER_TEMP/cold-start/report" \
+            --layer b --started "$now" --guide-started "$now" --budget-minutes "$BUDGET_MINUTES"
+      - name: Verdict
+        if: always()
+        env:
+          RUN_ID: ${{ steps.release.outputs.run-id }}
+          GUIDE: ${{ steps.guide.outcome }}
+          SUBSTITUTES: ${{ steps.substitutes.outcome }}
+          LEG: b-${{ matrix.target }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/cold-start/report"
+          if [ -z "$RUN_ID" ]; then
+            verdict="INCONCLUSIVE (no successful release run on main to take a bundle from)"
+          elif [ "$GUIDE" = success ] && [ "$SUBSTITUTES" = success ]; then
+            verdict=PASS
+          else
+            verdict="FAIL (guide $GUIDE, substitutes $SUBSTITUTES)"
+          fi
+          echo "$verdict" > "$RUNNER_TEMP/cold-start/report/verdict-$LEG.txt"
+          echo "$verdict" | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: cold-start-b-${{ matrix.target }}
+          path: ${{ runner.temp }}/cold-start/report
+          retention-days: 30
+      - name: Fail unless every phase passed
+        if: always()
+        run: grep -qx PASS "$RUNNER_TEMP/cold-start/report/verdict-b-$TARGET.txt"
+        env:
+          TARGET: ${{ matrix.target }}
+
+  cold-start:
+    needs: [cold-start-a, cold-start-b]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: cold-start-harness-linux
+          path: ${{ runner.temp }}/harness
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: cold-start-[ab]-*
+          path: ${{ runner.temp }}/legs
+      - name: Every leg's verdict
+        run: python3 "$RUNNER_TEMP/harness/scripts/ci_cold_start.py" verdicts --dir "$RUNNER_TEMP/legs"
