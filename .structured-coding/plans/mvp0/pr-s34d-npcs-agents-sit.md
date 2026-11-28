@@ -9,9 +9,9 @@ Implementation base:    origin/main @ 0b2faf2f (#382)
 Start condition:        this design frozen (met 2026-10-27). S34-c1 is merged (#368). S34-c2 (Lakeside) is not
                         required to start: Lakeside joins every test of this PR by discovery when it lands (Q-S34d-3)
 Execution contract:     §12
-Lifecycle:              FROZEN 2026-10-27 (header reconciled 2026-11-27). S34-d1: PR #551, Q-S34d1-1 … -4 ruled
-                        2026-11-27 and applied (§13 "Operator ruling"); AC-d-4 still FAIL after the one ruled
-                        measurement, reported, not tuned. S34-d2: not started
+Lifecycle:              FROZEN 2026-10-27 (header reconciled 2026-11-27). S34-d1: PR #551, all rulings applied
+                        (§13); AC-d-4 an accepted follow-up; WAITS for the S34-b route-around amendment, then
+                        re-measures ASRB-1 and re-records baselines. S34-d2: not started
 ```
 
 **Dated note, 2026-10-27 (operator ruling Q-S34c3-3; SD-c3-5 in
@@ -446,6 +446,21 @@ fixtures were re-recorded with main's controllers (this PR's `cognition/rule-con
 `cognition/motivated` checked out from origin/main for the recording, then restored): Social Café unchanged,
 Market Town moved by N1's shop hours, Lakeside added. Golden re-captured (`sit accepted 765`). `decisions`,
 `reference`, `posture_life` (short) pass locally.
+
+#### Operator ruling 2026-11-27: "存档选 C，AC-d-4 后续处理"
+
+- **AC-d-4 — accepted follow-up.** The motivated model is not seen seated in the 09:00-18:00 hour samples
+  (0 % after the ruled weights, 84-88 spells per 30 days). Recorded as an accepted follow-up: the criterion
+  is not loosened; `posture_life` keeps printing it as ESCALATED and does not assert it.
+- **Storage — option C.** Walkers route around seated people instead of stopping short: a separate S34-b
+  amendment and bodies/movement PR by the movement lane. #551 merges after it; then this PR re-measures the
+  300-day Market Town save against the unchanged 96 MiB bound (ASRB-1) and re-records the Social Café and
+  Market Town long-run baselines. Until then `scripts/baselines.txt` is main's for both towns.
+- Lifecycle consequence: #551 is complete apart from those two post-amendment steps.
+- Merged main bdb83457 (#566 paced reply window) cleanly. Re-run locally: `mineworld-rule-controller` 98 and
+  `mineworld-motivated` 56 passed; `mineworld-cli` `decisions` (golden unchanged by #566), `reference`,
+  `posture_life` (short), `activity_length` pass. `social_composition` fails 2 tests expecting `bodies v7`
+  where main's #557 bumped bodies to v8 — main's own drift, no file of this PR involved.
 
 #### C5 — Docs
 - [ ] Implementation: dated notes on `ARC-147` (NPCs sit through a rest band; why no stillness gate) and on
