@@ -7,6 +7,8 @@
 //!
 //! ```text
 //! provides    sleep { for }      minutes, within the bounds in force (15 … 840 by default)
+//!             sleep-until { at } until an instant within the same bounds; offered complete, `at` the
+//!                                next `morning_minute` (07:00 by default), so no client computes it
 //!             wake  { }          get up
 //! emits       fell-asleep        { person, place }: to the place; it carries no alarm
 //!             alarm-set          { person, alarm }: to the sleeper alone
@@ -39,7 +41,7 @@ pub mod process;
 pub mod recovery;
 pub mod system;
 
-pub use action::{Sleep, Wake};
+pub use action::{Sleep, SleepUntil, Wake};
 pub use component::{Asleep, SleepTerms};
 pub use event::{AlarmSet, FellAsleep, Woke, WokeReason};
 pub use interactions::{SleepParameters, SleepPartial};

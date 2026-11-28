@@ -15,7 +15,7 @@ use mineworld_sdk::SystemPack;
 use mineworld_sdk::interactions;
 use serde_json::Value;
 
-use crate::action::{Sleep, Wake};
+use crate::action::{Sleep, SleepUntil, Wake};
 use crate::codec;
 use crate::component::{Asleep, SleepTerms};
 use crate::event::{AlarmSet, FellAsleep, Woke, WokeReason};
@@ -44,7 +44,9 @@ impl SystemPack for SleepSystem {
 pub const OUT_OF_BOUND: RejectionCode = RejectionCode::from_static("sleep-for-out-of-bound");
 
 impl System for SleepSystem {
-    const VERSION: SystemVersion = SystemVersion::new(1);
+    // 2 since `sleep-until` and `morning_minute` (pr-nightlife N2-C1): the resolved section it owns changed
+    // encoding (`ARC-370`'s precedent).
+    const VERSION: SystemVersion = SystemVersion::new(2);
 
     /// Depends on presence, whose positions it reads. Hears presence's `arrived` and conversation's
     /// `spoke` through their published types, with no dependency on conversation (`ARC-28`).
@@ -55,6 +57,7 @@ impl System for SleepSystem {
                 .owning::<Asleep>()
                 .owning::<SleepTerms>()
                 .providing::<Sleep>()
+                .providing::<SleepUntil>()
                 .providing::<Wake>()
                 .emitting::<FellAsleep>()
                 .emitting::<AlarmSet>()
@@ -79,6 +82,10 @@ impl System for SleepSystem {
     /// 4. located — `PreconditionFailed`; 5. `for` within the bounds in force for the actor there —
     /// [`OUT_OF_BOUND`], naming them; 6. sleep is allowed there (`src/place.rs`) — `PermissionDenied`.
     ///
+    /// `sleep-until`: the same checks in the same order (one admission, [`may_sleep`]); at 5. `at − now`
+    /// within the same bounds, in seconds — [`OUT_OF_BOUND`] for an `at` that is past, now, too near, too
+    /// far or overflows.
+    ///
     /// `wake`: the payload decodes, a living Person with no target, and asleep —
     /// `NoSupportedInteraction` otherwise.
     fn validate(&self, world: &WorldRead<'_>, intent: &ActionIntent) -> Result<(), Rejection> {
@@ -86,7 +93,23 @@ impl System for SleepSystem {
         if *kind == Sleep::ACTION_TYPE {
             let sleep: Sleep = codec::action_payload(intent.payload())
                 .map_err(|_| Rejection::PreconditionFailed)?;
-            may_sleep(world, intent.actor(), intent.target(), sleep.minutes()).map(|_| ())
+            may_sleep(
+                world,
+                intent.actor(),
+                intent.target(),
+                Asked::For(sleep.minutes()),
+            )
+            .map(|_| ())
+        } else if *kind == SleepUntil::ACTION_TYPE {
+            let until: SleepUntil = codec::action_payload(intent.payload())
+                .map_err(|_| Rejection::PreconditionFailed)?;
+            may_sleep(
+                world,
+                intent.actor(),
+                intent.target(),
+                Asked::Until(until.at()),
+            )
+            .map(|_| ())
         } else if *kind == Wake::ACTION_TYPE {
             let _: Wake = codec::action_payload(intent.payload())
                 .map_err(|_| Rejection::PreconditionFailed)?;
@@ -96,7 +119,7 @@ impl System for SleepSystem {
         }
     }
 
-    /// `sleep` states `fell-asleep` (to the place, or as the list routes it) and `alarm-set` (to the
+    /// `sleep` and `sleep-until` state `fell-asleep` (to the place, or as the list routes it) and `alarm-set` (to the
     /// sleeper alone); `wake` states `woke` with `reason: asked`. Writes nothing: the reducer does.
     fn resolve(
         &self,
@@ -109,13 +132,22 @@ impl System for SleepSystem {
             system: Self::ID,
             action_type: intent.action_type().clone(),
         };
-        if *intent.payload().action_type() == Sleep::ACTION_TYPE {
-            let sleep: Sleep = codec::action_payload(intent.payload())?;
-            let here = may_sleep(&read, actor, intent.target(), sleep.minutes())
-                .map_err(|_| unresolvable())?;
+        let kind = intent.payload().action_type();
+        let asked = if *kind == Sleep::ACTION_TYPE {
+            Some(Asked::For(
+                codec::action_payload::<Sleep>(intent.payload())?.minutes(),
+            ))
+        } else if *kind == SleepUntil::ACTION_TYPE {
+            Some(Asked::Until(
+                codec::action_payload::<SleepUntil>(intent.payload())?.at(),
+            ))
+        } else {
+            None
+        };
+        if let Some(asked) = asked {
+            let (here, alarm) =
+                may_sleep(&read, actor, intent.target(), asked).map_err(|_| unresolvable())?;
             let person = PersonId::new(actor, EntityType::Person)?;
-            let alarm =
-                WorldTime::from_seconds(read.at().seconds() + i64::from(sleep.minutes()) * 60);
             return Ok(vec![
                 Emission::new::<FellAsleep>(
                     codec::encode(&FellAsleep::new(person, here)),
@@ -233,8 +265,9 @@ impl System for SleepSystem {
 }
 
 impl PerceptionProvider for SleepSystem {
-    /// With no target, for a living Person: awake, `sleep` (parametric), refused as dispatch would
-    /// refuse it here; asleep, a complete `wake` and `sleep` refused `Busy` (`src/offer.rs`).
+    /// With no target, for a living Person: awake, `sleep` (parametric) and `sleep-until` (complete, the
+    /// next morning), refused as dispatch would refuse them here; asleep, a complete `wake`, and both
+    /// refused `Busy` (`src/offer.rs`).
     fn offers(
         &self,
         world: &WorldRead<'_>,
@@ -271,13 +304,23 @@ pub(crate) fn located(world: &WorldRead<'_>, entity: EntityId) -> Option<PlaceId
         .map(|presence| presence.location().place())
 }
 
-/// SD-Na-2's `sleep` checks after decoding, in order; the place to sleep at when they all pass.
+/// How long a sleep was asked for: the only difference between `sleep` and `sleep-until`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Asked {
+    /// `sleep { for }`: this many minutes from now.
+    For(u16),
+    /// `sleep-until { at }`: until this instant.
+    Until(WorldTime),
+}
+
+/// SD-Na-2's checks after decoding, in order, for `sleep` and `sleep-until` alike (N2-I1): one ordered
+/// list, the alarm the only difference. The place to sleep at and the alarm, when they all pass.
 pub(crate) fn may_sleep(
     world: &WorldRead<'_>,
     actor: EntityId,
     target: Option<EntityId>,
-    minutes: u16,
-) -> Result<PlaceId, Rejection> {
+    asked: Asked,
+) -> Result<(PlaceId, WorldTime), Rejection> {
     if !living_person(world, actor) || target.is_some() {
         return Err(Rejection::NoSupportedInteraction);
     }
@@ -286,19 +329,52 @@ pub(crate) fn may_sleep(
     }
     let here = located(world, actor).ok_or(Rejection::PreconditionFailed)?;
     let bounds = terms(world, actor, here);
-    if minutes < bounds.shortest_minutes || minutes > bounds.longest_minutes {
-        return Err(Rejection::System {
-            code: OUT_OF_BOUND,
-            detail: Some(format!(
-                "for must be {} … {} minutes, not {minutes}",
-                bounds.shortest_minutes, bounds.longest_minutes
-            )),
-        });
-    }
+    let alarm = alarm_within(world.at(), asked, &bounds)?;
     if !allowed(world, actor, here) {
         return Err(Rejection::PermissionDenied);
     }
-    Ok(here)
+    Ok((here, alarm))
+}
+
+/// The alarm `asked` sets at `now`, when it lies within the bounds in force — [`OUT_OF_BOUND`], naming
+/// them, otherwise. For `sleep-until` the bounds are in seconds, so an `at` the server offered at
+/// 23:00:12 for 07:00 is exact; one that is past, now, or overflows is out of bound as well.
+pub(crate) fn alarm_within(
+    now: WorldTime,
+    asked: Asked,
+    bounds: &crate::interactions::SleepParameters,
+) -> Result<WorldTime, Rejection> {
+    let (shortest, longest) = (bounds.shortest_minutes, bounds.longest_minutes);
+    let out = |what: String| Rejection::System {
+        code: OUT_OF_BOUND,
+        detail: Some(what),
+    };
+    match asked {
+        Asked::For(minutes) => {
+            if minutes < shortest || minutes > longest {
+                return Err(out(format!(
+                    "for must be {shortest} … {longest} minutes, not {minutes}"
+                )));
+            }
+            Ok(WorldTime::from_seconds(
+                now.seconds() + i64::from(minutes) * 60,
+            ))
+        }
+        Asked::Until(at) => {
+            let ahead = at.seconds().checked_sub(now.seconds());
+            let within = ahead.is_some_and(|ahead| {
+                (i64::from(shortest) * 60..=i64::from(longest) * 60).contains(&ahead)
+            });
+            if !within {
+                return Err(out(format!(
+                    "at must be {shortest} … {longest} minutes after now ({}), not {}",
+                    now.seconds(),
+                    at.seconds()
+                )));
+            }
+            Ok(at)
+        }
+    }
 }
 
 /// SD-Na-2's `wake` checks after decoding; the sleep it ends.

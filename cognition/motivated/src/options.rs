@@ -21,7 +21,7 @@ use mineworld_rule_controller::fetch;
 use mineworld_rule_controller::needs::{self, Felt};
 use mineworld_rule_controller::{act, boss, read};
 use mineworld_schedule::Agenda;
-use mineworld_sleep::Sleep;
+use mineworld_sleep::{Sleep, SleepUntil};
 use mineworld_weather::{component::WeatherNow, day::Condition};
 use serde_json::Value;
 
@@ -383,6 +383,9 @@ pub fn choices(context: &Context<'_>) -> Vec<Choice> {
             && !boss::is_penalty(affordance)
             // The hands are the rule's fetch band's; nobody puts down or picks up by chance (S35 N-h R4).
             && ![fetch::PUT_DOWN, fetch::PICK_UP].contains(&affordance.action_type().as_str())
+            // Offered complete with the next morning (pr-nightlife N2-I1b, F1): this model sleeps by
+            // `Choice::Sleep`, never until 07:00 by chance.
+            && *affordance.action_type() != SleepUntil::ACTION_TYPE
         {
             choices.push(Choice::Offered(index));
         }

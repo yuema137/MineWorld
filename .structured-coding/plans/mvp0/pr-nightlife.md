@@ -15,7 +15,7 @@ Start condition (N2):   N1 merged; N2-C1 … N2-C3 then start on main; N2-C4 add
 Execution contract:     .structured-coding/plans/mvp0/pr-nightlife-contract.md (contracts N1 and N2)
 Parent:                 operator-playable-mvp-20261123.md §§2–5 (requirements); overall.md
 Supersedes as authority: the recovered Codex drafts listed in §1.5 (evidence only, not ledgers)
-Lifecycle:              FROZEN (2026-11-27); N1 implementation in progress (mvp0/pr-nightlife-n1, §11); N2 not started
+Lifecycle:              FROZEN (2026-11-27); N1 merged (#552); N2 implementation in progress (mvp0/pr-nightlife-n2, §12)
 ```
 
 ## 0. Operator rulings (2026-11-27)
@@ -497,26 +497,34 @@ behave as N2-I8 … I14 in both reference clients.
    tests/goldens that enumerate Market Town offers (`tools/cli/tests/{shown_parity,client_2d_interact,ac13_clients,
    …}.rs` — re-audit); Market Town baselines.
 3. **Implementation.**
-   - [ ] `SleepUntil { at }` action; `providing::<SleepUntil>()`; **no new `ActionDecl`** — rulings and parameters
+   - [x] `SleepUntil { at }` action; `providing::<SleepUntil>()`; **no new `ActionDecl`** — rulings and parameters
          resolved with `Sleep::ACTION_TYPE` (N2-I1, F8).
-   - [ ] Morning parameter (N2-I2); version pin test updated; N2-I14 resume outcome recorded.
-   - [ ] Shared admission helper for `sleep` and `sleep-until` (one ordered list; the alarm is the only difference).
-   - [ ] Complete offer with the exact target; refused offers mirror validate.
-   - [ ] Rule controller `DECIDED_BY_NAME` += `sleep-until`; motivated `Offered` excludes it (N2-I1b, F1).
-   - [ ] Citation for the 07:00 default recorded as evidence (the ATUS wake-time source step-35 already uses); the
-         value is operator-ruled.
-4. **Validation.** [ ] 23:00:12 → 07:00:00 alarm exact; [ ] 06:59 and 15:00 out of bound; [ ] past/now `at`;
-   [ ] forbidden place; [ ] `forbid sleep` place/actor rules refuse `sleep-until`, `permit sleep` admits it;
-   [ ] `Busy` while asleep; [ ] regional morning override; [ ] alarm holder-only in disclosures;
-   [ ] all four wake ways end a `sleep-until`; [ ] save mid-sleep → reopen → alarm fires; [ ] pre-N2 Market Town
-   save → named drift refusal (N2-I14); [ ] rhythm regression (N2-I1b): same seed, same decisions, asleep share at
-   14:00 and 17:00 unchanged; [ ] long records as N1-C3 (baselines re-record + AC-S35-8 once on the final head, same
+         → `action.rs::SleepUntil` (`sleep-until`, `at: WorldTime`); `system.rs` declaration; `place.rs` / `terms`
+         unchanged (already keyed by `Sleep::ACTION_TYPE`).
+   - [x] Morning parameter (N2-I2); version pin test updated; N2-I14 resume outcome recorded.
+         → `morning_minute: u16 = 420, 0 ..= 1439`; `SleepSystem` v2, `sleep-interactions-configured` /
+         `sleep-interactions` schema 2 (D-N2-2); pre-N2 save refused by name (`sleep_until.rs`).
+   - [x] Shared admission helper for `sleep` and `sleep-until` (one ordered list; the alarm is the only difference).
+         → `system.rs::may_sleep(world, actor, target, Asked::{For, Until})` → `(PlaceId, alarm)`; `alarm_within`.
+   - [x] Complete offer with the exact target; refused offers mirror validate.
+         → `offer.rs::offered` + `morning_after`; order located → bounds → place, as validate.
+   - [x] Rule controller `DECIDED_BY_NAME` += `sleep-until`; motivated `Offered` excludes it (N2-I1b, F1).
+         → `rule-controller/src/paced.rs` (+4 lines), `motivated/src/options.rs` (+3 lines); nothing else in either.
+   - [x] Citation for the 07:00 default recorded as evidence (the ATUS wake-time source step-35 already uses); the
+         value is operator-ruled. → ATUS A-3 2025 *Sleeping* 659 ‰ (06:00 hour) → 425 ‰ (07:00 hour): the share asleep
+         falls through one half in the 07:00 hour; in `worlds/market-town/configure/sleep.yaml` and `ARC-373`.
+4. **Validation.** [x] 23:00:12 → 07:00:00 alarm exact; [x] 06:59 and 15:00 out of bound; [x] past/now `at`;
+   [x] forbidden place; [x] `forbid sleep` place/actor rules refuse `sleep-until`, `permit sleep` admits it;
+   [x] `Busy` while asleep; [x] regional morning override; [x] alarm holder-only in disclosures;
+   [x] all four wake ways end a `sleep-until`; [x] save mid-sleep → reopen → alarm fires; [x] pre-N2 Market Town
+   save → named drift refusal (N2-I14); [x] rhythm regression (N2-I1b): same seed, same decisions, asleep share at
+   14:00 and 17:00 unchanged (evidence §12); [ ] long records as N1-C3 (baselines re-record + AC-S35-8 once on the final head, same
    slot rule, ≤ 60 min for N2).
 5. **Acceptance.** No client arithmetic exists; the offered `at` validates unchanged at dispatch or is refused as stale.
 6. **Failure/edges.** Overflowing `at` refused; a world without `sleep` offers nothing; shared worlds offer it too.
-7. **Commands/evidence.** `cargo test -p mineworld-sleep`; targeted `mineworld-cli` offer tests. NOT RUN.
+7. **Commands/evidence.** `cargo test -p mineworld-sleep`; targeted `mineworld-cli` offer tests. Run: §12.
 8. **Boundary.** World rule plus the two controllers' exclusion, no server. [ ] independent review of admission
-   order, privacy and the controllers' unchanged behaviour; [ ] diff/ledger.
+   order, privacy and the controllers' unchanged behaviour (PR-level red-team, §12); [x] diff/ledger.
 
 ### N2-C2 — advance contract, lifecycle and durable identity (no loop)
 
@@ -861,3 +869,39 @@ long-profile record of the merged tree (`ae34d202`, Market Town only, 1 674 s) a
 On the merged tree: economy `closed` 5/5, `hours` 4/4; `shop_hours` 4/4; `ac5_takeover` 2/2, `ac7_many_players`
 1/1, `milestone_c` 1/1, `newsstand` 6/6 PASS. AC-S35-8 re-run (release, `ae34d202`): PASS, every row as before
 (Market Town 1000 ‰ at 03:00, 0 ‰ at 14:00, 7.45 / 7.43 / 7.47 h, TV 275 / 275 / 273 ‰; Commute Town PASS).
+
+## 12. N2 execution ledger (implementation session, 2026-11-27)
+
+```text
+Branch / worktree:   mvp0/pr-nightlife-n2 @ /Users/yuema137/mineworld-worktrees/impl-nightlife-n2 (the contract names
+                     feat/nightlife-n2-sleep-advance; the primary's dispatch named mvp0/pr-nightlife-n2 — D-N2-0, name only)
+Implementation base: origin/main bdb83457 (N1 #552, launcher P2 #549 and P3 #561 merged; #564 world start 07:00 not
+                     depended on). Seams re-audited on bdb83457: sleep, rule/motivated controllers, server runtime/hosted/
+                     seats/admin/control/delivery/world, persistence host journal, systems/installed — as §2.2 states.
+Handoff:             .structured-coding/plans/mvp0/handoff-nightlife-n2.md
+Cargo target:        /Users/yuema137/mineworld-worktrees/_targets/nightlife-n2 (own; heavy commands through with-slot.sh)
+```
+
+### Decisions and bounded deviations
+
+| ID | Question | Evidence | Decision |
+| --- | --- | --- | --- |
+| D-N2-0 | Branch name | dispatch from the primary | `mvp0/pr-nightlife-n2`, one worktree, one session |
+| D-N2-1 | Name and unit of the morning parameter | `parameters!` admits integer bounds only (`sdk/rust/src/interactions/section.rs`) | `morning_minute: u16 = 420, 0 ..= 1439` (minute of the day), as N2-I2 states |
+| D-N2-2 | Version bump for the morning (N2-I14) | `parameters!`'s full struct has no serde default, so an old resolved payload lacks a field; `ARC-370` bumped `needs` the same way; `kernel/src/system.rs` "a system that changes the schema of state it owns raises this number" | `SleepSystem` 2, `CONFIGURED_SCHEMA_VERSION` 2, `COMPONENT_SCHEMA_VERSION` 2. Only Market Town configures `sleep` (Commute Town, a test world, installs it unconfigured: its saves meet `PersistedSystemOutdated`) |
+| D-N2-3 | Pre-N2 save fixture | the design asks for a Market Town fixture; `tools/cli/tests/fixtures/pre-fe-save` is the precedent | a real genesis-only Market Town save from the base binary (999 424 bytes, `fixtures/pre-n2-market-town/SOURCE.md`) |
+| D-N2-4 | Rhythm regression's form ("same decision trace as the base") | a two-day run is 4 s; the base binary was built before any edit | a frozen copy of the base build's two-day summary (`run-seed-7-days-2.txt`) compared line for line by `sleep_until.rs`; the journal-row identity (below) recorded once as evidence; the 300-day `journal-300s` key is the long cross-check |
+| D-N2-5 | Refused `sleep-until` offers | validate's order | refused offers are parametric (no `at`); only an available offer carries a payload |
+
+### N2-C1 evidence (local, macOS arm64, 2026-11-27)
+
+| Check | Result |
+| --- | --- |
+| `cargo test -p mineworld-sleep` (all targets incl. new `until` 10/10) | PASS |
+| `cargo test -p mineworld-rule-controller -p mineworld-motivated` | PASS (50 + 90 lib tests) |
+| `cargo test -p mineworld-cli --test sleep_until --test sleep_sections --test needs_sections --test food_energy --test shop_hours` | PASS (2, 2, 6, 7, 4) |
+| `cargo clippy -p mineworld-sleep -p mineworld-rule-controller -p mineworld-motivated -p mineworld-cli --all-targets -D warnings`; `cargo fmt --all --check`; `mineworld reference --check docs/reference` | PASS |
+| Rhythm regression, base `bdb83457` binary vs this tree: `mineworld run worlds/market-town --headless --seed 7 --days 2 --save …` | summary identical except the save path, wall time and fact fingerprint (the configuration fact); **all 6 458 journal rows after genesis byte-identical** (`sqlite3 … select revision, at, action_id, hex(entry) from journal where revision > 1`, sha256 `da2935d1…` both) |
+| Counterfactual (F1): the same run with `sleep-until` removed from `DECIDED_BY_NAME` | differs: revision 6 564 vs 6 459; `sleep-until accepted 6`, `sleep accepted 27` (base 33) — the exclusion is load-bearing |
+| Mutation M1: `may_sleep` skips the place rule for `sleep-until` | `until.rs` 2 tests FAIL (caught) |
+| Long records (baselines re-record + AC-S35-8) | NOT RUN yet — once on the final head (§7, contract budget) |

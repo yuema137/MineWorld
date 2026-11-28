@@ -74,6 +74,7 @@ use mineworld_group_activity::{
 // The seeded draws, moved verbatim to the trait crate every model shares (DL-a SD-DLa-2).
 use mineworld_decision::{Draw, mix};
 use mineworld_movement::{Destination, Passage, WalkStep, WalkTo};
+use mineworld_sleep::SleepUntil;
 use serde_json::Value;
 
 use crate::act::{GREETINGS, Walked, head_for, record, reply_to, walk_to};
@@ -120,7 +121,7 @@ const DOOR_WINDOW: i64 = 21_600;
 /// Every action type this rule builds a request for by name: its own bands decide them, so the generic
 /// offered band leaves them out of its draw (`offered.rs`, `DECISIONS.md` `ARC-151`). A band that comes to
 /// decide another action by name adds its type here.
-pub(crate) const DECIDED_BY_NAME: [ActionTypeId; 10] = [
+pub(crate) const DECIDED_BY_NAME: [ActionTypeId; 11] = [
     Talk::ACTION_TYPE,
     WalkTo::ACTION_TYPE,
     WalkStep::ACTION_TYPE,
@@ -132,6 +133,9 @@ pub(crate) const DECIDED_BY_NAME: [ActionTypeId; 10] = [
     // The hands of `item-transfer`, by slug: only the fetch band puts down or picks up (S35 N-h R4).
     ActionTypeId::from_static(crate::fetch::PUT_DOWN),
     ActionTypeId::from_static(crate::fetch::PICK_UP),
+    // Offered complete with the next morning (pr-nightlife N2-I1b, F1): residents sleep by `sleep` in the needs
+    // band, never fourteen hours until 07:00 by chance.
+    SleepUntil::ACTION_TYPE,
 ];
 
 /// A Person whose actions are a seeded rule, consulted every `pace` simulated seconds.

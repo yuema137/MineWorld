@@ -107,6 +107,14 @@
             "minimum": 60,
             "type": "integer"
           },
+          "morning_minute": {
+            "default": 420,
+            "description": "The morning a sleeper is offered to sleep until, as a minute of the day (0 is midnight, 420 is 07:00): the first such instant more than `shortest_minutes` ahead.",
+            "format": "uint16",
+            "maximum": 1439,
+            "minimum": 0,
+            "type": "integer"
+          },
           "place": {
             "description": "* for anyone, or an entity class: one defined in configure/classes.yaml, or an implicit class (person, place, item, organization).",
             "pattern": "^(\\*|[a-z0-9]([a-z0-9_-]*[a-z0-9])?)$",
@@ -205,6 +213,14 @@
                   "format": "uint16",
                   "maximum": 840,
                   "minimum": 60,
+                  "type": "integer"
+                },
+                "morning_minute": {
+                  "default": 420,
+                  "description": "The morning a sleeper is offered to sleep until, as a minute of the day (0 is midnight, 420 is 07:00): the first such instant more than `shortest_minutes` ahead.",
+                  "format": "uint16",
+                  "maximum": 1439,
+                  "minimum": 0,
                   "type": "integer"
                 },
                 "place": {

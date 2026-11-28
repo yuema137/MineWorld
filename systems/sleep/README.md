@@ -4,6 +4,7 @@
 
 ```text
 provides    sleep { for }      minutes; the alarm is now + for (15 … 840 unless the world says otherwise)
+            sleep-until { at } until an instant in the same bounds; offered ready-made for the next morning
             wake  { }          get up
 emits       fell-asleep        to the room; it does not carry the alarm
             alarm-set          to the sleeper only
@@ -20,7 +21,10 @@ tagged `residential`. A world widens or narrows that with rules, for example
 
 A sleep ends four ways: the alarm rings, the sleeper asks to `wake`, somebody talks to them (unless
 the world sets `woken_by_talk: false`), or they walk or speak. `movement` and `conversation` never
-learn that sleep exists. Removing this pack removes `sleep` and `wake` and nothing else.
+learn that sleep exists. Removing this pack removes `sleep`, `sleep-until` and `wake` and nothing else.
+
+`sleep-until` is `sleep` with an exact alarm: the world's `sleep` rules govern it, and the morning it is
+offered for is the world's `morning_minute` (07:00 unless the world says otherwise; [`ARC-373`](../../docs/decisions/ARC-373.md)).
 
 ```sh
 cargo test -p mineworld-sleep
