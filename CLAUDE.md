@@ -303,6 +303,17 @@ They do not waive frozen scope, spending authority, or required repository merge
   shared heavy-job limits. Review ready work promptly once dependencies are satisfied; do
   not wait for GitHub automatic CI to begin review or let ready PRs and issues accumulate.
   Record local and remote results separately. A required remote check is not a local pass.
+- Operator CI ruling, 2026-11-27 ("ci不要总是跑全套，每次跑相关的，只有到大里程碑才走全套ci +
+  实际真实体验测试"; D-E4-2 "CI 按推荐"): each pull request runs `fast` plus the tests its change
+  can reach (impact selection, `scripts/ci_impact.py`, ARC-154 note); a change whose reach cannot
+  be decided runs the full suite. The full matrix plus a real hands-on play test runs only at major
+  milestones (the `milestone` label or dispatch) and nightly. Never label a component PR
+  `milestone`; a PR that changes CI itself gets one full run on its final head.
+- Operator merge and publication grants, 2026-11-27: delegated agents may push their own feature
+  branches and open PRs (never force-push, never push `main`). The primary merges a PR when CI is
+  green on the exact head with its relevant tests, the red-team review passed, the primary's own
+  review passed with a planted mutation caught, and no frozen scope, spending or release action is
+  involved; each such merge is logged for the operator's milestone review.
 - Every ready-PR review explicitly evaluates technical debt, module boundaries, readability,
   robustness, extensibility, oversized functions/files, deep inheritance and excessive coupling.
   Existing size thresholds in §4 remain review triggers, not permission to split code into

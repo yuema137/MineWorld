@@ -234,6 +234,239 @@ Escalate:               any code change outside tests; a change to another world
 - Pending to the milestone (speed-first charter): `scripts/baselines.txt` for social-cafe and
   market-town (a long record of the merged head), and mutations X-c-1…3.
 
+### 11.2 S34-c2 — Lakeside (2026-11-27, branch `mvp0/pr-s34c2`, base `origin/main @ 7718d952`)
+
+**Authority.** This design's banner (frozen 2026-10-19) and the dated note of 2026-10-27 (Q-S34c3-7,
+ruled with S34-c3's freeze) widen S34-c2. Every prerequisite is merged: S33-b #395, S34-b #363, S34-c1
+#368, S33-f #462 (and S33-e2: the halt's benches are on main). Executed by a fresh session (Claude Opus
+5.5 as the lane owner). S34-c3 is not on main; it runs after this PR (dated note).
+
+**Audit (base `7718d952`).**
+
+| # | Fact | Where |
+| --- | --- | --- |
+| A-c2-1 | `world.yaml` has no `posture`; no place file has `sit-points:` | `worlds/lakeside/world.yaml:47-66`; `worlds/lakeside/places/*.yaml` |
+| A-c2-2 | Pier bench solid (450–3 550, 300–750), furnishing `bench.head` facing 180 000; the deck's south edge is y 0 | `pier.yaml:33-45` |
+| A-c2-3 | Square: trunk (11 800–12 200, 8 800–9 200); `bench.west` (10 900–12 500, 9 600–10 000) facing 180 000; `bench.east` (12 600–13 000, 8 100–9 900) facing 270 000 | `square.yaml:25-41` |
+| A-c2-4 | Bakery chairs `long-table.chair-1…5`, boxes x 900–1 400 centred y 1 800 … 4 200, facing 270 000 | `bakery.yaml:24-46` |
+| A-c2-5 | Halt bench row `bench.south` (1 500–6 500, 0–450) facing 0; platform benches (−3 950…−3 500, ±4 000…±6 000) facing 90 000 | `station.yaml:20-27`; `station-platform.yaml:21-31` |
+| A-c2-6 | 3D: `bench.pier` and `bench.park` are drawn by the generic backless `form: bench`, which ignores the furnishing's yaw. **2D (corrected after red-team F1): the 2D client draws them with the `bench` sprite (prefix to `furnishing.bench`) and mirrors it by the furnishing's `facing`** | `presentation/mineworld-default/3D/furniture/furnishings.yaml:81-82`; `clients/3d-spike/scripts/slice/furnishings.gd:264-285`; `presentation/mineworld-default/2D/assets/asset_bindings.yaml:99`; `clients/2d/scripts/scene/furnishings.gd:113-116` |
+| A-c2-7 | `sit_points/lakeside.yaml` holds 29 depictions with `fallback` positions (S33-f's table; halt 7 + 6) | `presentation/mineworld-default/3D/sit_points/lakeside.yaml` |
+| A-c2-8 | Both clients take the posture branch when the place discloses `sit-points`; the 3D pose reads the disclosed `at`/`facing`; a depiction without `fallback` is tolerated (`at` null) | `clients/shared/sitting/sit_rule.gd:58-72, 96-106`; `clients/3d-spike/scripts/slice/seating.gd:47-60` |
+| A-c2-9 | `ARC-172` / R-S34c-f-1 require S34-c to delete the fallback positions and run the contested seat in the posture branch | `docs/decisions/ARC-172.md`; `pr-s33f-interiors-sit-points.md` §10 |
+| A-c2-10 | `posture` declares dependencies on presence and movement only | `systems/posture/src/system.rs:58-62` |
+
+**Bounded corrections (recorded; scope, invariants and acceptance unchanged).**
+
+- **BC-c2-1 (Q-S34c3-7, the wrong side).** The pier bench and both square benches were authored facing
+  the side nobody can stand on: a south-facing pier point would stand at y 40 (needs ≥ 250 from the edge);
+  a south-facing west-bench point at y 9 340 is 172 mm from the trunk, a west-facing east-bench point at
+  x 12 340 is 140 mm from it (needs 260). The 3D benches are backless and yaw-independent (A-c2-6), so
+  the drawing does not pick a side; the geometry does. The furnishings' `facing` is the wrong side and is
+  corrected: `bench.head` 180 000 → 0; `bench.west` 180 000 → 0; `bench.east` 270 000 → 90 000. The sit
+  points keep S33-f's sides (north / north / east). Moving the pier bench 220 mm north instead
+  (Q-S33f-2 (B)) was ruled out by Q-S33f-2 (A).
+  **Correction (red-team F1, `_reviews/pr553.md`): the claim "no drawing change" held for 3D only.**
+  `8f4a8af7` called the 2D flip "intended". It was not: red-team (at `0470e5eb`) showed that the 2D client
+  then drew all three benches lying across their footprints. The 2D rule mirrors a sprite when its
+  facing points screen-left, and on this projection a mirror swaps the plan's x and y. A long piece with
+  a single drawing can therefore lie along its footprint only for two of the four facings, and those were
+  the old (wrong-side) values. That was a defect introduced by this PR's facing correction, and it is
+  fixed by BC-c2-9.
+- **BC-c2-2 (SD-c-2 on merged data).** S33-f's three points on the square's north bench assumed a 1.8 m
+  bench; main's is 1.6 m (S33-f D-S33f-2 kept three). One person per 600 mm gives floor(1 600 / 600) = 2,
+  centred: (11 400, 10 260), (12 000, 10 260). The depiction file loses `tree-bench-north.3`.
+- **BC-c2-3 (Q-S34c3-4, ruled as recommended: "S34-c2 adopts the tool's count").** The halt's 5 m bench
+  row holds floor(5 000 / 600) = 8, not S33-f's 7: x 1 900 … 6 100 step 600, y 710. The depiction file
+  gains `wall-bench.8`.
+- **BC-c2-4 (keys).** Keys and groups stay S33-f's (`pier-bench.n`, `tree-bench-north.n`,
+  `long-table.n` grouped by chair, …), numbered west-to-east then south-to-north (SD-c-3), because the
+  depiction file binds by them. S34-c3's generator (`<furnishing>.<i>`) does not regenerate Lakeside's
+  hand-authored sections (its §1 Out).
+- **BC-c2-4b (Q-S34c3-6's assignment, red-team F5).** Q-S34c3-6 (ruled) says "S34-c2 adds the chair
+  form for Lakeside's bakery and regenerates S34-c1's sections with the tool". The generator is not on
+  main, and the dated note runs S34-c3 after S34-c2, so S34-c2 cannot do either. Disposition: both items
+  move to S34-c3 (or the first PR after it that adds the chair form), and S34-c2 hand-authors the
+  bakery's five chair points by SD-c-1's "behind" case. A dated note in `pr-s34c3-station-sit-points.md`
+  records the reassignment.
+- **BC-c2-5 (ARC-172).** Fallback positions deleted from `sit_points/lakeside.yaml`; the contested-seat
+  fixture now discloses the bakery's `sit-points` and 7's `posture-state` from at 102 (held on the point's
+  `at`); expectation unchanged (7 at `long-table.3`, nobody at 100/101). The comments that described the
+  removed fallback were brought up to date: `clients/2d/scripts/scene/seating.gd`,
+  `clients/3d-spike/scripts/slice/seating.gd`, `clients/shared/sitting/sit_rule.gd`. These are comment-only
+  edits, made at the coordinator's request; `clients/` belongs to S34-e. No client code changes. Follow-up
+  for S34-e (red-team F6): no shipped data reaches the fallback branch any more, so decide there whether
+  to keep it, for worlds that have seats drawn but no `posture`.
+- **BC-c2-7 (AC-c-3 / I-c-2 for Lakeside, red-team F2).** AC-c-3 says that removing `posture` and its
+  sections gives the base genesis. For Lakeside this holds against "base + BC-c2-1's three furnishing
+  facings", not against `7718d952` itself. `bodies` discloses furnishing `facing`
+  (`systems/bodies/src/furnishing.rs:136,156`), and Q-S34c3-7 assigned this facing correction to S34-c2
+  ("the bench's `facing` in the place file, or the sit points' `facing` and `at`"). The two options are
+  either a bodies-owned data change, or putting the points on the side nobody can reach, which I-c-1
+  forbids. The generic test (`systems/posture/tests/worlds.rs`) compares the stripped head with the full
+  head minus posture's facts. That is the removability property AC-c-3 is for (posture leaves nothing
+  behind), measured against the corrected base. Social Café and Market Town are unaffected. This is
+  recorded as a deviation within Q-S34c3-7's ruling; if the operator reads AC-c-3 literally, it is theirs
+  to rule.
+- **BC-c2-8 (merge with main after S34-e; deviation from S34-e's frozen acceptance, coordinator ruling
+  2026-11-27 "Option A").** S34-e (merged while this PR was open) froze a Lakeside "legacy corpus" in
+  `tools/cli/tests/fixtures/seat-surfaces.json`:
+  - the SHA-256 of the five Lakeside place files;
+  - 29 `fallback_expected` / `disclosed_expected` poses, built from the depiction file's `fallback`;
+  - 29 `legacy_surfaces` support and height samples.
+
+  `sit_point_depictions::lakeside_calibrated_scalar_rows_retain_the_frozen_coordinates` and
+  `clients/shared/checks/sit_pose_check.gd` hold the code to it. S34-c2 must change exactly that data:
+  - the place files (its scope);
+  - the fallback, deleted (ARC-172 / R-S34c-f-1);
+  - `tree-bench-north.3` → none and the halt 7 → 8 (BC-c2-2/3, Q-S34c3-4);
+  - the bench facings (Q-S34c3-7).
+
+  So S34-e's corpus cannot stay frozen. It was regenerated with S34-e's own generators
+  (`s34e-evidence/generators/`), never hand-edited:
+  - *Reproduction first.* Run unchanged, except for their `/tmp` paths, on a `git archive` of
+    `origin/main`, `placements.py` (preceded by `measure.py` and `surfaces.py`) reproduces main's
+    `legacy_surfaces` exactly. `freeze-legacy.gd` (Godot 4.7, headless) reproduces main's `legacy`
+    exactly (`regen/cmp.py`, `regen/cmpleg.py`: "equal: True").
+  - *One adaptation* (`regen/placements.diff`, `regen/freeze-legacy-head.gd`): each row's position is
+    the world's own sit point, read from the place file, where the generators read the deleted
+    `fallback`. In `freeze-legacy`, that point is given to `pose_of` as the place's disclosure. The
+    row therefore carries `world` / `world_expected` instead of `fallback_expected`, and the script
+    asserts that `pose_of(tags, null, point)` is empty (no fallback). Everything else is S34-e's code:
+    the same encode, the same perturbed `disclosed` case and the same support/height measurement.
+  - *Splice* (`regen/splice.py`): it replaces only the `legacy` and `legacy_surfaces` blocks and the
+    five Lakeside source hashes, as text. Its self-test re-splices main's own blocks and gets main's
+    bytes back. Café and Market rows, targets, surfaces and their hashes are byte-equal.
+  - *Result.* All 29 points are still over a seat:
+    - bakery −3.71 mm (the same as before);
+    - pier 0 and square 0;
+    - station +2.5 mm, with 8 points and now no point under an armrest (the centred points miss the
+      standards);
+    - platform +2.5 mm (platform-bench-s.2/-n.2 are still under their armrests, as before; that is
+      S34-f's).
+  - *Test changes, only as far as required.*
+    - In `sit_point_depictions.rs`, the Lakeside test reads each row's point from the place file
+      (independent of the corpus) and asserts there is no `fallback`. It also asserts that the
+      corpus row's `world` equals the place file's point. The pelvis comparison and the 0.002 mm
+      bound are unchanged.
+    - In `sit_pose_check.gd`, "legacy fallback" becomes "legacy world point" (`pose_of(tags,
+      row.world)` against `world_expected`), plus a check that there is no fallback position.
+
+  `client_sit_rule.rs`'s S34-e counterfactual (`disclosure_suppresses_lakeside_fallback_…`) built its
+  disclosure from the deleted fallback. It now uses the fixture's own disclosed `sit-points`.
+  - *Validation on the merged tree* (merge of `8f4a8af7` with `origin/main @ 29401a26`, uncommitted, then
+    committed unchanged): all PASS.
+    - `cargo test -p mineworld-cli --test sit_point_depictions --test lakeside_sit_points --test
+      lakeside_bodies --test client_sit_checks --test client_sit_rule -- --include-ignored`: 2 + 3 + 4 + 3 + 3
+      passed. `client_sit_checks` runs the Godot `sit_pose_check.gd` ("the shared pose keeps legacy
+      outputs"); `client_sit_rule` runs both clients.
+    - `cargo test -p mineworld-posture --test worlds --test shipped`: 2 + 3 passed.
+    - Mutation: `tree-bench-east.2` y 9 000 → 9 050 in the place file turns the corpus test red ("the corpus
+      row is the world's point"); reverted.
+- **BC-c2-9 (2D: long furnishings lie along their footprint whatever their facing; red-team blocker at
+  `0470e5eb`).** The fix is presentation only, generic, and opt-in per sprite.
+  - **Format** (`clients/2d/PRESENTATION.md`, "A furnishing sprite's orientation"): a sprite binding may
+    state `front_md`, the plan facing its drawn front faces, and a `reverse` sprite, the same piece from its
+    other side.
+  - **Client:** `clients/2d/scripts/scene/furnishings.gd` `view()` draws the view (as drawn, mirrored,
+    reverse, reverse mirrored; fronts F, 90 000 − F, F + 180 000, −90 000 − F) whose front is nearest the
+    disclosed `facing`. `clients/2d/scripts/presentation.gd` loads the two fields. A sprite without
+    `front_md` keeps the old rule byte for byte, so every existing binding draws as before. The client
+    reads only the disclosed facing and applies no game rule.
+  - **Data:** Lakeside's `bench.pier` and `bench.park` are bound to `bench_backless`
+    (`presentation/mineworld-default/2D/art/svg/bench_backless.svg`, `s34c2-evidence/backless.py`). It is
+    `bench.svg` without its back slats and back posts: the 2D counterpart of the 3D backless
+    `form: bench` (S33-f D-S33f-9), the same from either side (`front_md: 180000`,
+    `reverse: bench_backless`). No other kind's binding changed.
+  - **Evidence** (windowed Godot 4.7, `shoot2d.sh` with `--drive=steps --capture`, the same walk):
+    - Lakeside: `pier-before.png` / `square-before.png` (main's rendering: old facings, old client) and
+      `pier-after-fix.png` / `square-after-fix.png` (head). Each bench now lies along its footprint, as on
+      main, drawn backless. The square's benches are partly hidden by the lime's sprite in this framing.
+    - Café and Market: stills of both towns' café and station hall with the 2D change stashed and
+      restored (`steps-cafe.json`). The only differing pixels are the HUD's world-instance id (y 60–70);
+      every furnishing pixel is equal (`cafe-market-2d-diff.txt`; one pair kept in `cafe-market-2d/`).
+  - **Known, not this PR's:** the halt's `bench.platform` rows (facing 0 in the waiting room, 90 000 on the
+    platform) draw the backed `bench` sprite across their footprints on main already. They need a reverse
+    view of the backed bench, which is art for the S34-e/S34-f lanes; recorded as a follow-up.
+  - *Validation* (head working tree, Godot 4.7): all PASS.
+    - `cargo test -p mineworld-cli --test client_2d_station --test furnishings --test client_sit_checks
+      --test client_sit_rule -- --include-ignored`: 5 + 5 + 3 + 3 passed. `r3_lakeside` drives the 2D
+      client through Lakeside.
+    - `scripts/check_client_rules.py`: PASS (0 findings).
+
+**Final table (29 points).** pier 5 (800 … 3 200, 1 010; 0); square north 2 (11 400, 12 000; 10 260;
+0), east 3 (13 260; 8 400, 9 000, 9 600; 90 000); bakery 5 (1 660; 1 800 … 4 200; 270 000); station 8
+(1 900 … 6 100, 710; 0); platform 3 + 3 (−3 240; ±4 400, ±5 000, ±5 600; 90 000). Each pelvis
+(`at` − `seat_offset_m` × facing) lies over its prop's solid.
+
+**Commit plan (S34-c2).**
+
+- C1 — data: `world.yaml` (`posture`), the five place files (`sit-points:`, bench `facing`), the depiction
+  file, `ARC-147` and `ARC-172` notes, this ledger.
+  - [x] Implementation (`11c0bb27`) · [x] Validation: `mineworld-posture` `worlds` 2/2 and `shipped` 3/3 PASS on the C1 tree (the generic test now covers Lakeside: it loads under S34-b's check, every point is within reach of a solid, removability holds) · [x] Review: every point traced to the table and a solid; bench facings corrected only where the geometry forbids the authored side (BC-c2-1); no code changed
+- C2 — tests: `tools/cli/tests/lakeside_sit_points.rs` (world points = table; one depiction per point; no
+  fallback; clearance and pelvis), the contested fixture in the posture branch, `client_sit_rule.rs` text.
+  - [x] Implementation (`8018d593`; AC-b-7's helper also strips `posture` and `sit-points:`, BC-c2-6) · [x] Validation: see the log · [x] Review: the test reads place files as text (an independent oracle), names no value the System computes; mutations M-c2-1/2 red
+- C3 — Lakeside re-baseline (`scripts/baselines.txt` `[world lakeside]` only) and any Lakeside golden the
+  change moves.
+  - [x] Implementation: `[world lakeside]` only, from one local long record of `8018d593` (Darwin/arm64,
+    `ci_parity.py record --profile long`, 2 687 s; Python 3.12, since the slot's `/usr/bin/python3` 3.9 lacks
+    `tomllib`); `baseline write` was run on a scratch copy and only Lakeside's six keys were copied over, with
+    a `reason S34-c2` line. `doorways-only-30d-seed7.txt` did not move (BC-c2-6).
+    · [x] Validation: `baseline check` of the record against the new file reports no Lakeside difference.
+    The same record differs from main's committed sections for bodies-yard, market-town and social-cafe too
+    (bodies-yard has no posture, so this is main's drift since those were last recorded). Those sections are
+    untouched (AC-c-7 holds for this PR: bodies-yard's data is unchanged); that drift is left to main's next
+    re-record. A 30-day seed-7 Lakeside run: `sat-down 45`, `stood-up 45`, `faults 0`.
+    · [x] Review: only Lakeside's section changed (`git diff scripts/baselines.txt`: 7+/6−); the reason line
+    says that main's drift is folded in, as S33-b's did.
+
+**Validation log.** (filled below as runs complete). Tree identities: C1 = `11c0bb27`; C2 = `8018d593`
+(the test runs below were made on the C1 tree plus C2's working changes, then re-run after `cargo fmt` on
+C2 itself); C3 = `f14f7649` (adds only `scripts/baselines.txt` and the ledger, nothing executable). The
+release binary used for the long record and the 300-day runs was built from `8018d593`. This PR changes no
+production Rust (`git diff 7718d952 HEAD -- '*.rs'` touches only `tools/cli/tests/*.rs`), so that binary is
+also the base's. Remote CI: under the operator's relevant-tests policy (2026-11-27), only `fast` (and its
+small companions) run per PR, and the other jobs report `skipping` by design (red-team F3). The local runs
+listed here are the relevant tests.
+
+- **F4: Lakeside's `facts-300s` / `journal-300s` drop (11 936 → 6 515, 7 979 → 4 214).** These keys count
+  the rows of the 300-day save's live, unsealed tail (ARC-89: `facts`/`journal` hold the tail and `sealed`
+  the rest; `scripts/ci_parity.py:103-107`). They do not count the facts. The same record against main's
+  committed sections shows the tail moving just as much in a world this PR does not touch: Social Café
+  10 422 → 6 104 facts-300s (−41 %) and 7 713 → 4 329 journal-300s; Market Town 6 135 → 8 717 (+42 %).
+  So it is where the seal boundary falls on main today, not sitting. The behaviour change, measured
+  directly with the same binary, seed 7, 300 days in memory (`s34c2-evidence/lakeside-300d-{base-7718d952,head}.txt`):
+  - total facts 827 823 → 829 270 (+0.17 %);
+  - new `sat-down` 507, `stood-up` 507 and `place-sit-points` 5;
+  - `walk-started` 97 233 → 97 188, `conversation-started` 57 538 → 57 299, `fishing-started`
+    4 360 → 4 310, `arrived` 320 180 → 321 544;
+  - others within ±1 %.
+
+  Residents sit about 1.7 times a day across the village and walk, talk and fish slightly less. No fact
+  kind disappears.
+
+- **BC-c2-6 (AC-b-7 in `lakeside_bodies.rs`).** `without_bodies_only_the_doorways_moved` FAILED on the C1
+  tree (day-1 facts 2 507 vs the fixture's 2 502): removing `bodies` left `posture` and its sit points in,
+  which S33-b's recording (before posture) does not describe. Fixed in the test, not the fixture: a new
+  `without_bodies_or_posture` also removes `posture` and every `sit-points:` (I-c-2), so the evidence
+  recorded at `30b7c521` still applies unchanged. NW-3's comparison keeps `without_bodies` (posture on both
+  sides).
+
+| Check (tree) | Verdict | Evidence |
+| --- | --- | --- |
+| `cargo test -p mineworld-posture --test worlds --test shipped` (C1) | PASS | 2 + 3 passed |
+| `cargo test -p mineworld-cli --test lakeside_sit_points` (C2) | PASS | 3 passed |
+| `--test lakeside_bodies` (C2) | PASS | 4 passed (AC-b-7 after BC-c2-6) |
+| `--test milestone_e --test furnishings --test layout --test needs_sections --test sleep_sections --test newsstand --test activity_length` (C1 + tests) | PASS | 7, 5, 4, 6, 2, 6, 1 passed |
+| `--test ac13_clients` | INCONCLUSIVE | 3 ignored (need Godot/the clients; not run) |
+| `--test price_reporter` `clerk_publishes_and_keepers_follow` | FAIL, pre-existing | same failure ("no keeper moved away", 6 vs 0) at base `origin/main @ 7718d952` with this PR's changes stashed; it reads Social Café and Market Town only. Not this PR's; reported |
+| `cargo test -p mineworld-cli --test client_sit_rule -- --ignored` (Godot 4.7, C2) | PASS | 2D and 3D both `SEATED 102 7 long-table.3`, `SEATED 103 7 long-table.3`; nobody at 100/101 |
+| M-c2-1: `pier-bench.2` moved to y 700 (into the bench) | PASS (red) | all three `lakeside_sit_points` tests red; load refused `bodies-fixed-point-in-solid`; "0 mm from the solid (450, 300, 3550, 750)"; reverted |
+| M-c2-2: depiction `tree-bench-east.3` deleted | PASS (red) | "square/tree-bench-east.3: no depiction"; one-to-one assertion red; reverted |
+| `cargo fmt --all -- --check`; `cargo clippy -p mineworld-cli --test lakeside_sit_points --test lakeside_bodies --test client_sit_rule -D warnings` | PASS | clean |
+| 3D `--seat` probe (`ci_godot.py slice --world=lakeside --seat`) | NOT RUN | needs a windowed Godot and a server; the depiction binding it reads is pinned by `lakeside_sit_points`; left to the clients-probes CI layer |
+
 ## 12. Operator questions (each with a recommended answer)
 
 **Ruled 2026-10-19 (operator, primary session):** every question below is answered as recommended.

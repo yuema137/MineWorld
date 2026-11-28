@@ -55,6 +55,7 @@ from mineworld_sdk.wire.contract import PerceivedEntity
 from mineworld_sdk.wire.ids import EntityId, JsonValue
 from pydantic import ValidationError
 
+from mineworld_agent.food_energy import NEEDS_SCHEMAS, food_energy
 from mineworld_agent.lexicon import Currency, Lexicon
 from mineworld_agent.models import (
     NEED_LEVEL_MAX,
@@ -584,7 +585,19 @@ def doing(entity: PerceivedEntity | None) -> DoingLine | None:
 
 def needs(me: PerceivedEntity | None) -> NeedsLine | None:
     """My needs, as the `needs` record names them: each key of its `words` map, with the pack's word and the
-    level stored under that key. A need whose word or level does not read is skipped; nothing is compared."""
+    level stored under that key. A need whose word or level does not read is skipped; nothing is compared.
+    The record's schema is read first (ARC-370): 1 and 2 are read, anything else is not; in the food-energy
+    model the reserve's kcal ride along as `food_energy`, as disclosed."""
+    schema = next(
+        (
+            record.schema_version
+            for record in (me.components if me else [])
+            if record.component_type == "needs"
+        ),
+        None,
+    )
+    if schema not in NEEDS_SCHEMAS:
+        return None
     found = _obj(payload(me, "needs"))
     words = None if found is None else _obj(found.get("words"))
     if found is None or words is None:
@@ -598,7 +611,7 @@ def needs(me: PerceivedEntity | None) -> NeedsLine | None:
             lines.append(NeedLine(need=need, word=word, level=level))
         except ValidationError:
             continue
-    return NeedsLine(needs=lines)
+    return NeedsLine(needs=lines, food_energy=food_energy(found))
 
 
 def asleep(entity: PerceivedEntity | None) -> AsleepLine | None:

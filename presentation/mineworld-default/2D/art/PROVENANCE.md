@@ -4,8 +4,9 @@
 specification of where each file came from; [`../ART_DIRECTION.md`](../ART_DIRECTION.md) is the
 direction, `docs/DECISIONS.md` `ARC-14` the decision that this is the default style.
 
-Every file here was carried unchanged by S12 PR 13a from `vis/2d-generated-assets` @ `af5e236`
-(`clients/2d-spike/art/`), which stays unmerged as the visual reference. Only files that a binding set
+The files of S12 PR 13a's first set were carried unchanged from `vis/2d-generated-assets` @ `af5e236`
+(`clients/2d-spike/art/`), which stays unmerged as the visual reference. Files added later carry their own
+origin in the table below (each row says whether it was generated, rendered or derived here). Only files that a binding set
 in `../assets/asset_bindings.yaml` references were carried (step-13 §14.10 D-2); the spike's candidates,
 style crops, screenshots and Godot import sidecars were not.
 
@@ -17,7 +18,8 @@ style crops, screenshots and Godot import sidecars were not.
 | `interior/floor_boards.png` | generated, as above, with an opaque background (a surface, not an object) | as above | `provenance/gen_int_floor_boards.json` |
 | `generated/sib_*.png` — buildings, street furniture, trees | the shared generated set on `main`, normalized as above | as above | `../candidates/<name without sib_>.provenance.yaml` (e.g. `sib_building_cafe` ← `building_cafe.provenance.yaml`) |
 | `generated/sib_building_station.png`, `sib_building_station_halt.png`, `sib_prop_kiosk_{open,shut}.png`, `sib_prop_ticket_window_{open,shut}.png`, `sib_prop_departures_board.png`, `sib_prop_station_bench.png`, `sib_prop_track.png`, `sib_prop_pier_pavilion.png`, `sib_prop_arcade_pier.png` — the station (S29-f) | generated 2026-10-19 by `tools/asset_generation/recipes/2d_station.yaml` (OpenAI Images, conditioned on `../references/01_town_square.png` and `02_cafe_street.png`; the depot also on the HABS CA-1965-1 photograph for its form, `../references/station/PROVENANCE.md`); fitted by `mineworld_gen/fit.py` (crop at alpha 0.06, at most 64 px per metre). Real heights are design values, approximate: depot 30.0 m (step-29 §6.2 placeholder until S29-d's HABS measurement), halt 4.6, kiosk 2.6, ticket window 2.4, board 1.4, pavilion 5.0, arcade pier 4.0; the bench and the track are fitted by their screen width (6.6 m and 7.0 m of plan extent). The depot keeps its native density (≈ 27.7 px/m, `scale` 1.155; Q-S29f-3). Chosen by the implementer from `../candidates/station/contact_sheet.png` (depot `_2`, halt `_3`, every other item `_1`); the operator accepted these picks on 2026-10-26 (gate 2, AC-S29-7: "every pending question as recommended"; the chosen sidecars read `approval.status: approved`) | as above | `../candidates/station/<item>_<n>.provenance.yaml` |
-| `svg/*.svg` | authored in this repository by the spike's `tools/gen_art.py` (standard library only) | MIT, with the repository | the generator at `af5e236` |
+| `svg/*.svg` except `svg/bench_backless.svg` | authored in this repository by the spike's `tools/gen_art.py` (standard library only) | MIT, with the repository | the generator at `af5e236` |
+| `svg/bench_backless.svg` — the backless bench Lakeside's `bench.pier` and `bench.park` bind (S34-c2 BC-c2-9; the 2D counterpart of S33-f D-S33f-9's backless 3D bench) | **derived** 2026-11-27 from `svg/bench.svg` by `.structured-coding/plans/mvp0/s34c2-evidence/backless.py` (standard library only), which deletes `bench.svg`'s three back-slat polygons and its two back-post rects, each matched exactly once, and changes nothing else. Command, from the repository root: `python3 -I .structured-coding/plans/mvp0/s34c2-evidence/backless.py presentation/mineworld-default/2D/art/svg/bench.svg presentation/mineworld-default/2D/art/svg/bench_backless.svg` | MIT, with the repository (as `bench.svg`) | the script and its input, `svg/bench.svg` |
 | `paper_grain.png` | derived from PuzzleAndy, *CC0 Watercolor Textures* (OpenGameArt) | CC0 1.0 | `../../LICENSES/PUZZLEANDY_WATERCOLOR_TEXTURES.txt` |
 | `../renderer/grade.gdshader`, `../renderer/ink.gdshader` | written for the spike | MIT, with the repository | — |
 

@@ -13,8 +13,10 @@
 ##
 ## The depiction file (`presentation/mineworld-default/3D/sit_points/<world>.yaml`) binds a point by its
 ## place's tags (every one of `tags`, none of `unless`, ARC-179) and its key. It gives the drawn seat
-## (`seat_height_m`, scalar `seat_offset_m` or format-2 `seat_displacement_m`, `prop`) and,
-## until S34-c writes the points into world data, the fallback `at` / `facing` (Q-S33f-1 (A)).
+## (`seat_height_m`, scalar `seat_offset_m` or format-2 `seat_displacement_m`, `prop`) and, optionally, a
+## fallback `at` / `facing` (Q-S33f-1 (A)). Since S34-c2 no shipped depiction file carries a fallback
+## (`ARC-172`): every shipped world with sit points discloses them, so the fallback branch serves only a
+## world that has seats drawn but no `posture`.
 ##
 ## Both clients call [method decide] with what they were told: it reads no clock, no scene and no
 ## renderer state, so the 2D and the 3D client draw the same people seated at the same points. Neither

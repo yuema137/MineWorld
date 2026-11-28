@@ -712,12 +712,13 @@ The position of a sit point, as a file writes it: `{ x: 2700, y: 1160 }`.
 Written under the key `needs` in `people/<key>.yaml`, `items/<key>.yaml`.
 Read by the `needs` system (package `mineworld-needs`), which a world enables in `systems:`. A file whose world does not enable it is refused.
 
-In a person file, the person's starting hunger and tiredness (each 0 … 1 000; `{}` for 300 and 700); in an item file, `nourishment: { hunger }`, how much one lowers hunger. Never both forms.
+In a person file, the person's starting hunger and tiredness; in an item file, `nourishment`, what one does to hunger. Never both forms; never both models' keys.
 
 | Field | Type | Required | Default | Bounds | Description |
 | --- | --- | --- | --- | --- | --- |
-| `hunger` | [Amount](#section-needs-amount) | no | — | — | A person's starting hunger, 0 (sated) … 1 000 (famished); 300 when not written. |
-| `nourishment` | [AuthoredNourishment](#section-needs-authorednourishment) | no | — | — | In an item file: what one of this item does to hunger when eaten or drunk. |
+| `food_energy` | [AuthoredFoodEnergy](#section-needs-authoredfoodenergy) | no | — | — | Food energy: a person's starting reserve, `{ initial_kcal }`; required in a food-energy world. |
+| `hunger` | [Amount](#section-needs-amount) | no | — | — | Unitless: a person's starting hunger, 0 (sated) … 1 000 (famished); 300 when not written. |
+| `nourishment` | [WrittenNourishment](#section-needs-writtennourishment) | no | — | — | In an item file: what one of this item does to hunger when eaten or drunk. |
 | `tiredness` | [Amount](#section-needs-amount) | no | — | — | A person's starting tiredness, 0 (rested) … 1 000 (exhausted); 700 when not written. |
 
 Any other key is refused with `unknown field`, naming the key.
@@ -739,15 +740,76 @@ A deficit or an amount, `0 ..= 1 000`: refused at its own line and column otherw
 
 **Type:** whole number. **Bounds:** 0 to 1000.
 
-<a id="section-needs-authorednourishment"></a>
+<a id="section-needs-authoredfoodenergy"></a>
 
-#### `AuthoredNourishment`
+#### `AuthoredFoodEnergy`
 
-The item form's one field.
+The person's food-energy form.
 
 | Field | Type | Required | Default | Bounds | Description |
 | --- | --- | --- | --- | --- | --- |
-| `hunger` | [Amount](#section-needs-amount) | yes | — | — | How much one of this item lowers hunger when eaten or drunk, 0 … 1 000. |
+| `initial_kcal` | [Kcal](#section-needs-kcal) | yes | — | — | The person's reserve at genesis, whole kcal, 0 … their daily use. |
+
+<a id="section-needs-authoredserving"></a>
+
+#### `AuthoredServing`
+
+A serving, checked where it is written.
+
+**Type:** [Serving](#section-needs-serving).
+
+<a id="section-needs-kcal"></a>
+
+#### `Kcal`
+
+Whole kcal, `0 ..= 100 000`: refused at its own line and column otherwise.
+
+**Type:** whole number. **Bounds:** 0 to 100000.
+
+<a id="section-needs-quantity"></a>
+
+#### `Quantity`
+
+How much one serving is: an amount in a unit.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `amount` | whole number | yes | — | 1 to 100000 | The amount, 1 … 100 000. |
+| `unit` | [QuantityUnit](#section-needs-quantityunit) | yes | — | — | Grams or millilitres. |
+
+<a id="section-needs-quantityunit"></a>
+
+#### `QuantityUnit`
+
+The unit a serving is measured in.
+
+**Type:** `g` or `ml`.
+
+- `g`: Grams.
+- `ml`: Millilitres.
+
+<a id="section-needs-serving"></a>
+
+#### `Serving`
+
+One inventory unit of a food-energy item kind: a whole serving, with a label for people and a quantity. Display text only; never parsed.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `label` | text | yes | — | 1 to 128 characters | What a serving is called, 1 … 128 bytes, no control characters: "1 bowl", "2 slices". |
+| `quantity` | [Quantity](#section-needs-quantity) | yes | — | — | How much it is. |
+
+<a id="section-needs-writtennourishment"></a>
+
+#### `WrittenNourishment`
+
+The item form's keys, as written.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `energy_kcal` | [Kcal](#section-needs-kcal) | no | — | — | Food energy: kcal in one whole serving, 0 … 100 000 (with `serving`). |
+| `hunger` | [Amount](#section-needs-amount) | no | — | — | Unitless: how much one of this item lowers hunger when eaten or drunk, 0 … 1 000. |
+| `serving` | [AuthoredServing](#section-needs-authoredserving) | no | — | — | Food energy: what one inventory unit is (with `energy_kcal`). |
 
 <a id="section-notices"></a>
 

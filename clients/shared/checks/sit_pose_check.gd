@@ -33,7 +33,9 @@ func _init() -> void:
 	check(rule.problem == "" and rule.points.size() == 29, "all legacy rows load")
 	for row in fixture.legacy.rows:
 		var tags := PackedStringArray(row.tags)
-		check(same_pose(rule.pose_of(tags, null, row.point), row.fallback_expected), "legacy fallback " + row.point)
+		# S34-c2 (ARC-172): no fallback position; the world's own point, disclosed, gives the pose.
+		check(rule.pose_of(tags, null, row.point).is_empty(), "no fallback position " + row.point)
+		check(same_pose(rule.pose_of(tags, row.world, row.point), row.world_expected), "legacy world point " + row.point)
 		check(same_pose(rule.pose_of(tags, row.disclosed, row.point), row.disclosed_expected), "legacy disclosed " + row.point)
 
 	scratch = OS.get_user_data_dir().path_join("s34b-pose-%d" % OS.get_process_id())

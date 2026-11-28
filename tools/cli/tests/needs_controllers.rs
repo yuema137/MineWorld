@@ -135,7 +135,12 @@ fn nourishing(facts: &[EventEnvelope]) -> BTreeSet<u64> {
         .filter(|fact| fact.event_type().as_str() == "nourishment-assigned")
         .filter_map(|fact| {
             let value = payload(fact);
-            (value["hunger"].as_u64()? > 0).then(|| id_of(&value["item"]))?
+            // Schema 2 (`ARC-370`): `{ nourishment: { unitless: { hunger } } }` in these unitless
+            // worlds; schema 1's top-level `hunger` is still read.
+            let amount = value["nourishment"]["unitless"]["hunger"]
+                .as_u64()
+                .or_else(|| value["hunger"].as_u64())?;
+            (amount > 0).then(|| id_of(&value["item"]))?
         })
         .collect()
 }

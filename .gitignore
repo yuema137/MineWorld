@@ -30,6 +30,10 @@ node_modules/
 # pr-sr-b-log-compression.md ASRB-8). Tests copy them to scratch before opening them.
 !persistence/tests/fixtures/format-2/world.sqlite
 !persistence/tests/fixtures/format-3/world.sqlite
+# A save of a needs-configured world written by the build before FE-a (d252338e), which FE-a must
+# refuse by configuration drift on needs (pr-fe-a-food-energy-engine.md §3.7; tools/cli/tests/fixtures/
+# pre-fe-save/SOURCE.md). Tests copy it to scratch before opening it.
+!tools/cli/tests/fixtures/pre-fe-save/world.sqlite
 /saves/
 /artifacts/
 

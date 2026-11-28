@@ -4,9 +4,10 @@ extends RefCounted
 ## `MineWorldSitRule` (`clients/shared/sitting/`), and nothing of its own. S34-e draws the seated people
 ## at the pelvis points the shared pose function gives (`poses`), so both clients agree on where (AC-f-4).
 ##
-## The world's sit-point depiction file is the 3D Presentation Pack's (`sit_points/<world>.yaml`): its
-## fallback positions are what the shared rule's fallback branch reads until the world discloses its sit
-## points (Q-S33f-1 (A)); this client uses nothing else of it.
+## The world's sit-point depiction file is the 3D Presentation Pack's (`sit_points/<world>.yaml`): only
+## its optional fallback positions matter here, for the shared rule's fallback branch in a world that
+## does not disclose its sit points. No shipped depiction file carries one since S34-c2 (`ARC-172`): the
+## shipped worlds with sit points disclose them, so this client follows the posture branch there.
 
 ## The pack whose `sit_points/` the rule reads, relative to the repository.
 const SIT_PACK := "presentation/mineworld-default/3D"

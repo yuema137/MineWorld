@@ -613,6 +613,16 @@ A way out of my place: movement's `passages` disclosure.
 | `door` | [`Point`](#model-point) or null | yes |  | The doorway, in my place's frame, when the world models it. |
 | `leads_to` | [`PlaceLine`](#model-placeline) | yes |  | — |
 
+### Model FoodEnergyLine
+
+My food-energy reserve in kcal, as `needs` computed it for me now.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `available_kcal` | integer | yes | ≥ 0 | Whole kcal I have now; at most `capacity_kcal`. |
+| `capacity_kcal` | integer | yes | ≥ 1; ≤ 100000 | The most I can hold: my daily use. |
+| `use_kcal_per_world_day` | integer | yes | ≥ 1; ≤ 100000 | How many kcal I use per world day (86 400 world seconds), asleep or awake. |
+
 ### Model Here
 
 What is in the seat's place: its people, things and exits, each by reference.
@@ -739,6 +749,7 @@ needs' `Needs`, disclosed to me only: how I feel, in the pack's own words.
 
 | Field | Type | Required | Bounds and default | Description |
 | --- | --- | --- | --- | --- |
+| `food_energy` | [`FoodEnergyLine`](#model-foodenergyline) or null | no | default `null` | My food-energy reserve in kcal, only in a world whose hunger is a reserve (ARC-370). |
 | `needs` | array of [`NeedLine`](#model-needline) | yes |  | Each need of my `words` map, in the record's order. |
 
 ### Model NoticeBodyArg

@@ -25,17 +25,35 @@ passages:
 # Owned by the `bodies` system (`ARC-39`, `ARC-307`): the square's paving (its edge is the houses and
 # walls round it), the well, the lime tree's trunk and the two benches under it. Sizes are design
 # values (I-S33-7).
+#
+# The benches stand with their backs to the trunk, as benches under a village tree do: the trunk is
+# 400 mm from each, so nobody can stand between bench and tree (a seated person's point needs 260 mm
+# from the bench and 260 mm from the trunk; S33-f F-S33f-4). The west bench faces north, the east bench
+# east. Both are drawn backless, so the drawing is the same either way (S33-f D-S33f-9); S34-c2 turned
+# their `facing` from 180 000 and 270 000 to 0 and 90 000 so the data says which side is sat on
+# (Q-S34c3-7).
 body:
   floor: { min: { x: 3000, y: 0 }, max: { x: 15000, y: 12000 } }
   furnishings:
     - { key: well, kind: well, at: { x: 9000, y: 6000 }, facing: 0 }
-    - { key: bench.west, kind: bench.park, at: { x: 11700, y: 9800 }, facing: 180000 }
-    - { key: bench.east, kind: bench.park, at: { x: 12800, y: 9000 }, facing: 270000 }
+    - { key: bench.west, kind: bench.park, at: { x: 11700, y: 9800 }, facing: 0 }
+    - { key: bench.east, kind: bench.park, at: { x: 12800, y: 9000 }, facing: 90000 }
   solids:
     # the well
     - { min: { x: 8400, y: 5400 }, max: { x: 9600, y: 6600 }, height: 900, furnishing: well }
     # the lime tree's trunk (shell)
     - { min: { x: 11800, y: 8800 }, max: { x: 12200, y: 9200 }, height: 4000 }
-    # the two benches under it, facing the trunk
+    # the two benches under it, their backs to the trunk
     - { min: { x: 10900, y: 9600 }, max: { x: 12500, y: 10000 }, height: 450, furnishing: bench.west }
     - { min: { x: 12600, y: 8100 }, max: { x: 13000, y: 9900 }, height: 450, furnishing: bench.east }
+
+# Owned by the `posture` system (`ARC-147`, `ARC-172`): one person per 600 mm of bench (Q-S34-8): two
+# places on the 1.6 m west bench (floor(1 600 / 600) = 2) and three on the 1.8 m east bench, centred on
+# each, on free floor 260 mm in front of its box (S34-c SD-c-1), facing the way the bench faces: north
+# and east, backs to the lime.
+sit-points:
+  - { key: tree-bench-north.1, group: tree-bench-north, at: { x: 11400, y: 10260 }, facing: 0 }
+  - { key: tree-bench-north.2, group: tree-bench-north, at: { x: 12000, y: 10260 }, facing: 0 }
+  - { key: tree-bench-east.1, group: tree-bench-east, at: { x: 13260, y: 8400 }, facing: 90000 }
+  - { key: tree-bench-east.2, group: tree-bench-east, at: { x: 13260, y: 9000 }, facing: 90000 }
+  - { key: tree-bench-east.3, group: tree-bench-east, at: { x: 13260, y: 9600 }, facing: 90000 }

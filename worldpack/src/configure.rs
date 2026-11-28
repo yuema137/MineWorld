@@ -291,6 +291,19 @@ fn check(classes: &EntityClasses, configured: &FoundConfiguration) -> Result<(),
                 field,
                 path,
             },
+            ConfigurationRefusal::Owner {
+                entry,
+                code,
+                detail,
+            } => PackError::ConfigurationContradictory {
+                system,
+                code,
+                entry: entry
+                    .map_or_else(|| "the file".to_owned(), |entry| entry.to_string())
+                    .into(),
+                detail: detail.into(),
+                path,
+            },
         })
 }
 

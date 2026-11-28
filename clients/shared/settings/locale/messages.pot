@@ -1176,6 +1176,10 @@ msgstr ""
 msgid "ui.row.need"
 msgstr ""
 
+#. {need}: {word} — {available} / {capacity} kcal ({use} kcal a day)
+msgid "ui.row.reserve"
+msgstr ""
+
 #. Asleep since {since}, alarm at {alarm}
 msgid "ui.row.asleep"
 msgstr ""

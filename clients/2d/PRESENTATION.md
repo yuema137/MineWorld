@@ -124,8 +124,18 @@ uses `/`. Unknown keys are ignored with a warning, so a newer pack degrades rath
 | `facade:unknown:<n>` | a place not yet visited in this instance (`ARC-45` point 3), or a visited place none of whose tags is bound | the stable hash of the place's id string |
 | `prop:<name>` | anything `renderer/godot.yaml` places: dressing, fittings, edge planting | named by that file |
 | `texture:floor`, `texture:paper` | the interior floor tile; the paper tooth of the `grade` effect | named by that file |
-| `furnishing.<kind>` | a furnishing the world discloses with its place (`ARC-307`, `docs/CORE_CONCEPTS.md` §6.5), drawn at its `at` over its solids' footprints, mirrored when it faces screen-left | the furnishing's kind, then each shorter `.`-prefix (`furnishing.chair.painted` → `furnishing.chair`); none bound: its solids' footprints as filled shapes (§6) |
+| `furnishing.<kind>` | a furnishing the world discloses with its place (`ARC-307`, `docs/CORE_CONCEPTS.md` §6.5), drawn at its `at` over its solids' footprints, in the view of its sprite that faces nearest its `facing` when the sprite states `front_md` (below), else mirrored when it faces screen-left | the furnishing's kind, then each shorter `.`-prefix (`furnishing.chair.painted` → `furnishing.chair`); none bound: its solids' footprints as filled shapes (§6) |
 | `object.<shape>` (`object.ball`, `object.box`) | a loose object the world lists with its place (the `bodies` System Pack's `loose-objects`, `ARC-342`), drawn at its `at` and moved along each `object-moved` path | the object's disclosed shape, never its id; bound: that sprite scaled to the footprint's drawn width; none bound: plain drawing (§6) |
+
+**A furnishing sprite's orientation (S34-c2).** A sprite may state `front_md`, the plan facing (millidegrees,
+`docs/CORE_CONCEPTS.md` §6.1) its drawn front faces. It may also name a `reverse` sprite: the same piece
+seen from its other side, whose front faces `front_md` + 180 000. The `reverse` may be its own id for a
+piece that looks the same from both sides, such as `bench_backless`. On this projection a mirror swaps the
+plan's x and y, so a mirrored view faces 90 000 − its front. The client draws a furnishing with whichever
+of these two to four views faces nearest the furnishing's disclosed `facing`. A long piece therefore lies
+along its footprint whichever way it faces. A sprite without `front_md` keeps the old rule (mirrored when
+the facing points screen-left). The choice is presentation only: it reads the disclosed facing and
+decides nothing.
 
 A role the client asks for that the set does not bind is drawn plainly. The client never asks for a
 role by a world key (`alice`, `cafe`), only by tag, disclosed component value (`look:<key>`), index or

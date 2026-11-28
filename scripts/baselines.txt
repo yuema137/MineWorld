@@ -28,12 +28,13 @@ reason 12d #171 merged after S26-a #206: 12d's item names and S26-a's appearance
 reason fix-activity-double-draw #274 (operator ruling 2026-10-18, F-S27b-5, ARC-151): the paced rule's offered band no longer draws the actions the rule decides by name (leave, join, accept, decline, invite, talk, walk), so members leave once per decision, not twice; median activity 60 minutes again, as before S27-b; all six keys moved; bodies-yard unchanged; re-recorded from a local long record of the merge with main 44f050e3 (after 12d #171; 51f6f08, Darwin/arm64); still starts activities (group-activity-started 9543 in the 300-day run)
 reason milestone F re-record (2026-10-20, one re-record for the step): every key re-recorded from the nightly long record of main f92e3cad (parity-long-mac, run 39407548463, Darwin/arm64; verdict PASS), after TW-e's calendar in social-cafe (ARC-269), LE-a's genesis rows, economy SystemVersion 3, S35's sleep and needs content, S29's station and S34-c1's posture with its sit points; no number edited by hand
 reason S33-b #395: Lakeside gets bodies (step-33 F-S33-3) and its doorways move to 400 mm (12d SD-D3); every key moves; recorded from a local long record of f3dd14a3 (merge with main fa214d54, Darwin/arm64). Main's bodies/movement fix e9d51bd3 (after milestone F) is folded in; only [world lakeside] is written, the other worlds' drift since milestone F is main's and is left to main's next re-record
-summary-300 358 a2aaca698c20a91582d1ffce0700c598472d6254b5d22f18c8221cebc342c202
-summary-1000 1082 f2cbcb1271d1a79045330eb75efe64272868b41a4c30c3a490e1f69a3e03646e
-summary-300s 357 25bf00453bc219597a95e2ea32f34eff87827348c07923fa57c3b9576c16e93a
-facts-300s 11936 a3ced7242858ec3f614f961a6b0b50f144c02c8d1af964ec6d42c30a6893923f
-journal-300s 7979 20dbdf009b3224b0d4d6687c6d0699159c3ce4e77813a18762968ad576455581
-sealed-300s 139 c196cda67a4b5cc62ee12cbe913f4db19a4208283d98c19d2ee7c5f8cf5322fc
+reason S34-c2: Lakeside enables `posture` with 29 sit points (pier, square, bakery, halt), so `sit` is offered and residents sit; the pier and square bench furnishings turn to the side their points use (Q-S34c3-7); every key moves; recorded from a local long record of 8018d593 (base main 7718d952, Darwin/arm64, 2 687 s). Main had already drifted from every world's section before this PR (bodies-yard, which has no posture, moves too); that drift is folded into Lakeside's keys here, and only [world lakeside] is written; the other worlds are left to main's next re-record
+summary-300 364 df224d5371d2ab54cc0088fca9df4ac91a98e66b38fda4ac4caa641b9dfe3754
+summary-1000 1088 136d834044b5acb4ccd16f23262d107e03c3ee2ae3f83f7e074cf57acda99bad
+summary-300s 363 5c7c20af32be0d0e8308efdc599f22523c25d625e5efe5155bf732572fdb28f6
+facts-300s 6515 44b3962fc766257dc721517c4ccfa56015229c056e7df87fd927e56d50713506
+journal-300s 4214 39c9fed28c34cafdd890f19d1bd0485072686ce674e07f2e49e559f24657acaf
+sealed-300s 131 418f1894dc0824772a32a28dce992e5f2cae47b83d86586d1a349b2eb0f9fce2
 [world market-town]
 reason 13c #162: journal-300s re-recorded on main 9f853e1 (after #153, #157, #159); journal bytes moved in every world, summaries and facts did not (F-13c-impl-3)
 reason FG-a: re-recorded on mvp0/pr-fg-a eadc5df. Summaries and facts-300s were stale on main 6306977 (nightly issue #170, walking towns) and now equal that commit's own record; journal-300s moves at its genesis row only, which carries the composition (relationships v3, conversation v4, acquaintance-forgotten declared); no fact or summary moved by FG-a (pr-fg-a FA-1, F-FGA-16)

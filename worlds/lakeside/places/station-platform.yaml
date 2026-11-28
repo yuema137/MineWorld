@@ -32,3 +32,14 @@ body:
     - { min: { x: -3950, y: 4000 }, max: { x: -3500, y: 6000 }, height: 450, furnishing: bench.north }
     # the departure board's post (shell)
     - { min: { x: -2100, y: -100 }, max: { x: -1900, y: 100 }, height: 2400 }
+
+# Owned by the `posture` system (`ARC-147`, `ARC-172`): three places on each 2 m bench, one person per
+# 600 mm (Q-S34-8; floor(2 000 / 600) = 3), centred on it, on free floor 260 mm east of the bench's box
+# (S34-c SD-c-1), facing east with the bench: toward the track.
+sit-points:
+  - { key: platform-bench-s.1, group: platform-bench-s, at: { x: -3240, y: -5600 }, facing: 90000 }
+  - { key: platform-bench-s.2, group: platform-bench-s, at: { x: -3240, y: -5000 }, facing: 90000 }
+  - { key: platform-bench-s.3, group: platform-bench-s, at: { x: -3240, y: -4400 }, facing: 90000 }
+  - { key: platform-bench-n.1, group: platform-bench-n, at: { x: -3240, y: 4400 }, facing: 90000 }
+  - { key: platform-bench-n.2, group: platform-bench-n, at: { x: -3240, y: 5000 }, facing: 90000 }
+  - { key: platform-bench-n.3, group: platform-bench-n, at: { x: -3240, y: 5600 }, facing: 90000 }

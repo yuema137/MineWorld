@@ -35,7 +35,7 @@ pub struct SectionConfigured<S> {
 impl<S: InteractionSection> Event for SectionConfigured<S> {
     const EVENT_TYPE: EventTypeId = S::CONFIGURED;
     const OWNER: SystemId = <S as SystemIdentity>::ID;
-    const SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(1);
+    const SCHEMA_VERSION: EventSchemaVersion = S::CONFIGURED_SCHEMA_VERSION;
 }
 
 /// `<pack>-interactions`: what a configured section says at one Place — the base and that place's
@@ -52,7 +52,7 @@ pub struct Interactions<S: InteractionSection> {
 impl<S: InteractionSection> Component for Interactions<S> {
     const COMPONENT_TYPE: ComponentTypeId = S::COMPONENT;
     const OWNER: SystemId = <S as SystemIdentity>::ID;
-    const SCHEMA_VERSION: ComponentSchemaVersion = ComponentSchemaVersion::new(1);
+    const SCHEMA_VERSION: ComponentSchemaVersion = S::COMPONENT_SCHEMA_VERSION;
 }
 
 impl<S: InteractionSection> OwnedBy<S> for Interactions<S> {}

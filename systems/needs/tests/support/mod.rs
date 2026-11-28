@@ -74,7 +74,20 @@ pub enum Kind {
     FlatAndCafe,
     /// ward and desk; a configured section.
     NightShift,
+    /// pantry and shop; the food-energy model (`ARC-370`).
+    FoodEnergy,
 }
+
+/// food-energy's classes: `big` people use 2 400 kcal a day.
+pub const BIG_CLASSES: &str = r#"[ { "class": "big", "of": "person", "tag": "big" } ]"#;
+
+/// food-energy's `configure/needs.yaml`, rendered as JSON: 2 000 kcal a day, 2 400 for `big`.
+pub const FOOD_ENERGY_SECTION: &str = r#"{
+  "parameters": [
+    { "hunger_model": "food-energy", "energy_kcal_per_day": 2000 },
+    { "actor": "big", "energy_kcal_per_day": 2400 }
+  ]
+}"#;
 
 /// night-shift's classes, as `configure/classes.yaml` would say them.
 pub const NIGHT_CLASSES: &str = r#"[ { "class": "night", "of": "person", "tag": "night" } ]"#;
@@ -144,6 +157,48 @@ fn layout(kind: Kind) -> Layout {
                 ),
                 ("eli", &[], 0, 2_000, "{ bread: 1 }", Some("{}")),
                 ("fay", &[], 1, 1_000, "{ stew: 1 }", None),
+            ],
+        },
+        // Synthetic values, not retail or nutrition claims.
+        Kind::FoodEnergy => Layout {
+            places: [("pantry", "residential"), ("shop", "cafe")],
+            kinds: [
+                (
+                    "loaf",
+                    "food",
+                    Some(
+                        "{ nourishment: { energy_kcal: 500, serving: { label: \"1 loaf\", \
+                         quantity: { unit: g, amount: 400 } } } }",
+                    ),
+                ),
+                (
+                    "water",
+                    "drink",
+                    Some(
+                        "{ nourishment: { energy_kcal: 0, serving: { label: \"1 glass\", \
+                         quantity: { unit: ml, amount: 250 } } } }",
+                    ),
+                ),
+                ("pebble", "food", None),
+            ],
+            people: [
+                (
+                    "gus",
+                    &["big"],
+                    0,
+                    1_000,
+                    "{ loaf: 2, water: 1 }",
+                    Some("{ food_energy: { initial_kcal: 2400 } }"),
+                ),
+                (
+                    "hal",
+                    &[],
+                    0,
+                    2_000,
+                    "{ loaf: 3, water: 2 }",
+                    Some("{ food_energy: { initial_kcal: 1500 } }"),
+                ),
+                ("ivy", &[], 1, 1_000, "{ loaf: 1 }", None),
             ],
         },
     }
@@ -237,6 +292,9 @@ pub fn assemble(kind: Kind, needs: bool) -> Assembled {
     }
     if needs && kind == Kind::NightShift {
         facts.push(configured(NIGHT_SECTION, NIGHT_CLASSES));
+    }
+    if needs && kind == Kind::FoodEnergy {
+        facts.push(configured(FOOD_ENERGY_SECTION, BIG_CLASSES));
     }
     let entity_keys: BTreeMap<EntityKey, EntityId> = keys
         .iter()
@@ -367,6 +425,16 @@ impl Town {
         self.submit(self.id(who), record(&Eat::new(item))).0
     }
 
+    /// `who` drinks one `water` now.
+    pub fn drink_water(&mut self, who: &str) -> ActionResult {
+        let item = self.item("water");
+        self.submit(
+            self.id(who),
+            record(&mineworld_consumption::Drink::new(item)),
+        )
+        .0
+    }
+
     /// `who` sleeps for `minutes` from now.
     pub fn sleep(&mut self, who: &str, minutes: u16) -> ActionResult {
         self.submit(self.id(who), record(&Sleep::new(minutes))).0
@@ -430,4 +498,61 @@ pub fn accepted(result: &ActionResult) -> bool {
 
 pub fn hour(h: i64) -> WorldTime {
     WorldTime::from_seconds(h * HOUR)
+}
+
+/// Each entity of a test world by key.
+pub type Keys = BTreeMap<String, EntityId>;
+
+/// Submits `action` for `who` at the persisted world's instant, which must be accepted.
+pub fn request<A: Action + Serialize>(
+    persisted: &mut mineworld_persistence::PersistentWorld,
+    who: EntityId,
+    action: &A,
+    id: u64,
+) {
+    let at = persisted.world().read().at();
+    let intent = ActionIntent::new(ActionId::from_raw(id), who, record(action), at);
+    let done = persisted.dispatch(&intent, at).expect("dispatches");
+    assert!(accepted(done.result()), "{:?}", done.result());
+}
+
+/// `who` eats one `item` in a persisted world.
+pub fn request_eat(
+    persisted: &mut mineworld_persistence::PersistentWorld,
+    keys: &Keys,
+    who: &str,
+    item: &str,
+    id: u64,
+) {
+    let item = ItemId::new(keys[item], EntityType::Item).expect("an item");
+    request(persisted, keys[who], &Eat::new(item), id);
+}
+
+/// `who` sleeps `minutes` in a persisted world.
+pub fn request_sleep(
+    persisted: &mut mineworld_persistence::PersistentWorld,
+    keys: &Keys,
+    who: &str,
+    minutes: u16,
+    id: u64,
+) {
+    request(persisted, keys[who], &Sleep::new(minutes), id);
+}
+
+/// `who`'s disclosed `food_energy.available_kcal` in `world` at `at`.
+pub fn available_in(world: &World, who: EntityId, at: WorldTime) -> u64 {
+    let providers = compose(true).1;
+    let providers: Vec<&dyn PerceptionProvider> = providers.iter().map(AsRef::as_ref).collect();
+    let observation = mineworld_presence::observe(world, who, at, &providers);
+    let record = observation
+        .entities()
+        .iter()
+        .flat_map(|entity| entity.components())
+        .find(|record| record.entity() == who && record.component_type().as_str() == "needs")
+        .expect("disclosed to oneself")
+        .payload()
+        .clone();
+    record["food_energy"]["available_kcal"]
+        .as_u64()
+        .expect("a number")
 }

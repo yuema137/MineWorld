@@ -562,6 +562,35 @@
             ],
             "type": "object"
           },
+          "FoodEnergyLine": {
+            "additionalProperties": false,
+            "description": "My food-energy reserve in kcal, as `needs` computed it for me now.",
+            "properties": {
+              "available_kcal": {
+                "description": "Whole kcal I have now; at most `capacity_kcal`.",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "capacity_kcal": {
+                "description": "The most I can hold: my daily use.",
+                "maximum": 100000,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "use_kcal_per_world_day": {
+                "description": "How many kcal I use per world day (86 400 world seconds), asleep or awake.",
+                "maximum": 100000,
+                "minimum": 1,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "available_kcal",
+              "capacity_kcal",
+              "use_kcal_per_world_day"
+            ],
+            "type": "object"
+          },
           "Here": {
             "additionalProperties": false,
             "description": "What is in the seat's place: its people, things and exits, each by reference.",
@@ -984,6 +1013,18 @@
             "additionalProperties": false,
             "description": "needs' `Needs`, disclosed to me only: how I feel, in the pack's own words.",
             "properties": {
+              "food_energy": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/FoodEnergyLine"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "My food-energy reserve in kcal, only in a world whose hunger is a reserve (ARC-370)."
+              },
               "needs": {
                 "description": "Each need of my `words` map, in the record's order.",
                 "items": {
@@ -2587,6 +2628,35 @@
             ],
             "type": "object"
           },
+          "FoodEnergyLine": {
+            "additionalProperties": false,
+            "description": "My food-energy reserve in kcal, as `needs` computed it for me now.",
+            "properties": {
+              "available_kcal": {
+                "description": "Whole kcal I have now; at most `capacity_kcal`.",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "capacity_kcal": {
+                "description": "The most I can hold: my daily use.",
+                "maximum": 100000,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "use_kcal_per_world_day": {
+                "description": "How many kcal I use per world day (86 400 world seconds), asleep or awake.",
+                "maximum": 100000,
+                "minimum": 1,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "available_kcal",
+              "capacity_kcal",
+              "use_kcal_per_world_day"
+            ],
+            "type": "object"
+          },
           "Here": {
             "additionalProperties": false,
             "description": "What is in the seat's place: its people, things and exits, each by reference.",
@@ -3009,6 +3079,18 @@
             "additionalProperties": false,
             "description": "needs' `Needs`, disclosed to me only: how I feel, in the pack's own words.",
             "properties": {
+              "food_energy": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/FoodEnergyLine"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "My food-energy reserve in kcal, only in a world whose hunger is a reserve (ARC-370)."
+              },
               "needs": {
                 "description": "Each need of my `words` map, in the record's order.",
                 "items": {
@@ -7229,6 +7311,35 @@
             ],
             "type": "object"
           },
+          "FoodEnergyLine": {
+            "additionalProperties": false,
+            "description": "My food-energy reserve in kcal, as `needs` computed it for me now.",
+            "properties": {
+              "available_kcal": {
+                "description": "Whole kcal I have now; at most `capacity_kcal`.",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "capacity_kcal": {
+                "description": "The most I can hold: my daily use.",
+                "maximum": 100000,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "use_kcal_per_world_day": {
+                "description": "How many kcal I use per world day (86 400 world seconds), asleep or awake.",
+                "maximum": 100000,
+                "minimum": 1,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "available_kcal",
+              "capacity_kcal",
+              "use_kcal_per_world_day"
+            ],
+            "type": "object"
+          },
           "Here": {
             "additionalProperties": false,
             "description": "What is in the seat's place: its people, things and exits, each by reference.",
@@ -7682,6 +7793,18 @@
             "additionalProperties": false,
             "description": "needs' `Needs`, disclosed to me only: how I feel, in the pack's own words.",
             "properties": {
+              "food_energy": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/FoodEnergyLine"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "My food-energy reserve in kcal, only in a world whose hunger is a reserve (ARC-370)."
+              },
               "needs": {
                 "description": "Each need of my `words` map, in the record's order.",
                 "items": {
