@@ -6,7 +6,7 @@
     {
      "type": "traits",
      "payload": {
-      "schema": 2,
+      "schema": 3,
       "entries": [
        {
         "attribute": "t.stature",
@@ -86,7 +86,7 @@
      "payload": {
       "since": 3,
       "attributes": {
-       "schema": 2,
+       "schema": 3,
        "entries": [
         {
          "attribute": "w.occupation",
@@ -180,7 +180,7 @@
     {
      "type": "traits",
      "payload": {
-      "schema": 2,
+      "schema": 3,
       "entries": [
        {
         "attribute": "t.a200",
@@ -3116,7 +3116,7 @@
     {
      "type": "traits",
      "payload": {
-      "schema": 2,
+      "schema": 3,
       "entries": [
        {
         "attribute": "t.a",
@@ -3189,7 +3189,7 @@
     {
      "type": "traits",
      "payload": {
-      "schema": 2,
+      "schema": 3,
       "entries": [
        {
         "attribute": "t.long",
@@ -3241,7 +3241,7 @@
     {
      "type": "traits",
      "payload": {
-      "schema": 2,
+      "schema": 3,
       "entries": [
        {
         "attribute": "t.x",
@@ -3316,7 +3316,7 @@
     {
      "type": "traits",
      "payload": {
-      "schema": 2,
+      "schema": 3,
       "entries": [
        {
         "attribute": "t.ok",
@@ -3346,7 +3346,7 @@
      "type": "badges",
      "payload": {
       "attributes": {
-       "schema": 2,
+       "schema": 3,
        "entries": [
         {
          "attribute": "w.good",
@@ -3400,6 +3400,154 @@
    ],
    "inspect": [],
    "sheet": []
+  },
+  {
+   "name": "locales",
+   "components": [
+    {
+     "type": "traits",
+     "payload": {
+      "schema": 3,
+      "words": {
+       "fr": { "join": ", ", "more": " …", "pair": " : ", "yes": "oui", "no": "non" },
+       "zh_Hans": { "join": "，", "more": "……", "pair": "：", "yes": "是", "no": "否" }
+      },
+      "entries": [
+       {
+        "attribute": "t.age-band",
+        "kind": "level",
+        "label": "Age",
+        "facets": ["observed", "prompt"],
+        "rank": 10,
+        "value": { "level": "sixties", "rank": 6 },
+        "text": "in their sixties",
+        "labels": { "fr": "Âge", "zh_Hans": "年龄" },
+        "texts": { "fr": "la soixantaine", "zh_Hans": "六十多岁" }
+       },
+       {
+        "attribute": "t.hair",
+        "kind": "category",
+        "label": "Hair colour",
+        "facets": ["observed"],
+        "rank": 50,
+        "value": { "category": "grey" },
+        "text": "grey hair",
+        "labels": { "zh_Hans": "发色" },
+        "texts": { "zh_Hans": "灰白头发" }
+       },
+       {
+        "attribute": "t.glasses",
+        "kind": "flag",
+        "label": "Glasses",
+        "facets": ["observed"],
+        "rank": 30,
+        "value": { "flag": false },
+        "labels": { "fr": "Lunettes", "zh_Hans": "眼镜" }
+       },
+       {
+        "attribute": "t.hobbies",
+        "kind": "set",
+        "label": "Hobbies",
+        "facets": ["prompt"],
+        "rank": 40,
+        "value": { "set": ["fishing", "reading"] },
+        "text": "reading and fishing",
+        "labels": { "fr": "Loisirs", "zh_Hans": "爱好" },
+        "texts": { "fr": "aime lire et pêcher", "zh_Hans": "爱好阅读和钓鱼" }
+       }
+      ]
+     }
+    },
+    {
+     "type": "employment",
+     "payload": {
+      "since": 3,
+      "attributes": {
+       "schema": 3,
+       "words": {
+        "fr": { "join": ", ", "more": " …", "pair": " : ", "yes": "oui", "no": "non" },
+        "zh_Hans": { "join": "，", "more": "……", "pair": "：", "yes": "是", "no": "否" }
+       },
+       "entries": [
+        {
+         "attribute": "w.occupation",
+         "kind": "text",
+         "label": "Occupation",
+         "facets": ["prompt"],
+         "rank": 15,
+         "value": { "text": "barista" },
+         "text": "works as barista",
+         "labels": { "zh_Hans": "职业" },
+         "texts": { "zh_Hans": "职业是barista" }
+        }
+       ]
+      }
+     }
+    }
+   ],
+   "merged": ["t.age-band", "w.occupation", "t.glasses", "t.hobbies", "t.hair"],
+   "compose": [
+    { "facet": "observed", "budget": 160, "text": "in their sixties, grey hair" },
+    { "facet": "prompt", "budget": 600, "text": "in their sixties, works as barista, reading and fishing" }
+   ],
+   "inspect": ["in their sixties", "works as barista", "reading and fishing", "grey hair"],
+   "sheet": [
+    "Age: in their sixties",
+    "Occupation: works as barista",
+    "Glasses: no",
+    "Hobbies: reading and fishing",
+    "Hair colour: grey hair"
+   ],
+   "readings": [
+    {
+     "locale": "zh_Hans",
+     "compose": [
+      { "facet": "observed", "budget": 160, "text": "六十多岁，灰白头发" },
+      { "facet": "prompt", "budget": 600, "text": "六十多岁，职业是barista，爱好阅读和钓鱼" },
+      { "facet": "prompt", "budget": 30, "text": "六十多岁……" },
+      { "facet": "observed", "budget": 8, "text": "六…" }
+     ],
+     "inspect": ["六十多岁", "职业是barista", "爱好阅读和钓鱼", "灰白头发"],
+     "sheet": ["年龄：六十多岁", "职业：职业是barista", "眼镜：否", "爱好：爱好阅读和钓鱼", "发色：灰白头发"]
+    },
+    {
+     "locale": "zh-CN",
+     "compose": [
+      { "facet": "observed", "budget": 160, "text": "六十多岁，灰白头发" }
+     ],
+     "inspect": ["六十多岁", "职业是barista", "爱好阅读和钓鱼", "灰白头发"],
+     "sheet": ["年龄：六十多岁", "职业：职业是barista", "眼镜：否", "爱好：爱好阅读和钓鱼", "发色：灰白头发"]
+    },
+    {
+     "locale": "fr",
+     "compose": [
+      { "facet": "observed", "budget": 160, "text": "la soixantaine, grey hair" },
+      { "facet": "prompt", "budget": 600, "text": "la soixantaine, works as barista, aime lire et pêcher" }
+     ],
+     "inspect": ["la soixantaine", "works as barista", "aime lire et pêcher", "grey hair"],
+     "sheet": [
+      "Âge : la soixantaine",
+      "Occupation: works as barista",
+      "Lunettes : non",
+      "Loisirs : aime lire et pêcher",
+      "Hair colour: grey hair"
+     ]
+    },
+    {
+     "locale": "de",
+     "compose": [
+      { "facet": "observed", "budget": 160, "text": "in their sixties, grey hair" }
+     ],
+     "inspect": ["in their sixties", "works as barista", "reading and fishing", "grey hair"],
+     "sheet": [
+      "Age: in their sixties",
+      "Occupation: works as barista",
+      "Glasses: no",
+      "Hobbies: reading and fishing",
+      "Hair colour: grey hair"
+     ]
+    }
+   ]
   }
  ]
 }

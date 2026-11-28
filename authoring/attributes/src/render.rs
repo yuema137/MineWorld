@@ -10,10 +10,14 @@
 //!                 scale (F-S30c-5); a set's are "a, b and c" in domain order; a flag's are its label in
 //!                 lower case when true and nothing when false (F-S30c-6); an empty word renders no text
 //! bound           no text exceeds 160 bytes; a longer one is cut at a character boundary with "…"
+//! locales         every locale the world's label packs offer, by the same rules with that locale's
+//!                 pieces (S30-k, `ARC-129`); an entry missing any piece it needs carries nothing for
+//!                 that locale, and its reader shows it in English, whole
 //! ```
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
+use mineworld_authoring::Locale;
 use mineworld_contracts::SystemId;
 use serde::{Deserialize, Serialize};
 
@@ -22,11 +26,13 @@ use crate::declaration::{Declaration, Visibility};
 use crate::derive::band_index;
 use crate::id::{QualifiedId, ValueSlug};
 use crate::kind::{Kind, KindName};
+use crate::labels::{AttributeLabels, Labels, LocaleLabels, ReaderWords};
 use crate::value::{AttributeValue, ScaledInt};
 
-/// The schema of a disclosed payload: 2 adds each entry's `label`, `facets` and `rank`, and orders
-/// entries by rank (S30-f, Q-S30f-1).
-pub const SCHEMA: u32 = 2;
+/// The schema of a disclosed payload: 2 added each entry's `label`, `facets` and `rank`, and ordered
+/// entries by rank (S30-f, Q-S30f-1); 3 adds each entry's `texts` and, in the holder's view, `labels`
+/// per offered locale, and the block's reader `words` per offered locale (S30-k, Q-S30k-1).
+pub const SCHEMA: u32 = 3;
 
 /// The most bytes one entry's text may have.
 pub const TEXT_BOUND: usize = 160;
@@ -74,6 +80,12 @@ pub struct Entry {
     /// The rendered phrase; absent when it renders nothing.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub text: Option<String>,
+    /// The label per offered locale this entry is rendered in, in the holder's view only.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub labels: BTreeMap<Locale, String>,
+    /// The text per offered locale this entry is rendered in, when it renders one.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub texts: BTreeMap<Locale, String>,
 }
 
 /// The order of entries in a block: by `(rank, attribute)`, an absent rank after every present one.
@@ -92,6 +104,9 @@ pub fn rank_order(left: &Entry, right: &Entry) -> std::cmp::Ordering {
 pub struct Block {
     /// [`SCHEMA`].
     pub schema: u32,
+    /// The words a reader composes with, per offered locale; empty when only English is offered.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub words: BTreeMap<Locale, ReaderWords>,
     /// The entries.
     pub entries: Vec<Entry>,
 }
@@ -167,8 +182,21 @@ fn bounded(text: String) -> String {
     format!("{}{ellipsis}", &text[..cut])
 }
 
-/// One entry for `view`, or `None` when the view may not see it.
-pub fn entry(declaration: &Declaration, value: &AttributeValue, view: View) -> Option<Entry> {
+/// The band of `value` another observer is told, when the declaration has bands.
+fn band_of(declaration: &Declaration, value: &AttributeValue) -> Option<usize> {
+    let bands = declaration.perceived_as.as_ref()?;
+    let below: Vec<_> = bands.iter().filter_map(|band| band.below.clone()).collect();
+    band_index(value, &below).filter(|index| *index < bands.len())
+}
+
+/// One entry for `view`, or `None` when the view may not see it; with `labels`, rendered in every
+/// offered locale too (§5.4).
+pub fn entry(
+    declaration: &Declaration,
+    value: &AttributeValue,
+    view: View,
+    labels: Option<&Labels>,
+) -> Option<Entry> {
     let visible = match view {
         View::Holder => declaration.visibility != Visibility::Hidden,
         View::Other => declaration.visibility == Visibility::Perceivable,
@@ -184,18 +212,117 @@ pub fn entry(declaration: &Declaration, value: &AttributeValue, view: View) -> O
         rank: declaration.prompt_rank,
         value,
         text,
+        labels: BTreeMap::new(),
+        texts: BTreeMap::new(),
     };
-    if view == View::Other
+    let mut entry = if view == View::Other
         && let Some(bands) = &declaration.perceived_as
     {
-        let below: Vec<_> = bands.iter().filter_map(|band| band.below.clone()).collect();
-        let band = band_index(value, &below).and_then(|index| bands.get(index))?;
-        return Some(shell(None, phrase_of_band(&band.words)));
+        let band = bands.get(band_of(declaration, value)?)?;
+        shell(None, phrase_of_band(&band.words))
+    } else {
+        shell(
+            Some(value.clone()),
+            phrase(declaration, value, &words(declaration, value)),
+        )
+    };
+    for (locale, locale_labels) in labels.into_iter().flat_map(Labels::iter) {
+        let Some(localised) = localised(declaration, value, view, locale_labels) else {
+            continue;
+        };
+        if view == View::Holder {
+            entry.labels.insert(locale.clone(), localised.label);
+        }
+        if let Some(text) = localised.text {
+            entry.texts.insert(locale.clone(), text);
+        }
     }
-    Some(shell(
-        Some(value.clone()),
-        phrase(declaration, value, &words(declaration, value)),
-    ))
+    Some(entry)
+}
+
+/// One entry rendered in one locale: its label, and its text when it renders one.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Localised {
+    /// The label.
+    pub label: String,
+    /// The text; `None` when the entry renders none (a false flag, an empty set, an instant).
+    pub text: Option<String>,
+}
+
+/// `declaration`'s `value` for `view` in one locale, by §5.4's rules; `None` when the locale lacks any
+/// piece the entry needs, so the entry is shown in English, whole (D-k-2). Visibility is the caller's:
+/// this renders, it does not filter.
+pub fn localised(
+    declaration: &Declaration,
+    value: &AttributeValue,
+    view: View,
+    labels: &LocaleLabels,
+) -> Option<Localised> {
+    let pieces = labels.attributes.get(&declaration.id)?;
+    let label = pieces.label.clone()?;
+    if view == View::Other && declaration.perceived_as.is_some() {
+        let words = pieces
+            .perceived_as
+            .as_ref()?
+            .get(band_of(declaration, value)?)?;
+        return Some(Localised {
+            label,
+            text: phrase_of_band(words),
+        });
+    }
+    let text = match localised_words(declaration, value, pieces, labels)? {
+        None => None,
+        Some(words) => {
+            let template = match (&declaration.kind, &pieces.phrase) {
+                (_, Some(phrase)) => phrase.as_str(),
+                // A flag's words may stand alone (the file's `flag` is the whole text); every other
+                // kind needs its phrase.
+                (Kind::Flag, None) => "{value}",
+                (_, None) => return None,
+            };
+            Some(bounded(template.replacen("{value}", &words, 1)))
+        }
+    };
+    Some(Localised { label, text })
+}
+
+/// The words of `value` in one locale: `Some(None)` when it renders no text, `None` when a word is
+/// missing. Never a slug default: a missing word is missing.
+fn localised_words(
+    declaration: &Declaration,
+    value: &AttributeValue,
+    pieces: &AttributeLabels,
+    labels: &LocaleLabels,
+) -> Option<Option<String>> {
+    Some(Some(match value {
+        AttributeValue::Category(slug) => pieces.words.get(slug)?.clone(),
+        AttributeValue::Level(level) => pieces.words.get(&level.slug)?.clone(),
+        AttributeValue::Quantity(quantity) => quantity.to_string(),
+        AttributeValue::Flag(true) => pieces.flag.clone()?,
+        AttributeValue::Flag(false) | AttributeValue::Instant(_) => return Some(None),
+        AttributeValue::Set(members) => {
+            let ordered = declaration
+                .kind
+                .values()
+                .unwrap_or_default()
+                .iter()
+                .filter(|value| members.contains(*value))
+                .map(|slug| pieces.words.get(slug).cloned())
+                .collect::<Option<Vec<String>>>()?;
+            match ordered.as_slice() {
+                [] => return Some(None),
+                [one] => one.clone(),
+                [rest @ .., last] => format!(
+                    "{}{}{last}",
+                    rest.join(labels.words.list.as_str()),
+                    labels.words.and.as_str()
+                ),
+            }
+        }
+        AttributeValue::Text(text) if text.as_str().is_empty() => return Some(None),
+        // Authored text is world content, shown as written (F-S30k-7).
+        AttributeValue::Text(text) => text.as_str().to_owned(),
+    }))
 }
 
 /// A band's words, as its whole text.
@@ -205,21 +332,28 @@ fn phrase_of_band(words: &str) -> Option<String> {
 
 /// The disclosure of `owner`'s attributes for `view`: each declaration `owner` owns, in rank order,
 /// with the value `value_of` gives it (stored, derived or projected), through the one filter and
-/// renderer. `None` when nothing is disclosable.
+/// renderer, in English and every locale `labels` offers. `None` when nothing is disclosable.
 pub fn disclose(
     catalogue: &Catalogue,
     owner: &SystemId,
     value_of: impl Fn(&Declaration) -> Option<AttributeValue>,
     view: View,
+    labels: Option<&Labels>,
 ) -> Option<Block> {
     let mut entries: Vec<Entry> = catalogue
         .attributes()
         .filter(|declaration| declaration.owner == *owner)
-        .filter_map(|declaration| entry(declaration, &value_of(declaration)?, view))
+        .filter_map(|declaration| entry(declaration, &value_of(declaration)?, view, labels))
         .collect();
     entries.sort_by(rank_order);
+    let words = labels
+        .into_iter()
+        .flat_map(Labels::iter)
+        .map(|(locale, labels)| (locale.clone(), labels.words.for_readers()))
+        .collect();
     (!entries.is_empty()).then_some(Block {
         schema: SCHEMA,
+        words,
         entries,
     })
 }

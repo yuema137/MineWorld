@@ -74,6 +74,7 @@ fn texts(view: View) -> Vec<(String, Option<String>, bool)> {
         &crate::ATTRIBUTES,
         |declaration| values(declaration.id.as_str()),
         view,
+        None,
     )
     .expect("something to disclose")
     .entries
@@ -163,7 +164,7 @@ attributes:
     phrase: \"born {value}\"
 ";
 
-/// M-f-3's test: schema 2 carries label, sorted facets and rank, and orders entries by
+/// M-f-3's test: schema 2 (now 3) carries label, sorted facets and rank, and orders entries by
 /// `(rank, attribute)` with an absent rank last; an instant renders no text (Q-S30f-4).
 #[test]
 fn schema_two_entries_carry_label_facets_and_rank_in_rank_order() {
@@ -181,9 +182,11 @@ fn schema_two_entries_carry_label_facets_and_rank_in_rank_order() {
             })
         },
         View::Holder,
+        None,
     )
     .expect("a block");
-    assert_eq!(block.schema, 2);
+    assert_eq!(block.schema, 3);
+    assert!(block.words.is_empty(), "no locale offered, no words");
     let order: Vec<&str> = block
         .entries
         .iter()
@@ -239,6 +242,142 @@ fn a_quantity_of_one_unit_takes_its_singular_phrase() {
     assert_eq!(rendered(1).as_deref(), Some("1 child"));
     assert_eq!(rendered(0).as_deref(), Some("0 children"));
     assert_eq!(rendered(2).as_deref(), Some("2 children"));
+}
+
+/// A test-only `fr` label pack for [`FIXTURE`]: `languages` lacks the word for `tagalog`.
+const FR: &str = "format: 1
+locale: fr
+words: { list: \", \", and: \" et \", join: \", \", more: \" …\", pair: \" : \", \"yes\": oui, \"no\": non }
+labels:
+  town.stature: { label: Taille, phrase: \"mesure {value} m\", perceived_as: [petit, de taille moyenne, grand] }
+  town.chronotype: { label: Chronotype, phrase: \"{value}\", words: { early-bird: lève-tôt, neutral: neutre, night-owl: couche-tard } }
+  town.languages: { label: Langues, phrase: \"parle {value}\", words: { english: anglais, spanish: espagnol } }
+  town.glasses: { label: Lunettes, flag: porte des lunettes }
+";
+
+fn fr_labels(catalogue: &Catalogue) -> Labels {
+    let origin = mineworld_authoring::DataOrigin {
+        pack: "town".to_owned(),
+        source: DataSource::World,
+        directory: mineworld_authoring::DataDirectory::from_static("labels"),
+        path: std::path::PathBuf::from("labels/fr.yaml"),
+    };
+    let file = serde_saphyr::from_str(FR).expect("decodes");
+    Labels::build(vec![(origin, file)], catalogue).expect("builds")
+}
+
+/// `(attribute, English text, fr label, fr text)` of each entry `view` is disclosed.
+type Localised4 = (String, Option<String>, Option<String>, Option<String>);
+
+fn localised_texts(view: View, value_of: fn(&str) -> Option<AttributeValue>) -> Vec<Localised4> {
+    let catalogue = catalogue();
+    let labels = fr_labels(&catalogue);
+    let fr = Locale::canonical("fr").expect("a locale");
+    let block = disclose(
+        &catalogue,
+        &crate::ATTRIBUTES,
+        |declaration| value_of(declaration.id.as_str()),
+        view,
+        Some(&labels),
+    )
+    .expect("a block");
+    assert_eq!(
+        block.words.keys().map(Locale::as_str).collect::<Vec<_>>(),
+        ["fr"],
+        "the block carries the offered locale's reader words"
+    );
+    block
+        .entries
+        .into_iter()
+        .map(|entry| {
+            (
+                entry.attribute.to_string(),
+                entry.text,
+                entry.labels.get(&fr).cloned(),
+                entry.texts.get(&fr).cloned(),
+            )
+        })
+        .collect()
+}
+
+/// §5.4 per kind, M-k-2 and M-k-3's test (goldens by hand): a level and a band take the locale's
+/// words; a quantity keeps its digits in the locale's phrase; a set missing one member's word is not
+/// localised at all (never a slug, never half French); a label reaches the holder's view only; English
+/// is unchanged.
+#[test]
+fn every_offered_locale_is_rendered_whole_or_not_at_all() {
+    let some = |text: &str| Some(text.to_owned());
+    assert_eq!(
+        localised_texts(View::Holder, values),
+        [
+            (
+                "town.chronotype".to_owned(),
+                some("early bird"),
+                some("Chronotype"),
+                some("lève-tôt")
+            ),
+            ("town.glasses".to_owned(), None, some("Lunettes"), None),
+            (
+                "town.languages".to_owned(),
+                some("speaks English, Spanish and Tagalog"),
+                None,
+                None
+            ),
+            (
+                "town.stature".to_owned(),
+                some("1.660 m tall"),
+                some("Taille"),
+                some("mesure 1.660 m")
+            ),
+        ]
+    );
+    assert_eq!(
+        localised_texts(View::Other, values),
+        [
+            ("town.glasses".to_owned(), None, None, None),
+            (
+                "town.languages".to_owned(),
+                some("speaks English, Spanish and Tagalog"),
+                None,
+                None
+            ),
+            (
+                "town.stature".to_owned(),
+                some("of average height"),
+                None,
+                some("de taille moyenne")
+            ),
+        ]
+    );
+    // a set whose every member has its word joins with the locale's own `list` and `and`; a true
+    // flag takes the locale's `flag` words
+    let others = |id: &str| -> Option<AttributeValue> {
+        let slug = |text: &str| ValueSlug::new(text).expect("a slug");
+        match id {
+            "town.languages" => Some(AttributeValue::Set(
+                [slug("english"), slug("spanish")].into(),
+            )),
+            "town.glasses" => Some(AttributeValue::Flag(true)),
+            _ => None,
+        }
+    };
+    assert_eq!(
+        localised_texts(View::Other, others),
+        [
+            (
+                "town.glasses".to_owned(),
+                some("wears glasses"),
+                None,
+                some("porte des lunettes")
+            ),
+            (
+                "town.languages".to_owned(),
+                some("speaks English and Spanish"),
+                None,
+                some("parle anglais et espagnol")
+            ),
+        ]
+    );
 }
 
 /// A one-unit phrase is for a quantity only: a flag declaring one is refused at the catalogue.
