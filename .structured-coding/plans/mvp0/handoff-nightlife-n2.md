@@ -21,3 +21,22 @@ Contract:            pr-nightlife-contract.md "Contract N2"; endpoint = PR READY
 ## Next action
 
 See the ledger (`pr-nightlife.md` §12) for the current checkpoint.
+
+## C4 audit notes (2026-11-28, on 9b0503ee) — start here
+
+- Shared module: `clients/shared/host/host_clock.gd` (MineWorldHostClock, the only HTTP sender; token from
+  `MINEWORLD_ADMIN_TOKEN`, `transport` seam for checks) and `world_tab.gd`. Plan: a sibling `advance.gd`
+  (`MineWorldAdvance`): `start(seat)` generates a 32-hex id (`Crypto.generate_random_bytes(16).hex_encode()`),
+  `POST /admin/advance {operation, seat, until: "sleep"}`, polls `GET /admin/advance/{op}` while running,
+  `cancel()` → `.../cancel`, `on_reconnected()` polls by id and never resubmits; refusal codes →
+  `ui.night.unavailable.<code>`; no token → `ui.night.no_admin`. Extend `checks/host_check.gd` with a scripted
+  transport. HOST.md §3.2 "a solo world fast-forwarding in S21" → the N2 operation (§0 of the design).
+- 2D: `clients/2d/scripts/app.gd::_on_resolved` (accepted `sleep-until` → `advance.start(options.seat)`);
+  asleep panel built in `hud/readers.gd::_panel` (`button` = Wake up…) and drawn in `hud/panels.gd::_box` —
+  add a "Stop fast-forward" button and a progress row from `clock` frames only; `host_clock` made at app.gd:325.
+- 3D: `scripts/slice/slice_clock.gd` owns the host clock; `needs_hud.gd::_show_asleep` shows the wake hint;
+  `offer_menu.gd` is where a `sleep-until` offer would be chosen — audit whether the 3D self menu offers it.
+- Locale keys go to `clients/shared/settings/locale/{messages.pot,en.po,zh_Hans.po}` (checked by
+  `tools/cli` `client_text.rs`).
+- The server's `advance_in_progress` refusal and `/admin/advance` contract: `server/PROTOCOL.md` §11.4.
+- Gate2: heavy slot only (`cast-slots/with-slot.sh`), ≤ 10 min per run, ≤ 60 min total.
