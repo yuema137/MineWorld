@@ -4,6 +4,9 @@ extends CanvasLayer
 
 const NODE_NAME := "MineWorldLoading"
 ## Process frames without a draw after which the window counts as not drawing (`drawn`).
+## Valid only while drawing runs on the main thread (the default thread model; no project sets another):
+## the draw then ends before the next process frame. Revisit this limit if rendering moves to a
+## separate thread, where a draw can trail its process frame by more than one iteration.
 const UNDRAWN_FRAMES := 3
 var _stage: Label
 var _elapsed: Label

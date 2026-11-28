@@ -161,3 +161,23 @@ investigation stays open as its own follow-up.
   - **Not run:** a visible-window warm run that proves the drawn path is unchanged (no controllable visible
     window in this session). Its logic is the same: the first process frame after a drawn iteration sees the
     flag.
+- **Red-team follow-ups** (`_reviews/pr560.md`; evidence in `target/occl/`, builds `fix` = this branch 2D+3D and
+  `mutant` = this branch with `UNDRAWN_FRAMES := 1000000000`, exported, then reverted; `git diff` clean
+  afterwards).
+  - **Visible warm window, 2D.** `act2d-visible-1/2` (app activated with `open`, `--always-on-top`) and
+    `fix2d-visible-1` logged `loading UI drawn` and `client scene visible`, with no "window not drawing",
+    scene visible in 0.8–1.6 s → **PASS (3/3 drawn runs)**. `fix2d-visible-2` lost drawability and logged
+    it, then `client scene ready (window not drawing)`.
+  - **Visible warm window, 3D: INCONCLUSIVE.** In all 4 runs (`act3d-visible-1/2`, `fix3d-visible-1/2`, with
+    `--fullscreen` or activation plus on-top), the window drew `loading UI drawn` and then stopped drawing at
+    the stage after `_decor()`. The mutant under the same conditions waited there more than 113 s
+    (`mutant3d-ontop-2`), so these are real no-draw periods, not the bound firing early. The session's
+    display was held by a full-screen Zoom call (`pmset -g assertions`: zoom.us NoDisplaySleepAssertion). A
+    3D window that stays visible could not be produced here. The run is still needed with the operator's
+    screen free.
+  - **Planted mutation (limit never gives up).** `mutant3d-ontop-2`: no first view in 120 s, stalled at
+    "Preparing lighting". `mutant3d-ontop-1`: 48.6 s. `mutant3d-covered`: 66.7 s, of which 36 s was spent
+    waiting at the join stage. Under the same conditions the fixed build reached first view in 12–50 s every
+    time → the evidence detects the regression → **PASS**.
+  - **Render-thread caveat.** `UNDRAWN_FRAMES` is documented in `loading.gd` and `LOADING.md` as valid only
+    while drawing runs on the main thread; revisit it if rendering moves to a separate thread.
