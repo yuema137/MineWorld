@@ -31,7 +31,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use headless::{Tables, fresh, mineworld, stderr, stdout};
-use market::{Ledger, MARKET_TOWN, MarketFact, Town, market_fact, run_market};
+use market::{AlwaysOpen, Ledger, MARKET_TOWN, MarketFact, Town, market_fact};
 use mineworld_contracts::{Causation, EntityId, EventEnvelope, PersonId};
 use mineworld_server::WireObservation;
 use serde_json::{Value, json};
@@ -212,12 +212,15 @@ async fn in_the_cafe(client: &mut Client, who: &str) -> WireObservation {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn alice_works_earns_buys_and_bob_sees_the_shelf_change_across_a_restart() {
+    // Buying at the hosted head (midnight of day 2) is the subject, not shop hours: the town as it
+    // was before ARC-364, every shop always open.
+    let pack = AlwaysOpen::new("milestone-c-pack");
     let town = Town::read(Path::new(MARKET_TOWN));
     let (alice, bob) = (town.person("alice"), town.person("bob"));
 
     // ── Work and pay, in a saved 2-day run. ──────────────────────────────────────────────────────
     let save = fresh("milestone-c");
-    run_market(7, 2, Some(&save));
+    market::run_pack(Path::new(pack.path()), 7, 2, Some(&save));
     let facts: Vec<EventEnvelope> = Tables::read(&save)
         .facts
         .iter()
@@ -240,7 +243,7 @@ async fn alice_works_earns_buys_and_bob_sees_the_shelf_change_across_a_restart()
         "milestone_c.rs (hosting the 2-day save)",
     );
     let saved = save.to_str().expect("path");
-    let command = ["server", MARKET_TOWN, "--save", saved];
+    let command = ["server", pack.path(), "--save", saved];
     let mut first = Server::start(&command).await;
     let instance = first.status().await["instance"].clone();
     let (mut alice_client, alice_seen, _) = seated(&first, "alice").await;

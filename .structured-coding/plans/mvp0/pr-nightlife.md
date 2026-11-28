@@ -689,7 +689,8 @@ Scope:               N1-C1, N1-C2, N1-C3 (N1-C3's packaged launcher check waits 
 | Frozen design + contract carried | `953f3331` (#537 later merged the same bytes; main merged in, no force-push) | done |
 | N1-C1 typed, persistent shop hours | `39e9b0cd` | done |
 | N1-C2 one availability judgement and disclosure | `d102ab5c` | done |
-| N1-C3 Market Town hours, scenario, ARC-364 | (this commit) | implementation, scenario, review done; AC-S35-8 + targeted CLI set pending on the final head; baselines deferred to the primary |
+| N1-C3 Market Town hours, scenario, ARC-364 | `d0381dd2` (+ merge `4807b618`) | done |
+| Hidden consumers: midnight-hosted buys, fact mirror | (this commit) | test adaptations; Godot client tests escalated (D-N1-4) |
 
 ### Independent review (red-team subagent, read-only, on the C1+C2 commits and the C3 working tree)
 
@@ -714,3 +715,45 @@ New: `hours.rs` (≈ 250 lines incl. tests, one concept); `sale.rs` +15, `haggle
 `component.rs` +20. No function over 50 lines added; no new abstraction beyond the `Hours` value type; ownership
 unchanged (economy alone); kernel, clients and controllers untouched. Existing debt `haggle.rs` > 500 noted, not grown
 materially.
+
+### Discovery D-N1-4 — hosted Market Town begins at 00:00, when every authored shop is closed
+
+```text
+Previous assumption (§2.3):
+  Closures are safe because every resident routine visits shops inside the hours.
+Audit evidence:
+  The targeted mineworld-cli run (below) failed ac5_takeover, ac7_many_players and milestone_c: each hosts
+  Market Town and has a player buy at the café right after genesis or at the 2-day head — both midnight
+  (instant 0 is local midnight, INV-TW-4). The buy offer is (correctly) refused `shop-closed`; the tests wait
+  20 s for an available buy and fail. market_town, market_settlement, milestone_c and newsstand also failed on
+  the test-side `shop-opened` mirror (`tests/market/mod.rs`), which refuses unknown fields by design.
+Corrected understanding:
+  Hosted play — tests and the packaged game — starts the town at midnight, so a player cannot buy anything
+  for 5.5 world hours (≈ 27 wall minutes at scale 12). This is what Q-L1's hours mean; it was not visible in
+  the residents-only audit.
+Implementation consequence (bounded, test-only):
+  - the mirror accepts the optional `hours` field (shape check stays strict);
+  - `market::AlwaysOpen` — a scratch copy of Market Town with no `hours` lines — for the three default-run
+    tests whose subject is takeover / many players / work-earn-buy, not hours. Their assertions are unchanged.
+Not done (escalated): the Godot client acceptance tests that buy at the café in hosted Market Town at start
+  (`client_3d_market`, `client_2d_interact`, `ac13_clients`, `demo_a`; `#[ignore]`d locally, run by the client
+  lanes) will meet the same closed café. They belong to the active client lane (S34-e) and the packaged
+  first-minute experience is a product decision (start the hosted day later, give the opening scene an
+  open shop, or adapt the tests as above) — for the primary/operator.
+Validation consequence:
+  ac5_takeover 2/2, ac7_many_players 1/1, milestone_c 1/1, market_settlement 3/3 (+1 ignored), market_town 1/1,
+  newsstand 6/6 PASS after the adaptations (local).
+```
+
+### Validation record (local, macOS arm64, 2026-11-27)
+
+| Check | Head | Result |
+| --- | --- | --- |
+| `cargo test -p mineworld-economy -p mineworld-price-survey` | C2 tree | PASS (all targets) |
+| `cargo clippy -p mineworld-economy -p mineworld-cli --all-targets -D warnings`, `cargo fmt --all --check`, `mineworld reference --check` | final tree | PASS |
+| `shop_hours` 3/3 | C3 tree | PASS |
+| Targeted `mineworld-cli` (21 targets touching Market Town, `--no-fail-fast`) | 4807b618 | 5 targets FAILED (D-N1-4); after the adaptations each of the 5 re-run PASS; the other 16 PASS (Godot client targets are `#[ignore]` locally — not run) |
+| **AC-S35-8** (`needs_town::the_towns_sleep_at_night_and_eat_at_meal_times`, release, `--ignored`, 30 days × seeds 1/7/42, Market Town + Commute Town; projection ≤ 15 min, actual 924 s wall incl. slot wait and release build, 67 s test) | 4807b618 | **PASS** every row. Market Town: asleep 03:00 1000 ‰ (all seeds); 14:00 0 ‰; sleep 7.45 / 7.43 / 7.47 h; TV(food, ATUS) 275 / 275 / 273 ‰; longest famished 15.8 / 5.8 / 7.0 h. Later commits are test-only, so the measurement stands for the final head's behaviour |
+| `scripts/baselines.txt [world market-town]` re-record | — | NOT DONE — deferred to the primary (dispatch rule); every Market Town key moves (genesis `shop-opened` bytes) |
+| Packaged launcher night check (Gate2) | — | INCONCLUSIVE — prerequisite P1 |
+| CI `fast` | 4807b618 | PASS (run 46081089009); re-run on the final head below |

@@ -29,6 +29,57 @@ use crate::headless::{mineworld, stderr, stdout};
 /// The repository's Market Town.
 pub const MARKET_TOWN: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../worlds/market-town");
 
+/// A scratch copy of Market Town whose shops author no `hours` (`ARC-364`): always open, as every
+/// shop was before N1. For a hosted test whose subject is not shop hours but which buys right after
+/// genesis — instant 0 is midnight, when the authored town's shops are closed. Removed when dropped.
+pub struct AlwaysOpen {
+    _scratch: crate::headless::Scratch,
+    path: String,
+}
+
+impl AlwaysOpen {
+    /// The copy, its directory named `market-town` (a pack's id is its directory name).
+    pub fn new(name: &str) -> Self {
+        let scratch = mineworld_test_support::scratch!(empty name);
+        let root = scratch.path().join("market-town");
+        copy_tree(Path::new(MARKET_TOWN), &root);
+        for entry in std::fs::read_dir(root.join("organizations")).expect("organizations/") {
+            let file = entry.expect("an entry").path();
+            let text = std::fs::read_to_string(&file).expect("readable");
+            let kept: String = text
+                .lines()
+                .filter(|line| !line.trim_start().starts_with("hours:"))
+                .map(|line| format!("{line}\n"))
+                .collect();
+            std::fs::write(&file, kept).expect("writable");
+        }
+        let path = root.to_str().expect("a printable path").to_owned();
+        Self {
+            _scratch: scratch,
+            path,
+        }
+    }
+
+    /// The pack's directory.
+    pub fn path(&self) -> &str {
+        &self.path
+    }
+}
+
+/// A copy of `from` at `to`, every file.
+pub fn copy_tree(from: &Path, to: &Path) {
+    std::fs::create_dir_all(to).expect("a directory");
+    for entry in std::fs::read_dir(from).expect("readable") {
+        let entry = entry.expect("an entry");
+        let target = to.join(entry.file_name());
+        if entry.file_type().expect("a type").is_dir() {
+            copy_tree(&entry.path(), &target);
+        } else {
+            std::fs::copy(entry.path(), &target).expect("copied");
+        }
+    }
+}
+
 /// A person carries at most this many items, every kind together: inventory's rule, as a literal
 /// (`ARC-37` item 5), so a change to the rule is caught here rather than followed.
 pub const PERSON_CAPACITY: u32 = 6;
@@ -350,7 +401,13 @@ pub fn market_fact(fact: &EventEnvelope) -> Option<MarketFact> {
             }
         }
         "shop-opened" => {
-            let map = exactly(&value, &what, &["place", "operator", "keepers"]);
+            // `hours` is optional and additive (ARC-364): present exactly when the shop authors them.
+            let fields: &[&str] = if value.get("hours").is_some() {
+                &["place", "operator", "keepers", "hours"]
+            } else {
+                &["place", "operator", "keepers"]
+            };
+            let map = exactly(&value, &what, fields);
             let keepers = map["keepers"]
                 .as_array()
                 .expect("keepers is a list")

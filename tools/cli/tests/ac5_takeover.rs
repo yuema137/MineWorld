@@ -21,7 +21,7 @@ use std::collections::BTreeSet;
 use std::path::Path;
 use std::time::Duration;
 
-use market::{MARKET_TOWN, Town};
+use market::{AlwaysOpen, MARKET_TOWN, Town};
 use mineworld_server::{ClosingReason, ServerFrame, TookOver};
 use serde_json::{Value, json};
 use support::{Client, SaveDir, Server, join_frame, run_command, talk};
@@ -194,6 +194,8 @@ fn own_components(observation: &mineworld_server::WireObservation) -> Vec<(Strin
 
 #[tokio::test]
 async fn a_player_takes_alice_from_her_controller_and_she_is_the_same_person() {
+    // Buying is a step here, not the subject: the café must sell at midnight, as before shop hours.
+    let pack = AlwaysOpen::new("ac5-takeover-pack");
     fixture::assert_quiet_in(
         &Path::new(MARKET_TOWN).join("people"),
         0,
@@ -205,7 +207,7 @@ async fn a_player_takes_alice_from_her_controller_and_she_is_the_same_person() {
     let save = SaveDir::new("ac5-takeover");
     let command = [
         "server",
-        MARKET_TOWN,
+        pack.path(),
         "--agent",
         "alice",
         "--save",
