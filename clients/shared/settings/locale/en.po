@@ -1045,3 +1045,30 @@ msgstr "Say to {target}:"
 
 msgid "ui.input.hint"
 msgstr "Enter sends  ·  Esc cancels"
+
+msgid "loading.quit"
+msgstr "Quit (Esc)"
+
+msgid "loading.layout"
+msgstr "Reading world layout..."
+
+msgid "loading.world"
+msgstr "Building the world..."
+
+msgid "loading.people"
+msgstr "Preparing people..."
+
+msgid "loading.light"
+msgstr "Preparing lighting..."
+
+msgid "loading.player"
+msgstr "Preparing your character..."
+
+msgid "loading.graphics"
+msgstr "Preparing graphics... (the first launch can take a few minutes)"
+
+msgid "loading.connecting"
+msgstr "Joining the world..."
+
+msgid "loading.ready"
+msgstr "Drawing the world..."

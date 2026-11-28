@@ -14,6 +14,9 @@ extends Node
 ## `[runtime] FAIL <what>` and quits with status 2. The client's own arguments pass through untouched; the
 ## clients ignore `--client=`.
 
+const Loading = preload("res://mineworld_loading/loading.gd")
+var loading: CanvasLayer
+
 const APPLIERS := "res://runtime/appliers.json"
 const STRETCH_MODES := {"disabled": Window.CONTENT_SCALE_MODE_DISABLED,
 	"canvas_items": Window.CONTENT_SCALE_MODE_CANVAS_ITEMS, "viewport": Window.CONTENT_SCALE_MODE_VIEWPORT}
@@ -23,6 +26,9 @@ const STRETCH_ASPECTS := {"ignore": Window.CONTENT_SCALE_ASPECT_IGNORE,
 
 
 func _ready() -> void:
+	loading = await Loading.open(get_tree())
+	loading.show_stage("Opening client pack...")
+	await loading.drawn()
 	var key := ""
 	var root := ""
 	for a in OS.get_cmdline_user_args():
@@ -57,7 +63,34 @@ func _ready() -> void:
 		call("_" + str(run_time[setting]), settings[setting])
 	print("[runtime] client %s: %s mounted, %d setting(s) applied, starting %s"
 		% [key, pack, settings.size(), scene])
-	get_tree().change_scene_to_file.call_deferred(scene)
+	_load_scene(scene, key)
+
+
+func _load_scene(path: String, key: String) -> void:
+	loading.show_stage("Loading scene resources...")
+	await loading.drawn()
+	if ResourceLoader.load_threaded_request(path, "PackedScene") != OK:
+		_fail("cannot request scene %s" % path)
+		return
+	while true:
+		var progress := []
+		var status := ResourceLoader.load_threaded_get_status(path, progress)
+		if status == ResourceLoader.THREAD_LOAD_LOADED:
+			break
+		if status != ResourceLoader.THREAD_LOAD_IN_PROGRESS:
+			_fail("cannot load scene %s" % path)
+			return
+		if not progress.is_empty():
+			loading.resource_progress(float(progress[0]))
+		await get_tree().process_frame
+	var scene := ResourceLoader.load_threaded_get(path) as PackedScene
+	loading.show_stage("Preparing scene...")
+	await loading.drawn()
+	if key != "3d":
+		get_tree().scene_changed.connect(loading.finish, CONNECT_ONE_SHOT)
+	if scene == null or get_tree().change_scene_to_packed(scene) != OK:
+		_fail("cannot start scene %s" % path)
+		return
 
 
 ## `BUNDLE.toml`'s `key = "value"` lines (the file is the packager's and holds nothing else).
@@ -73,6 +106,8 @@ static func read_bundle(path: String) -> Dictionary:
 
 func _fail(why: String) -> void:
 	printerr("[runtime] FAIL ", why)
+	loading.show_stage("Could not start MineWorld: " + why)
+	await loading.drawn()
 	get_tree().quit(2)
 
 
