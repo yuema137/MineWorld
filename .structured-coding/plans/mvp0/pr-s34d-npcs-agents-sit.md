@@ -409,7 +409,33 @@ ruled measurement, `posture_life -- --include-ignored` (8 passed, 598 s):
 | AC-d-4 motivated seen seated ≥ 50 % | **FAIL** — 0 of 300 samples; the motivated model now sits (84-88 spells per 30 days, median 7 consults) but none of those spells covers a whole hour 09:00-18:00. Reported, not tuned; stays printed as ESCALATED |
 
 The Social Café 30-day decisions golden and `docs/reference` re-captured again (`sit accepted 732`, `stand`
-none). The Social Café and Market Town long-run baselines are re-recorded from the ruled head (below).
+none). The Social Café and Market Town long-run baselines in this branch are from the pre-ruling head and are
+stale: they are re-recorded once the storage question below is settled.
+
+#### Storage finding (coordinator request 2026-11-27): ASRB-1 over budget with #557; cannot fit inside the frozen design
+
+Verified locally on a throwaway merge of this head (18f389d5) with `origin/fix/give-way-nudge-routable` (#557,
+fe0468fe) and main (a8a74659): `cargo test -p mineworld-cli --test market_town` — Erin no longer idles, ASRB-3
+30-day save 22.7 MiB (bound 48), **ASRB-1 300-day save 96.8 MiB (101 449 728 B) over the 96 MiB bound**,
+ASRB-2 0.274 MiB/day (bound 0.28).
+
+Which facts add the bytes (market-town seed 7, 300 days, base 7718d952 vs the ruled head, `run` summary):
+facts 1 527 856 → 1 623 248 (+95 392, +6.2 %): `arrived` +62 802, `walk-step` requests +53 476, `stopped-short`
++17 518, `walk-to`/`walk-started`/`walk-ended` +8 386 each, `person-entered-place` +6 026, `gave-way` +4 896,
+`sit`/`sat-down`/`stood-up` +5 066 each. Posture's own facts are ~10 % of the growth; the rest is walking and
+being stopped short by seated (anchored) people. A seated, staying person's held consult records nothing.
+
+Two experiments, not committed (each a full 300-day release save, same merge):
+- skip a seat that another person's disclosed `posture-state` names (an occupancy inference, against
+  I-S34-4): 101 056 512 B = 96.4 MiB (−0.38 MiB);
+- seek only seats within 5 m (changes SD-d-3 step 2): 100 917 248 B = 96.2 MiB (−0.51 MiB); `walk-to`
+  barely moves (116 278 → 115 526), so seat-seeking walks are not the main cost.
+
+No fact this PR emits restates state; the repeated `stopped-short` of walkers blocked by a sitter (S34-b
+Q-S34b-3: stopped short, not routed around) is the visible redundancy, and it is bodies/movement's. It cannot
+fit 96 MiB without changing a frozen contract. Options for the operator: (a) ASRB-1 to 98 MiB (+2 %); (b)
+movement/bodies record a blocked walker's `stopped-short` once per walk rather than per stride (bodies' fact,
+not S34-d1's; size unmeasured); (c) route walkers around a sitter (revises S34-b Q-S34b-3).
 
 #### C5 — Docs
 - [ ] Implementation: dated notes on `ARC-147` (NPCs sit through a rest band; why no stillness gate) and on
