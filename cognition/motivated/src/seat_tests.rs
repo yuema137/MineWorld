@@ -209,3 +209,28 @@ fn without_posture_no_seat_option_appears() {
         "{listed:?}"
     );
 }
+
+#[test]
+fn a_seated_person_where_the_day_keeps_them_may_stay_seated_and_seeks_no_seat() {
+    // Q-S34d1-2, ruled 2026-11-27: `stay-seated`, weighted like `sit`.
+    let observation = cafe_with(&[("p.mine", 0, 0), ("p.other", 3_000, 0)], Vec::new());
+    let mut entities = observation.entities().to_vec();
+    let me = entities.pop().expect("me").with_components(vec![record(
+        ME,
+        "posture-state",
+        json!({ "seated": { "place": CAFE.to_string(), "point": "p.mine", "since": 0 } }),
+    )]);
+    entities.push(me);
+    let seated = Observation::new(id(ME), WorldTime::from_seconds(NOON))
+        .at_location(*observation.self_location().expect("here"))
+        .perceiving(entities)
+        .offering(observation.affordances().to_vec());
+    let listed = choices(&Settings::defaults(), &seated);
+    assert!(listed.contains(&Choice::StaySeated), "{listed:?}");
+    assert!(
+        !listed
+            .iter()
+            .any(|choice| matches!(choice, Choice::SeekSeat(_) | Choice::Sit(_))),
+        "{listed:?}"
+    );
+}

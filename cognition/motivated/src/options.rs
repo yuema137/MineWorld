@@ -76,6 +76,8 @@ pub enum Choice {
     Sit(usize),
     /// Walk to this free seat of my place, out of reach or out of offer range (S34-d1 SD-d-4).
     SeekSeat(Seat),
+    /// Seated where my day keeps me: stay seated; submits nothing (Q-S34d1-2, ruled 2026-11-27).
+    StaySeated,
 }
 
 /// A punctual next part of my day I am not at yet, and how urgent setting out for it is (§0.4).
@@ -398,6 +400,9 @@ pub fn choices(context: &Context<'_>) -> Vec<Choice> {
     // Where my day keeps me, `rule`'s rest rule says which seat, if any: one available here, else the
     // nearest free one to walk to; never while a commute presses. No seat disclosed and no `sit` offered,
     // nothing is added.
+    if !away_from_agenda && !pressing && rest::seated(observation) {
+        choices.push(Choice::StaySeated);
+    }
     if !away_from_agenda && !pressing {
         match rest::choose(observation) {
             Some(Rest::Sit(index)) => choices.push(Choice::Sit(index)),
@@ -475,6 +480,7 @@ pub fn request(
             affordance.request(me, encoded)
         }
         Choice::Sleep(minutes) => Some(act::request(me, &Sleep::new(*minutes))),
+        Choice::StaySeated => None,
         Choice::Sit(index) => rest::request(observation, &Rest::Sit(*index))?,
         Choice::SeekSeat(seat) => rest::request(observation, &Rest::SeekSeat(seat.clone()))?,
         Choice::Wander => {
@@ -524,6 +530,7 @@ pub const fn option_name(choice: &Choice) -> &'static str {
         Choice::Sleep(_) => "sleep",
         Choice::Sit(_) => "sit",
         Choice::SeekSeat(_) => "seek-seat",
+        Choice::StaySeated => "stay-seated",
     }
 }
 
@@ -545,5 +552,7 @@ pub fn base(choice: &Choice, settings: &Settings) -> u32 {
         Choice::Sleep(_) => weights.sleep,
         Choice::Sit(_) => weights.sit,
         Choice::SeekSeat(_) => weights.seek_seat,
+        // Weighted like `sit` (Q-S34d1-2 ruling): staying on a seat is the same choice as taking one.
+        Choice::StaySeated => weights.sit,
     }
 }

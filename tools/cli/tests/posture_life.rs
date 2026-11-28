@@ -83,10 +83,9 @@ const SEEN_SEATED_AT_LEAST: usize = 50;
 /// AC-d-5: the median spell lasts at least this many consults (Q-S34d-5).
 const MEDIAN_CONSULTS_AT_LEAST: i64 = 2;
 
-/// Whether a missed threshold fails the test or is printed as escalated. AC-d-4 (the motivated model is
-/// seen seated) and AC-d-5's median spell were missed after C4 and escalated to the operator with their
-/// numbers, as the execution contract requires ("do not tune"; pr-s34d §12, §13 Q-S34d1-1 and Q-S34d1-2).
-/// Ruling on them turns each back to `Asserted` or revises it.
+/// Whether a missed threshold fails the test or is printed as escalated. After the operator's ruling of
+/// 2026-11-27 (Q-S34d1-1, Q-S34d1-2) AC-d-5's median passes and is asserted; AC-d-4 (the motivated model is
+/// seen seated) still misses after the one ruled measurement and stays escalated, not tuned (pr-s34d §13).
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Criterion {
     Asserted,
@@ -199,7 +198,7 @@ impl Measured {
         if !ledger.spells.is_empty() && ledger.median_spell() < MEDIAN_CONSULTS_AT_LEAST * self.pace
         {
             missed.push((
-                Criterion::Escalated,
+                Criterion::Asserted,
                 format!(
                     "AC-d-5: {}: median spell {} s, under {MEDIAN_CONSULTS_AT_LEAST} consults",
                     self.label,
@@ -289,7 +288,7 @@ fn holds(measured: &[(Measured, bool)]) {
         .flat_map(|(run, floor)| run.misses(*floor))
         .partition(|(criterion, _)| *criterion == Criterion::Escalated);
     for (_, line) in &escalated {
-        eprintln!("ESCALATED (S34-d1 §13, Q-S34d1-1/2): {line}");
+        eprintln!("ESCALATED (S34-d1 §13, Q-S34d1-2): {line}");
     }
     let missed: Vec<String> = missed.into_iter().map(|(_, line)| line).collect();
     assert!(missed.is_empty(), "{}", missed.join("\n"));

@@ -247,10 +247,10 @@ impl Settings {
                 commute: 1_000,
                 penalize: 600,
                 sleep: 1_000,
-                // Sitting is a way of staying, so it weighs as `stay`; a seat out of reach is a short walk,
-                // so it weighs as `wander` (S34-d1 SD-d-4).
-                sit: 300,
-                seek_seat: 250,
+                // Set once by the operator's ruling of 2026-11-27 on Q-S34d1-2 ("坐姿按推荐"): `sit` as
+                // `sleep`, `seek-seat` above `approach`; `stay-seated` weighs as `sit`. Not tuned after.
+                sit: 1_000,
+                seek_seat: 400,
             },
             roles: Roles {
                 home: tags(&["residential"]),

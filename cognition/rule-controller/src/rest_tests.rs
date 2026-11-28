@@ -243,3 +243,40 @@ fn the_offered_band_never_draws_sit_or_stand() {
         }
     }
 }
+
+#[test]
+fn seated_and_staying_holds_the_consult_on_the_same_draw_and_seeks_no_seat() {
+    // Q-S34d1-1, ruled 2026-11-27: disclosed seated, standing offers none, every seat reads "not offered".
+    let mut seated = view(
+        &[Point("mine", 0, 0), Point("other", 3_000, 0)],
+        Vec::new(),
+        false,
+    );
+    let me = PerceivedEntity::new(id(ME), EntityType::Person)
+        .at(Location::in_place(hall()).with_local(at(0, 0)))
+        .with_components(vec![record(
+            ME,
+            rest::POSTURE_STATE,
+            json!({ "seated": { "place": HALL.to_string(), "point": "mine", "since": 0 } }),
+        )]);
+    let place = seated.entities()[0].clone();
+    seated = Observation::new(id(ME), WorldTime::from_seconds(NOW))
+        .at_location(Location::in_place(hall()).with_local(at(0, 0)))
+        .perceiving(vec![place, me])
+        .offering(seated.affordances().to_vec());
+    assert_eq!(rest::choose(&seated), None, "a seated person seeks no seat");
+    let decided = decisions(&seated);
+    assert!(
+        decided.iter().flatten().all(Option::is_none),
+        "staying submits nothing"
+    );
+    let held = decided.iter().filter(|decision| decision.is_some()).count();
+    assert!(
+        (16..=48).contains(&held),
+        "an even chance over {SEEDS} seeds, {held} held"
+    );
+    // Not staying (away from my day): the band leaves the consult to the other bands.
+    for seed in 0..SEEDS {
+        assert_eq!(rest::band(&seated, &Draw::new(seed, &seated), false), None);
+    }
+}

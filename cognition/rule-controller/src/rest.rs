@@ -19,8 +19,9 @@
 //! both on draw REST_DRAW below SITS_BELOW
 //! ```
 //!
-//! It never decides `stand`: a seated person gets up by setting off somewhere through another band, which
-//! posture turns into `stood-up { moved }` (Q-S34-4). `sit` and `stand` are decided by name
+//! Seated and staying, it holds the consult on the same draw (Q-S34d1-1, ruled 2026-11-27), so a spell lasts
+//! about two consults. It never decides `stand`: a seated person gets up by setting off somewhere through
+//! another band, which posture turns into `stood-up { moved }` (Q-S34-4). `sit` and `stand` are decided by name
 //! (`paced.rs` `DECIDED_BY_NAME`), so the offered band never draws them (`ARC-151`) — that alone ends the
 //! chance `stand` people bobbed on (F-d-2).
 //!
@@ -49,6 +50,9 @@ pub const STAND: &str = "stand";
 
 /// The component type posture discloses a place's sit points on, by its slug.
 pub const SIT_POINTS: &str = "sit-points";
+
+/// The component type posture discloses a seated person's row on, by its slug.
+pub const POSTURE_STATE: &str = "posture-state";
 
 /// Out of 100, at a consult where this band could act: how often the person sits, or sets off for a free
 /// seat. An even chance, so a person staying near a free seat sits within two consults on average. A
@@ -162,12 +166,25 @@ pub fn seat_to_seek(observation: &Observation<Value>) -> Option<Seat> {
 /// The rest rule's choice at this observation, before any draw: an available sit, else a free seat to walk
 /// to; nothing when I am walking or the world offers no seat.
 pub fn choose(observation: &Observation<Value>) -> Option<Rest> {
-    if walks(observation) {
+    // Seated, posture offers no `sit`: every disclosed seat would read "not offered", so a seated person
+    // seeks no seat (Q-S34d1-1 ruling; see `seated`).
+    if walks(observation) || seated(observation) {
         return None;
     }
     available_sit(observation)
         .map(Rest::Sit)
         .or_else(|| seat_to_seek(observation).map(Rest::SeekSeat))
+}
+
+/// Whether posture discloses me seated: my own `posture-state` record, read by slug.
+pub fn seated(observation: &Observation<Value>) -> bool {
+    observation
+        .entity(observation.observer())
+        .is_some_and(|me| {
+            me.components()
+                .iter()
+                .any(|record| record.component_type().as_str() == POSTURE_STATE)
+        })
 }
 
 /// The request a rest choice submits: the offer's own request, or a `walk-to` the seat's position.
@@ -193,6 +210,11 @@ pub(crate) fn band(
 ) -> Option<Option<ActionRequest>> {
     if !staying {
         return None;
+    }
+    // Seated and staying: stay seated on the same draw, before the walking roll (operator ruling
+    // 2026-11-27 on Q-S34d1-1, "坐姿按推荐"). No new constant, no new draw index.
+    if seated(observation) {
+        return (draw.below(100, REST_DRAW) < SITS_BELOW).then_some(None);
     }
     let rest = choose(observation)?;
     if draw.below(100, REST_DRAW) >= SITS_BELOW {

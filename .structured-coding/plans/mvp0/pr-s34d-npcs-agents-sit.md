@@ -9,8 +9,9 @@ Implementation base:    origin/main @ 0b2faf2f (#382)
 Start condition:        this design frozen (met 2026-10-27). S34-c1 is merged (#368). S34-c2 (Lakeside) is not
                         required to start: Lakeside joins every test of this PR by discovery when it lands (Q-S34d-3)
 Execution contract:     §12
-Lifecycle:              FROZEN 2026-10-27 (header reconciled 2026-11-27). S34-d1: PR #551 open, NOT READY —
-                        awaiting the operator on Q-S34d1-1 … Q-S34d1-4 (§13). S34-d2: not started
+Lifecycle:              FROZEN 2026-10-27 (header reconciled 2026-11-27). S34-d1: PR #551, Q-S34d1-1 … -4 ruled
+                        2026-11-27 and applied (§13 "Operator ruling"); AC-d-4 still FAIL after the one ruled
+                        measurement, reported, not tuned. S34-d2: not started
 ```
 
 **Dated note, 2026-10-27 (operator ruling Q-S34c3-3; SD-c3-5 in
@@ -369,6 +370,46 @@ origin/main 29401a26; `fast` CI on the same head: success, run 46085752994): 114
 
 The two runs used for this diagnosis: `_scratch/s34d1/mt150` (this head, release) and a detached base build of
 7718d952 (`_scratch/s34d1-base`, removed afterwards); logs under `/Users/yuema137/mineworld-worktrees/_scratch/s34d1/`.
+
+#### Operator ruling 2026-11-27 on Q-S34d1-1 … Q-S34d1-4, and the one ruled measurement
+
+The operator, relayed by the coordinator: **"坐姿按推荐"** (sitting: as recommended). Applied as recommended:
+
+- **Q-S34d1-1:** the smallest SD-d-3 revision — a seated person who is staying (no agenda, or at its place)
+  holds the consult on the same draw 16 below `SITS_BELOW`, before the walking roll (`rest.rs` `band`,
+  `seated` reads my own `posture-state` by slug). No new constant or draw index. A seated person also seeks no
+  seat (`choose`), which closes the gap that the "not offered" row opened for a seated observer.
+- **Q-S34d1-2:** base weights set once — `sit: 1000` (as `sleep`), `seek-seat: 400` — and a third motivated
+  option, `Choice::StaySeated` ("stay-seated"), weighted like `sit`, offered only seated where my day keeps me
+  and no commute presses. Measured once; no further tuning.
+- **Q-S34d1-3 (Erin stuck, `market_town`):** not in this PR. Owned by a separate bodies/movement fix PR the
+  coordinator dispatches; the `market_town` failure is recorded as that PR's.
+- **Q-S34d1-4 (`price_reporter`):** not in this PR. Goes to a small economy PR with F-S31d-13; the failure is
+  recorded as that PR's.
+
+Validation (local, Darwin/arm64): `cargo test -p mineworld-rule-controller -p mineworld-motivated` 95 + 56
+passed (one new test each: seated-and-staying holds the consult on 16-48 of 64 seeds and seeks no seat; a
+seated person where the day keeps them is offered `StaySeated` and no `Sit`/`SeekSeat`); clippy clean. The one
+ruled measurement, `posture_life -- --include-ignored` (8 passed, 598 s):
+
+| Run (30 days, pace 900; 5 days, pace 60) | seed 7 | seed 11 |
+| --- | --- | --- |
+| social-cafe rule 900 | 92 %; 732 spells; median 3 consults; bobbing 0 | 92 %; 745; 3; 0 |
+| social-cafe motivated 900 | 0 %; 88 spells; median 7 consults | 0 %; 84; 7 |
+| social-cafe rule 60 | 84 %; median 4; bobbing 0 | 90 %; 4; 0 |
+| market-town rule 900 | 85 %; 534; 3; 0 | 85 %; 520; 3; 0 |
+| market-town motivated 900 | 0 %; 88; 7 | 0 %; 84; 7 |
+| renamed-seats rule 900 / motivated | 88 % / 0 % (88 spells) | 87 % / 0 % (84 spells) |
+| one-seat rule 900 / motivated | 72 % / 0 % (71 spells) | 68 % / 0 % (62 spells) |
+
+| Criterion | Result after the ruling |
+| --- | --- |
+| AC-d-1, AC-d-2, AC-d-3, AC-d-5 zero bobbing, AC-d-6 | **PASS** |
+| AC-d-5 median ≥ 2 consults | **PASS** (3 at pace 900, 4 at pace 60; 7 for motivated) — asserted again |
+| AC-d-4 motivated seen seated ≥ 50 % | **FAIL** — 0 of 300 samples; the motivated model now sits (84-88 spells per 30 days, median 7 consults) but none of those spells covers a whole hour 09:00-18:00. Reported, not tuned; stays printed as ESCALATED |
+
+The Social Café 30-day decisions golden and `docs/reference` re-captured again (`sit accepted 732`, `stand`
+none). The Social Café and Market Town long-run baselines are re-recorded from the ruled head (below).
 
 #### C5 — Docs
 - [ ] Implementation: dated notes on `ARC-147` (NPCs sit through a rest band; why no stillness gate) and on

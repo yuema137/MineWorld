@@ -278,7 +278,7 @@ fn by_choice(
             list
         }
         // Sitting is a way of staying (S34-d1 SD-d-4): the same consideration as `stay`.
-        Choice::Stay | Choice::Sit(_) => {
+        Choice::Stay | Choice::Sit(_) | Choice::StaySeated => {
             let rested = if at_home { atus("rest") } else { 1_000 };
             vec![(Consideration::Rested, rested)]
         }
