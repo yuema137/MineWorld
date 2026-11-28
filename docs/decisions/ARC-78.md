@@ -65,3 +65,21 @@ shutdown remains unchanged and does not depend on the admin surface. No `--hoste
 Keep Running or `--solo` is added; both clients may coexist and closing one does not stop
 the other's world. Design/evidence: `.structured-coding/plans/mvp0/pr-launcher-living-correction.md`;
 specification: `tools/launch/LAUNCHER.md` §7.1.
+
+### Note — single-player play runs start `--solo`; Market Town by default (2026-11-27)
+
+This note supersedes the amendment's sentence "No `--hosted-here`, Keep Running or `--solo` is added" for
+single-client play runs. It changes nothing else in that amendment.
+
+- **`--solo`.** A 2D or 3D play run (one player alone) now starts the server `--solo`, the single-player
+  declaration of `ARC-69` item 5, as the source shell launchers already do. Both mode seats two players and
+  never passes it; nor does smoke. `--solo` restricts no admission. It widens what `ARC-69` item 5 grants a
+  single-player world: scales above 24×, and the sleep advance once nightlife N2's amending record lands.
+- **Scale ceiling.** The shipped World tab still offers at most 24×, and the capability reaches only the
+  launcher's own children, so the product ceiling is unchanged.
+- **Defaults.** Every mode now plays Market Town; 2D plays `visitor` instead of `carol`.
+- **Smoke.** Smoke plays a fixed fixture and no longer reads `launch.toml`.
+- **No `--hosted-here`.** Still none is passed.
+- **Approval.** The operator approved every recommendation of `pr-launcher-solo.md` (Q-LS1 … Q-LS7) on
+  2026-11-27.
+- **Specification:** `tools/launch/LAUNCHER.md` §§2, 6, 7, 7.1.

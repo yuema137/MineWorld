@@ -262,7 +262,63 @@ Escalate:              any need to change the server's --solo semantics, or a sm
 
 ## 8. Evidence and readiness
 
-None yet. This is a design-only draft.
+### Implementation — 2026-11-27, branch `fix/launcher-solo` on main `b0b46903`
+
+- **Deviation (recorded).** C1 and C2 land as one commit. `lib.rs` carries both the smoke-fixture switch and the
+  `--solo` decision, and the tests exercise them together. The checklist below still tracks them separately.
+- [x] **C1 implementation.**
+  - `config.rs`: every mode defaults to `market-town`; 2D's seat is `visitor`.
+  - `config::smoke`: pinned fixtures (2D `market-town`/`carol`; 3D and Both `social-cafe`).
+  - `lib.rs`: smoke never reads `launch.toml`.
+  - `LAUNCHER.md` §2 table, §6 carol/social-cafe opt-out, §7 steps and smoke fixture text.
+- [x] **C2 implementation.**
+  - `Hosting::Played { admin, solo }`: `solo` is true for the 2D and 3D play runs; `--solo` is added after
+    `--town`.
+  - `LAUNCHER.md` §7.1.
+  - `HOST.md` §6.1 note and the `ARC-78` dated note, both superseding #549's "no `--solo`".
+- [x] **Deterministic validation**, run locally on macOS against a real server built from this tree
+  (`_targets/launcher-solo-evidence/checks4.log`).
+  - `cargo test -p mineworld-launch`: 8 unit tests and 5 of 6 real-launch cases PASS.
+  - New case `market_town_by_default_solo_alone_and_a_carol_save_resumes_as_the_visitor`: **PASS**. It checks:
+    - a Carol-played Market Town save resumes with the player as `visitor`;
+    - Carol is `took_over: hosted`, and her own disclosed wallet and holdings are equal before and after;
+    - the world instance is unchanged and the server log shows `resumed`;
+    - 25× is accepted on 2D and 3D runs (`--solo`) and refused 409 on Both;
+    - the 25× set before the restart is not in force after it (`ARC-69` item 8).
+  - Smoke case extended: `--smoke=2d` with a `launch.toml` naming Social Café as `visitor` still drives `carol`
+    on `market-town`. **PASS**.
+  - The kill and resume cases on Market Town: **PASS**.
+  - `cargo clippy -p mineworld-launch --all-targets -D warnings`: **PASS**. `cargo fmt --check`: **PASS**.
+- **Pre-existing failure, not caused by this PR.** `played_town_and_private_clock_controls` (#549's living case)
+  **FAILS on main `b0b46903` with this PR's changes stashed**, using the same server binary.
+  - The 2D stub's talk to the display-named Bob gets no `spoke` quoting it within 40 s.
+  - The server log shows Bob talking 4 times. The save shows the residents replying to each other's lines
+    instead.
+  - It passed on `fcba4c1d` (2026-11-27 14:53), so a later main change altered that resident dialogue.
+  - The launcher's change here only pins that case's world to `social-cafe`, which was the Both default anyway.
+  - Escalated to the coordinator. It is not fixed here: it lies outside `tools/launch`.
+
+### Packaged gates — status
+
+- **N1 is merged (#552).** The packaged `--slice-market` must therefore use the positioning branch (07:30,
+  inside café hours) of C1.
+- **Pending follow-up that moves world start to 07:00** (`impl-world-begins`). If it lands, C3's
+  "genesis 00:00 → 08:00" window no longer exists. Bob would start his day in the café, and a full
+  evening → morning cycle at 24× (20:00 → 08:00 = 30 min) plus the time to reach 20:00 exceeds the 1800 s
+  budget. C3 would need re-planning (operator decision) before it runs.
+- **NOT RUN in this session:**
+  - Q-LS7: 3 interleaved warm runs per world, packaged `--slice-market`, far field, frame time.
+  - C2 packaged World tab.
+  - C3 resident-cycle run.
+- **Why not run:**
+  - The World tab and C3 need GUI input (applying 24×). No desktop-control tool is available to this session.
+  - The Q-LS7 runs are windowed 3D runs on the operator's display.
+  - The operator's 2026-11-27 ruling put 3D real runs into the milestone trial ("3D 实跑放到里程碑", given for
+    #548/#549).
+- **Decision for the coordinator/operator:**
+  - (a) keep Market Town as the 3D/Both default until the milestone measurement (the frozen default); or
+  - (b) apply the Q-LS1 fallback now, until Q-LS7 is measured.
+  - Recommendation: (a). The gates' pass conditions are unchanged and run at the milestone trial.
 
 ## 9. Red-team pre-freeze review — disposition (revision 2)
 
