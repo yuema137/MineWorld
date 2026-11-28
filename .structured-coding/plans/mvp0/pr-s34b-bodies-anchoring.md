@@ -364,3 +364,9 @@ Head `6fd6b533`, merged locally with #551 `880b86f8` (scratch merge `6fe5aa89`).
 - **AC-b-A7: PASS, with a caveat.** Market Town, 30 days, seed 7: main took 22.59 / 32.91 / 24.89 s (median 24.89 s) and this head alone 20.53 / 65.88 / 21.52 s (median 21.52 s, 86 %). The machine was shared with other sessions, so the spread is large.
 
 **Disposition.** A4 fails while A1–A3, A5 and A7 pass, so by §A1.3 this goes to the operator with the measurement. Nothing was tuned. Most remaining `stopped-short` are not at sitters: base before #551 already had about 50 700 (S34-d1 ledger, +17 518 with #551). A1 removes about a third of the stops #551 added. The rest are walkers meeting walkers or idle people, which A1 does not cover. The 300-day save fits 96 MiB on both seeds.
+
+**Operator ruling, 2026-11-28 ("接受 A1 结果").** AC-b-A4 missed its threshold: −6 038 on seed 7 and
+−4 541 on seed 8, against −8 759. The operator accepts the miss, because A1's goal is met (the 300-day
+Market Town save with #551 is under 96 MiB on both seeds) and the remaining stops are walker-to-walker.
+Avoidance between walkers becomes a follow-up, analysed in
+`/Users/yuema137/mineworld-worktrees/_planning/walker-avoidance-20261128.md`.
