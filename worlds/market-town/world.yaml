@@ -55,6 +55,10 @@ mineworld: "^0.1"
 # also independent, also appended. Leave it out with the `routine:` blocks and people still live here,
 # only without a day to keep. Every routine boundary lies between 05:00 and 23:00 — a fixture
 # dependency the restart tests check (`people/alice.yaml`).
+# The world begins at 07:00 on day 0, not at midnight (ARC-371; operator ruling 2026-11-27): a new
+# world opens on a morning, with its shops about to sell. A saved world keeps the start it was created with.
+begins: "07:00"
+
 systems:
   - presence
   - movement

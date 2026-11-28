@@ -15,7 +15,7 @@ use mineworld_presence::{Offer, Presence};
 use serde::{Deserialize, Serialize};
 
 use crate::action::person_buy_requirement;
-use crate::code::{self, NO_SUCH_PROPOSAL, PRICE_OUT_OF_RANGE};
+use crate::code::{self, NO_SUCH_PROPOSAL, PRICE_OUT_OF_RANGE, SHOP_CLOSED};
 use crate::codec;
 use crate::component::{Asks, Shop};
 use crate::event::{
@@ -25,7 +25,8 @@ use crate::money::price_in_range;
 use crate::offer::{asks_of, living_person, shop_here};
 use crate::proposal::{PROPOSAL_VALID_FOR, Proposal, ProposalId, find_open, proposals_of};
 use crate::sale::{
-    Sale, Seller, judge_exchange, judge_goods, judge_self_trade, located, resolve_seller, settle,
+    Sale, Seller, judge_exchange, judge_goods, judge_open, judge_self_trade, located,
+    resolve_seller, settle,
 };
 use crate::system::{EconomySystem, refused};
 
@@ -127,9 +128,10 @@ pub(crate) fn handles(action: &ActionTypeId) -> bool {
 // the judges (§5.5)
 // ---------------------------------------------------------------------------------------------
 
-/// `propose-price`'s judgement: [`resolve_seller`] (1–3); the price in range (4); no self-trade (5);
-/// the limits (6); funds, stock, carry and the owners' rules at the proposed price (7–9). The
-/// requirement is the caller's, after.
+/// `propose-price`'s judgement: [`resolve_seller`] (1–3); the price in range (4); a shop open now
+/// (4½, `ARC-364` — this judgement does not run [`judge_exchange`], so it asks [`judge_open`] itself);
+/// no self-trade (5); the limits (6); funds, stock, carry and the owners' rules at the proposed price
+/// (7–9). The requirement is the caller's, after.
 fn judge_proposal(
     world: &WorldRead<'_>,
     buyer: EntityId,
@@ -146,6 +148,7 @@ fn judge_proposal(
         item: propose.item,
         price: propose.price,
     };
+    judge_open(world, &sale)?;
     judge_self_trade(world, &sale)?;
     if let Some(limit) = proposals_of(world, seller.entity()).limit(buyer, propose.item, world.at())
     {
@@ -463,7 +466,10 @@ pub(crate) fn offers(
                 let operator = shop.operator().entity_id();
                 if !asks_of(world, operator).asks().is_empty() {
                     let offer = Offer::new::<ProposePrice>(crate::action::buy_requirement(place));
-                    let refusal = if shop.kept_by(observer) || operator == observer {
+                    // The dispatch's order (`judge_proposal`): closed before self-trade (N1-I3).
+                    let refusal = if !shop.open_at(world.at()) {
+                        Some(code::refusal(SHOP_CLOSED))
+                    } else if shop.kept_by(observer) || operator == observer {
                         Some(Rejection::PreconditionFailed)
                     } else {
                         full(world, operator)

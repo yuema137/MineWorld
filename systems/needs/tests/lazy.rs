@@ -43,6 +43,7 @@ fn cast(kind: Kind) -> ([&'static str; 3], [&'static str; 2]) {
     match kind {
         Kind::FlatAndCafe => (["ana", "ben", "cy"], ["soup", "apple"]),
         Kind::NightShift => (["dee", "eli", "fay"], ["stew", "bread"]),
+        Kind::FoodEnergy => (["gus", "hal", "ivy"], ["loaf", "water"]),
     }
 }
 
@@ -143,7 +144,7 @@ fn run(kind: Kind, seed: u64, days: i64) -> Seen {
     assert_eq!(count("nourishment-assigned"), 2, "{kind:?}");
     assert_eq!(
         count("needs-interactions-configured"),
-        usize::from(kind == Kind::NightShift),
+        usize::from(kind != Kind::FlatAndCafe),
         "{kind:?}"
     );
     assert!(own.iter().all(|(_, at)| *at == GENESIS), "genesis only");
@@ -158,7 +159,7 @@ fn run(kind: Kind, seed: u64, days: i64) -> Seen {
 
 #[test]
 fn needs_states_only_its_genesis_facts_over_two_days() {
-    for kind in [Kind::FlatAndCafe, Kind::NightShift] {
+    for kind in [Kind::FlatAndCafe, Kind::NightShift, Kind::FoodEnergy] {
         for seed in [7, 42] {
             let seen = run(kind, seed, 2);
             let (people, _) = cast(kind);

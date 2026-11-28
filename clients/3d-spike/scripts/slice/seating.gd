@@ -6,8 +6,9 @@
 ## depiction's `seat_offset_m` against its facing (positive: back onto a bench; negative: forward onto
 ## a chair, Q-S34c-2), facing the way the point faces, the body's own seat on the depiction's
 ## `seat_height_m` (`Human.sit_on`). The point's `at` and facing are the world's where it discloses its
-## sit points, else the depiction's fallback. Nothing here decides who sits; it names no world, place or
-## point.
+## sit points, else a depiction's optional fallback (no shipped depiction file carries one since S34-c2,
+## `ARC-172`: every shipped world with sit points discloses them). Nothing here decides who sits; it
+## names no world, place or point.
 class_name SliceSeating
 extends RefCounted
 
@@ -31,7 +32,7 @@ func observe(obs, figures: SliceFigures, layout: SliceLayout) -> Dictionary:
 		if not seated.has(id):
 			figures.unseat(id)
 			continue
-		var pose := pose_of(tags, obs.component_value(here, "sit-points"), String(seated[id]))
+		var pose := pose_of(tags, MineWorldSitRule.disclosed_of(obs), String(seated[id]))
 		if pose.is_empty():
 			figures.unseat(id)
 			continue
@@ -43,25 +44,11 @@ func observe(obs, figures: SliceFigures, layout: SliceLayout) -> Dictionary:
 
 
 ## Where a person seated at `point` is drawn: { pelvis: Vector2 (mm, the place's frame), facing (mdeg),
-## seat_height_m, prop }, or {} when the point has no depiction or no position.
+## seat_height_m, prop }, or {} when the point has no depiction or no position. The pose is the shared
+## `MineWorldSitRule.pose_of` (S34-e, I-e-2); this client draws only a depicted seat, as before.
 func pose_of(tags: PackedStringArray, disclosed: Variant, point: String) -> Dictionary:
-	var dep := rule.depiction(tags, point)
-	if dep.is_empty():
+	var pose := rule.pose_of(tags, disclosed, point)
+	if not pose.get("depicted", false):
 		return {}
-	var at: Variant = dep["at"]
-	var facing := int(dep["facing"])
-	if typeof(disclosed) == TYPE_ARRAY:
-		for p in disclosed:
-			if typeof(p) == TYPE_DICTIONARY and String(p.get("key", "")) == point:
-				at = Vector2(float(p["at"]["x"]), float(p["at"]["y"]))
-				facing = int(p.get("facing", 0))
-	if at == null:
-		return {}
-	return {"pelvis": pelvis(at, facing, float(dep["seat_offset_m"])), "facing": facing,
-		"seat_height_m": float(dep["seat_height_m"]), "prop": String(dep["prop"])}
-
-
-## `at` (mm) moved by `offset_m` against `facing_md` (millidegrees from north toward east).
-static func pelvis(at: Vector2, facing_md: int, offset_m: float) -> Vector2:
-	var yaw := deg_to_rad(float(facing_md) / 1000.0)
-	return at - Vector2(sin(yaw), cos(yaw)) * offset_m * 1000.0
+	return {"pelvis": pose["pelvis"], "facing": pose["facing"], "seat_height_m": pose["seat_height_m"],
+		"prop": pose["prop"]}

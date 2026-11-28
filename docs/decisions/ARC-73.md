@@ -39,3 +39,14 @@ per breaker trip. The fallback share is an acceptance criterion (AP6-4, AP6-14),
 
 **Revisit** when a second model seat needs a different breaker or retry shape, which becomes a registered
 policy rather than a code change, or when an idle handback (QP6-3's follow-up) is decided.
+
+**Dated note, 2026-11-27 (playable dialogue and memory, PR-A / C1): the per-consult deadline is absolute.**
+`consult_deadline_s` runs from the trigger's receipt (`Pending.offer`), as `docs/reference/cognition-toml.md`
+defines it, not from the consult's start. One expiry (`mineworld_cognition/controller/deadline.py`) bounds the
+pending wait, the wait for a first observation, the consult's preparation, the gateway's slot and backend call,
+every retry delay, the submit lock and the dispatch. A trigger already past its expiry is counted
+(`stale_triggers`) and discarded without model work; an answer that arrives at or after it is not acted on;
+the submit is checked again once the submit lock is held. Each ends `fell_back` with cause `deadline`. A submit
+sent before the expiry may be answered after it; that answer is uncertain and never sent again. The gateway
+side (the bound covers the in-flight slot; a cancelled started call is charged) is the 2026-11-27 note on
+`ARC-57`. Design: `.structured-coding/plans/mvp0/pr-playable-dialogue-memory.md` DM-20261127-3 §4 items 4 to 7.

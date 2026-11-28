@@ -73,6 +73,10 @@ func directional(role: String) -> Dictionary:
 		views[view] = sprite_by_id(id) if _sprites.has(id) else {}
 	var walk := "%s_walk" % base
 	views["walk"] = sprite_by_id(walk) if _sprites.has(walk) else {}
+	# A seated sheet (S34-e §5.4, `<base>_seated`): drawn at the pelvis when the pack binds one; else the
+	# client crops the standing frame at the hip.
+	var seated := "%s_seated" % base
+	views["seated"] = sprite_by_id(seated) if _sprites.has(seated) else {}
 	return {} if views["front"].is_empty() else views
 
 
@@ -160,7 +164,13 @@ func sprite_by_id(id: String) -> Dictionary:
 		"door": null if door == null else Vector2(float(door[0]), float(door[1])) * raster,
 		"ink": String(spec.get("ink", "none")),
 		"height_m": spec.get("height_m"),
+		# a seated sheet's seat surface, in metres (S34-e §5.4); null for every other sprite
+		"seat_height_m": spec.get("seat_height_m"),
 		"faces": String(spec.get("faces", "right")),
+		# a furnishing sprite's orientation (PRESENTATION.md §5): the plan facing its drawn front faces,
+		# in millidegrees, or null; and the sprite drawing the same piece from its other side, or ""
+		"front_md": spec.get("front_md"),
+		"reverse": String(spec.get("reverse", "")),
 		# a walk sheet's layout (PRESENTATION.md §3), or null for a single picture
 		"sheet": spec.get("sheet"),
 	}

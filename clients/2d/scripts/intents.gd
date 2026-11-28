@@ -31,6 +31,11 @@ const TRADE_INPUTS := {
 	"withdraw-proposal": {"ask": [], "row": ["outgoing"], "label": "trade.withdraw-offer"},
 }
 
+## The posture actions the walk-then-sit chain names (S34-e §5.2, `clients/shared/sitting/sit_chain.gd`): both are
+## complete offers, sent as offered; this file composes neither, and nothing reads their verdict here (R3).
+const SIT := "sit"
+const STAND := "stand"
+
 ## The one event type the client reads to draw (`scene/objects.gd`): the owner's statement that an
 ## object moved, with the path to play (`bodies`' `object-moved`, ARC-342). Named here, beside the
 ## action types, so no other script holds a world vocabulary literal.

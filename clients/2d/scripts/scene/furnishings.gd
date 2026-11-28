@@ -111,15 +111,45 @@ func _draw_place(place: String) -> void:
 			if typeof(s) == TYPE_DICTIONARY and String(s.get("furnishing", "")) == key:
 				_footprint(place, s, sprite.is_empty())
 		if not sprite.is_empty():
-			var facing := deg_to_rad(float(f.get("facing", 0)) / 1000.0)
-			var screen_dir: Vector2 = projection.plan_dir_to_screen(Vector2(sin(facing), cos(facing)))
-			var node: Node2D = sprites.make(sprite, false, screen_dir.x < 0.0)
+			var drawn := view(sprite, int(f.get("facing", 0)))
+			var node: Node2D = sprites.make(drawn[0], false, drawn[1])
 			var holder := Node2D.new()
 			holder.position = projection.to_screen(at)
 			holder.add_child(node)
 			world.add_child(holder)
 			_nodes[place].append(holder)
 		rows[place].append({"key": key, "kind": kind, "role": role, "at": at, "plain": sprite.is_empty()})
+
+
+## How a furnishing facing `facing_md` is drawn with `sprite`: [the sprite to draw, mirrored?].
+##
+## A sprite that states `front_md` (the plan facing its drawn front faces) is drawn as whichever of its
+## views faces nearest the furnishing: as drawn (front_md), mirrored (90 000 − front_md: on this
+## projection a mirror swaps the plan's x and y), and, when it names a `reverse` sprite (the piece seen
+## from its other side), that sprite as drawn (front_md + 180 000) and mirrored. So a long piece always
+## lies along its footprint, and its front is toward the facing as far as the bound views allow. A
+## sprite without `front_md` is mirrored when the facing points screen-left, as before. Presentation
+## only: it reads the disclosed facing and decides nothing about the world.
+func view(sprite: Dictionary, facing_md: int) -> Array:
+	var front: Variant = sprite.get("front_md")
+	if front == null:
+		var facing := deg_to_rad(float(facing_md) / 1000.0)
+		var screen_dir: Vector2 = projection.plan_dir_to_screen(Vector2(sin(facing), cos(facing)))
+		return [sprite, screen_dir.x < 0.0]
+	var f := int(front)
+	var options := [[sprite, false, f], [sprite, true, 90000 - f]]
+	var other: Dictionary = presentation.sprite_by_id(String(sprite.get("reverse", "")))
+	if not other.is_empty():
+		options.append([other, false, f + 180000])
+		options.append([other, true, 90000 - f - 180000])
+	var best: Array = options[0]
+	var best_gap := INF
+	for o in options:
+		var gap := absf(wrapf(float(facing_md - int(o[2])), -180000.0, 180000.0))
+		if gap < best_gap:
+			best_gap = gap
+			best = o
+	return [best[0], best[1]]
 
 
 ## The pack's role for `kind`: `furnishing.<kind>`, else each shorter `.`-prefix; "" when none is bound.

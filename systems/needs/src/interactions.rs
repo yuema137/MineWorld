@@ -9,7 +9,10 @@
 //!
 //! ```text
 //! actions      none: a need is a condition, not an action; a `rules:` entry is refused as undeclared
-//! parameters   hunger_per_hour          10 … 500,   120   rise awake
+//! parameters   hunger_model             unitless | food-energy, unitless; base only (ARC-370)
+//!              energy_kcal_per_day      1 … 100 000, 2 000   food-energy use per world day and capacity;
+//!                                       only in food-energy, where a base entry must set it
+//!              hunger_per_hour          10 … 500,   120   rise awake (unitless only)
 //!              hunger_asleep_per_hour    0 … 500,    30   rise asleep
 //!              tiredness_per_hour       10 … 500,    60   rise awake (and asleep without `sleeping`)
 //!              rest_per_hour            10 … 1 000, 125   fall asleep at level 300; in proportion to the level (Q-Nc3-5)
@@ -22,7 +25,11 @@
 //!              file and, with nothing written, for the defaults (SD-Nb-5)
 //! ```
 
-use mineworld_contracts::{ComponentTypeId, EntityId, Event, EventTypeId, SystemId};
+use mineworld_authoring::ConfigurationRefusal;
+use mineworld_contracts::{
+    ComponentSchemaVersion, ComponentTypeId, EntityId, Event, EventSchemaVersion, EventTypeId,
+    RejectionCode, SystemId,
+};
 use mineworld_kernel::WorldRead;
 use mineworld_sdk::interactions::{
     self, Audience, FactDecl, InteractionSection, ParameterBound, Position, Resolved, Role, Roles,
@@ -38,6 +45,14 @@ use crate::system::NeedsSystem;
 
 /// The system `sleeping` requires.
 pub const SLEEPING: SystemId = SystemId::from_static("sleep");
+
+/// A parameter written beside the hunger model it does not belong to (`ARC-370`).
+pub const MODEL_PARAMETER_CONFLICT: RejectionCode =
+    RejectionCode::from_static("needs-model-parameter-conflict");
+
+/// The food-energy model without a base `energy_kcal_per_day` (`ARC-370`).
+pub const DAILY_USE_REQUIRED: RejectionCode =
+    RejectionCode::from_static("needs-energy-daily-use-required");
 
 /// The three thresholds between a need's four words: `ok` below the first, then `peckish` / `sleepy`,
 /// `hungry` / `tired`, and `famished` / `exhausted` from the third.
@@ -165,9 +180,50 @@ impl ParameterBound<Restore> for ClosedRestorers {
     }
 }
 
+/// Which model hunger is in (`ARC-370`): a unitless deficit, or a kcal reserve.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, schemars::JsonSchema,
+)]
+#[serde(rename_all = "kebab-case")]
+pub enum HungerModel {
+    /// A deficit 0 … 1 000 rising at `hunger_per_hour` (`ARC-284`): today's behaviour.
+    Unitless,
+    /// A kcal reserve, full at `energy_kcal_per_day`, draining at that rate asleep and awake.
+    FoodEnergy,
+}
+
+impl core::fmt::Display for HungerModel {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str(match self {
+            Self::Unitless => "unitless",
+            Self::FoodEnergy => "food-energy",
+        })
+    }
+}
+
+/// The bound of [`HungerModel`]: either; the type already says so.
+pub struct EitherModel;
+
+impl ParameterBound<HungerModel> for EitherModel {
+    fn admits(&self, _: &HungerModel) -> bool {
+        true
+    }
+
+    fn describe(&self) -> String {
+        "unitless or food-energy".to_owned()
+    }
+}
+
 mineworld_sdk::parameters! {
     /// What a world may choose about hunger and tiredness.
     pub struct NeedsParameters, partial NeedsPartial {
+        /// Which model hunger is in: `unitless` (a deficit, the rates below) or `food-energy` (a kcal
+        /// reserve, `energy_kcal_per_day`).
+        hunger_model: HungerModel = HungerModel::Unitless, EitherModel;
+        /// Food energy used per world day (86 400 world seconds), kcal, and the reserve's capacity: 2 000
+        /// by default, the FDA Daily Value reference intake on US Nutrition Facts labels (21 CFR
+        /// 101.9(c)(9)). Only in `food-energy`, where a base entry must set it.
+        energy_kcal_per_day: u32 = 2_000, 1 ..= 100_000;
         /// How much hunger rises per hour awake: from sated to hungry (600) in 5 hours by default,
         /// the spacing of the American Time Use Survey's meal peaks.
         hunger_per_hour: u16 = 120, 10 ..= 500;
@@ -210,7 +266,11 @@ impl InteractionSection for NeedsSystem {
         biography_configurable: false,
     }];
     const PARAMETER_ROLES: &'static [Role] = PERSON;
+    const CONFIGURED_SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(2);
+    const COMPONENT_SCHEMA_VERSION: ComponentSchemaVersion = ComponentSchemaVersion::new(2);
     const FIELD_ROLES: &'static [(&'static str, &'static [Role])] = &[
+        ("hunger_model", BASE),
+        ("energy_kcal_per_day", PERSON),
         ("hunger_per_hour", PERSON),
         ("hunger_asleep_per_hour", PERSON),
         ("tiredness_per_hour", PERSON),
@@ -231,6 +291,51 @@ impl InteractionSection for NeedsSystem {
             systems.push(SLEEPING);
         }
         systems
+    }
+
+    /// The two models' parameters are exclusive (`ARC-370`): in `unitless`, `energy_kcal_per_day` is
+    /// refused wherever written; in `food-energy`, `hunger_per_hour` and `hunger_asleep_per_hour` are,
+    /// even shadowed, and a base entry must set `energy_kcal_per_day`.
+    fn validate_authored(
+        section: &Section<Self>,
+        resolved: &Resolved<Self>,
+    ) -> Result<(), ConfigurationRefusal> {
+        let model = resolved.base.parameters.hunger_model;
+        let conflict = |field: &str| {
+            section
+                .entries_setting(field)
+                .into_iter()
+                .next()
+                .map(|entry| ConfigurationRefusal::Owner {
+                    entry: Some(entry),
+                    code: MODEL_PARAMETER_CONFLICT,
+                    detail: format!("'{field}' is not a parameter of the {model} hunger model"),
+                })
+        };
+        match model {
+            HungerModel::Unitless => conflict("energy_kcal_per_day").map_or(Ok(()), Err),
+            HungerModel::FoodEnergy => {
+                for field in ["hunger_per_hour", "hunger_asleep_per_hour"] {
+                    if let Some(refusal) = conflict(field) {
+                        return Err(refusal);
+                    }
+                }
+                let stated = section.entries.parameters.iter().any(|entry| {
+                    entry.selectors.specificity() == 0 && entry.fields.energy_kcal_per_day.is_some()
+                });
+                if stated {
+                    Ok(())
+                } else {
+                    Err(ConfigurationRefusal::Owner {
+                        entry: None,
+                        code: DAILY_USE_REQUIRED,
+                        detail: "the food-energy hunger model needs a base entry setting \
+                                 'energy_kcal_per_day'"
+                            .to_owned(),
+                    })
+                }
+            }
+        }
     }
 
     fn encode(resolved: &Resolved<Self>) -> Vec<u8> {
@@ -259,6 +364,12 @@ pub fn parameters(read: &WorldRead<'_>, person: EntityId) -> NeedsParameters {
     interactions::parameters_unplaced::<NeedsSystem>(read, &roles)
 }
 
+/// The parameters that apply to every person and item: the base, no role filled. What decides the
+/// hunger model, which no role may scope.
+pub fn base_parameters(read: &WorldRead<'_>) -> NeedsParameters {
+    interactions::parameters_unplaced::<NeedsSystem>(read, &Roles::new())
+}
+
 /// The rates in `parameters`, ready for the level arithmetic.
 pub fn rates(parameters: &NeedsParameters) -> Rates {
     Rates {
@@ -279,8 +390,12 @@ mod tests {
     /// The section's defaults are fixed before any run (`ARC-23`, I-Nb-8) and pinned to the version.
     #[test]
     fn the_default_section_is_pinned_to_the_version() {
-        assert_eq!(NeedsSystem::VERSION.get(), 1);
+        assert_eq!(NeedsSystem::VERSION.get(), 2);
         let defaults = NeedsParameters::default();
+        assert_eq!(
+            (defaults.hunger_model, defaults.energy_kcal_per_day),
+            (HungerModel::Unitless, 2_000)
+        );
         assert_eq!(
             (
                 defaults.hunger_per_hour,

@@ -20,6 +20,7 @@ mod bundle;
 mod children;
 mod config;
 mod dialog;
+mod hosting;
 mod join;
 mod user;
 
@@ -32,6 +33,7 @@ use std::process::ExitCode;
 use bundle::Bundle;
 use children::{Clients, Server};
 use config::Choice;
+use hosting::Hosting;
 use user::{Log, Run, UserDir};
 
 /// What an entry point plays (`LAUNCHER.md` §2).
@@ -169,7 +171,11 @@ fn run(mode: Mode, options: &Options, log: &mut Log) -> Result<u8, Failure> {
     let bundle = Bundle::locate(options.bundle.clone())?;
 
     let played = options.smoke.unwrap_or(mode);
-    let choice = chosen(&bundle, played)?;
+    // A smoke run plays its fixed fixture and never reads launch.toml (`pr-launcher-solo.md` Q-LS5).
+    let choice = match options.smoke {
+        Some(smoke) => config::smoke(smoke),
+        None => chosen(&bundle, mode)?,
+    };
     let world = bundle.world(&choice.world)?;
     let clients = choice
         .clients
@@ -202,14 +208,23 @@ fn run(mode: Mode, options: &Options, log: &mut Log) -> Result<u8, Failure> {
         save.display()
     ));
 
-    let mut server = Server::start(&bundle, &world, &save, &user.log(run, "server"), log)?;
+    // One player is a single-player world; Both seats two players and is shared (Q-LS2).
+    let hosting = Hosting::new(options.smoke.is_some(), mode != Mode::Both)?;
+    let mut server = Server::start(
+        &bundle,
+        &world,
+        &save,
+        &hosting,
+        &user.log(run, "server"),
+        log,
+    )?;
     let join = server.join()?;
     log.line(&format!("the server is ready at {}", join.address));
     let code = Clients {
         bundle: &bundle,
         join: &join,
         world: &choice.world,
-        smoke: options.smoke.is_some(),
+        hosting: &hosting,
     }
     .run(
         &clients,

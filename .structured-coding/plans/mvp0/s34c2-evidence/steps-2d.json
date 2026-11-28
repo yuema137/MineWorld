@@ -1,0 +1,1 @@
+[{"walk_into": "pier"}, {"click_floor": {"x": 2000, "y": 2600}}, {"sleep": 18}, {"shoot": "pier"}, {"walk_into": "square"}, {"click_floor": {"x": 10200, "y": 8600}}, {"sleep": 10}, {"shoot": "square"}]

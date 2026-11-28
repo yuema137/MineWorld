@@ -10,6 +10,7 @@ use std::time::{Duration, Instant};
 use crate::Failure;
 use crate::bundle::{Bundle, Client};
 use crate::config::{Seat, WorldName};
+use crate::hosting::Hosting;
 use crate::join::{self, Join};
 use crate::user::Log;
 
@@ -38,12 +39,13 @@ pub struct Server {
 }
 
 impl Server {
-    /// `mineworld server <world> --listen 127.0.0.1:0 --save <save> --agent alice --stop-on-stdin-eof`,
+    /// Starts the world with played-town or smoke-fixture hosting,
     /// its standard input a pipe this launcher holds, its output in `log_path`.
     pub fn start(
         bundle: &Bundle,
         world: &Path,
         save: &Path,
+        hosting: &Hosting,
         log_path: &Path,
         log: &mut Log,
     ) -> Result<Self, Failure> {
@@ -56,14 +58,14 @@ impl Server {
             .arg(world)
             .args(["--listen", "127.0.0.1:0", "--save"])
             .arg(save)
-            .args(["--agent", "alice", "--stop-on-stdin-eof"])
+            .arg("--stop-on-stdin-eof")
             // A supplied invite is never printed, and the launcher reads the generated one
-            // (`server/PROTOCOL.md` §4.1); no admin surface is mounted.
+            // (`server/PROTOCOL.md` §4.1). Hosting supplies a separate played-run admin capability.
             .env_remove("MINEWORLD_INVITE")
-            .env_remove("MINEWORLD_ADMIN_TOKEN")
             .stdin(Stdio::piped())
             .stdout(out)
             .stderr(err);
+        hosting.configure_server(&mut command);
         #[cfg(windows)]
         {
             use std::os::windows::process::CommandExt;
@@ -173,7 +175,7 @@ pub struct Clients<'a> {
     pub join: &'a Join,
     /// The world the server hosts: the clients draw its far field, and refuse to enter without it.
     pub world: &'a WorldName,
-    pub smoke: bool,
+    pub hosting: &'a Hosting,
 }
 
 impl Clients<'_> {
@@ -235,7 +237,7 @@ impl Clients<'_> {
         let mut root = OsString::from("--root=");
         root.push(self.bundle.runtime());
         let mut command = Command::new(executable);
-        if self.smoke {
+        if self.hosting.is_smoke() {
             command.arg("--headless");
         }
         command
@@ -248,12 +250,13 @@ impl Clients<'_> {
             .arg(format!("--invite={}", self.join.invite))
             // A joining client names the world it draws (RL-e0; `clients/2d/PRESENTATION.md` §8).
             .arg(format!("--world-key={}", self.world.as_str()));
-        if self.smoke {
+        if self.hosting.is_smoke() {
             command.args(match client {
                 Client::TwoD => ["--drive", "--settings=none"],
                 Client::ThreeD => ["--slice-link", "--settings=none"],
             });
         }
+        self.hosting.configure_client(&mut command);
         command
             .stdin(Stdio::null())
             .stdout(out)

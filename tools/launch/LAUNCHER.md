@@ -13,21 +13,32 @@ a failure.
 
 It never reads world state; the only thing it reads from the server is the join line
 (`server/PROTOCOL.md` §4.1). It holds no world rule, opens no window of its own, makes no network connection,
-and stops only the processes it started. No language model is involved anywhere.
+and stops only the processes it started. The launcher itself invokes no model provider. The bundled
+default towns have no decision list and use in-process rule controllers without model or network
+services; a separately configured World Pack retains its own authored decision policy.
 
 ## 2. Entry points
 
-One crate, `tools/launch` (`mineworld-launch`), standard library only. Three binaries, each a one-line
+One crate, `tools/launch` (`mineworld-launch`), using the standard library and the workspace
+`getrandom` dependency for a private local host capability (ARC-78 amendment, 2026-11-23).
+Three binaries, each a one-line
 `main` naming its mode:
 
 | Binary | Mode | Default world | Seats |
 | --- | --- | --- | --- |
-| `mineworld-2d-launch` | `2d` | `market-town` | 2D client as `carol` |
-| `mineworld-3d-launch` | `3d` | `social-cafe` | 3D client as `visitor` |
-| `mineworld-both-launch` | `both` | `social-cafe` | 2D client as `visitor`, 3D client as `wanderer` (`AC-15`'s two players) |
+| `mineworld-2d-launch` | `2d` | `market-town` | 2D client as `visitor` |
+| `mineworld-3d-launch` | `3d` | `social-cafe` (until the Q-LS7 gate, below) | 3D client as `visitor` |
+| `mineworld-both-launch` | `both` | `social-cafe` (until the Q-LS7 gate, below) | 2D client as `visitor`, 3D client as `wanderer` (`AC-15`'s two players) |
 
-Every mode drives `alice` with the in-server rule controller (`--agent alice`), as the repository's root
-launchers do. The bundle presents them as "MineWorld 2D", "MineWorld 3D" and "MineWorld 2D + 3D": macOS
+**The Q-LS7 gate** (`pr-launcher-solo.md`). 3D and Both move to `market-town` only when the packaged 3D Market
+Town timing gate passes. The gate's measurement is the median of 3 interleaved warm runs per world, against the
+bound stated in Q-LS7. The switch is one line, `WORLD_3D` in `tools/launch/src/config.rs`, which the gate's PR
+sets to `PLAYED_WORLD` and records here.
+
+Every played mode starts `--town`: unoccupied seats use the world's resolved decision models
+(default in-process paced rule controllers for the bundled towns), without pinning Alice to a
+reactive-only controller. Scripted smoke retains `--agent alice`, without `--town`. Smoke verifies
+its scripted fixture, not living-town behavior. The bundle presents them as "MineWorld 2D", "MineWorld 3D" and "MineWorld 2D + 3D": macOS
 `.app` wrappers, Windows `.exe` files, Linux executables with `.desktop` files (the assembling script's
 concern, `scripts/package.py`).
 
@@ -72,6 +83,11 @@ itself, chosen by `--client=<2d|3d>` (step-23 PR S23-RT, amending D-Ra-1 and D-R
 naming its path. The server is checked when the bundle is found; a client when its mode needs it. These paths
 are defined in one place, `src/bundle.rs`.
 
+**Renderer on macOS.** The runtime renders through Vulkan (MoltenVK) on macOS, not Godot's Metal driver
+(`DEP-164`: on a cold shader cache the Metal driver kept the first launch at about 164 s to the first view;
+Vulkan, about 47 s). The choice is the runtime's project setting `rendering_device/driver.macos`; the launcher
+passes no engine argument, so the way back to Metal is that one line changed back and a re-export.
+
 ## 5. Per-user folder
 
 The folder the clients' settings already use (`clients/shared/SETTINGS.md` §4):
@@ -114,17 +130,24 @@ or key, a key given twice in one section, or any other line is an error naming t
 what was expected. A `world` is one folder name under `runtime/worlds/` (no separator, not `.` or `..`). A
 seat is not checked by the launcher: the server refuses an unknown seat to the client that asks for it.
 
+Before 2026-11-27 the 2D launcher played `carol`. A `saves/market-town/` from then resumes with the player as
+`visitor`; Carol keeps her wallet, holdings and place and is driven by the town like every resident. To
+keep playing her, add `[2d]` with `seat = "carol"`. A Social Café save is untouched by the change; a 2D
+player reaches it with `world = "social-cafe"`.
+
 ## 7. A run
 
 ```text
-1  find the bundle (§4), the per-user folder (§5), read launch.toml (§6)
+1  find the bundle (§4), the per-user folder (§5); play: read launch.toml (§6); smoke: its fixture
 2  play: saves/<world>/ (deleted first with --fresh); smoke: scratch/<run>/
 3  start the server:
      runtime/mineworld server runtime/worlds/<world> --listen 127.0.0.1:0 --save <save>
-                      --agent alice --stop-on-stdin-eof
+                      [play: --town, and --solo when one client plays alone (2d, 3d);
+                       smoke: --agent alice] --stop-on-stdin-eof
      standard input: a pipe the launcher holds
      standard output and error: logs/<run>-server.log
-     environment: the launcher's, without MINEWORLD_INVITE and MINEWORLD_ADMIN_TOKEN
+     environment: the launcher's without MINEWORLD_INVITE; private played-run
+                  MINEWORLD_ADMIN_TOKEN, or no admin token in smoke
 4  read the join line from the server's log, every 100 ms for up to 60 s:
      [mineworld] invite <token> — join with: <address> seat=<seat> invite=<token>
    the token follows "invite " up to the next space; the address follows " join with: " up to the next
@@ -135,11 +158,15 @@ seat is not checked by the launcher: the server refuses an unknown seat to the c
                  --world-key=<world> [probe]
      (--world-key names the world the client draws; a joining client refuses to enter without it, RL-e0)
      standard output and error: logs/<run>-client-<2d|3d>.log
+     environment: the same private played-run MINEWORLD_ADMIN_TOKEN; removed in smoke
 6  wait until every client has exited
 7  stop the server (§8)
 ```
 
-**Smoke (`--smoke=<mode>`)** runs the clients with `--headless` and a probe, on a scratch save:
+**Smoke (`--smoke=<mode>`)** runs the clients with `--headless` and a probe, on a scratch save. Its world and
+seats are a fixed fixture, never `launch.toml` (`pr-launcher-solo.md` Q-LS5): `2d` Market Town as `carol`;
+`3d` Social Café as `visitor`; `both` Social Café as `visitor` and `wanderer` — the fixtures the probes'
+verdicts were recorded against.
 
 | Client | Probe arguments |
 | --- | --- |
@@ -148,6 +175,29 @@ seat is not checked by the launcher: the server refuses an unknown seat to the c
 
 The invite is passed to the client on its command line, as the root launchers do; it is never written to the
 launcher's own log. The server's log holds it, once, in the join line, as `server/PROTOCOL.md` §4.1 allows.
+
+### 7.1 Local host capability
+
+Before starting a played server, the launcher generates 16 bytes using the operating system
+random source through `getrandom`, encoding them as 32 hex characters. Failure to obtain randomness
+fails the run before a child starts. The capability is independent of the server-generated invite.
+Only the owned server and clients receive it, in their environment; it is never put in an argument,
+log, file or parent environment. Inherited admin capabilities are replaced in played runs and
+removed from both child types in smoke runs. The server mounts its existing loopback admin
+surface; the client's existing World tab controls pause/resume and day length (4/2/1 hours).
+The server remains the clock authority. No world schema or saved composition changes.
+
+A 2D or 3D play run — one player alone — starts the server `--solo`, the single-player
+declaration of `ARC-69` item 5, as the source shell launchers do (`pr-launcher-solo.md` Q-LS2;
+ARC-78 note of 2026-11-27). `--solo` restricts no admission: a second client or an agent holding
+the invite still joins. It permits what only a single-player world may do: scales above 24×,
+and, once nightlife N2 lands, the sleep advance. The shipped World tab still offers only 4/2/1
+hours (6×/12×/24×), and the capability reaches only the launcher's own children, so the product
+ceiling stays 24× (Q-LS3). Both mode seats two players and never passes `--solo`; nor does smoke.
+The supervisor passes no `--hosted-here`, so a bundled client exposes clock controls but not the
+shell launcher's Keep Running preference. Closing one client leaves the other connected;
+all clients must exit before the supervisor stops the server. The shutdown contract below
+continues to use stdin EOF, independently of the admin surface.
 
 ## 8. Stopping
 

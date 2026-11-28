@@ -45,7 +45,7 @@ use gdscript::lex;
 mod client_3d;
 
 /// The GDScript string literals that name an action: (file, literal, why it may be written there).
-const ACTION_LITERALS: [(&str, &str, &str); 38] = [
+const ACTION_LITERALS: [(&str, &str, &str); 40] = [
     (
         "clients/2d/scripts/intents.gd",
         "walk-to",
@@ -99,6 +99,18 @@ const ACTION_LITERALS: [(&str, &str, &str); 38] = [
         "clients/2d/scripts/intents.gd",
         "sleep",
         "composed by the 2D client's only submitter from the typed minutes (S35 N-e §4.3): sleep { for }",
+    ),
+    (
+        "clients/2d/scripts/intents.gd",
+        "sit",
+        "the name of posture's sit action, admitted as the constant the walk-then-sit chain is built with (S34-e \
+         §5.5); both are complete offers sent as offered, and this file composes neither",
+    ),
+    (
+        "clients/2d/scripts/intents.gd",
+        "stand",
+        "the name of posture's stand action, admitted as the constant the walk-then-sit chain is built with (S34-e \
+         §5.5); both are complete offers sent as offered, and this file composes neither",
     ),
     (
         "clients/2d/scripts/intents.gd",
@@ -256,7 +268,13 @@ const ACTION_LITERALS: [(&str, &str, &str); 38] = [
 ];
 
 /// Rule-named declarations admitted with a reason: (file, name, why). None in PR 16a (step-15 A16-10).
-const RULE_NAMES: [(&str, &str, &str); 0] = [];
+const RULE_NAMES: [(&str, &str, &str); 1] = [(
+    "clients/protocol/mineworld/needs.gd",
+    "capacity",
+    "the food-energy reserve's `capacity_kcal` as the needs owner discloses it (FE-a, #555): `_reserve` \
+     checks the wire value's type and stated bounds by equality only and passes it through for display \
+     (`pr-fe-a-food-energy-engine.md` §3.8); no client computes or decides a capacity",
+)];
 
 /// The words that name a rule a client might copy. `MAX_STRIDE` is matched as the pair.
 const RULE_WORDS: [&str; 5] = ["reach", "range", "clearance", "nudge", "capacity"];
@@ -826,6 +844,62 @@ fn no_client_holds_a_copy_of_the_sit_rule() {
         }
     }
     assert!(found.is_empty(), "I-f-6:\n{}", found.join("\n"));
+}
+
+/// The one client directory that may name a posture component (S34-e I-e-4): the shared sit module reads a
+/// place's disclosed posture for both clients, and no other client script does.
+const SITTING_DIR: &str = "clients/shared/sitting/";
+
+/// The component types the posture System Pack declares: every `component_type = "…"` line of its source.
+fn posture_component_types(root: &Path) -> Vec<String> {
+    let mut types = Vec::new();
+    for entry in
+        std::fs::read_dir(root.join("systems/posture/src")).expect("the posture source reads")
+    {
+        let path = entry.expect("a directory entry").path();
+        if path.extension().is_none_or(|extension| extension != "rs") {
+            continue;
+        }
+        let text = std::fs::read_to_string(&path).expect("a posture source file reads");
+        for line in text.lines() {
+            if let Some(rest) = line.trim().strip_prefix("component_type = \"")
+                && let Some(end) = rest.find('"')
+            {
+                types.push(rest[..end].to_owned());
+            }
+        }
+    }
+    types.sort();
+    types.dedup();
+    types
+}
+
+#[test]
+fn no_client_reads_posture_but_the_shared_sit_module() {
+    let root = root();
+    let types = posture_component_types(&root);
+    assert!(
+        !types.is_empty(),
+        "the posture pack declares no component type (has it moved?)"
+    );
+    let mut files = Vec::new();
+    client_scripts(&root.join("clients"), &mut files);
+    let mut found = Vec::new();
+    for path in &files {
+        let file = relative(path);
+        if file.starts_with(SITTING_DIR) {
+            continue;
+        }
+        let text = std::fs::read_to_string(path).expect("a client script reads");
+        for (line, literal) in &lex(&text).literals {
+            if types.iter().any(|known| known == literal) {
+                found.push(format!(
+                    "{file}:{line}: \"{literal}\" is a posture component type; only {SITTING_DIR} reads one"
+                ));
+            }
+        }
+    }
+    assert!(found.is_empty(), "I-e-4:\n{}", found.join("\n"));
 }
 
 /// The one 3D client script that may name a Presentation Pack's path: the class that resolves the pack

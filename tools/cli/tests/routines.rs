@@ -64,6 +64,8 @@ fn every_persons_day_is_kept_by_their_routine_process_and_the_seats_follow_it() 
     let save = fresh("routines-30");
     run(SEED, u64::try_from(DAYS).expect("fits"), Some(&save));
     let facts = social::facts_of(&Tables::read(&save));
+    // The world begins at its authored time of day (`ARC-371`): genesis is the first fact's instant.
+    let genesis = facts.first().expect("a genesis").at().seconds();
     social::every_person_has_an_agenda_change_every_day(&facts, DAYS);
 
     let loaded = mineworld_worldpack::WorldPack::read(PACK)
@@ -102,8 +104,8 @@ fn every_persons_day_is_kept_by_their_routine_process_and_the_seats_follow_it() 
             Causation::Event(cause) => {
                 assert_eq!(
                     fact.at().seconds(),
-                    0,
-                    "only the first agenda is caused by a fact"
+                    genesis,
+                    "only the first agenda, at genesis, is caused by a fact"
                 );
                 assert_eq!(
                     types.get(&cause.raw()).copied(),

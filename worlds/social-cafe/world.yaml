@@ -44,6 +44,10 @@ mineworld: "^0.1"
 # grants nothing. It moves nobody and depends on nothing, so it is appended last and every earlier
 # reduction order stays as it was. Leave it out with the `persona:` blocks and people speak as they did
 # before, without a character to speak from.
+# The world begins at 07:00 on day 0, not at midnight (ARC-371; operator ruling 2026-11-27): a new
+# world opens on a morning, with its shops about to sell. A saved world keeps the start it was created with.
+begins: "07:00"
+
 systems:
   - presence
   - movement

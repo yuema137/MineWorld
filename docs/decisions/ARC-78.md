@@ -43,3 +43,43 @@ and the clients would stop being pure protocol clients); a launcher framework su
 window toolkit to start two processes is a dependency larger than the problem, `REUSE_POLICY.md` §12).
 No dependency is added: `MessageBoxW` is one `user32` declaration, as `DEP-29`'s note did for
 `GenerateConsoleCtrlEvent`, so no `windows-sys` feature is needed.
+
+
+### Amendment — played towns and private host controls (2026-11-23)
+
+Actual operator trial exposed a stale packaged launch path: only Alice had a reactive
+controller, and the existing clock controls had no local host capability. Played runs now
+use the existing `--town` policy (ARC-345), leaving the explicit Alice fixture for smoke.
+This corrects launch integration without changing worlds, controllers or saved composition.
+
+On 2026-11-23 the operator explicitly approved, in the Codex coordination session (relayed by the coordinator; recorded in `.structured-coding/plans/mvp0/handoff-coordinator.md` "November 23 continued execution"), “同意复用现有 getrandom 库” ("agree to reuse the existing getrandom library"). Item 2's standard-library-only
+restriction is amended solely to reuse workspace `getrandom` for a per-run 128-bit OS-random
+admin capability. Existing server code already uses that dependency for secrets. Handwritten
+platform randomness, subprocess-generated secrets and a new server secret-output handshake
+were rejected as unnecessary additional surface. The launcher keeps the capability in memory
+and passes it only through owned child environments; failures fail closed before launch.
+Inherited capabilities are replaced/removed and the secret never enters argv, logs or files.
+
+The admin capability enables existing local World-tab clock controls. Item 4's stdin-EOF
+shutdown remains unchanged and does not depend on the admin surface. No `--hosted-here`,
+Keep Running or `--solo` is added; both clients may coexist and closing one does not stop
+the other's world. Design/evidence: `.structured-coding/plans/mvp0/pr-launcher-living-correction.md`;
+specification: `tools/launch/LAUNCHER.md` §7.1.
+
+### Note — single-player play runs start `--solo`; Market Town by default (2026-11-27)
+
+This note supersedes the amendment's sentence "No `--hosted-here`, Keep Running or `--solo` is added" for
+single-client play runs. It changes nothing else in that amendment.
+
+- **`--solo`.** A 2D or 3D play run (one player alone) now starts the server `--solo`, the single-player
+  declaration of `ARC-69` item 5, as the source shell launchers already do. Both mode seats two players and
+  never passes it; nor does smoke. `--solo` restricts no admission. It widens what `ARC-69` item 5 grants a
+  single-player world: scales above 24×, and the sleep advance once nightlife N2's amending record lands.
+- **Scale ceiling.** The shipped World tab still offers at most 24×, and the capability reaches only the
+  launcher's own children, so the product ceiling is unchanged.
+- **Defaults.** 2D plays Market Town as `visitor` instead of `carol`. 3D and Both keep Social Café until the Q-LS7 packaged timing gate passes; then one constant (`config.rs` `WORLD_3D`) switches them to Market Town.
+- **Smoke.** Smoke plays a fixed fixture and no longer reads `launch.toml`.
+- **No `--hosted-here`.** Still none is passed.
+- **Approval.** The operator approved every recommendation of `pr-launcher-solo.md` (Q-LS1 … Q-LS7) on
+  2026-11-27.
+- **Specification:** `tools/launch/LAUNCHER.md` §§2, 6, 7, 7.1.

@@ -1,0 +1,6 @@
+#!/bin/sh
+case "$*" in
+  *engine.gd*|*freeze-legacy.gd*|*create-check-uid.gd*|*--import*) echo "REAL godot $*" >&2; exec /opt/homebrew/bin/godot "$@" ;;
+esac
+echo "STUB godot $*" >&2
+exit 0

@@ -1,13 +1,13 @@
 {
   "format": 1,
-  "about": "S33-f AC-f-4, the contested seat: four observations of Lakeside's bakery, one second of world time apart, as the server frames them (observer, at, self_location, entities). People 7 and 12 stand still within 0.40 m of long-table.3's fallback point (1660, 3000) from the first frame; 30 walks past long-table.1; 41 stands still beside long-table.5 but 0.45 m from it. The bakery discloses no sit-points (Lakeside does not enable posture until S34-c), so both clients take the shared rule's fallback branch. Expected: from at 102 (still 2 s), 7 is drawn at long-table.3 (the lower id), 12 is not drawn seated, 30 and 41 never are. Read by clients/2d/scripts/harness/seat_check.gd and clients/3d-spike/scripts/checks/seat_check.gd; compared by tools/cli/tests/client_sit_rule.rs.",
+  "about": "S33-f AC-f-4 in the posture branch (S34-c2, R-S34c-f-1, ARC-172): four observations of Lakeside's bakery, one second of world time apart, as the server frames them (observer, at, self_location, entities). The bakery discloses its `sit-points` (Lakeside enables `posture` since S34-c2), so both clients take the shared rule's posture branch and draw whom the server says is seated. People 7 and 12 stand at long-table.3 from the first frame; at 102 the server has seated 7 there (its `posture-state` names the point, and the server holds 7 on the point's `at`) and 12, refused the taken seat, still stands; 30 walks past long-table.1; 41 stands beside long-table.5. Expected: from at 102, 7 is drawn at long-table.3, 12 is not drawn seated, 30 and 41 never are; nobody at 100 or 101. Read by clients/2d/scripts/harness/seat_check.gd and clients/3d-spike/scripts/checks/seat_check.gd; compared by tools/cli/tests/client_sit_rule.rs.",
   "world": "lakeside",
   "expected": {"7": "long-table.3"},
   "frames": [
     {"observer": "1", "at": 100,
      "self_location": {"place": {"entity": "200"}, "local": {"x": 2000, "y": 800}},
      "entities": [
-       {"id": "200", "entity_type": "place", "tags": ["bakery", "indoor"]},
+       {"id": "200", "entity_type": "place", "tags": ["bakery", "indoor"], "components": [{"component_type": "sit-points", "payload": [{"key": "long-table.1", "group": "long-table.chair-1", "at": {"x": 1660, "y": 1800}, "facing": 270000}, {"key": "long-table.2", "group": "long-table.chair-2", "at": {"x": 1660, "y": 2400}, "facing": 270000}, {"key": "long-table.3", "group": "long-table.chair-3", "at": {"x": 1660, "y": 3000}, "facing": 270000}, {"key": "long-table.4", "group": "long-table.chair-4", "at": {"x": 1660, "y": 3600}, "facing": 270000}, {"key": "long-table.5", "group": "long-table.chair-5", "at": {"x": 1660, "y": 4200}, "facing": 270000}]}]},
        {"id": "1", "entity_type": "person", "location": {"place": {"entity": "200"}, "local": {"x": 2000, "y": 800}}},
        {"id": "12", "entity_type": "person", "location": {"place": {"entity": "200"}, "local": {"x": 1700, "y": 2900}}},
        {"id": "7", "entity_type": "person", "location": {"place": {"entity": "200"}, "local": {"x": 1700, "y": 3100}}},
@@ -17,7 +17,7 @@
     {"observer": "1", "at": 101,
      "self_location": {"place": {"entity": "200"}, "local": {"x": 2000, "y": 800}},
      "entities": [
-       {"id": "200", "entity_type": "place", "tags": ["bakery", "indoor"]},
+       {"id": "200", "entity_type": "place", "tags": ["bakery", "indoor"], "components": [{"component_type": "sit-points", "payload": [{"key": "long-table.1", "group": "long-table.chair-1", "at": {"x": 1660, "y": 1800}, "facing": 270000}, {"key": "long-table.2", "group": "long-table.chair-2", "at": {"x": 1660, "y": 2400}, "facing": 270000}, {"key": "long-table.3", "group": "long-table.chair-3", "at": {"x": 1660, "y": 3000}, "facing": 270000}, {"key": "long-table.4", "group": "long-table.chair-4", "at": {"x": 1660, "y": 3600}, "facing": 270000}, {"key": "long-table.5", "group": "long-table.chair-5", "at": {"x": 1660, "y": 4200}, "facing": 270000}]}]},
        {"id": "1", "entity_type": "person", "location": {"place": {"entity": "200"}, "local": {"x": 2000, "y": 800}}},
        {"id": "12", "entity_type": "person", "location": {"place": {"entity": "200"}, "local": {"x": 1700, "y": 2900}}},
        {"id": "7", "entity_type": "person", "location": {"place": {"entity": "200"}, "local": {"x": 1700, "y": 3100}}},
@@ -27,20 +27,20 @@
     {"observer": "1", "at": 102,
      "self_location": {"place": {"entity": "200"}, "local": {"x": 2000, "y": 800}},
      "entities": [
-       {"id": "200", "entity_type": "place", "tags": ["bakery", "indoor"]},
+       {"id": "200", "entity_type": "place", "tags": ["bakery", "indoor"], "components": [{"component_type": "sit-points", "payload": [{"key": "long-table.1", "group": "long-table.chair-1", "at": {"x": 1660, "y": 1800}, "facing": 270000}, {"key": "long-table.2", "group": "long-table.chair-2", "at": {"x": 1660, "y": 2400}, "facing": 270000}, {"key": "long-table.3", "group": "long-table.chair-3", "at": {"x": 1660, "y": 3000}, "facing": 270000}, {"key": "long-table.4", "group": "long-table.chair-4", "at": {"x": 1660, "y": 3600}, "facing": 270000}, {"key": "long-table.5", "group": "long-table.chair-5", "at": {"x": 1660, "y": 4200}, "facing": 270000}]}]},
        {"id": "1", "entity_type": "person", "location": {"place": {"entity": "200"}, "local": {"x": 2000, "y": 800}}},
        {"id": "12", "entity_type": "person", "location": {"place": {"entity": "200"}, "local": {"x": 1700, "y": 2900}}},
-       {"id": "7", "entity_type": "person", "location": {"place": {"entity": "200"}, "local": {"x": 1700, "y": 3100}}},
+       {"id": "7", "entity_type": "person", "location": {"place": {"entity": "200"}, "local": {"x": 1660, "y": 3000}}, "components": [{"component_type": "posture-state", "payload": {"seated": {"place": {"entity": "200"}, "point": "long-table.3", "since": 102}}}]},
        {"id": "30", "entity_type": "person", "location": {"place": {"entity": "200"}, "local": {"x": 1660, "y": 2000}}},
        {"id": "41", "entity_type": "person", "location": {"place": {"entity": "200"}, "local": {"x": 2110, "y": 4200}}}
      ]},
     {"observer": "1", "at": 103,
      "self_location": {"place": {"entity": "200"}, "local": {"x": 2000, "y": 800}},
      "entities": [
-       {"id": "200", "entity_type": "place", "tags": ["bakery", "indoor"]},
+       {"id": "200", "entity_type": "place", "tags": ["bakery", "indoor"], "components": [{"component_type": "sit-points", "payload": [{"key": "long-table.1", "group": "long-table.chair-1", "at": {"x": 1660, "y": 1800}, "facing": 270000}, {"key": "long-table.2", "group": "long-table.chair-2", "at": {"x": 1660, "y": 2400}, "facing": 270000}, {"key": "long-table.3", "group": "long-table.chair-3", "at": {"x": 1660, "y": 3000}, "facing": 270000}, {"key": "long-table.4", "group": "long-table.chair-4", "at": {"x": 1660, "y": 3600}, "facing": 270000}, {"key": "long-table.5", "group": "long-table.chair-5", "at": {"x": 1660, "y": 4200}, "facing": 270000}]}]},
        {"id": "1", "entity_type": "person", "location": {"place": {"entity": "200"}, "local": {"x": 2000, "y": 800}}},
        {"id": "12", "entity_type": "person", "location": {"place": {"entity": "200"}, "local": {"x": 1700, "y": 2900}}},
-       {"id": "7", "entity_type": "person", "location": {"place": {"entity": "200"}, "local": {"x": 1700, "y": 3100}}},
+       {"id": "7", "entity_type": "person", "location": {"place": {"entity": "200"}, "local": {"x": 1660, "y": 3000}}, "components": [{"component_type": "posture-state", "payload": {"seated": {"place": {"entity": "200"}, "point": "long-table.3", "since": 102}}}]},
        {"id": "30", "entity_type": "person", "location": {"place": {"entity": "200"}, "local": {"x": 1660, "y": 2350}}},
        {"id": "41", "entity_type": "person", "location": {"place": {"entity": "200"}, "local": {"x": 2110, "y": 4200}}}
      ]}

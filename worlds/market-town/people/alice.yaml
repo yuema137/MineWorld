@@ -16,11 +16,12 @@ appearance: { look: alice-moreau }
 # `routine` is a section the `schedule` system owns (ARC-32): the day she means to keep. It moves her
 # nowhere — whoever drives her walks there, or does not.
 #
-# FIXTURE DEPENDENCY (step-09 §4.3.7): every routine boundary in this world lies between 05:00 and
-# 23:00. A world hosted from genesis (00:00), or from a save that ends at midnight, then commits
-# nothing for five hours, and the restart tests' "revision unchanged" claims rely on that
-# (tools/cli/tests/restart.rs, milestone_b.rs). Those tests check this first and fail naming it, so
-# moving a boundary into 00:00–05:00 breaks them loudly, not mysteriously.
+# FIXTURE DEPENDENCY (step-09 §4.3.7; ARC-371): the world begins at 07:00 (world.yaml begins:), and a save
+# run for whole days ends at 07:00 too. The boundaries at 07:00 itself are committed with genesis or the
+# head; the next falls at 07:30, so a world hosted from genesis or from such a save commits nothing for
+# half an hour, and the restart tests' "revision unchanged" claims rely on that (milestone_b.rs,
+# milestone_c.rs, ac5_takeover.rs check 07:00:01 + 1 799 s first and fail naming it), so moving a boundary
+# into 07:00–07:30 breaks them loudly, not mysteriously.
 #
 # Every part of a day here lasts at least four hours, and five or more where the way there is long (the
 # park and the store from the apartments). A headless run consults each person every fifteen minutes
@@ -80,6 +81,8 @@ persona:
   traits: [warm, dry, attentive]
   speech: Short, friendly sentences.
 
-# Market Town: hunger and tiredness (`needs` section, ARC-284). `{}` takes the genesis levels, hunger 300
-# and tiredness 700; the rates are configure/needs.yaml's.
-needs: {}
+# Market Town: hunger and tiredness (`needs` section, ARC-284); the rates are configure/needs.yaml's.
+# The town begins at 07:00 (world.yaml begins:, ARC-371), so genesis is a morning after a night's sleep:
+# step-35's midnight levels (hunger 300, tiredness 700) carried through seven hours asleep at
+# configure/needs.yaml's rates — hunger 300 + 7 × 30 = 510, tiredness 700 − 7 × 125, floored at 0.
+needs: { hunger: 510, tiredness: 0 }

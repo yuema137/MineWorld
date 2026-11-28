@@ -190,6 +190,9 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-350](ARC-350.md) | Offers are ordered by the category each pack declares for its actions |
 | [ARC-360](ARC-360.md) | Putting things down, seeing shelves, keeping shifts |
 | [ARC-361](ARC-361.md) | Nobody trapped in a pocket or a doorway, and chance purchases within a budget |
+| [ARC-364](ARC-364.md) | A shop sells only inside its authored daily hours |
+| [ARC-370](ARC-370.md) | Food energy is a kcal reserve variant of `needs`' one hunger state; invalid authored genesis is a domain-neutral kernel error; a new save is created only after a valid genesis |
+| [ARC-371](ARC-371.md) | A world states the time of day it begins (`world.yaml` `begins:`) |
 
 ## DEP — Dependencies, and building our own instead
 
@@ -275,3 +278,4 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [DEP-161](DEP-161.md) | Prop, surface and town-body textures: Godot's built-in Basis Universal (UASTC + RDO by role); cast meshes unchanged |
 | [DEP-162](DEP-162.md) | Cast base colours ship at 1024² (Basis UASTC, RDO 1.0); amends Q-S26-5 and `DEP-160` |
 | [DEP-163](DEP-163.md) | cargo-nextest runs the `core` suite in CI |
+| [DEP-164](DEP-164.md) | The macOS bundle renders through Vulkan (MoltenVK), not Godot's Metal driver |

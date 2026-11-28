@@ -69,7 +69,7 @@ uses `/`. Unknown keys are ignored with a warning, so a newer pack degrades rath
   the disclosed doorway. A sprite without one is placed by its anchor. A file with only `file` is a
   texture (`texture:*` roles). `height_m`, optional, is the real height the image was normalized to;
   the scripted checks use it to confirm a sprite is drawn at its intended size (step-13 AC-W12), and
-  nothing else reads it.
+  the seated fallback uses it to locate the hip line.
 - **Directional sprites** are four ids sharing a base: `<base>_front`, `<base>_front_b`, `<base>_back`,
   `<base>_back_b` (two stride poses per view). A role bound to a base resolves to whichever exist; a
   sprite with no `_back` is shown from the front only, and with no `_b` pose the gait is a bob only.
@@ -100,6 +100,16 @@ uses `/`. Unknown keys are ignored with a warning, so a newer pack degrades rath
   up or down the screen keeps the side it had. Example: the default pack's `cast_vera-lindgren_walk`
   is `art/cast/vera-lindgren_walk.webp`, 5 rows × 13 columns, rendered by
   `cast.py walk-sheets` from the 3D client's own `Stand` and `Walk` poses.
+- **Seated sheet** (S34-e). Optional `<base>_seated` is a one-column atlas with the walk
+  sheet's five named views, an `anchor` at the floor under the pelvis and `seat_height_m`
+  naming the surface it was rendered on. The client selects the disclosed facing and raises
+  the image by `(depicted height − sheet height) × projection pixels per metre`.
+  Without a seated sheet it crops the standing frame at the hip, 0.530 × `height_m` above
+  the floor anchor (Drillis and Contini 1966, via Winter, fourth edition, Fig. 4.1). When
+  stature is absent, 0.530 × the frame's opaque height supplies that offset. The cropped
+  hip lies on the depicted seat surface. Plain shapes remain unchanged at the pelvis.
+  No gait, bob or rock plays while seated. Names, participation markers, Zz and price tags
+  follow the changed figure height; standing restores the prior travel facing.
 - **`sets`** — `ARC-14`'s variants. A set's `roles` override the set it `extends`; a role bound
   nowhere in the chain is unbound (§6). `default_set` names the set used without `--variant`.
 
@@ -114,8 +124,18 @@ uses `/`. Unknown keys are ignored with a warning, so a newer pack degrades rath
 | `facade:unknown:<n>` | a place not yet visited in this instance (`ARC-45` point 3), or a visited place none of whose tags is bound | the stable hash of the place's id string |
 | `prop:<name>` | anything `renderer/godot.yaml` places: dressing, fittings, edge planting | named by that file |
 | `texture:floor`, `texture:paper` | the interior floor tile; the paper tooth of the `grade` effect | named by that file |
-| `furnishing.<kind>` | a furnishing the world discloses with its place (`ARC-307`, `docs/CORE_CONCEPTS.md` §6.5), drawn at its `at` over its solids' footprints, mirrored when it faces screen-left | the furnishing's kind, then each shorter `.`-prefix (`furnishing.chair.painted` → `furnishing.chair`); none bound: its solids' footprints as filled shapes (§6) |
+| `furnishing.<kind>` | a furnishing the world discloses with its place (`ARC-307`, `docs/CORE_CONCEPTS.md` §6.5), drawn at its `at` over its solids' footprints, in the view of its sprite that faces nearest its `facing` when the sprite states `front_md` (below), else mirrored when it faces screen-left | the furnishing's kind, then each shorter `.`-prefix (`furnishing.chair.painted` → `furnishing.chair`); none bound: its solids' footprints as filled shapes (§6) |
 | `object.<shape>` (`object.ball`, `object.box`) | a loose object the world lists with its place (the `bodies` System Pack's `loose-objects`, `ARC-342`), drawn at its `at` and moved along each `object-moved` path | the object's disclosed shape, never its id; bound: that sprite scaled to the footprint's drawn width; none bound: plain drawing (§6) |
+
+**A furnishing sprite's orientation (S34-c2).** A sprite may state `front_md`, the plan facing (millidegrees,
+`docs/CORE_CONCEPTS.md` §6.1) its drawn front faces. It may also name a `reverse` sprite: the same piece
+seen from its other side, whose front faces `front_md` + 180 000. The `reverse` may be its own id for a
+piece that looks the same from both sides, such as `bench_backless`. On this projection a mirror swaps the
+plan's x and y, so a mirrored view faces 90 000 − its front. The client draws a furnishing with whichever
+of these two to four views faces nearest the furnishing's disclosed `facing`. A long piece therefore lies
+along its footprint whichever way it faces. A sprite without `front_md` keeps the old rule (mirrored when
+the facing points screen-left). The choice is presentation only: it reads the disclosed facing and
+decides nothing.
 
 A role the client asks for that the set does not bind is drawn plainly. The client never asks for a
 role by a world key (`alice`, `cafe`), only by tag, disclosed component value (`look:<key>`), index or

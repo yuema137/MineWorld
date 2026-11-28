@@ -27,7 +27,9 @@ path = "src/bin/mineworld-both-launch.rs"
 name = "launcher"
 harness = false
 
-# Standard library only (ARC-78): no [dependencies].
+# ARC-78 amendment, 2026-11-23: OS randomness for the private local host capability.
+[dependencies]
+getrandom = { workspace = true }
 
 [dev-dependencies]
 # The test joins the launched server with the arguments the stub client was given: the client half of

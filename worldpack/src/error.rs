@@ -16,7 +16,9 @@
 use std::path::PathBuf;
 
 use mineworld_authoring::SectionName;
-use mineworld_contracts::{ContractError, EntityKey, EntityType, EventTypeId, Rejection, SystemId};
+use mineworld_contracts::{
+    ContractError, EntityKey, EntityType, EventTypeId, Rejection, RejectionCode, SystemId,
+};
 use mineworld_kernel::KernelError;
 use thiserror::Error;
 
@@ -172,6 +174,16 @@ pub enum PackError {
         path: PathBuf,
         /// The value as written.
         value: u32,
+    },
+    /// `world.yaml`'s `begins:` is not a time of day "HH:MM" (`DECISIONS.md` `ARC-371`).
+    #[error(
+        "{path}: begins is {value:?}; it must be a time of day \"HH:MM\", from \"00:00\" to \"23:59\""
+    )]
+    Begins {
+        /// The `world.yaml` that states the value.
+        path: PathBuf,
+        /// The value as written.
+        value: String,
     },
     /// `world.yaml`'s `mineworld:` range does not admit the framework this build is
     /// (`DECISIONS.md` `ARC-53`). Refused rather than run: the author said which frameworks the world
@@ -820,6 +832,23 @@ pub enum PackError {
         second: String,
         /// The field.
         field: String,
+        /// The section's file.
+        path: PathBuf,
+    },
+
+    /// A section's owner refuses settings that contradict each other (`ARC-370`): its own code, the
+    /// entry to blame (or `the file`) and its words.
+    #[error("{path}: the '{system}' section's {entry} is refused by '{system}' ({code}): {detail}")]
+    ConfigurationContradictory {
+        /// The section's pack.
+        system: SystemId,
+        /// The owner's code.
+        code: RejectionCode,
+        /// The entry: its list and index, or `the file`. Boxed, as the variant would otherwise be the
+        /// largest.
+        entry: Box<str>,
+        /// The owner's words.
+        detail: Box<str>,
         /// The section's file.
         path: PathBuf,
     },

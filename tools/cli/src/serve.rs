@@ -213,6 +213,7 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
         solo,
         keyframe_every,
         request_budget,
+        epoch: epoch_of(&pack, save.as_deref())?,
         ..HostConfig::default()
     };
     let epoch = config.epoch;
@@ -470,6 +471,20 @@ async fn stop_requested() {
     }
 }
 
+/// The instant this host's world begins at (`ARC-371`): a save's own genesis instant when `save` holds one —
+/// whatever the pack now says, so a resumed world and its paced consult lattice are exactly as before — else
+/// the pack's `begins:`.
+fn epoch_of(pack: &WorldPack, save: Option<&Path>) -> Result<WorldTime, String> {
+    match save {
+        Some(save) if SqliteBackend::exists(save) => {
+            let backend = SqliteBackend::open(save, Durability::PowerLoss)
+                .map_err(|error| format!("[mineworld] {}: {error}", save.display()))?;
+            crate::run::genesis_instant(&backend).map(WorldTime::from_seconds)
+        }
+        _ => Ok(pack.begins()),
+    }
+}
+
 /// A save's genesis facts, as recorded: what a host hands [`WorldPack::check_configuration`] before it
 /// resumes or verifies, so that a save never runs on against a configuration other than the one it was
 /// created with (`DECISIONS.md` `ARC-61` item 7). Shared by `persisted` here and `replay` in main.rs
@@ -513,16 +528,20 @@ fn persisted(
         );
         return Ok((world, composed.providers));
     }
-    let backend = SqliteBackend::create(save, Durability::PowerLoss).map_err(HostError::build)?;
+    // The save is made only once the world has assembled and begun in memory (`ARC-370`): a pack
+    // whose genesis is refused leaves no save behind to be resumed by the next launch.
     let assembled = pack.assemble().map_err(HostError::build)?;
-    let (world, began) = PersistentWorld::create(
-        Box::new(backend),
+    let (world, began) = PersistentWorld::create_with_backend(
         assembled.world,
         Creation {
             instance: WorldInstanceId::allocate().raw(),
             pack: pack.id().to_owned(),
             at: epoch,
             facts: assembled.facts,
+        },
+        || {
+            let backend = SqliteBackend::create(save, Durability::PowerLoss)?;
+            Ok(Box::new(backend) as Box<dyn PersistenceBackend>)
         },
     )
     .map_err(HostError::build)?;

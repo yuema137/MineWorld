@@ -239,25 +239,48 @@ fn a_line_heard_in_the_window_is_answered_and_quoted() {
 #[test]
 fn a_line_is_answered_in_one_window_only_and_never_again() {
     let mut view = View::new();
-    view.heard = vec![said(BOB, "the coffee is good today", NOW)];
+    view.heard = vec![said(BOB, "the coffee is good today", NOW - 1)];
     assert!(
         !replies_to_bob(&view).is_empty(),
-        "heard at the consult instant: inside"
+        "heard a second before the consult: inside"
     );
 
     // One pace later the same history is still disclosed, and no seed answers it again.
     view.at = NOW + PACE;
     assert!(replies_to_bob(&view).is_empty(), "never twice");
 
-    // The boundary itself: heard exactly one pace before the consult belongs to the previous window.
+    // The boundaries: `[t - pace, t)`.
     view.at = NOW;
-    view.heard = vec![said(BOB, "the coffee is good today", NOW - PACE)];
-    assert!(replies_to_bob(&view).is_empty(), "(t - pace) is outside");
-    view.heard = vec![said(BOB, "the coffee is good today", NOW - PACE + 1)];
+    view.heard = vec![said(BOB, "the coffee is good today", NOW - PACE - 1)];
     assert!(
-        !replies_to_bob(&view).is_empty(),
-        "(t - pace + 1) is inside"
+        replies_to_bob(&view).is_empty(),
+        "(t - pace - 1) is outside"
     );
+    view.heard = vec![said(BOB, "the coffee is good today", NOW - PACE)];
+    assert!(!replies_to_bob(&view).is_empty(), "(t - pace) is inside");
+}
+
+/// The hosted case (`ARC-27` note 2026-11-27): a player's line stamped at the listener's consult
+/// instant reaches the world after that consult. It is not answered at that instant — the consult has
+/// already happened — and it is answered at the next consult, exactly once.
+#[test]
+fn a_line_stamped_at_the_consult_instant_is_answered_at_the_next_consult_only() {
+    let mut view = View::new();
+    view.heard = vec![said(BOB, "the coffee is good today", NOW)];
+    assert!(
+        replies_to_bob(&view).is_empty(),
+        "not at its own instant's consult"
+    );
+    view.at = NOW + PACE;
+    let next = replies_to_bob(&view);
+    assert!(!next.is_empty(), "answered at the next consult");
+    assert!(
+        next.iter()
+            .all(|words| words.contains("the coffee is good today")),
+        "{next:?}"
+    );
+    view.at = NOW + 2 * PACE;
+    assert!(replies_to_bob(&view).is_empty(), "never twice");
 }
 
 #[test]

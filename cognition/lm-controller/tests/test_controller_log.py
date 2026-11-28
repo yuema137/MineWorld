@@ -35,6 +35,7 @@ from mineworld_cognition.controller.consult import (
     NewestState,
     consult,
 )
+from mineworld_cognition.controller.deadline import Expiry
 from mineworld_cognition.controller.failures import FailureRecord
 from mineworld_cognition.controller.log import (
     Counters,
@@ -146,7 +147,7 @@ def _record_one(index: int, gateway: ModelGateway, submits: list[str]) -> Decisi
         clock=lambda: 0.0,
         sleep=_no_sleep,
         policies=_policies(),
-        limits=ConsultLimits(deadline_s=20.0, max_calls=5),
+        limits=ConsultLimits(expiry=Expiry(20.0), max_calls=5),
     )
     result: ConsultRecord = run(
         consult(
@@ -214,7 +215,8 @@ def test_rotation_keeps_one_older_file_and_no_more(tmp_path: Path) -> None:
 
 
 def test_counters_count_calls_refusals_and_fallbacks_as_the_engine_ended_them() -> None:
-    """model_calls: a budget refusal made no call; a disconnect did (its submit failed after the call)."""
+    """model_calls: a budget refusal and a queue timeout made no call; a disconnect did (its submit failed
+    after the call)."""
     timeout = FailureRecord(cls="transport", reason="timeout", retryable=True)
     budget = FailureRecord(cls="budget", reason="budget", retryable=False)
 
@@ -264,16 +266,33 @@ def test_counters_count_calls_refusals_and_fallbacks_as_the_engine_ended_them() 
     disconnected = ConsultRecord(
         outcome="disconnected", cause="disconnected", attempts=(), proposal=None, request=None
     )
+    # C1 (#547 follow-up): a bound that ended in the gateway's slot queue reached no backend: no model call.
+    queued = ConsultRecord(
+        outcome="fell_back",
+        cause="deadline",
+        attempts=(
+            AttemptRecord(
+                layer="transport",
+                key="k5",
+                failure=FailureRecord(cls="transport", reason="queue_timeout", retryable=True),
+                text=None,
+            ),
+        ),
+        proposal=None,
+        request=None,
+    )
     counted = counters_from(
         [
             decision(1, timed_out, ()),
             decision(2, refused, ()),
             decision(3, rejected, ("rejected",)),
             decision(4, disconnected, ()),
+            decision(5, queued, ()),
         ]
     )
+    # timeouts: the transport timeout, then the queued attempt and its deadline cause.
     assert counted == Counters(
-        consults=4, fallbacks=4, timeouts=1, server_refusals=1, model_calls=3
+        consults=5, fallbacks=5, timeouts=3, server_refusals=1, model_calls=3
     )
 
 

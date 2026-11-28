@@ -63,6 +63,7 @@ const STEP_LIMIT_S := 90.0
 const FOLLOW_S := 2.0
 
 const Bodies := preload("res://scripts/harness/bodies.gd")
+const Sitting := preload("res://scripts/harness/sitting.gd")
 
 var drive: Node
 var app: Node
@@ -75,6 +76,7 @@ var _seated_again := false
 var _panels: Array = []
 ## The person the latest `{"open": {"offered": …}}` step chose (`{"open": "last"}`).
 var _last_offered := ""
+var _sitting: RefCounted
 
 
 func _ready() -> void:
@@ -149,6 +151,10 @@ func steps(path: String) -> void:
 
 ## One step; "" when it completed, else why not.
 func _step(i: int, step: Dictionary) -> String:
+	if step.has("click_sit") or step.has("report_posture") or step.has("floor_near_seat") or step.has("record_seating"):
+		if _sitting == null:
+			_sitting = Sitting.new(self)
+		return await _sitting.step(step)
 	if step.has("open"):
 		if typeof(step["open"]) == TYPE_DICTIONARY:
 			return await _open_offered(step["open"])

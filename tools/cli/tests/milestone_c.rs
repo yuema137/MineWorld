@@ -212,6 +212,8 @@ async fn in_the_cafe(client: &mut Client, who: &str) -> WireObservation {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn alice_works_earns_buys_and_bob_sees_the_shelf_change_across_a_restart() {
+    // The save is hosted at its head, 07:00 of day 2 (the world begins at 07:00, ARC-371), when the
+    // café sells (ARC-364).
     let town = Town::read(Path::new(MARKET_TOWN));
     let (alice, bob) = (town.person("alice"), town.person("bob"));
 
@@ -235,8 +237,12 @@ async fn alice_works_earns_buys_and_bob_sees_the_shelf_change_across_a_restart()
     let head_at = Tables::read(&save).head_instant();
     fixture::assert_quiet_in(
         &Path::new(MARKET_TOWN).join("people"),
-        head_at,
-        3_600,
+        // The boundaries at the head instant itself were committed before the save stopped; the half
+        // hour after it is quiet.
+        // (Was an hour from midnight; 07:00 + 30 min is the quiet span a 07:00 world has. At the pack's scale 12
+        // that is 150 s of wall time; this test runs for seconds — ac5_takeover asserts its own end instant.)
+        head_at + 1,
+        1_799,
         "milestone_c.rs (hosting the 2-day save)",
     );
     let saved = save.to_str().expect("path");

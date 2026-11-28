@@ -14,6 +14,7 @@ use mineworld_kernel::SystemIdentity;
 use serde::{Deserialize, Serialize};
 
 use crate::configuration::{Currency, ResolvedModifier};
+use crate::hours::Hours;
 use crate::proposal::ProposalId;
 use crate::system::EconomySystem;
 
@@ -78,11 +79,17 @@ impl Funded {
 /// A shop opened in `place`, run by `operator`, with `keepers` who may change its asks: a genesis fact
 /// from the operator's `economy:` section. Public: a shop is there for anyone to see. Its prices follow
 /// as `listed` facts, the operator's asks (schema 2: `prices` left it, `ARC-112`).
+///
+/// It carries the shop's authored sales [`Hours`], when any (`pr-nightlife.md` N1-I4): additive and
+/// optional, still schema 2. A fact without them — every `shop-opened` stated before N1 — opens a shop
+/// that is always open, and one stated without hours encodes exactly as before.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ShopOpened {
     place: PlaceId,
     operator: OrganizationId,
     keepers: Vec<PersonId>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    hours: Option<Hours>,
 }
 
 impl Event for ShopOpened {
@@ -96,12 +103,19 @@ impl ShopOpened {
         place: PlaceId,
         operator: OrganizationId,
         keepers: Vec<PersonId>,
+        hours: Option<Hours>,
     ) -> Self {
         Self {
             place,
             operator,
             keepers,
+            hours,
         }
+    }
+
+    /// Its sales hours; `None`: always open.
+    pub const fn hours(&self) -> Option<&Hours> {
+        self.hours.as_ref()
     }
 
     /// Where.

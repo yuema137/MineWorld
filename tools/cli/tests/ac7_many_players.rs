@@ -199,6 +199,7 @@ async fn record(
 
 #[tokio::test(flavor = "multi_thread")]
 async fn four_players_in_one_world_meet_the_same_alice() {
+    // The world begins at 07:00 (ARC-371), when the café sells (ARC-364).
     let town = Town::read(Path::new(MARKET_TOWN));
     let alice = town.id("alice");
     let save = SaveDir::new("ac7-many-players");

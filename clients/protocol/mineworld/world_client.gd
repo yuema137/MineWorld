@@ -40,6 +40,10 @@ extends Node
 ## refused rather than guessed at.
 const PROTOCOL := 2
 
+## How long a client going away waits for the server to answer its `leave` before it goes anyway, in
+## wall milliseconds. A local server answers in a few; the bound keeps a dead link from stalling a quit.
+const LEAVE_WAIT_MSEC := 1000
+
 ## The connection got a seat: this is the observer it sees the world as, and what the world is.
 ##
 ## `observer` is an identity **string**. `world` is the summary the server sent, including
@@ -390,6 +394,36 @@ func leave_world() -> void:
 	if state == State.IDLE or state == State.CLOSED:
 		return
 	_send({ "t": "leave" })
+
+
+## Leaving the scene tree is the client going away — the player chose Quit, closed the window, or a
+## scripted run ended (`get_tree().quit()` frees the tree): the seat is given back with `leave` at once
+## (`PROTOCOL.md` §4.2), not held for a resume nobody is going to make, so another client — the other
+## reference client, say — can take it straight away (#543). A crash or a kill never gets here; its
+## socket just ends and the server holds the seat as before.
+func _exit_tree() -> void:
+	_leave_before_going()
+
+
+## Sends `leave` and waits, at most [constant LEAVE_WAIT_MSEC], for the server to close the
+## connection, polling by hand: the tree is going away, so nothing will call [method _process] again
+## and a frame only queued would never be written. Emits nothing — the listeners are going away too.
+func _leave_before_going() -> void:
+	if state != State.JOINING and state != State.SEATED:
+		return
+	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
+		return
+	if _socket.send_text(JSON.stringify({ "t": "leave" })) == OK:
+		var deadline := Time.get_ticks_msec() + LEAVE_WAIT_MSEC
+		while Time.get_ticks_msec() < deadline:
+			_socket.poll()
+			if _socket.get_ready_state() == WebSocketPeer.STATE_CLOSED:
+				break
+			OS.delay_msec(5)
+	if _socket.get_ready_state() != WebSocketPeer.STATE_CLOSED:
+		_socket.close()
+		_socket.poll()
+	state = State.CLOSED
 
 
 ## Whether this connection is seated and can act.

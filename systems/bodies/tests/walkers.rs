@@ -365,3 +365,44 @@ fn an_idle_person_gives_way_to_a_walker_standing_by_a_wall() {
     println!("by the wall: {ended:?}");
     assert_eq!(ended[0].map(|(_, outcome)| outcome), Some(Ended::Arrived));
 }
+
+/// Q-S34d1-3 (Market Town, seed 7, day 92): an idle person who gives way must never be left where no
+/// route can start. Two solids leave a 540 mm slot between them — wide enough for a body (500 mm), too
+/// narrow for the route planner, whose obstacles are grown by a radius, the gap and the plan margin —
+/// as the café's terrace table and the clay pot behind it do. "erin" stands idle at the slot's mouth
+/// in "alice"'s way; the nearest point out of alice's corridor lies 200 mm inside the slot, deeper than
+/// the planner's start snap reaches. Erin steps aside elsewhere, and her own next walk is accepted —
+/// before the fix she was put in the slot and every walk from there was refused `no-route`.
+#[test]
+fn a_person_who_gives_way_can_still_set_off() {
+    let solids = [
+        ((2_000, 1_000, 4_000, 2_000), 850),
+        ((2_000, 2_540, 4_000, 3_500), 600),
+    ];
+    let room = shape((0, 0, 7_000, 6_000), &solids);
+    let mut yard = Yard::new(&Plan {
+        places: vec![("room", Some(room))],
+        people: vec![
+            ("alice", "room", Some((1_650, 1_600))),
+            ("erin", "room", Some((1_750, 2_270))),
+        ],
+        ..Plan::default()
+    });
+    let north = yard.at("room", (1_650, 5_500));
+    walk_to(&mut yard, "alice", north);
+    let (ended, _) = step_all(&mut yard, &["alice"], "room", 10);
+    let erin = yard.point("erin").expect("erin stands in the room");
+    println!("alice: {ended:?}; erin now at {erin:?}");
+    assert_eq!(ended[0].map(|(_, outcome)| outcome), Some(Ended::Arrived));
+    assert_ne!(erin, (1_750, 2_270), "erin gave way");
+    let west = yard.at("room", (500, 500));
+    let walk = yard.submit(
+        "erin",
+        ActionRecord::new::<WalkTo>(encode(&WalkTo::new(Destination::Place(west)))),
+    );
+    assert!(
+        walk.accepted(),
+        "erin, moved aside to {erin:?}, can still set off: {:?}",
+        walk.result
+    );
+}

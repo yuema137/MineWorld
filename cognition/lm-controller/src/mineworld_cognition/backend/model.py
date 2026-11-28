@@ -23,9 +23,11 @@ Finish = Literal["complete", "length", "refused"]
 """How the model ended: it finished; it hit `max_output_tokens`; it declined (a content filter)."""
 
 FailureReason = Literal[
-    "unreachable", "timeout", "http_status", "malformed_response", "unauthorized"
+    "unreachable", "timeout", "queue_timeout", "http_status", "malformed_response", "unauthorized"
 ]
-"""Why no completion exists. A failure is never something the model said, so it is never recorded."""
+"""Why no completion exists. A failure is never something the model said, so it is never recorded.
+`queue_timeout` is the gateway's own: the call's bound ended while it waited for an in-flight slot, so it never
+reached the backend and cost nothing (ARC-57 dated note 2026-11-27)."""
 
 _U32_MAX = 2**32 - 1
 

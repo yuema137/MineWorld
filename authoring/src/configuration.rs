@@ -11,7 +11,7 @@ use std::any::Any;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
-use mineworld_contracts::{EventTypeId, Rejection, SystemId};
+use mineworld_contracts::{EventTypeId, Rejection, RejectionCode, SystemId};
 use mineworld_kernel::{Emission, SystemIdentity};
 use serde::Deserialize;
 use serde::de::{DeserializeOwned, DeserializeSeed, Deserializer};
@@ -98,6 +98,16 @@ pub enum ConfigurationRefusal {
         second: EntryAt,
         /// The field they disagree on.
         field: String,
+    },
+    /// The configuration's owner refuses a combination its fields' own bounds cannot express (`ARC-370`):
+    /// two settings that contradict each other, or one another requires and the file lacks.
+    Owner {
+        /// The entry to blame, when there is one.
+        entry: Option<EntryAt>,
+        /// The owner's code for the refusal.
+        code: RejectionCode,
+        /// What is wrong, for the author: bounded text, never matched by code.
+        detail: String,
     },
 }
 

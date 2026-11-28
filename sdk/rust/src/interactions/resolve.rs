@@ -236,7 +236,8 @@ fn named_classes<S: InteractionSection>(entries: &Entries<S>) -> Vec<(&ClassName
 ///
 /// [`ConfigurationRefusal::ClassUndefined`] for a selector naming a class that is neither defined nor
 /// implicit; [`ConfigurationRefusal::Ambiguous`] for two entries of equal specificity that overlap and
-/// disagree on a field.
+/// disagree on a field; then whatever the owner's
+/// [`validate_authored`](InteractionSection::validate_authored) refuses ([`ConfigurationRefusal::Owner`]).
 pub fn resolve<S: InteractionSection>(
     section: &Section<S>,
     classes: &EntityClasses,
@@ -259,16 +260,7 @@ pub fn resolve<S: InteractionSection>(
         }
     }
 
-    let lists = S::reference_lists();
-    let default_list = lists
-        .iter()
-        .find(|(name, _)| *name == "default")
-        .map(|(_, list)| list.clone())
-        .unwrap_or_default();
-    let chain = match section.extends {
-        Some(name) => Section::<S>::chain(name).unwrap_or_default(),
-        None => Vec::new(),
-    };
+    let (default_list, chain) = inherited(section);
     let mut levels = vec![Level {
         prefix: "reference list 'default' ".to_owned(),
         entries: &default_list.entries,
@@ -308,11 +300,66 @@ pub fn resolve<S: InteractionSection>(
             resolve_levels(&with_region, default, classes)?,
         ));
     }
-    Ok(Resolved {
+    let resolved = Resolved {
         classes: classes.restricted_to(&referenced),
         base,
         regions: resolved_regions,
-    })
+    };
+    S::validate_authored(section, &resolved)?;
+    Ok(resolved)
+}
+
+/// What a section inherits: the pack's `default` reference list and the chain its `extends` names,
+/// root-most first.
+fn inherited<S: InteractionSection>(
+    section: &Section<S>,
+) -> (Section<S>, Vec<(&'static str, Section<S>)>) {
+    let default_list = S::reference_lists()
+        .into_iter()
+        .find(|(name, _)| *name == "default")
+        .map(|(_, list)| list)
+        .unwrap_or_default();
+    let chain = match section.extends {
+        Some(name) => Section::<S>::chain(name).unwrap_or_default(),
+        None => Vec::new(),
+    };
+    (default_list, chain)
+}
+
+impl<S: InteractionSection> Section<S> {
+    /// Every parameter entry that sets the field `field`, wherever it applies from — the `default`
+    /// reference list, the `extends` chain, the section's own entries, each region — named as
+    /// resolution names entries (`reference list 'default' parameters[0]`, `parameters[2]`,
+    /// `regions.cafe.parameters[1]`), in that order. Presence, not effect: an entry a later one
+    /// shadows is listed too. What an owner's
+    /// [`validate_authored`](InteractionSection::validate_authored) asks when a field is legal only
+    /// beside another (`ARC-370`).
+    pub fn entries_setting(&self, field: &str) -> Vec<EntryAt> {
+        let (default_list, chain) = inherited(self);
+        let mut sources: Vec<(String, &Entries<S>)> = vec![(
+            "reference list 'default' ".to_owned(),
+            &default_list.entries,
+        )];
+        for (name, list) in &chain {
+            sources.push((format!("reference list '{name}' "), &list.entries));
+        }
+        sources.push((String::new(), &self.entries));
+        for (place, entries) in &self.regions {
+            sources.push((format!("regions.{place}."), entries));
+        }
+        sources
+            .into_iter()
+            .flat_map(|(prefix, entries)| {
+                entries
+                    .parameters
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, entry)| entry.fields.set_names().contains(&field))
+                    .map(move |(index, _)| at(&prefix, "parameters", index))
+                    .collect::<Vec<_>>()
+            })
+            .collect()
+    }
 }
 
 type ParamMap<P> = BTreeMap<Selectors, (P, EntryAt)>;

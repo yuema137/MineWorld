@@ -12,15 +12,37 @@ First pre-alpha. Packaged clients for macOS, Windows and Linux are not yet publi
 
 - Runtime foot grounding for 3D people: each foot finds its ground, and a two-bone IK solver places it (#407).
 - A route step may name a point inside a place, so a probe walk can end at a named spot (#494).
+- Food energy: a world may choose `hunger_model: food-energy`, so hunger is a kcal reserve (2000 kcal per world
+  day by default, configurable per world and per actor class) that food refills by its kcal per serving
+  (#555).
+- A world may state the time of day it begins, `begins: "HH:MM"` in `world.yaml`; Market Town, Social Café and
+  Lakeside now begin at 07:00, with residents rested and ready for breakfast. A save keeps the start it was
+  created with (#564).
 
 ### Changed
 
+- On macOS the packaged clients render through Vulkan (MoltenVK) instead of Godot's Metal driver. A first
+  launch with a cold shader cache now reaches the 3D first view in about 47 s instead of about 164 s; the
+  picture is unchanged (`DEP-164`, #569).
+- The packaged 2D launcher plays Market Town as the visitor instead of Carol. An existing 2D save resumes with
+  Carol driven by the town; `seat = "carol"` in `runtime/launch.toml` keeps playing her. A packaged 2D or 3D
+  run started alone is now a single-player (`--solo`) world. 2D + 3D and smoke runs are not. Smoke checks
+  ignore `launch.toml`. 3D and 2D + 3D stay on Social Café until the packaged 3D Market Town timing passes
+  (#561).
+- Saves of worlds with bodies made by earlier builds no longer load: bodies is now version 8, and a version-7 save is
+  refused by name. Keep the previous build to play them (#557).
+- Saves of worlds that enable `needs` made by earlier builds no longer load: keep the previous build to play
+  them (#555).
 - The MCP surface exposes one `act` tool instead of five, which halves the tool list size (#261).
 - Cast base colours ship as Basis UASTC with RDO, and the release stays within its asset budget, with
   textures sized by role (#385, #401).
 
 ### Fixed
 
+- A person who steps aside for a walker, or is nudged, is never left in a gap too tight for the route planner, from
+  which every later walk was refused `no-route` (#557).
+- `run --save` and `server --save` create a new save only after the world has assembled and begun, so a world
+  refused while loading no longer leaves an empty save that the next launch fails to resume (#555).
 - The café's chairs, stools and ledge are solids; 3D people no longer walk through them (#292).
 - `HostConfig.solo` is the single source of truth, and a start-time fast-forward is refused without it (#291).
 - The 3D package no longer ships the `res://tools` folder (#512).

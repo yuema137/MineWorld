@@ -85,8 +85,8 @@ func _box(panel: Dictionary) -> PanelContainer:
 	var bars: Array = panel.get("bars", [])
 	for i in panel["rows"].size():
 		lines.add_child(_label(panel["rows"][i], 13, Color("3b2c1e")))
-		if i < bars.size() and bars[i] >= 0:
-			lines.add_child(_bar(bars[i]))
+		if i < bars.size() and bars[i][0] >= 0:
+			lines.add_child(_bar(bars[i][0], bars[i][1]))
 	if panel.has("button"):
 		var wake := Button.new()
 		wake.text = Words.text("ui.button.wake")
@@ -96,11 +96,12 @@ func _box(panel: Dictionary) -> PanelContainer:
 
 
 ## A need's level as a bar: the scale is the packs' own deficit scale and the bar snaps to five steps
-## by itself, so the script assigns the disclosed number and computes nothing (F-Ne-4).
-static func _bar(level: int) -> ProgressBar:
+## by itself, so the script assigns the disclosed number and computes nothing (F-Ne-4). A reserve's bar is
+## the owner's value on the owner's maximum (`ARC-370`).
+static func _bar(level: int, maximum: int) -> ProgressBar:
 	var bar := ProgressBar.new()
 	bar.min_value = 0
-	bar.max_value = MineWorldNeeds.LEVEL_MAX
+	bar.max_value = maximum
 	bar.step = 200
 	bar.show_percentage = false
 	bar.custom_minimum_size = Vector2(292, 8)

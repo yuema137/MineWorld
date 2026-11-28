@@ -36,15 +36,23 @@ use support::{Client, SaveDir, Server, run_command, tagged, talk};
 /// At the café counter, in reach of Alice behind it (`worldpack/tests/social_cafe.rs` `AT_THE_COUNTER`).
 const NEXT_TO_ALICE: (i32, i32) = (6_000, 6_200);
 
-/// How much of the day a hosted world here runs through: it begins at genesis, 00:00, and a world
-/// second passes per wall second, so the test is over long before five hours of world time.
-const HOSTED_FROM_GENESIS: (i64, i64) = (0, 5 * 3_600);
+/// How much of the day a hosted world here runs through: it begins at genesis — the pack's `begins:`,
+/// 07:00 (ARC-371), whose boundaries are genesis' own — and the next boundary is half an hour later.
+/// At the pack's scale the test is over long before that (it lasts seconds of wall time).
+fn hosted_from_genesis() -> (i64, i64) {
+    let begins = mineworld_worldpack::WorldPack::read(support::PACK)
+        .expect("reads")
+        .begins()
+        .seconds();
+    (begins + 1, 1_799)
+}
 
 #[tokio::test]
 async fn a_killed_server_restarts_as_the_same_world_where_it_stopped() {
     // The revision literals below hold only while no routine boundary falls as the world runs
     // (step-09 §4.3.7): checked first, so a routine edited into this window fails here, by name.
-    fixture::assert_quiet(HOSTED_FROM_GENESIS.0, HOSTED_FROM_GENESIS.1, "restart.rs");
+    let (from, length) = hosted_from_genesis();
+    fixture::assert_quiet(from, length, "restart.rs");
     let save = SaveDir::new("restart");
     let command = ["server", support::PACK, "--save", save.path()];
 
@@ -207,7 +215,8 @@ async fn a_killed_server_restarts_as_the_same_world_where_it_stopped() {
 #[tokio::test]
 async fn a_refused_request_is_persisted_so_its_identity_is_never_reissued() {
     // Its revision literal (2) holds only while no routine boundary falls as the world runs.
-    fixture::assert_quiet(HOSTED_FROM_GENESIS.0, HOSTED_FROM_GENESIS.1, "restart.rs");
+    let (from, length) = hosted_from_genesis();
+    fixture::assert_quiet(from, length, "restart.rs");
     let save = SaveDir::new("refused");
     let command = ["server", support::PACK, "--save", save.path()];
     let mut first = Server::start(&command).await;
@@ -241,7 +250,8 @@ async fn a_refused_request_is_persisted_so_its_identity_is_never_reissued() {
 /// with no memory of whom it had answered and replied to the old line once more.
 #[tokio::test]
 async fn a_restarted_agent_does_not_answer_again_what_it_answered_before_the_kill() {
-    fixture::assert_quiet(HOSTED_FROM_GENESIS.0, HOSTED_FROM_GENESIS.1, "restart.rs");
+    let (from, length) = hosted_from_genesis();
+    fixture::assert_quiet(from, length, "restart.rs");
     let save = SaveDir::new("f13");
     let command = [
         "server",

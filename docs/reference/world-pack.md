@@ -16,6 +16,7 @@ The World Pack's manifest, at the root of its directory.
 
 | Field | Type | Required | Default | Bounds | Description |
 | --- | --- | --- | --- | --- | --- |
+| `begins` | text | no | `null` | matches `^([01][0-9]\|2[0-3]):[0-5][0-9]$` | The time of day the world begins, "HH:MM" on a 24-hour clock, quoted: genesis is that instant of day 0 (`DECISIONS.md` `ARC-371`). Absent, "00:00", local midnight. Every host that creates a world begins it there; a saved world keeps the start it was created with. |
 | `configure` | list of [ConfigurationKey](#world-configurationkey) | no | — | — | The files in `configure/` this world has, in seeding order: each key names `configure/<key>.yaml` — an enabled System Pack's id, or `classes` or `packages`. |
 | `decisions` | [DecisionsFile](#world-decisionsfile) | no | — | — | The decision list: a file of this pack, such as decisions.yaml, saying which decision model drives each seat. Absent, every seat is driven by the rule model. |
 | `hosting` | [Hosting](#world-hosting) | no | — | — | How a host paces this world when it serves it: `time_scale`, the world seconds that pass per wall second unless the host says otherwise. |

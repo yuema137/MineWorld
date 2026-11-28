@@ -16,7 +16,12 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
-const FIXTURES: [&str; 3] = ["market-town-night", "commute-late", "commute-sleeper"];
+const FIXTURES: [&str; 4] = [
+    "market-town-night",
+    "commute-late",
+    "commute-sleeper",
+    "market-town-food-energy",
+];
 const LOCALES: [&str; 2] = ["en", "zh_Hans"];
 
 /// Godot on PATH, or `GODOT`; the test refuses to pass without it.

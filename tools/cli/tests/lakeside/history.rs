@@ -166,7 +166,10 @@ pub fn fishes_and_eats_in_every_bucket(
 ) -> usize {
     let genesis = facts.first().expect("a genesis").at().seconds();
     let last = facts.last().expect("facts").at().seconds();
-    let buckets = (last - genesis) / (BUCKET_DAYS * DAY) + 1;
+    // The run spans [genesis, genesis + days·DAY]; a fact at its very last instant opens no new bucket.
+    // (With a world that begins at midnight the last fact never fell there; one that begins at its
+    // authored hour, `ARC-371`, ends on a routine boundary.)
+    let buckets = ((last - genesis + BUCKET_DAYS * DAY - 1) / (BUCKET_DAYS * DAY)).max(1);
 
     let caught = landed_catches(facts);
     assert!(caught > 0, "no catch whose cause reaches an accepted fish");

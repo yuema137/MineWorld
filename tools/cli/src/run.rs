@@ -315,7 +315,8 @@ struct Begun {
 
 impl Begun {
     fn new(pack: &WorldPack, save: Option<&Path>) -> Result<Self, String> {
-        let at = WorldTime::EPOCH;
+        // A world this run creates begins where its pack says (`ARC-371`); a resumed save keeps its own.
+        let at = pack.begins();
         let Some(save) = save else {
             let loaded = pack.load(at).map_err(described)?;
             let began = loaded.genesis().to_vec();
@@ -332,16 +333,19 @@ impl Begun {
         };
         let file = SqliteBackend::file(save).display().to_string();
         if !SqliteBackend::exists(save) {
-            let backend = SqliteBackend::create(save, Durability::ProcessCrash).map_err(stopped)?;
+            // The save is made only once the world has assembled and begun in memory (`ARC-370`).
             let assembled = pack.assemble().map_err(described)?;
-            let (world, began) = PersistentWorld::create(
-                Box::new(backend),
+            let (world, began) = PersistentWorld::create_with_backend(
                 assembled.world,
                 Creation {
                     instance: WorldInstanceId::allocate().raw(),
                     pack: pack.id().to_owned(),
                     at,
                     facts: assembled.facts,
+                },
+                || {
+                    let backend = SqliteBackend::create(save, Durability::ProcessCrash)?;
+                    Ok(Box::new(backend) as Box<dyn PersistenceBackend>)
                 },
             )
             .map_err(stopped)?;
@@ -390,7 +394,7 @@ impl Begun {
 }
 
 /// The instant a saved world began at: its genesis facts', or genesis's own journal row.
-fn genesis_instant(backend: &SqliteBackend) -> Result<i64, String> {
+pub(crate) fn genesis_instant(backend: &SqliteBackend) -> Result<i64, String> {
     if let Some(first) = backend
         .facts_of(WorldRevision::GENESIS)
         .map_err(stopped)?

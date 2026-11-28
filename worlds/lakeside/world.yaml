@@ -42,6 +42,10 @@ requires:
 # every pack comes after what it depends on. `fishing` (third-party) depends on presence and inventory,
 # so it comes last. Leave it out, with every place's `fishing:` section, and the lake is only scenery:
 # `fish` is offered to nobody and nothing else changes (AC-2).
+# The world begins at 07:00 on day 0, not at midnight (ARC-371; operator ruling 2026-11-27): a new
+# world opens on a morning, with its shops about to sell. A saved world keeps the start it was created with.
+begins: "07:00"
+
 systems:
   - presence
   - movement
@@ -64,6 +68,12 @@ systems:
   # Presentation Pack resolves. It depends on nothing and nothing depends on it, so it is appended.
   # Leave it out with the `appearance:` lines and people are drawn by each client's fallback.
   - appearance
+  # Where people may sit (`ARC-147`, `ARC-172`, S34-c2): the sit points of the pier's bench, the
+  # square's two benches under the lime, the bakery's five chairs and the halt's benches, in those
+  # places' `sit-points:` sections. It depends on presence and movement, and holds a seated person in
+  # place against `bodies` (S34-b). Appended, so every reduction order above stays as it was. Leave it
+  # out, with every `sit-points:` section, and nobody sits and everything else stays as it was.
+  - posture
 
 # The lake's own produce: what the shore and the pier yield (`fishing:` on each). The goods in people's
 # hands come from modern-goods, which must not declare `fish` too: keys are one namespace (ARC-71).

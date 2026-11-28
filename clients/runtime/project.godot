@@ -68,4 +68,5 @@ inspect={
 [rendering]
 
 renderer/rendering_method="forward_plus"
+rendering_device/driver.macos="vulkan"
 textures/vram_compression/import_etc2_astc=true

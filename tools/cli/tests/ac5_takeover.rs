@@ -196,8 +196,15 @@ fn own_components(observation: &mineworld_server::WireObservation) -> Vec<(Strin
 async fn a_player_takes_alice_from_her_controller_and_she_is_the_same_person() {
     fixture::assert_quiet_in(
         &Path::new(MARKET_TOWN).join("people"),
-        0,
-        3_600,
+        // The world begins at 07:00 (ARC-371), when the café is open (ARC-364). Boundaries at 07:00
+        // itself are the genesis agenda, not a later wake; the half hour after it is quiet, and this
+        // test lasts seconds of wall time at the town's scale.
+        mineworld_worldpack::WorldPack::read(MARKET_TOWN)
+            .expect("reads")
+            .begins()
+            .seconds()
+            + 1,
+        1_799,
         "ac5_takeover.rs",
     );
     let town = Town::read(Path::new(MARKET_TOWN));
@@ -283,6 +290,17 @@ async fn a_player_takes_alice_from_her_controller_and_she_is_the_same_person() {
     // controller answering Bob would be a fourth (`talk` is not a biographical fact, so the
     // biography alone would not show it).
     let status = server.status().await;
+    // The quiet half hour checked above is this claim's precondition: a slow run that outlived it fails
+    // here, by name, rather than as a mysterious extra revision.
+    let quiet_until = mineworld_worldpack::WorldPack::read(MARKET_TOWN)
+        .expect("reads")
+        .begins()
+        .seconds()
+        + 1_800;
+    assert!(
+        status["at"].as_i64().is_some_and(|at| at < quiet_until),
+        "the test ran past its quiet window ({quiet_until} s): {status}"
+    );
     assert_eq!(
         status["revision"],
         json!(head + 3),

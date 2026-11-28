@@ -1100,6 +1100,10 @@ msgstr ""
 msgid "reason.out-of-stock"
 msgstr ""
 
+#. the shop is closed
+msgid "reason.shop-closed"
+msgstr ""
+
 #. you cannot carry any more
 msgid "reason.cannot-carry"
 msgstr ""
@@ -1170,6 +1174,10 @@ msgstr ""
 
 #. {need}: {word}
 msgid "ui.row.need"
+msgstr ""
+
+#. {need}: {word} — {available} / {capacity} kcal ({use} kcal a day)
+msgid "ui.row.reserve"
 msgstr ""
 
 #. Asleep since {since}, alarm at {alarm}
@@ -1318,4 +1326,40 @@ msgstr ""
 
 #. Enter sends  ·  Esc cancels
 msgid "ui.input.hint"
+msgstr ""
+
+#. Quit (Esc)
+msgid "loading.quit"
+msgstr ""
+
+#. Reading world layout...
+msgid "loading.layout"
+msgstr ""
+
+#. Building the world...
+msgid "loading.world"
+msgstr ""
+
+#. Preparing people...
+msgid "loading.people"
+msgstr ""
+
+#. Preparing lighting...
+msgid "loading.light"
+msgstr ""
+
+#. Preparing your character...
+msgid "loading.player"
+msgstr ""
+
+#. Preparing graphics... (the first launch can take a few minutes)
+msgid "loading.graphics"
+msgstr ""
+
+#. Joining the world...
+msgid "loading.connecting"
+msgstr ""
+
+#. Drawing the world...
+msgid "loading.ready"
 msgstr ""
