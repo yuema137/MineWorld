@@ -843,3 +843,21 @@ pacing, "never seeded, ignored by `run`", `ARC-69` item 9), so a start time does
   small follow-up PR "world start time" with the design above (one commit for the key + hosts, one for content
   and goldens), budget ≈ 2 h heavy. Alternative, if the operator wants it inside #552: approve the scope and a
   2 h heavy budget, and this session continues.
+
+### Merge with main a2be71e4 (after #553 Lakeside, #555 FE-a needs v2, #544 …) — Market Town re-recorded again
+
+Merged without conflict (no rebase). Other worlds' sections are main's. `[world market-town]` re-recorded from a
+long-profile record of the merged tree (`ae34d202`, Market Town only, 1 674 s) and written by `baseline write`:
+
+| Key | #552 before merge | After merge (ae34d202) |
+| --- | --- | --- |
+| summary-300 | 401 bb959647… | 401 65c42943… |
+| summary-1000 | 1127 8d27edd3… | 1127 0264a9eb… |
+| summary-300s | 400 c43a95c0… | 400 a357530d… |
+| facts-300s | 6032 0bb704b8… | unchanged |
+| journal-300s | 4170 b825bc57… | unchanged |
+| sealed-300s | 263 9e90d6b6… | 263 6867e8ea… |
+
+On the merged tree: economy `closed` 5/5, `hours` 4/4; `shop_hours` 4/4; `ac5_takeover` 2/2, `ac7_many_players`
+1/1, `milestone_c` 1/1, `newsstand` 6/6 PASS. AC-S35-8 re-run (release, `ae34d202`): PASS, every row as before
+(Market Town 1000 ‰ at 03:00, 0 ‰ at 14:00, 7.45 / 7.43 / 7.47 h, TV 275 / 275 / 273 ‰; Commute Town PASS).
