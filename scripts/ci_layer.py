@@ -90,6 +90,9 @@ LAYERS: dict[str, list[list[str]]] = {
         ["python3", "scripts/ci_gdparse.py", "--self-test"],
         ["python3", "scripts/ci_repeat.py", "--self-test"],
         ["python3", "scripts/ci_stability.py", "--self-test"],
+        # The onboarding cold-start check's commands and its workflow's rules (ARC-362): no cache or setup action
+        # in the clean jobs, no pull_request trigger, no input expanded in a script (pr-25g §9 AD-8).
+        ["python3", "scripts/ci_cold_start.py", "--self-test"],
         # The partition of `core` into the test jobs' shards (ARC-110): complete and deterministic.
         ["python3", "scripts/ci_shard.py", "--self-test"],
         ["python3", "scripts/test_ci_execution.py"],

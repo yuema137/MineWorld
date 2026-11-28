@@ -7,6 +7,10 @@
 # only on its own shell's systems (§4.6), so the count on one system may be higher.
 minimum_passed = 164
 not_run = [
+  "01-get-mineworld | Step 1.1 — Get the mineworld command | cold-start",
+  "01-get-mineworld | Step 1.1 — Get the mineworld command | cold-start",
+  "01-get-mineworld | Step 1.1 — Get the mineworld command | cold-start",
+  "01-get-mineworld | Step 1.1 — Get the mineworld command | cold-start",
   "01-get-mineworld | Step 1.5 — Or download a ready-made program | operator-only",
   "01-get-mineworld | Step 1.5 — Or download a ready-made program | operator-only",
   "01-get-mineworld | Step 1.5 — Or download a ready-made program | operator-only",

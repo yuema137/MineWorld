@@ -42,13 +42,24 @@ pub fn words(command: &str) -> Result<Vec<String>, String> {
     Ok(words)
 }
 
-/// Runs the binary with `words` (whose first word is `mineworld`) in `scratch`. Returns what it wrote to
+/// Which rules a run follows (`docs/GUIDE_FORMAT.md` §4.6 and §4.7). A run is in exactly one mode.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Rules {
+    /// The repository's own guide test (§4.6): a scratch home, the clone reads the checkout, the build goes
+    /// to `guide-build/`, every command runs the test's own binary.
+    Repository,
+    /// A clean runner following the guide as a stranger would (§4.7): the real home, the real network, the
+    /// reader's own build, and `cold-start` blocks run.
+    ColdStart,
+}
+
+/// Runs `binary` with `words` (whose first word is `mineworld`) in `scratch`. Returns what it wrote to
 /// its standard output and standard error, interleaved in the order it wrote them, and its exit code
 /// (-1 when it was ended by a signal).
-pub fn run(scratch: &Path, words: &[String]) -> Result<(String, i32), String> {
+pub fn run(binary: &Path, scratch: &Path, words: &[String]) -> Result<(String, i32), String> {
     let (mut reader, writer) =
         std::io::pipe().map_err(|error| format!("a pipe cannot be made: {error}"))?;
-    let mut command = Command::new(BINARY);
+    let mut command = Command::new(binary);
     command
         .args(&words[1..])
         .current_dir(scratch)
@@ -57,7 +68,7 @@ pub fn run(scratch: &Path, words: &[String]) -> Result<(String, i32), String> {
         .stderr(writer);
     let mut child = command
         .spawn()
-        .map_err(|error| format!("the binary cannot be started: {error}"))?;
+        .map_err(|error| format!("the binary {} cannot be started: {error}", binary.display()))?;
     // The command holds the pipe's write end; it must go before reading, or the read never ends.
     drop(command);
     let mut output = Vec::new();
@@ -105,24 +116,64 @@ pub const CLONE_URL: &str = "https://github.com/yuema137/MineWorld";
 /// Runs a `sh` or `powershell` block as a script, in `scratch`, with `home` as the reader's home folder
 /// (§4.6). The script is written beside `home`'s clone, never into the scratch folder, so an `equals` check
 /// of the scratch folder sees only what the page made. The block passes when the script exits 0; what it
-/// printed is returned in the failure.
+/// printed is returned in the failure. In cold-start mode the block runs as a stranger's new terminal would
+/// (§4.7 rules 1–4), and `repo` is not read.
 pub fn shell(
     scratch: &Path,
     home: &Path,
     repo: &Path,
     family: Family,
     text: &str,
+    rules: Rules,
 ) -> Result<(), String> {
+    let mut command = script_command(home, family, text, rules)?;
+    command.current_dir(scratch).stdin(Stdio::null());
+    match rules {
+        Rules::Repository => repository_environment(&mut command, home, repo)?,
+        // §4.7 rule 1: the process's own home stays; nothing points Cargo or rustup elsewhere.
+        Rules::ColdStart => {
+            command
+                .env_remove("CARGO_HOME")
+                .env_remove("RUSTUP_HOME")
+                .env_remove("CARGO_TARGET_DIR");
+        }
+    }
+    let output = command
+        .output()
+        .map_err(|error| format!("{} cannot be started: {error}", family.word()))?;
+    if output.status.success() {
+        return Ok(());
+    }
+    Err(format!(
+        "the {} block exited with {}:\n{}{}",
+        family.word(),
+        output.status.code().unwrap_or(-1),
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    ))
+}
+
+/// The block's text written as a script under `home`, and the command that runs it: `sh -e` (`sh -l -e` in
+/// cold-start mode, a login shell that reads `~/.profile`), or Windows PowerShell.
+fn script_command(
+    home: &Path,
+    family: Family,
+    text: &str,
+    rules: Rules,
+) -> Result<Command, String> {
     let scripts = home.join(".guide-scripts");
     std::fs::create_dir_all(&scripts)
         .map_err(|error| format!("{} cannot be made: {error}", scripts.display()))?;
     let count = std::fs::read_dir(&scripts)
         .map(Iterator::count)
         .unwrap_or(0);
-    let (path, mut command) = match family {
+    let (path, command) = match family {
         Family::Posix => {
             let path = scripts.join(format!("block-{count}.sh"));
             let mut command = Command::new("sh");
+            if rules == Rules::ColdStart {
+                command.arg("-l");
+            }
             command.arg("-e").arg(&path);
             (path, command)
         }
@@ -141,8 +192,14 @@ pub fn shell(
             (path, command)
         }
     };
-    std::fs::write(&path, script(family, text))
+    std::fs::write(&path, script(family, text, rules))
         .map_err(|error| format!("{} cannot be written: {error}", path.display()))?;
+    Ok(command)
+}
+
+/// §4.6 rules 3–5: the run's scratch home, the test process's Cargo and rustup, the build beside the test's
+/// own target folder, and a clone that reads the repository under test.
+fn repository_environment(command: &mut Command, home: &Path, repo: &Path) -> Result<(), String> {
     let real_home = std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" })
         .map(std::path::PathBuf::from)
         .ok_or("the test process has no home folder to find Cargo and rustup in")?;
@@ -159,8 +216,6 @@ pub fn shell(
         .ok_or("the test binary has no target folder")?;
     let repo_url = lexical(repo).to_string_lossy().replace('\\', "/");
     command
-        .current_dir(scratch)
-        .stdin(Stdio::null())
         .env("HOME", home)
         .env("CARGO_HOME", cargo_home)
         .env("RUSTUP_HOME", rustup_home)
@@ -184,29 +239,26 @@ pub fn shell(
             .env("HOMEDRIVE", drive)
             .env("HOMEPATH", rest);
     }
-    let output = command
-        .output()
-        .map_err(|error| format!("{} cannot be started: {error}", family.word()))?;
-    if output.status.success() {
-        return Ok(());
-    }
-    Err(format!(
-        "the {} block exited with {}:\n{}{}",
-        family.word(),
-        output.status.code().unwrap_or(-1),
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    ))
+    Ok(())
 }
+
+/// What a newly opened PowerShell window's `PATH` is: the Machine and the User `Path` from the registry
+/// (§4.7 rule 4), so a tool an earlier block installed is found, and nothing the test process added is.
+pub const NEW_TERMINAL_PATH: &str = "$env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')";
 
 /// The script a block becomes. `sh -e` stops at the first command that fails. PowerShell stops at a failing
 /// cmdlet with `$ErrorActionPreference`, and a program's exit code is checked after every line, because
-/// PowerShell does not stop on one by itself.
-fn script(family: Family, text: &str) -> String {
+/// PowerShell does not stop on one by itself. In cold-start mode a PowerShell script first rebuilds `PATH`
+/// as a new window has it.
+fn script(family: Family, text: &str, rules: Rules) -> String {
     match family {
         Family::Posix => text.to_owned(),
         Family::PowerShell => {
             let mut script = String::from("$ErrorActionPreference = 'Stop'\n");
+            if rules == Rules::ColdStart {
+                script.push_str(NEW_TERMINAL_PATH);
+                script.push('\n');
+            }
             for line in text.lines().filter(|line| !line.trim().is_empty()) {
                 script.push_str(line);
                 script.push_str("\nif ($LASTEXITCODE) { exit $LASTEXITCODE }\n");

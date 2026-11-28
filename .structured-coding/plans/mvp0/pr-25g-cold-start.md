@@ -1,6 +1,6 @@
 # PR 25g — The onboarding cold-start check, layers A and B
 
-**Lifecycle:** `FROZEN 2026-10-27 (DESIGN FROZEN: operator approved in the primary session, every question answered as recommended; not yet implemented)`. Written 2026-10-26 by a design session for the release lane; frozen by the operator's ruling of 2026-10-27 (primary session, 21:11 UTC, "all as recommended"; header reconciled 2026-11-27). The freeze
+**Lifecycle:** `FROZEN 2026-10-27 (DESIGN FROZEN: operator approved in the primary session, every question answered as recommended); IMPLEMENTING 2026-11-27 (impl-25g-2)`. Written 2026-10-26 by a design session for the release lane; frozen by the operator's ruling of 2026-10-27 (primary session, 21:11 UTC, "all as recommended"; header reconciled 2026-11-27). The freeze
 authorizes implementation within this design's execution contract; it does not authorize a workflow run that costs money, a tag, a release or a merge.
 **Author / worktree:** `/Users/yuema137/mineworld-worktrees/design-25g-cold-start`, branch
 `docs/pr-design-25g-cold-start`, from `origin/main @ 0b2faf2f`.
@@ -596,9 +596,12 @@ this is a draft.
 `docs/decisions/ARC-362.md` and its INDEX line; a dated note in `ARC-48.md`; this design's ledger.
 **Non-goals.** No change to §4.6's default rules.
 
-- [ ] Implementation: the three spec edits and the record (options C1–C4, P1–P2, the not-achievable list of §4.3).
-- [ ] Validation: `python3 scripts/check_doc_headings.py`; `python3 scripts/check_decision_ids.py --write-index`.
-- [ ] LLM review: §4.7 and the default §4.6 cannot both apply to one run; every rule of §5.1 has a test in C1/C2.
+- [x] Implementation: `docs/GUIDE_FORMAT.md` §4.6 (cold-start blocks listed, not carried), §4.7 (rules 1–12), §6
+      row `cold-start`, §11 item 5; `docs/decisions/ARC-362.md`; `ARC-48` note; `INDEX.md` regenerated.
+- [x] Validation: `check_doc_headings.py` → "255 numbered sections … none duplicated"; `check_decision_ids.py
+      --write-index` → "258 decision ids, all distinct; index current".
+- [x] LLM review: §4.7 opens "A run is in exactly one mode"; the mode is a single enum chosen by the entry point
+      (default test → Repository, `cold_start` → ColdStart). Rules 1–5 and the directive are covered by C1's tests.
 
 ### C1 — Runner: binary parameter, modes, timings, directive
 
@@ -606,23 +609,36 @@ this is a draft.
 `command.rs`, `page.rs`, `page_run.rs`, `run_guide.rs`, `report.rs`, new tests in `guide.rs` (or a new test module);
 §5.2's table. **Depends on** C0. **Must stay unchanged:** every verdict of the default run.
 
-- [ ] Implementation: §5.2 rows 1–6.
-- [ ] Validation: `cargo test -p mineworld-cli --test guide` (local, through `with-slot.sh`); the default run's
-      `Summary.render()` before and after is identical apart from the timings line (captured at the base SHA and
-      committed as evidence, test rules §25); the new unit tests of §11; `cargo clippy -p mineworld-cli --all-targets
-      -- -D warnings`.
-- [ ] LLM review: no default-mode path reads the new fields; Windows `PATH` rebuild cannot leak the test process's
-      `PATH` into a cold-start block.
+- [x] Implementation: §5.2 rows 1–6 (preserved WIP 1a858ee4, re-applied in 15102a92). Reconciled with main's write
+      mode (#524, `rewrite::Mode { Check, Write }`): the run rules are `command::Rules { Repository, ColdStart }`, and
+      `Environment`/`RunOptions` carry both (`rules`, `mode`). Review fixes in 54a1683d: `RunOptions.scratch_root` is
+      `Option` (`None` → `scratch!`, DEP-29; `check_scratch.py` flagged a bare `env!("CARGO_TARGET_TMPDIR")`), and
+      `run_pages` takes one `Book` (clippy `too_many_arguments` after main's `guide` argument).
+- [x] Validation: `cargo test -p mineworld-cli --test guide` through `with-slot.sh` on 54a1683d's tree: 56 passed, 0
+      failed, 1 ignored (`cold_start`), 149 s, macOS arm64; `cargo clippy -p mineworld-cli --tests -- -D warnings`
+      clean; `check_scratch.py scan` "414 test sources, none makes scratch outside mineworld-test-support". The
+      before/after `render()` capture at the base SHA was **not** made (N/A with reason: the default run's verdict is
+      held by `expected_run.toml`, whose only change is the four reviewed `cold-start` entries — AC-25g-5).
+- [x] LLM review: the default path builds `Environment::repository` / `RunOptions::repository` (Repository rules,
+      Check mode, the test's own binary, no home); `Directive::ColdStart` is pending only under Repository rules. On
+      Windows the cold-start script's first line rebuilds `$env:Path` from the registry (`NEW_TERMINAL_PATH`), so the
+      test process's PATH cannot leak; under Repository rules nothing changed. Write mode never meets a mutation:
+      only the repository run is ever in Write mode, and mutations exist only in cold-start runs.
 
 ### C2 — The `cold_start` entry and its expectation
 
 **Goal.** One ignored test that a configuration file drives. **Scope.** `tools/cli/tests/guide/cold_start.rs`,
 the entry in `guide.rs`, `expected_cold_start.toml`, `cold_start_mutations.toml`. **Depends on** C1.
 
-- [ ] Implementation: §5.3 (configuration, order, commit and equality checks, INCONCLUSIVE, report files, mutations).
-- [ ] Validation: a local cold-start run of layer B shape against a mock repo and the debug binary passed as an
-      external path; the loader test without the variable panics; AD-6 locally (a wrong binary path fails page 01).
-- [ ] LLM review: INCONCLUSIVE can never print PASS; the mutation code cannot write to disk.
+- [x] Implementation: §5.3 in `cold_start.rs` (configuration, layer A's after-page-01 checks, INCONCLUSIVE, report
+      files, snapshots for the substitutes) and `substitutes.rs` (06.2/06.3/14.x, per §4.7 rule 11);
+      `expected_cold_start.toml` now also lists #563's three Step 1.5 blocks for A, and B's minimum is 48 (50 executed
+      blocks in 02–06 minus 6.2 and 6.3; the WIP had 0, which its own test rejected).
+- [x] Validation: the 10 `cold_start_tests` (mock two-page runs with an external binary path, the loader without the
+      variable, unknown mutation, a mutation that changes one page in memory) pass in the 56 above.
+- [x] LLM review: `verdict_of` returns PASS only when nothing failed and no `cold-start:` gate is INCONCLUSIVE;
+      `mutate` returns a new string and never writes; `write_back` writes only `Outcome::Rewritten`, which only Write
+      mode produces.
 
 ### C3 — Chapter 01's prerequisite step (only if Q-25g-1 = P1)
 
@@ -631,13 +647,12 @@ the entry in `guide.rs`, `expected_cold_start.toml`, `cold_start_mutations.toml`
 the C toolchain, the LFS lines per Q-25g-2); `expected_run.toml` `not_run` entries. **Depends on** C1.
 **Coordination:** R-d writes the download branch of the same page; this commit touches only the from-source part.
 
-- [ ] Implementation: the blocks (rustup: `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y`
-      on macOS and Linux, the rustup.rs command plus `-s -- -y`; Windows: download `https://win.rustup.rs/x86_64` and
-      run it with `-y`, read 2026-10-26; Git LFS: README's per-OS commands, then `git lfs install`; after the clone
-      `git lfs pull`).
-- [ ] Validation: the default guide test green with the new `not_run` entries; mirror parity.
-- [ ] LLM review: the blocks are the commands a person types, in the order the page says, and the page tells the
-      reader to open a new terminal after installing.
+- [x] Implementation: reconciled with #563, which moved the download blocks to Step 1.5: the four `cold-start`
+      blocks (install sh/powershell, `git lfs pull` sh/powershell) and the C-compiler sentence sit in Way 2 of Step 1.1;
+      the mirror has the same blocks byte for byte.
+- [x] Validation: the default guide test green with `expected_run.toml`'s four `cold-start` entries beside the three
+      Step 1.5 `operator-only` ones; mirror parity is one of its guards.
+- [x] LLM review: install → "open a new terminal" → clone/build → `git lfs pull` → PATH, in the order a reader types.
 
 ### C4 — `scripts/ci_cold_start.py`
 
@@ -645,21 +660,31 @@ the C toolchain, the LFS lines per Q-25g-2); `expected_run.toml` `not_run` entri
 `config` (writes §5.3's TOML), `run-a`, `run-b`, `substitute serve|06|14`, `summary`, `budget`, `--self-test`;
 stdlib only; registered with the scripts' self-tests in `fast` (`scripts/ci_layer.py`).
 
-- [ ] Implementation: §4.3, §6, §7.3.
-- [ ] Validation: `python3 scripts/ci_cold_start.py --self-test`; ruff; pyright.
-- [ ] LLM review: `clean` touches only the listed tools; nothing deletes outside `~/.cargo`, `~/.rustup` and the named
-      binaries; every subprocess is an argument list, not a shell string.
+- [x] Implementation: `scripts/ci_cold_start.py` (26d1a079): `clean`, `assert-clean`, `config`, `harness`,
+      `install-uv`, `find-bundle`, `unpack`, `summary` (the budget is part of it), `verdicts`, `lint`, `--self-test`;
+      registered in `fast` after `ci_stability.py`. Deviation (bounded): the substitutes are not script subcommands
+      (`substitute serve|06|14`) but the `cold_start` test's second phase (`substitutes.rs`), as GUIDE_FORMAT §4.7
+      rule 11 (C0) already specifies; `run-a`/`run-b` are workflow steps over `config` + the executable.
+- [x] Validation: `--self-test` PASS (fake `cargo` named, folders, B's clone, configs for A/B/AD-6/PRE-MERGE, the
+      guide executable from cargo's JSON, zero-to-Corner-Shop arithmetic, AD-7 budget, AD-8 cache lint, pull_request
+      and input-in-script lint, the committed workflow); `ruff check` clean, `ruff format` applied. `pyright` strict
+      reports 73 unknown-type findings and is **not** a gate for `scripts/` (ci_layer.py's PYTHON_TOOLS lists
+      tools/onboarding and tools/worldgen only) — recorded, not fixed.
+- [x] LLM review: `clean` removes only rustup's install, `cargo`/`rustc`/`rustup`/`git-lfs` files on PATH (Windows:
+      renamed, plus Git for Windows' copies), `~/.cargo`, `~/.rustup`, and the `filter.lfs.*` keys; every subprocess is
+      an argument list except `install-uv`, which runs the vendor's documented one-liner by design.
 
 ### C5 — `.github/workflows/cold-start.yml`
 
 **Goal.** The jobs of §7. **Scope.** The workflow file only; pins by full SHA (the versions already used in
 `ci.yml`/`nightly.yml`); the `ARC-48` note from C0 completed with the job names.
 
-- [ ] Implementation: §7.1–7.3, §8.
-- [ ] Validation: `python3 scripts/check_ci_pins.py`; the self-test's workflow lint; one push to
-      `cold-start/25g-first` (PRE-MERGE) per layer.
-- [ ] LLM review: no input reaches `run:` by expression; `actions: read` only where an artifact is downloaded; no cache
-      in A or B.
+- [x] Implementation: `.github/workflows/cold-start.yml` (77dc16c0), jobs `cold-start-harness (<os>)`,
+      `cold-start-a (<os>)`, `cold-start-b (<target>)`, `cold-start`; workflow_run on "Release" (R-b's final name).
+- [x] Validation: `check_ci_pins.py` "every action by full SHA"; `ci_cold_start.py lint` clean; YAML parses (PyYAML).
+      Pre-merge run: see §14.
+- [x] LLM review: inputs reach scripts only via `env:` (the lint enforces it); `actions: read` only on
+      `cold-start-b`; the clean jobs have no checkout, cache or setup action.
 
 ### C6 — Evidence (no code)
 
@@ -667,7 +692,8 @@ stdlib only; registered with the scripts' self-tests in `fast` (`scripts/ci_laye
       `git-lfs.exe`; `winget` on `windows-2025`; `walk` on Corner Shop as `ben`; the server's shutdown lines; the
       release workflow's final name and artifact names (R-b).
 - [ ] AD-1 … AD-10, each with its run URL.
-- [ ] One green PRE-MERGE run of A and B on all three OS; per-chapter times recorded in §14; the budget met or a
+- [ ] One green PRE-MERGE run of A and B on all three OS — **not reached**: run 2's guide phase is green on all
+      three, substitutes red on guide defects (§14), B INCONCLUSIVE (no release run). Original item: per-chapter times recorded in §14; the budget met or a
       material stop with the numbers.
 - [ ] After merge (operator): one dispatch on `main`; that run is the acceptance evidence.
 
@@ -693,7 +719,62 @@ stdlib only; registered with the scripts' self-tests in `fast` (`scripts/ci_laye
 
 ## 14. Evidence ledger
 
-Empty until implementation is authorized.
+### 14.1 Session of 2026-11-27 (impl-25g-2)
+
+- **Base:** `origin/main @ f5b9bbd7`; branch `mvp0/pr-25g-cold-start-2`, worktree
+  `/Users/yuema137/mineworld-worktrees/impl-25g-2`. A new branch, not the old one: `mvp0/pr-25g-cold-start` keeps the
+  preserved WIP (`1a858ee4`) untouched; C0 (`47642607`) and the WIP were cherry-picked here (`1e76c490`, `15102a92`).
+- **Reconciliation with main (33 commits since 315a50a9).** (1) #524's write mode added `rewrite::Mode` and an
+  `Environment.mode` field; the WIP's `command::Mode` was renamed `Rules`. (2) #563 moved chapter 01's download blocks to
+  Step 1.5 and split Step 1.1 into Way 1 / Way 2; the cold-start blocks went into Way 2. (3) R-b's release workflow is
+  named "Release" (`release.yml`); the ARC-48 note and `workflow_run` use that name. (4) `ARC-48` gained R-b's note on main;
+  both notes kept.
+- **Spend.** The coordinator's dispatch of 2026-11-27: GitHub Actions minutes on this public repository are free; at most
+  two cold-start runs. This replaces the contract's "cold-start/** pushes or dispatches" line for this session.
+- **Local evidence:** §12 C1–C5.
+- **Pre-merge run 1** (claim: from a clean runner the guide passes with the reader's binary on three OS): push of
+  77dc16c0 to `cold-start/25g-first`, run `46119663095`. `clean` + `assert-clean` PASS on all three (`cargo`, `rustc`,
+  `rustup`, `godot`, `uv`, `git-lfs`, `~/.cargo`, `~/.rustup` absent). Guide: 201 blocks, **170 passed**, 21 pending
+  (all operator-only), 10 other-OS, on Linux, macOS and Windows. Verdict FAIL for two harness defects only: (1) the
+  link guards resolved links from the harness copy, which holds only `docs/guide` (fixed in 8c06236b: a cold-start
+  run guards the clone's own `docs/guide`, §4.7 rule 9); (2) the Windows summary died printing `→` through the
+  console code page (fixed: UTF-8 stdout). Layer B: INCONCLUSIVE on all three, "no successful release run on main"
+  (F-25g-6 still holds). Classification: FAIL (harness), guide semantics PASS.
+- **Mistaken trigger:** run `46121766150` started on 07bd2aab (ledger only) because the fix commit had not been made;
+  cancelled within a minute. Not counted as evidence.
+- **Pre-merge run 2:** push of 8c06236b, run `46121819126` (PRE-MERGE: the clone moved to 8c06236b and was built
+  again; every leg's summary says so). Guide phase **PASS on all three OS**: every `cold-start:` gate PASS (clone is
+  the harness commit, the clone's `docs/guide` equals the pages read, the reader's binary, expectation, snapshots).
+  Times (machine): Linux page 01 4:48 (build block 4:31), zero to Corner Shop **5:01**; macOS 7:19 (build 6:55),
+  **7:24**; Windows 11:40 (build 10:16, winget LFS + rustup 1:23), **11:48** — all within the 60-minute budget
+  (AC-25g-2 shape, pre-merge). Substitutes FAIL, for real guide defects the check exists to find:
+  - 06.2 (all OS): the page's expected server lines are stale — the server now prints `[world] time scale 1 (by
+    default)` after the first line, and the town line says `cadence 5 wall s`, not `pace 5 wall s`. 06.3 was then
+    NOT COVERED ("the 06.2 server did not start").
+  - 14.2 (all OS): the page expects `listening on` right after the first line; with `--save` the server first prints
+    `[mineworld] created saves/agent/world.sqlite: …`. 14.10 then failed as a consequence ("grant not new": no first
+    grant was recorded).
+  - 14.3 / 14.4–14.7 on macOS: `uv sync` chose the image's CPython 3.15, and `python-fcl==0.7.0.11` has wheels only
+    up to cp314 (F-25g-7). On Linux and Windows 14.3 and the recorded MCP session PASSED (9.4 s, 11.1 s).
+  - Fix in this PR (bounded, guide text only): 06.2's lines re-recorded from run 2's actual output (both languages);
+    14.2 gains a `...` between the first line and `listening on`. **Not re-run:** the two-run budget is spent, so these
+    page edits are unverified by a cold-start run; the default guide test does not run operator-only blocks.
+- **Budget used:** two full runs plus one cancelled start; roughly 2 × (3 harness + 3 A + 3 short B) jobs.
+- **Coordinator decisions, 2026-11-28.** (a) F-25g-7 is resolved here: a root `.python-version` of `3.12` (CI's pin
+  everywhere: `setup-uv` `python-version: "3.12"`, pyright `pythonVersion = "3.12"`). With it, `uv python find` in
+  `clients/agent` gives CPython 3.12. `uv lock --check` reports the lock unchanged, so no `requires-python` upper bound
+  was added: the coordinator allowed the version file "and/or" the bound, and the bound would have required
+  regenerating the lock. Recorded as a dated note on `DEP-143`; CHANGELOG "Fixed" line (#570). (b) Layer B is
+  **NOT RUN**, not failed: it needs a successful Release run, and a release needs operator authorization (a milestone
+  item). (c) The red team (`_reviews/pr570.md`) approved one more cold-start run on the final head.
+- **Red-team fixes.** (1) A missing Godot on Linux or macOS layer A is now a FAILED `substitute 06.3`, never NOT
+  COVERED (`substitutes.rs`). (2) Chapter 01 no longer promises that Rust's installer offers the Visual Studio C++
+  tools: the commands run `rustup-init -y`, which does not ask. The page now tells Windows readers to install
+  "Desktop development with C++" first (both languages). (3) The default guide test was run on the final content (below).
+- **Deviation (coordinator, 2026-11-28):** a layer B leg with no Release run reports `NOT RUN` and does not turn the
+  workflow red (§7.1 had it INCONCLUSIVE-red); a found run whose bundle fails is still red.
+- **Machine note:** the local disk reached 100 % during validation (`No space left on device` in a scratch folder);
+  this session removed only its own finished target folder (`_targets/fix-client-leave`).
 
 ---
 
@@ -710,29 +791,43 @@ Empty until implementation is authorized.
   must say where the pack comes from, or the bundle ships it.
 - **F-25g-5 (S25 guide):** README's quick start installs Git LFS and runs `git lfs pull`; chapter 01 does neither.
   The two front doors disagree on prerequisites (Q-25g-2).
+- **F-25g-7 (Python workspace / S25 guide) — resolved in this PR by `.python-version` (§14.1):** on `macos-26`, `uv sync` in a fresh clone picks the image's CPython 3.15,
+  and `python-fcl==0.7.0.11` (uv.lock) has no cp315 wheel, so chapter 14.3 fails for a reader whose newest Python is
+  3.15. Owner decision: pin the workspace's interpreter (`requires-python` upper bound or `.python-version`) or have
+  14.3 say `uv sync --python 3.12`. Not changed here (a dependency/ownership decision outside 25g).
 - **F-25g-6 (R-b):** at read time the dry run `40447534966` had `bundle (linux-x86_64)` failed and no artifact;
   B's first evidence needs a green run.
 
 ---
 
-## 16. Execution contract (unfilled)
+## 16. Execution contract (filled 2026-10-27)
+
+Filled by the release lane lead on the coordinator's relay of the operator's ruling of 2026-10-27 (every Q-25g
+answered as recommended; decision record `ARC-362`).
 
 ```text
 PROJECT / PR:              S25 PR 25g — onboarding cold-start check, layers A and B
 PRIMARY DESIGN DOC:        .structured-coding/plans/mvp0/pr-25g-cold-start.md
 RELATED / BINDING DOCS:    step-25-creator-docs.md; step-14-ci.md; step-23-release.md; docs/GUIDE_FORMAT.md;
                            docs/decisions/ARC-48.md, ARC-83.md, ARC-154.md, DEP-19.md; pr-s23-rb-release-workflow.md
-IMPLEMENTATION BASE:       <unfilled: origin/main at dispatch>
-APPROVED SCOPE:            <unfilled>
-FROZEN INVARIANTS:         <unfilled; proposed: §1.2; default guide run unchanged except §5.4; no model; no cache in
-                           the clean jobs; never a required check; no PAT or secret>
-APPROVED IMPLEMENTATION SEQUENCE: <unfilled; proposed C0–C6>
-AUTONOMOUS VALIDATION BUDGET: <unfilled; proposed: local runner tests via with-slot.sh; at most 2 code-PR CI runs in
-                           flight; cold-start/** pushes: at most 4 full runs (≈ 4 × 50 macOS minutes) plus the AD
-                           runs; LFS ≤ 3 GiB in total>
+IMPLEMENTATION BASE:       origin/main @ 315a50a9
+APPROVED SCOPE:            this design as frozen, with Q-25g-1 … Q-25g-10 answered as recommended (§17)
+FROZEN INVARIANTS:         the design's own (§1.2; the default guide run unchanged except §5.4); never a required
+                           check; no paid model in CI; no cache in the clean jobs (cold-start-a, cold-start-b);
+                           no PAT or secret
+APPROVED IMPLEMENTATION SEQUENCE: C0–C6
+AUTONOMOUS VALIDATION BUDGET: local: the guide test for the pages touched and clippy on the crates touched, heavy
+                           jobs through cast-slots/with-slot.sh; CI: at most ONE cold-start run in flight, polled
+                           at most every 5 minutes; at most TWO cold-start runs in total (coordinator,
+                           2026-11-27: minutes are free on this public repository)
 REQUIRED LIVE DOCUMENTATION: this file
-CONTEXT HANDOFF / MEMORY FILE: .structured-coding/plans/mvp0/handoff-25g.md
-ENDPOINT AUTHORITY:        commit: <unresolved> · push: <unresolved> · PR: <unresolved> · merge: operator only
+CONTEXT HANDOFF / MEMORY FILE: this file's §14 ledger
+ENDPOINT AUTHORITY:        commit: autonomous · push: autonomous (branches mvp0/pr-25g-cold-start[-2] and
+                           cold-start/**; the -2 branch per the coordinator's dispatch of 2026-11-27)
+                           · PR: autonomous (open, no labels) · run cold-start.yml on this branch: autonomous
+                           · merge, auto-merge, tags, Releases: the coordinator only
+STOP CONDITIONS:           any change to frozen scope, a public contract, an ownership boundary, or a new
+                           dependency
 ```
 
 ---

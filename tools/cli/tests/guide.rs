@@ -17,6 +17,8 @@
 //! guard stays red for a person. A block whose exit code differs still fails. Review the diff, then run the test
 //! again without the variable: it must pass. Only the real guide's test reads the variable.
 
+#[path = "guide/cold_start.rs"]
+mod cold_start;
 #[path = "guide/command.rs"]
 mod command;
 #[path = "guide/features.rs"]
@@ -35,6 +37,8 @@ mod report;
 mod rewrite;
 #[path = "guide/run_guide.rs"]
 mod run_guide;
+#[path = "guide/substitutes.rs"]
+mod substitutes;
 
 use std::path::{Path, PathBuf};
 
@@ -283,12 +287,7 @@ fn features_toml_reads_named_flags_and_refuses_anything_else() {
 
 /// Runs one page's source in `scratch`, with no features beyond the given ones and no committed folders.
 fn run_here(name: &str, source: &str, scratch: &Path, features: &Features) -> Vec<Report> {
-    let environment = Environment {
-        features,
-        repo: scratch,
-        home: scratch,
-        mode: Mode::Check,
-    };
+    let environment = Environment::repository(features, scratch, scratch);
     run_page(
         name,
         &parse(source).expect("the page parses"),
@@ -312,12 +311,8 @@ fn fixture() -> page::Page {
 #[test]
 fn the_fixture_page_runs_green_against_the_real_binary() {
     let scratch = mineworld_test_support::scratch!(empty "guide-fixture");
-    let environment = Environment {
-        features: &Features::new(),
-        repo: &scratch,
-        home: &scratch,
-        mode: Mode::Check,
-    };
+    let features = Features::new();
+    let environment = Environment::repository(&features, &scratch, &scratch);
     let (reports, _) = run_page("fixture", &fixture(), &scratch, &environment, None);
     assert_eq!(reports.len(), 3, "{reports:#?}");
     for report in &reports {
@@ -384,12 +379,7 @@ fn a_block_waiting_for_an_unmerged_feature_is_pending_and_so_is_the_rest_of_its_
 ### Step 2 — After\n\n```console\n$ mineworld validate x\n```\n";
     let scratch = mineworld_test_support::scratch!(empty "guide-pending");
     let features = features::read("[features]\nhappenings = false\n").expect("features");
-    let environment = Environment {
-        features: &features,
-        repo: &scratch,
-        home: &scratch,
-        mode: Mode::Check,
-    };
+    let environment = Environment::repository(&features, &scratch, &scratch);
     let (reports, carried) = run_page(
         "waiting",
         &parse(page).expect("parses"),
@@ -499,12 +489,8 @@ fn equals_holds_when_the_scratch_folder_matches_the_committed_one_and_fails_on_o
     let differing =
         "<!-- guide: equals w docs/guide/examples/w -->\n\n```yaml file=w/x.yaml\na: 2\n```\n";
     let scratch = mineworld_test_support::scratch!(empty "guide-equals-run");
-    let environment = Environment {
-        features: &Features::new(),
-        repo: &repo,
-        home: &repo,
-        mode: Mode::Check,
-    };
+    let features = Features::new();
+    let environment = Environment::repository(&features, &repo, &repo);
     let (ok, _) = run_page(
         "ok",
         &parse(matching).expect("parses"),
@@ -1147,4 +1133,21 @@ fn model_and_reference_probes_turn_a_wrong_flag_red() {
         found.contains("happenings = false, but pack mineworld-happenings is in the build"),
         "{found}"
     );
+}
+
+// --- PR 25g: cold-start mode (`docs/GUIDE_FORMAT.md` §4.7, ARC-362) -------------------------------------------
+
+#[path = "guide/cold_start_tests.rs"]
+mod cold_start_tests;
+
+/// The cold-start run. Ignored: only `.github/workflows/cold-start.yml` runs it, on a clean runner, with
+/// `MINEWORLD_COLD_START` naming its configuration. Without it the test fails; it never passes by doing nothing.
+#[test]
+#[ignore = "run by .github/workflows/cold-start.yml on a clean runner (docs/GUIDE_FORMAT.md §4.7)"]
+fn cold_start() {
+    let config = cold_start::load(std::env::var_os(cold_start::VARIABLE))
+        .unwrap_or_else(|reason| panic!("{reason}"));
+    if let Err(reason) = cold_start::run(&config) {
+        panic!("{reason}");
+    }
 }

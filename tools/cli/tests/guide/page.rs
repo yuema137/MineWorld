@@ -17,6 +17,8 @@ pub enum Directive {
     Equals { folder: String, committed: String },
     /// Add `--packs DIR` to each command of the block (§6).
     Packs(String),
+    /// The next shell block installs software a reader needs; it runs only in cold-start mode (§4.7).
+    ColdStart,
 }
 
 /// What the runner does with an executed block (§§3, 4, 6).
@@ -224,6 +226,7 @@ impl Reader<'_> {
             ("continues", [page]) => Parsed::Continues((*page).to_owned()),
             ("requires", [feature]) => Parsed::Attach(Directive::Requires((*feature).to_owned())),
             ("operator-only", []) => Parsed::Attach(Directive::OperatorOnly),
+            ("cold-start", []) => Parsed::Attach(Directive::ColdStart),
             ("equals", [folder, committed]) => {
                 for path in [folder, committed] {
                     files::confine(path).map_err(|reason| self.at(line, reason))?;
@@ -371,6 +374,9 @@ impl Reader<'_> {
                 (Directive::Packs(_), _) => false,
                 (Directive::Equals { .. }, _) => true,
                 (Directive::Requires(_) | Directive::OperatorOnly, _) => true,
+                // Only a shell block installs software (§6).
+                (Directive::ColdStart, Body::Shell { .. }) => true,
+                (Directive::ColdStart, _) => false,
             };
             if !allowed {
                 return Err(self.at(
