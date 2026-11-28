@@ -226,6 +226,14 @@ fn assert_no_ids(lines: &[String]) {
         if !own["wallet"]["balance"].is_null() {
             add(money(&own["wallet"]["balance"]));
         }
+        // The worth beside the balance and how many held kinds have no reference value (S31-e §5.7),
+        // from the raw `wealth` record the frame carried.
+        if !own["wealth"]["amount"].is_null() {
+            add(money(&own["wealth"]["amount"]));
+        }
+        if !own["wealth"]["unvalued"].is_null() {
+            add(int(&own["wealth"]["unvalued"]).to_string());
+        }
         for held in own["holdings"]["held"]
             .as_array()
             .cloned()
@@ -282,11 +290,33 @@ fn transcript(lines: &[String]) -> Vec<(Value, ActionRequest<WirePayload>)> {
         .collect()
 }
 
-/// The non-`move` requests of a run, by the server's own reading.
+/// The requests that walk: the 3D client walks with `move` (its own embodied stride), the 2D client asks
+/// movement's `walk-to` and then its `walk-step`s (the server plans the route). The two clients walk to Bob
+/// differently by design; P-1 compares what they do once there.
+const WALKING: [&str; 3] = ["move", "walk-to", "walk-step"];
+
+/// The requests of a run that are not walking, by the server's own reading.
 fn interactions(lines: &[String]) -> Vec<(Value, ActionRequest<WirePayload>)> {
     transcript(lines)
         .into_iter()
-        .filter(|(r, _)| r["request"]["action_type"] != "move")
+        .filter(|(r, _)| {
+            !WALKING
+                .iter()
+                .any(|walking| r["request"]["action_type"] == *walking)
+        })
+        .collect()
+}
+
+/// The action types of every request a run sent, in order.
+fn sent_types(lines: &[String]) -> Vec<String> {
+    transcript(lines)
+        .iter()
+        .map(|(r, _)| {
+            r["request"]["action_type"]
+                .as_str()
+                .expect("a type")
+                .to_owned()
+        })
         .collect()
 }
 
@@ -337,7 +367,9 @@ fn caused(save: &SaveDir, actor: &str) -> Vec<(String, String, Vec<String>)> {
         let WorldInput::Dispatch { intent, .. } = &entry.input else {
             continue;
         };
-        if intent.actor().raw().to_string() != actor || intent.action_type().as_str() == "move" {
+        if intent.actor().raw().to_string() != actor
+            || WALKING.contains(&intent.action_type().as_str())
+        {
             continue;
         }
         let kind = match &entry.outcome {
@@ -610,6 +642,21 @@ async fn the_menus_are_the_offers_from_the_door() {
 
 // ── O-5: a poor visitor ─────────────────────────────────────────────────────────────────────────────
 
+/// The café's authored asks by kind key, read from the pack's own file: O-5's oracle, so a price change in
+/// the world moves the test's expectation with it instead of leaving a stale literal (the S35 prices made
+/// a 250 wallet afford every kind).
+fn cafe_prices() -> BTreeMap<String, u64> {
+    let path = Path::new(MARKET_TOWN).join("organizations/cafe-company.yaml");
+    let text = std::fs::read_to_string(&path).expect("cafe-company.yaml");
+    let file: Value = serde_saphyr::from_str(&text).expect("the organization file parses");
+    file["economy"]["shop"]["prices"]
+        .as_object()
+        .expect("the café lists its prices")
+        .iter()
+        .map(|(kind, price)| (kind.clone(), price.as_u64().expect("a whole price")))
+        .collect()
+}
+
 #[tokio::test]
 #[ignore = "needs Godot 4.7: cargo test -p mineworld-cli --test client_3d_market -- --ignored"]
 async fn a_poor_visitor_still_sees_every_buy() {
@@ -620,7 +667,24 @@ async fn a_poor_visitor_still_sees_every_buy() {
     copy_dir(Path::new(MARKET_TOWN), &poor);
     let person = poor.join("people/visitor.yaml");
     let authored = std::fs::read_to_string(&person).expect("visitor.yaml");
-    let changed = authored.replacen("economy: { wallet: 200000 }", "economy: { wallet: 250 }", 1);
+    // One minor unit short of a coffee: the coffee is refused and every kind dearer than the wallet too, and
+    // at least one kind stays affordable (the world's prices decide which).
+    let prices = cafe_prices();
+    let wallet = prices["coffee"] - 1;
+    let affordable: Vec<String> = prices
+        .iter()
+        .filter(|(_, price)| **price <= wallet)
+        .map(|(kind, _)| town[kind].clone())
+        .collect();
+    assert!(
+        !affordable.is_empty() && affordable.len() < prices.len(),
+        "O-5 needs an affordable and an unaffordable kind: wallet {wallet}, prices {prices:?}"
+    );
+    let changed = authored.replacen(
+        "economy: { wallet: 200000 }",
+        &format!("economy: {{ wallet: {wallet} }}"),
+        1,
+    );
     assert_ne!(changed, authored, "the visitor's wallet was authored");
     std::fs::write(&person, changed).expect("written");
     let world_dir = poor.to_str().expect("UTF-8").to_owned();
@@ -647,10 +711,14 @@ async fn a_poor_visitor_still_sees_every_buy() {
         .iter()
         .filter(|e| e["action_type"] == "buy")
         .collect();
-    assert_eq!(buys.len(), 6, "O-5: every priced kind is listed: {own}");
+    assert_eq!(
+        buys.len(),
+        prices.len(),
+        "O-5: every priced kind is listed: {own}"
+    );
     for buy in &buys {
         let item = buy["about"].as_str().expect("about");
-        let affordable = [&town["tea"], &town["croissant"]].contains(&&item.to_owned());
+        let affordable = affordable.contains(&item.to_owned());
         assert_eq!(buy["available"], affordable, "O-5: {buy}");
         assert_eq!(buy["enabled"], true, "O-5: listed and choosable: {buy}");
     }
@@ -738,6 +806,17 @@ async fn the_3d_market_asks_what_the_2d_market_asks() {
     }
     let (_, lines_3d, save_3d) = &runs[0];
 
+    // P-1: each client walked to Bob its own way — 2D through movement's `walk-to` (its strides after it),
+    // 3D by its own `move` — and nothing else of either is a walk.
+    let (sent_2d, sent_3d) = (sent_types(&lines_2d), sent_types(lines_3d));
+    assert!(
+        sent_2d.iter().any(|t| t == "walk-to") && !sent_2d.iter().any(|t| t == "move"),
+        "P-1: the 2D client walks through walk-to: {sent_2d:?}"
+    );
+    assert!(
+        sent_3d.iter().any(|t| t == "move") && !sent_3d.iter().any(|t| t == "walk-to"),
+        "P-1: the 3D client walks by move: {sent_3d:?}"
+    );
     // P-1: the same four requests, by the server's definition; 2D reports no position, 3D its own.
     let two = interactions(&lines_2d);
     let three = interactions(lines_3d);
