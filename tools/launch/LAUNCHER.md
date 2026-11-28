@@ -83,6 +83,11 @@ itself, chosen by `--client=<2d|3d>` (step-23 PR S23-RT, amending D-Ra-1 and D-R
 naming its path. The server is checked when the bundle is found; a client when its mode needs it. These paths
 are defined in one place, `src/bundle.rs`.
 
+**Renderer on macOS.** The runtime renders through Vulkan (MoltenVK) on macOS, not Godot's Metal driver
+(`DEP-164`: on a cold shader cache the Metal driver kept the first launch at about 164 s to the first view;
+Vulkan, about 47 s). The choice is the runtime's project setting `rendering_device/driver.macos`; the launcher
+passes no engine argument, so the way back to Metal is that one line changed back and a re-export.
+
 ## 5. Per-user folder
 
 The folder the clients' settings already use (`clients/shared/SETTINGS.md` §4):

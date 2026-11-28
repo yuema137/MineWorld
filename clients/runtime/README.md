@@ -6,3 +6,6 @@ The one Godot engine a release bundle carries for both clients. It holds no game
 
 The design and the rules (which settings live here, which are applied at run time) are in
 [`step-23 PR S23-RT`](../../.structured-coding/plans/mvp0/pr-s23-rt-shared-runtime.md) and `ARC-80`.
+
+On macOS it renders through Vulkan (MoltenVK); `rendering_device/driver.macos` in `project.godot` is the one
+line that chooses it (`DEP-164`).

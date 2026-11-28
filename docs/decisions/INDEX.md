@@ -278,3 +278,4 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [DEP-161](DEP-161.md) | Prop, surface and town-body textures: Godot's built-in Basis Universal (UASTC + RDO by role); cast meshes unchanged |
 | [DEP-162](DEP-162.md) | Cast base colours ship at 1024² (Basis UASTC, RDO 1.0); amends Q-S26-5 and `DEP-160` |
 | [DEP-163](DEP-163.md) | cargo-nextest runs the `core` suite in CI |
+| [DEP-164](DEP-164.md) | The macOS bundle renders through Vulkan (MoltenVK), not Godot's Metal driver |
