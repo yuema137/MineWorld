@@ -3,7 +3,7 @@
 ## DRAFT — FREEZE-READY (awaiting operator rulings Q-LS1 … Q-LS7, §0)
 
 ```text
-Design revision:        revision 3 (2026-11-27): revision 2 + delta re-review D1–D4 (§9); revision 2 fixed F1–F10 of
+Design revision:        revision 4 (2026-11-27): revision 3 + delta re-review E1–E3 (§9); earlier: D1–D4, F1–F10 of
                         _reviews/design-launcher-solo.md. Dispositions in §9. No ruling is assumed.
 Approved by / evidence: NOT YET APPROVED. Freeze requires the operator's answers to §0; recommendations are not rulings
 Implementation base:    #549 head fcba4c1d6b40acb63cdfdd04e141674f20d5d4ba (fix/launcher-living-world), which owns
@@ -26,7 +26,7 @@ Lifecycle:              DRAFT — FREEZE-READY; implementation not started
 | **Q-LS4** | How does a player opt into multiplayer/hosting for others? | **Not in this PR.** The packaged launcher stays loopback-only (`127.0.0.1:0`, `ARC-78`). Local two-player play remains the 2D+3D mode (non-solo). Hosting for other machines remains `mineworld server <world> --listen <addr>` without `--solo`. A launcher "Host for others" mode needs its own design: LAN listen, an invite shown to the player, never `--solo`, firewall notes for all three OSes. |
 | **Q-LS5** | Do `--smoke` checks follow the new played defaults? | **No.** A fixture table pins smoke **world and seats** per mode, exactly today's values: 2D `market-town`/`carol`; 3D `social-cafe`/`visitor`; 2D+3D `social-cafe`/`visitor`+`wanderer`; all with `--agent alice`. **Smoke ignores `launch.toml`** (a behaviour change: today a player's `launch.toml` also steers smoke). Smoke checks the bundle, not the player's choice. The 3D `--slice-link` verdict and `scripts/package.py` probes stay valid. |
 | **Q-LS6** | The 2D launcher plays the resident `carol`, so her routine stops while the player drives her. Dialogue PR-B assumes the human is `visitor` in single-client modes (§3.2). Change the 2D default seat? | **Yes: 2D plays `visitor`.** This matches 3D and PR-B and keeps every resident on its routine. **Consequence:** an existing `saves/market-town/` that was played as Carol resumes with the player as `visitor`. Carol (wallet, holdings and location kept) becomes town-driven. Nothing is reset or deleted. LAUNCHER.md states the opt-out `seat = "carol"` in `[2d]`. Saves are shared by the three modes, which alternate solo and non-solo. This is harmless: a fast-forward scale never survives a restart (`ARC-69` item 8). |
-| **Q-LS7** | What must the packaged 3D Market Town run achieve before 3D/2D+3D switch to it (Q-LS1)? Social Café's packaged 3D first view is 145–153 s today, with an open +8.1 s regression (#548). | **On one macOS machine, one session, under matched conditions:** (1) the **median of 3 interleaved runs per world** (café, town, café, town, café, town) of first view is ≤ **1.25 ×** the café median and ≤ **240 s** absolute. A margin under 5 % of either bound is INCONCLUSIVE and takes the fallback. Conditions: a fresh `--user-dir` per run (fresh save); the Godot shader cache is **not** cleared (a warm cache, as a returning player has; the first run of the session is discarded as cold warm-up and recorded); default graphics; window 1600×900. Timer: starts at launcher process start (wall clock taken by the wrapper) and stops at the client's `[startup] … client scene visible` line, which #548 prints only after the first world view has been drawn; the timestamp is read from the client log. (2) the packaged `--slice-market` probe of §5 C1 passes (walk, enter a place, buy; this is headless, so it proves interaction, not drawing). (3) a far-field screenshot at the spawn viewpoint shows no clear-colour or sky-only sector (the far-field checks' criterion); the operator judges the screenshot on the progress page. (4) frame time: median and p95 over 300 frames after first view, same build and window, recorded, not gated. The implementer measures and the red-team reviewer re-derives the numbers from the recorded logs. Any miss of (1)–(3) takes the Q-LS1 fallback. |
+| **Q-LS7** | What must the packaged 3D Market Town run achieve before 3D/2D+3D switch to it (Q-LS1)? Social Café's packaged 3D first view is 145–153 s today, with an open +8.1 s regression (#548). | **On one macOS machine, one session, under matched conditions:** (1) the **median of 3 interleaved runs per world** (café, town, café, town, café, town) of first view is ≤ **1.25 ×** the café median and ≤ **240 s** absolute. A margin under 5 % of either bound is INCONCLUSIVE and takes the fallback. Conditions: a fresh `--user-dir` per run (fresh save); the Godot shader cache is **not** cleared (a warm cache, as a returning player has; the first run of the session is discarded as cold warm-up and recorded); default graphics; window 1600×900. Timer: starts at launcher process start (wall clock taken by the wrapper) and stops at the client's `[startup] … client scene visible` line, which #548 prints only after the first world view has been drawn; the line's own number is engine milliseconds since the client process started, so it is not used. Instead, the wrapper tails the launcher's client log (`<user-dir>/logs/<run>-3d.log`) and stamps the line with the wall clock on arrival. The server spawn and join gap is therefore included. The marker is #548's, pinned at `4d41fa38` or its merge SHA, whichever is measured. (2) the packaged `--slice-market` probe of §5 C1 passes (walk, buy, consume, give; this is headless, so it proves interaction, not drawing). (3) a far-field screenshot at the spawn viewpoint shows no clear-colour or sky-only sector (the far-field checks' criterion); the operator judges the screenshot on the progress page. (4) frame time: median and p95 over 300 frames after first view, same build and window, recorded, not gated. The implementer measures and the red-team reviewer re-derives the numbers from the recorded logs. Any miss of (1)–(3) takes the Q-LS1 fallback. |
 
 ## 1. Requirement, scope and non-goals
 
@@ -128,13 +128,33 @@ Nothing new is adopted. This PR reuses `--solo` (`ARC-69`), the `Hosting` seam (
   - In one session, a Social Café 3D first view and a Market Town 3D first view (same flags, default graphics).
   - The packaged `--slice-market` probe, recorded in the ledger before it runs:
     - **Server:** the bundle's `runtime/mineworld server <runtime>/worlds/market-town --listen 127.0.0.1:0
-      --save <scratch> --town --solo`, with a test admin token in its environment only.
+      --save <scratch> --agent alice`. These are the source test's own flags (`tools/cli/tests/godot2d/worlds.rs`).
+      **No `--town`**: town controllers would walk Bob home at 00:00 and the steps would chase a moving person.
+      `--solo` is irrelevant to the probe; it is used only for the positioning below.
+    - **Shop hours (nightlife N1).** Before N1 merges, the probe runs from genesis. Once N1 has merged, the café
+      sells only 05:30–22:00, and genesis is 00:00. The scratch save is therefore first positioned inside café
+      hours:
+      - start the same server with `--solo --time-scale 3600` and a test admin token in its environment only;
+      - wait for a `clock` frame showing world time ≥ 07:30;
+      - `POST /admin/clock {"time_scale":12}`;
+      - then join the probe.
+
+      Under `--agent alice` no hosted seat walks, so the fast-forward moves no Person. Which branch was used is
+      recorded.
     - **Client:** `<runtime>/clients/MineWorld.app/Contents/MacOS/MineWorld --headless -- --client=3d
       --root=<runtime> --server=<addr> --invite=<invite> --world-key=market-town --seat=visitor --slice-market
       --steps=<file> --settings=none`.
-    - **Steps file:** the exact `3d-market-door-steps` JSON that `tools/cli/tests/client_3d_market.rs` writes for a
-      fresh Market Town. It is copied from that test's scratch, and its SHA-256 is recorded.
-    - **Pass:** exit 0 and the probe's own pass summary line.
+    - **Steps file:** the exact `item_steps_3d` JSON (buy a coffee and drink it, walk to Bob, give the scarf, eat,
+      report) that `tools/cli/tests/client_3d_market.rs` writes for a fresh Market Town (l. 363–381, used at
+      l. 729). It is copied from that test's scratch, and its SHA-256 is recorded. This is the "walk … buy" of Q-LS7
+      (2). Entering a place is not claimed by these steps.
+    - **Pass, all of:**
+      - exit 0 and the probe's own pass summary line;
+      - the buy's `RESULT` line accepted in the probe output;
+      - from the closed scratch save, `mineworld inspect <save>` lists `request buy accepted` ≥ 1;
+      - `mineworld perceived <world> --save <save> --person visitor --json` shows a `money-transferred` and an
+        `items-transferred` naming the visitor. This is the source test's `caused()` evidence, read with existing
+        tooling.
   - A far-field screenshot and a 300-frame frame-time sample (Q-LS7 (3), (4)).
   - Each result is recorded PASS/FAIL/INCONCLUSIVE against Q-LS7.
   - A miss applies the Q-LS1 fallback in the same commit; that is the known branch, not an escalation.
@@ -175,17 +195,32 @@ Nothing new is adopted. This PR reuses `--solo` (`ARC-69`), the `Hosting` seam (
   - **Wall budget: 1800 s**, an explicit exception to the 600 s per-run budget, used once. The window 00:00 → 08:00
     at 24× is 20 wall minutes, plus startup.
   - One shared heavy slot.
-- [ ] **Pass condition (precise).** From the closed save, `mineworld biography market-town --save <save> --person
-  <key> --json` for every non-Alice resident seat. PASS if **at least one** resident shows, in this order with
-  increasing world time:
-  1. arrival at the `place` of their routine's `home` entry;
-  2. `fell-asleep`;
-  3. `woke`;
-  4. departure from that place;
-  5. arrival at the place of their next routine entry.
-
-  For example, Bob starts in the café at 00:00 while his routine says apartments from 20:00. He should walk home,
-  sleep and go back to the café after 07:00 (`worlds/market-town/people/bob.yaml`).
+- [ ] **Pass condition (precise).**
+  - **Reader.** From the closed save, `<runtime>/mineworld perceived <runtime>/worlds/market-town --save <save>
+    --person <key> --json` for every non-Alice resident seat. The output is JSON lines, one fact per line, with
+    `at`, `event_type`, `subjects` and `place`.
+  - **Why not `biography`.** `mineworld biography` cannot be used: presence and movement declare no biographical
+    fact, sleep's facts are biographical only when configured, and Market Town configures none (red-team E1).
+  - **Facts used.** Only the resident's own facts (`subjects == [<the resident's entity>]`).
+    - Their `routine-assigned` gives the `home` segment's place and the segments' places.
+    - `person-entered-place` carries `place` and `payload.from`.
+  - PASS if **at least one** resident shows, in this order with increasing `at`:
+    1. `person-entered-place` into the home place;
+    2. `fell-asleep` at the home place;
+    3. `woke`;
+    4. `person-entered-place` whose `from` is the home place (departure);
+    5. `person-entered-place` into the place of the routine segment in force at that instant.
+  - **Reader verified before freeze (2026-11-27).**
+    - Setup: `mineworld run worlds/market-town --headless --seed 1 --days 1 --save <scratch>`, with a binary built
+      from #549 `fcba4c1d` (which contains origin/main `303c0df3`; `perceived` and `inspect` are unchanged there).
+    - Bob's own facts showed every step: café → street at t181; entered the apartments (place 1) at t751;
+      `fell-asleep` there at t1801; `woke` at t21601 (06:00, reason alarm); entered the street from place 1 at
+      t25351; entered the café (place 2, his 07:00 segment) at t25921.
+    - `mineworld inspect --last N` prints only event types and causes, without subjects or places, so it is not
+      sufficient alone.
+    - Evidence: `mineworld-worktrees/_targets/launcher-living-evidence/inspect-probe/`.
+  - Bob is the expected candidate (`worlds/market-town/people/bob.yaml`: starts in the café, home from 20:00, café
+    from 07:00), but any resident qualifies.
   - The resident and the instants are recorded.
   - Missing any step for every resident: **FAIL**.
   - Budget reached before 08:00: **INCONCLUSIVE**.
@@ -253,3 +288,12 @@ None yet. This is a design-only draft.
 | D3 no packaged `--slice-market` recipe | Fixed in C1: exact server and client commands, steps-file origin and hash, pass line. |
 | D4 fallback consequences | Fixed in Q-LS1: P1 recorded partial; LAUNCHER.md rows follow the branch; N2-C4's 3D sleep check needs `world = "market-town"` (noted here, nightlife text untouched). |
 | F4 nit (nothing reset) | Noted: C1's reseating oracle also compares Carol's wallet and holdings before and after. |
+
+### Delta re-review @ 35e8aaad — disposition (revision 4)
+
+| Finding | Disposition |
+| --- | --- |
+| E1 `biography` cannot see moves/sleep | Fixed: C3 reads `mineworld perceived … --json` (the resident's own facts), and the five-step rule is written against its real event names. Verified on a Market Town `run` save before freeze (Bob: home t751, asleep t1801, woke t21601, departed t25351, café t25921). Evidence path is given in C3. No content or CLI change. |
+| E2 slice-market recipe | Fixed: the source test's server flags (`--agent alice`, no `--town`); `item_steps_3d` (buys); a positioning branch inside café hours once N1 has merged; the pass condition includes the accepted buy plus wallet and holdings facts. |
+| E3 timer clocks | Fixed: the wall clock is stamped on arrival of the log line; #548 marker commit pinned. |
+| E4 N2-C4 note | No design change; the coordinator carries it into the nightlife handoff if the fallback is taken. |
