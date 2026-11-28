@@ -213,6 +213,7 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
         solo,
         keyframe_every,
         request_budget,
+        epoch: epoch_of(&pack, save.as_deref())?,
         ..HostConfig::default()
     };
     let epoch = config.epoch;
@@ -467,6 +468,20 @@ async fn stop_requested() {
     #[cfg(not(windows))]
     {
         let _ = tokio::signal::ctrl_c().await;
+    }
+}
+
+/// The instant this host's world begins at (`ARC-371`): a save's own genesis instant when `save` holds one —
+/// whatever the pack now says, so a resumed world and its paced consult lattice are exactly as before — else
+/// the pack's `begins:`.
+fn epoch_of(pack: &WorldPack, save: Option<&Path>) -> Result<WorldTime, String> {
+    match save {
+        Some(save) if SqliteBackend::exists(save) => {
+            let backend = SqliteBackend::open(save, Durability::PowerLoss)
+                .map_err(|error| format!("[mineworld] {}: {error}", save.display()))?;
+            crate::run::genesis_instant(&backend).map(WorldTime::from_seconds)
+        }
+        _ => Ok(pack.begins()),
     }
 }
 

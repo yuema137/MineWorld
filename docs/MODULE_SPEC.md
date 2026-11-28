@@ -733,6 +733,11 @@ hosting:                   # optional; how a host paces this world when it serve
                            #   seconds per wall second, 1 … 24 (a day lasts 24 h ÷ time_scale); refused
                            #   at load otherwise, naming this file and key. Absent: 1.
 
+begins: "07:00"            # optional; the time of day the world begins on day 0 (ARC-371): genesis is that
+                           #   instant. Strict "HH:MM", 00:00 … 23:59; refused at load otherwise, naming
+                           #   this file and key. Absent: "00:00", local midnight. Every host that creates a
+                           #   world begins it there; a resumed save keeps the start it was created with.
+
 systems:                   # the capabilities this world enables, in installation order
   - presence
   - movement
