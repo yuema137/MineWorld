@@ -1,6 +1,6 @@
 # PR FE-b — execution contract
 
-**Lifecycle:** `DRAFT — FREEZE-READY` (2026-11-27). Becomes `FROZEN` only when the operator answers
+**Lifecycle:** `DRAFT — FREEZE-READY`, revision 2 (2026-11-28). Becomes `FROZEN` only when the operator answers
 [`pr-fe-b-market-town-food-content.md`](pr-fe-b-market-town-food-content.md) §1 and the primary marks the design
 `DESIGN FROZEN`. The generic body this specializes is `.claude/skills/structured-coding/prompts/implementation-working-rules.md`
 §1 onward (read in full by the executor; not copied here).
@@ -40,7 +40,11 @@ FROZEN INVARIANTS:
   - One inventory unit = one whole serving; kcal and prices exactly as design §3 after C0 pinning.
   - C0 may change a price only within Q-FEb-4 ceilings (ρ_max ≤ 1.6636 ¢/kcal, croissant ≤ 415, sandwich ≤ 865);
     otherwise stop.
-  - chance_spend_permille 0 only through Market Town's decisions.yaml; the global default stays 1.
+  - chance_spend_permille 0 only through Market Town's decisions.yaml; the global default stays 1. Test decision
+    files passed with --decisions are not edited to obtain the guarantee; their outcomes are recorded (FB-M1).
+  - Wallets/wages/production exactly as design §4 under the operator's Q-FEb-5 option (M1 unless ruled otherwise).
+  - Gated: FB-L1 (with G), FB-C1, FB-L2 P1, FB-S1, FB-N1, CP-4, S35. Recorded only: FB-L2 P3, FB-A1, FB-H1, FB-M1 extras.
+  - No rule- or motivated-controller code change (option C and the motivated food fix are follow-up PRs).
   - Thresholds of CP-4, S35 and design §5.4 fixed as written; never retuned after a run; a FAIL returns to the
     operator.
   - Social Café, Bodies Yard, Commute Town content unchanged; Commute Town stays unitless.
@@ -57,12 +61,12 @@ VALIDATION AUTHORITY:
 SPENDING / EXTERNAL CALLS:
   No paid calls, no model inference. Public web reads for source pinning (C0) only; no personal data sent.
 
-COMMIT / PUSH / PR AUTHORITY (if Q-FEb-7 is approved):
+COMMIT / PUSH / PR AUTHORITY (if Q-FEb-8 is approved):
   Semantic commits, push, open the PR, repair CI to READY FOR OPERATOR REVIEW. Trailer
   "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>". No merge.
 
 STOP CONDITIONS:
-  A premise P1–P4 false in code; a price outside the ceilings; any §5.4 or S35 threshold FAIL; a needed change
+  A premise P1, P2 or P4 false in code (P3 is restated with gifts, design §5.2); a price outside the ceilings; any §5.4 or S35 threshold FAIL; a needed change
   outside the approved scope; another session holding the worktree.
 
 COMPLETION:
