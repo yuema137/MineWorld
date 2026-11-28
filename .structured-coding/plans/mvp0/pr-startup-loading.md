@@ -1,22 +1,26 @@
 # Startup loading correction — 2026-11-23
 
-## DESIGN FROZEN — not yet: awaiting the operator's explicit freeze (ratification)
+## DESIGN FROZEN — 2026-11-27 (operator ratification)
 
 ```text
-Design revision:        revision 1 (2026-11-23, recovered as bae264be) + bounded correction R1 (2026-11-27,
-                        red-team _reviews/pr548.md finding 1: scripted runs no longer wait for first view)
-Approved by / evidence: NOT YET. Basis so far: the operator's 2026-11-23 trial report (3D shows only the Godot
-                        splash, no progress) and an agent plan PASS (delivery_review). Neither is a freeze. Record
-                        the operator's exact words and date here when given.
-Operator decisions:     D1 ratify this design as a bounded correction to S23-RT §4.1;
+Design revision:        revision 1 (2026-11-23, recovered as bae264be) + bounded corrections R1 (2026-11-27,
+                        _reviews/pr548.md finding 1: scripted runs no longer wait for first view) and R2
+                        (2026-11-27, perf lane: truthful first-camera graphics stage)
+Approved by / evidence: the operator, 2026-11-27, relayed by the primary coordinator:
+                        "启动器按推荐；启动加载和启动器设计冻结，接受慢 8 秒，3D 实跑放到里程碑"
+                        ("launcher as recommended; startup-loading and launcher designs frozen; accept 8 s slower;
+                        3D real runs go to the milestone")
+Operator rulings:       D1 ratified as a bounded correction to S23-RT §4.1.
                         D2 the measured +8.1 s first-view regression (145.180 s → 153.281 s, matched pair
-                           2026-11-23): accept as a recorded deviation for merge, or require a fix first;
-                        D3 merge with the 3D source/exported runs of the checklist below NOT RUN, or require them
-Implementation base:    ff4e41e3 (client stack), published on #544; branch fix/startup-loading-ui (PR #548)
-Lifecycle:              DRAFT — awaiting operator freeze; implementation exists (recovered) and is under review
+                           2026-11-23) is ACCEPTED as a recorded deviation, pending the separate shader-cache work.
+                        D3 the 3D source/exported runs of the checklist (frame order, input hold, Esc/Quit,
+                           failure frame, cold-cache graphics stage) are DEFERRED to the milestone trial; they
+                           remain NOT RUN here, never counted as passes.
+Implementation base:    ff4e41e3 (client stack), published on #544 (merged); branch fix/startup-loading-ui (PR #548)
+Lifecycle:              FROZEN (2026-11-27); implementation complete, under review
 ```
 
-### Execution contract (filled; binding once frozen)
+### Execution contract (filled; binding)
 
 ```text
 Owner / worktree:       one session; /Users/yuema137/mineworld-worktrees/impl-startup-ui, branch fix/startup-loading-ui
