@@ -15,7 +15,7 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 
 import pytest
-from mineworld_sdk.wire.contract import PerceivedEvent, PlaceId
+from mineworld_sdk.wire.contract import Observation, PerceivedEvent, PlaceId
 from mineworld_sdk.wire.frames import Invite
 from mineworld_sdk.wire.ids import EntityId, EntityKey, EventId, WorldInstanceId
 from scripted_seat import (
@@ -895,3 +895,63 @@ def test_a_waiting_persons_words_are_never_displaced_by_another_kind_of_trigger(
         return taken
 
     assert run(scenario()) == [said, said_again]
+
+
+def test_a_greeting_nobody_can_hear_waits_and_is_offered_when_the_person_comes_within_range() -> (
+    None
+):
+    """DM-20261128-4 A4 (operator, 2026-11-27: "跳过没人听见的打招呼"): an arrival of someone I may not talk to yet
+    costs no consult and is not marked greeted; once the world offers `talk` to that person it is offered and
+    marked (red-team #565). The range is the server's: only an available `talk` affordance counts."""
+    from mineworld_cognition.controller.triggers import Greetings, Pending
+
+    vera, bob = EntityId("20"), EntityId("7")
+    vera_arrived = Trigger(event=EventId("338"), kind="arrived", speaker=vera, words="")
+    greetings, pending = Greetings(), Pending()
+    greetings.arrived(vera_arrived)
+
+    def talk_to(*people: EntityId, available: bool = True) -> Observation:
+        return Observation.model_validate(
+            {
+                "observer": "1",
+                "at": 100,
+                "self_location": None,
+                "entities": [],
+                "relations": [],
+                "events": [],
+                "affordances": [
+                    {
+                        "action_type": "talk",
+                        "target": person,
+                        "available": available,
+                        "unavailable_reason": None if available else "too_far_away",
+                        "requirement": {
+                            "place": "any",
+                            "within_range": None,
+                            "requires_line_of_access": False,
+                            "requires_target_available": True,
+                        },
+                    }
+                    for person in people
+                ],
+            }
+        )
+
+    greetings.offer(talk_to(bob), pending, 1.0)
+    greetings.offer(talk_to(vera, available=False), pending, 2.0)
+    assert vera not in greetings.greeted, "a greeting nobody could hear is not marked done"
+
+    async def scenario() -> None:
+        async def take() -> Trigger:
+            return (await asyncio.wait_for(pending.take(), 0.5)).trigger
+
+        with pytest.raises(TimeoutError):
+            await take()
+        greetings.offer(talk_to(vera), pending, 3.0)
+        assert await take() == vera_arrived
+        assert greetings.greeted[vera] == 100
+        greetings.offer(talk_to(vera), pending, 4.0)
+        with pytest.raises(TimeoutError):
+            await take()
+
+    run(scenario())

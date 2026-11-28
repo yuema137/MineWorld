@@ -19,7 +19,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import NamedTuple
 
-from mineworld_sdk.wire.contract import PerceivedEvent, PlaceId
+from mineworld_sdk.wire.contract import Observation, PerceivedEvent, PlaceId
 from mineworld_sdk.wire.ids import EntityId, JsonValue
 
 from mineworld_cognition.controller.prompt import Trigger
@@ -236,3 +236,43 @@ class Pending:
             if self._waiting is not None:
                 waiting, self._waiting = self._waiting, None
                 return waiting
+
+
+class Greetings:
+    """When an `arrived` trigger becomes a consult (DM-20261128-4 A4; operator, 2026-11-27: "跳过没人听见的打招呼",
+    skip the greeting nobody can hear). An arrival waits here until the world offers me `talk` to that person — the
+    server decides who is within talking range — and only then is it offered to the pending slot and marked greeted
+    (`greeted`, the T3 cooldown `detect` reads). An arrival nobody can hear costs no consult, and it is not marked:
+    the person is greeted when they come within range (red-team #565). A newer arrival of the same person replaces
+    the waiting one."""
+
+    def __init__(self) -> None:
+        self.greeted: dict[EntityId, int] = {}
+        self._waiting: dict[EntityId, Trigger] = {}
+
+    def arrived(self, trigger: Trigger) -> None:
+        if trigger.speaker is not None:
+            self._waiting[trigger.speaker] = trigger
+
+    def offer(self, observation: Observation, pending: Pending, received_at: float) -> None:
+        """Offers the waiting arrivals of the people `observation` lets me talk to now."""
+        for trigger in self.in_reach(talkable(observation), observation.at):
+            pending.offer(trigger, observation.at, received_at)
+
+    def in_reach(self, talkable: set[EntityId], now_at: int) -> list[Trigger]:
+        """The waiting arrivals of people I may talk to now, marked greeted at `now_at` and no longer waiting."""
+        ready = [trigger for person, trigger in self._waiting.items() if person in talkable]
+        for trigger in ready:
+            assert trigger.speaker is not None
+            del self._waiting[trigger.speaker]
+            self.greeted[trigger.speaker] = now_at
+        return ready
+
+
+def talkable(observation: Observation) -> set[EntityId]:
+    """The people the world offers me `talk` to now (an available affordance with that target)."""
+    return {
+        offer.target
+        for offer in observation.affordances
+        if offer.action_type == "talk" and offer.available and offer.target is not None
+    }

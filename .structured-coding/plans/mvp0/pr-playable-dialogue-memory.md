@@ -1009,3 +1009,22 @@ passed on rerun. Launcher `played_town_and_private_clock_controls` with the four
 strict pyright, cargo fmt, clippy `-D warnings`, doc headings, decision ids clean. Sizes: `seat.py` 764 (≤ 765),
 `config.py` 732 → 739 (+7, the `feeling` key: recorded growth of an operator key, not supervised flags). Live gate: NOT
 RUN (held for the coordinator's go).
+
+### 11.2 A4 — no greeting nobody can hear (operator ruling, 2026-11-27)
+
+**Ruling.** Operator, 2026-11-27, relayed by the primary coordinator: "跳过没人听见的打招呼" ("skip the greeting nobody can
+hear"): no `arrived` consult while the arriving person is not within talking range, the range being the server's.
+Red-team condition: a skip does not mark the greeting done; the person is greeted when they come within range.
+
+**Implementation.** `triggers.Greetings`: an `arrived` trigger from `detect` waits there (newest per person) instead of
+going to the pending slot; on every observation (and after every ingested batch) `Greetings.offer` passes on the
+waiting arrivals of people the observation offers an **available `talk` affordance** to (the server's range), and only
+then marks them greeted (`greeted`, which `detect`'s T3 cooldown reads). A skipped arrival costs no consult and is not
+marked. `seat.py` 764 → 769 (+5: two call sites and the import; the amendment's growth, recorded, not C1/C3's).
+
+**Validation.** `test_a_greeting_nobody_can_hear_waits_and_is_offered_when_the_person_comes_within_range` (no consult
+and not greeted while `talk` is absent or unavailable; offered and greeted once it is available; not offered twice).
+Regression on the amended tree: correction scenario PASS; gate dry run PASS (scripted: 7 ledger consults); Milestone D
+PASS; `speech_both_ways --ignored --test-threads=1` 5/5 PASS; real-binary `test_controller_server`,
+`test_controller_resilience`, `test_supervised_process`, `test_milestone_d_fallback` 9 PASS; seat suite 25 PASS;
+ruff, strict pyright clean. Live gate: next, once, on the committed head.

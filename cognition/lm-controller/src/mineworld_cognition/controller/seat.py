@@ -84,6 +84,7 @@ from mineworld_cognition.controller.situation import WALKING_COMPONENT, Situatio
 from mineworld_cognition.controller.triggers import (
     Asked,
     Felt,
+    Greetings,
     Pending,
     body_of,
     detect,
@@ -206,7 +207,7 @@ class SeatRunner:
         self._newest: Seen | None = None
         self._observed = asyncio.Event()
         self._written: int | None = None
-        self._greeted: dict[EntityId, int] = {}
+        self._greetings = Greetings()
         self._last_line: dict[EntityId, EventId] = {}
         self._consult_count = 0
         self._records: list[DecisionRecord] = []
@@ -373,16 +374,19 @@ class SeatRunner:
                 store,
                 here,
                 now_at,
-                self._greeted,
+                self._greetings.greeted,
                 self._controller.greet_cooldown_s,
             )
             # A seat no filler lists detects exactly as before fillers (I-d-8): no `due_events` is passed.
             due = self._due_events(store)
             found = detect(*arguments, due_events=due) if due else detect(*arguments)
             for trigger in found:
-                if trigger.kind == "arrived" and trigger.speaker is not None:
-                    self._greeted[trigger.speaker] = now_at
-                self._pending.offer(trigger, heard_at[trigger.event], self._clock())
+                if trigger.kind == "arrived":
+                    self._greetings.arrived(trigger)
+                else:
+                    self._pending.offer(trigger, heard_at[trigger.event], self._clock())
+            if self._newest is not None:
+                self._greetings.offer(self._newest.frame.observation, self._pending, self._clock())
 
     def _due_events(self, store: SeatView) -> Mapping[str, str]:
         """The fact types that raise a `due` consult now: those of the fillers the newest observation lists
@@ -432,6 +436,7 @@ class SeatRunner:
             self._observed.set()
             self._offer_upcoming(seen.frame.observation)
             self._offer_feeling(seen.frame.observation)
+            self._greetings.offer(seen.frame.observation, self._pending, self._clock())
 
     def _offer_feeling(self, observation: Observation) -> None:
         """The `feeling` trigger (S35 N-e, §4.7): when my needs' words change, or on waking. Its event is the newest
