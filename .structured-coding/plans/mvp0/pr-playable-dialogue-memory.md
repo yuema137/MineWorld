@@ -1053,3 +1053,27 @@ superseded "bakery" is not presented as current — holds (reviewer to confirm);
 classification is **FAIL on (f) only**; the memory claims of check 2 were met by the live model after a restart.
 No `malformed_recall`, `forged_recall` or `unknown_person` occurred. Two consults ended `dropped` (their submit was no
 longer offered when the answer came). Judges next: red team, then the operator. No rerun.
+
+### 11.4 Red-team scoring of gate 2 and follow-ups (2026-11-28)
+
+Red team (`_reviews/pr565.md`): FAIL on (f) only; cause: queueing. Each player line waited 14.6 s / 10.6 s behind a
+consult whose answer was then dropped, so the line's own consult met the 20 s deadline. Bounded fixes (no ruling
+needed; the deadline policy is unchanged):
+
+1. **Preemption.** `Pending.unless_preempted` runs each consult; the moment a person's newer words wait in the slot and
+   the running consult is on an arrival or on older words of the same speaker, that consult is cancelled (a started
+   model call is still charged, C1) and the player's line is taken next; another speaker's line waits its turn. Counted
+   as `preempted_consults` (decision-log counters). Tests: `test_a_persons_newer_words_abandon_a_consult_their_answer_would_not_serve`
+   and the rewritten `test_a_newer_line_of_the_same_speaker_abandons_the_running_consult_and_is_answered_next` (before:
+   both consults ran and were logged). The C1 deadline test now uses another speaker for its second line, so it still
+   pins the pending-wait spend.
+2. **Greeting expiry.** A waiting arrival expires unmarked after `GREETING_WAIT_S` = 900 world seconds; extended greeting
+   test.
+3. **Tests §11.1 claimed.** The recall-typing cases for `true`, a float, a numeric string, an extra key (and a negative id)
+   were missing from `REASON_TABLE` (an edit had not applied); added; mutation "accept a bool" caught. `feeling = false`:
+   no unit test that is not a getter; its behaviour is evidenced by gate 2 (`feeling = false`, zero `feeling` consults in
+   `evidence.json`).
+4. **Gate cassettes** marked partial: `NOT-A-REPLAY-FIXTURE.txt` in both live-gate evidence folders.
+
+`seat.py` 769 → 772 (+3, the preemption call; recorded amendment growth). The gate is not rerun; the operator decides
+on a real-prompt warm-up and one more bounded run.

@@ -1,0 +1,3 @@
+Partial evidence of a live-gate run (design pr-playable-dialogue-memory.md §§10, 11.3).
+The cassettes here are partial (a call cap stopped or a consult timed out mid-scenario, and each phase is its own file).
+They are NOT replay fixtures: no test reads them, and the C4 replay fixtures stay on scripted models.

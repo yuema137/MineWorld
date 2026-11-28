@@ -15,9 +15,9 @@ every `reask_minutes` until I set out, arrive, or the part begins. Neither decid
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Mapping, Sequence
+from collections.abc import Coroutine, Mapping, Sequence
 from dataclasses import dataclass
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 from mineworld_sdk.wire.contract import Observation, PerceivedEvent, PlaceId
 from mineworld_sdk.wire.ids import EntityId, JsonValue
@@ -214,8 +214,12 @@ class Pending:
     def __init__(self) -> None:
         self._waiting: Waiting | None = None
         self._ready = asyncio.Event()
+        self._changed = asyncio.Event()
+        """Set by every `offer` that changes the slot; `unless_preempted` waits on it."""
         self.superseded = 0
         """Triggers lost to the slot: displaced by a newer one, or dropped behind a waiting `spoken_to`."""
+        self.preempted = 0
+        """Consults abandoned because a person's newer words superseded their trigger (`unless_preempted`)."""
 
     def offer(self, trigger: Trigger, heard_at: int, received_at: float) -> None:
         waiting = self._waiting
@@ -228,6 +232,7 @@ class Pending:
                 return
         self._waiting = Waiting(trigger, heard_at, received_at)
         self._ready.set()
+        self._changed.set()
 
     async def take(self) -> Waiting:
         while True:
@@ -237,6 +242,41 @@ class Pending:
                 waiting, self._waiting = self._waiting, None
                 return waiting
 
+    async def unless_preempted[T](
+        self, consult: Coroutine[Any, Any, T], current: Trigger
+    ) -> T | None:
+        """Runs the consult on `current`, abandoning it (cancelled, `None`) as soon as a person's newer words wait in the
+        slot and would supersede it: `current` is not someone's words, or is older words of the same speaker. The
+        player's line then gets the model next instead of queueing behind an answer that would be dropped (red team
+        #565, gate 2). Another speaker's line waits its turn. A started model call is charged on cancellation (C1)."""
+        task = asyncio.ensure_future(consult)
+        while True:
+            if self._preempts(current):
+                self.preempted += 1
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+                return None
+            self._changed.clear()
+            changed = asyncio.ensure_future(self._changed.wait())
+            await asyncio.wait({task, changed}, return_when=asyncio.FIRST_COMPLETED)
+            if task.done():
+                changed.cancel()
+                return task.result()
+
+    def counts(self) -> dict[str, int]:
+        """The slot's counters, as the decision log names them."""
+        return {"superseded_triggers": self.superseded, "preempted_consults": self.preempted}
+
+    def _preempts(self, current: Trigger) -> bool:
+        waiting = self._waiting
+        if waiting is None or waiting.trigger.kind != "spoken_to":
+            return False
+        return current.kind != "spoken_to" or current.speaker == waiting.trigger.speaker
+
+
+GREETING_WAIT_S = 900
+"""How long, in world seconds, an arrival waits for the person to come within talking range (15 world minutes)."""
+
 
 class Greetings:
     """When an `arrived` trigger becomes a consult (DM-20261128-4 A4; operator, 2026-11-27: "跳过没人听见的打招呼",
@@ -244,15 +284,16 @@ class Greetings:
     server decides who is within talking range — and only then is it offered to the pending slot and marked greeted
     (`greeted`, the T3 cooldown `detect` reads). An arrival nobody can hear costs no consult, and it is not marked:
     the person is greeted when they come within range (red-team #565). A newer arrival of the same person replaces
-    the waiting one."""
+    the waiting one, and an arrival that waited `GREETING_WAIT_S` world seconds expires unmarked (red team, gate 2):
+    a greeting is for coming in, not for whenever someone later walks past."""
 
     def __init__(self) -> None:
         self.greeted: dict[EntityId, int] = {}
-        self._waiting: dict[EntityId, Trigger] = {}
+        self._waiting: dict[EntityId, tuple[Trigger, int]] = {}
 
-    def arrived(self, trigger: Trigger) -> None:
+    def arrived(self, trigger: Trigger, at: int) -> None:
         if trigger.speaker is not None:
-            self._waiting[trigger.speaker] = trigger
+            self._waiting[trigger.speaker] = (trigger, at)
 
     def offer(self, observation: Observation, pending: Pending, received_at: float) -> None:
         """Offers the waiting arrivals of the people `observation` lets me talk to now."""
@@ -261,7 +302,10 @@ class Greetings:
 
     def in_reach(self, talkable: set[EntityId], now_at: int) -> list[Trigger]:
         """The waiting arrivals of people I may talk to now, marked greeted at `now_at` and no longer waiting."""
-        ready = [trigger for person, trigger in self._waiting.items() if person in talkable]
+        for person, (_, at) in list(self._waiting.items()):
+            if now_at - at > GREETING_WAIT_S:
+                del self._waiting[person]
+        ready = [trigger for person, (trigger, _) in self._waiting.items() if person in talkable]
         for trigger in ready:
             assert trigger.speaker is not None
             del self._waiting[trigger.speaker]

@@ -382,7 +382,7 @@ class SeatRunner:
             found = detect(*arguments, due_events=due) if due else detect(*arguments)
             for trigger in found:
                 if trigger.kind == "arrived":
-                    self._greetings.arrived(trigger)
+                    self._greetings.arrived(trigger, heard_at[trigger.event])
                 else:
                     self._pending.offer(trigger, heard_at[trigger.event], self._clock())
             if self._newest is not None:
@@ -546,7 +546,10 @@ class SeatRunner:
             if isinstance(observed, Expired) or expiry.passed(self._clock()):
                 self._runner_counts["stale_triggers"] += 1
                 continue
-            record = await self._consult_once(seat, trigger, heard_at, expiry)
+            consult = self._consult_once(seat, trigger, heard_at, expiry)
+            record = await self._pending.unless_preempted(consult, trigger)
+            if record is None:
+                continue
             if self._handback_due(record) and seat.welcome.took_over == "hosted":
                 return True
 
@@ -729,7 +732,7 @@ class SeatRunner:
 
     def _counters(self) -> Counters:
         return counters_from(self._records).model_copy(
-            update={**self._runner_counts, "superseded_triggers": self._pending.superseded}
+            update=self._runner_counts | self._pending.counts()
         )
 
     def _close(self) -> None:

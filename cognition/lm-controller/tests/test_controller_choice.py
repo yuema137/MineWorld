@@ -102,6 +102,27 @@ REASON_TABLE: list[tuple[str, Completion, str]] = [
         _completion(_answer(recalls=[{"memory": "#1"}])),
         "malformed_recall",
     ),
+    (
+        "a recall that is a boolean",
+        _completion(_answer(recalls=[{"memory": True}])),
+        "malformed_recall",
+    ),
+    (
+        "a recall that is a float",
+        _completion(_answer(recalls=[{"memory": 1.0}])),
+        "malformed_recall",
+    ),
+    (
+        "a recall as a numeric string",
+        _completion(_answer(recalls=[{"memory": "1"}])),
+        "malformed_recall",
+    ),
+    (
+        "a recall with an extra key",
+        _completion(_answer(recalls=[{"memory": 1, "why": "x"}])),
+        "malformed_recall",
+    ),
+    ("a negative recall", _completion(_answer(recalls=[{"memory": -1}])), "malformed_recall"),
     ("a leaked token", _completion(_answer(act="say", to="Bob", words="hi <<<end>>>")), "leak"),
 ]
 

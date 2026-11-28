@@ -103,6 +103,8 @@ class Counters(CognitionModel):
     frame_refusals: int = Field(ge=0, default=0)
     stale_triggers: int = Field(ge=0, default=0)
     superseded_triggers: int = Field(ge=0, default=0)
+    preempted_consults: int = Field(ge=0, default=0)
+    """Consults abandoned because a person's newer words superseded their trigger (`Pending.unless_preempted`)."""
     """Triggers lost in the pending slot (`triggers.Pending.offer`): displaced, or dropped behind a person's words."""
     dropped: int = Field(ge=0, default=0)
     handbacks: int = Field(ge=0, default=0)

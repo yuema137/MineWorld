@@ -300,7 +300,11 @@ def test_absorb_runs_to_its_end_before_triggers_are_detected(
     assert calls[:3] == ["absorb:start", "absorb:end", "detect"]
 
 
-def test_a_trigger_that_arrives_during_a_consult_runs_once_afterwards(tmp_path: Path) -> None:
+def test_a_newer_line_of_the_same_speaker_abandons_the_running_consult_and_is_answered_next(
+    tmp_path: Path,
+) -> None:
+    # Before red team #565 gate 2 this line waited for the running consult on line 2 to end (both were logged); now
+    # line 2's consult is abandoned (counted, not logged) and line 3 is asked at once.
     async def scenario() -> None:
         gate = asyncio.Event()
         link = Link(welcome(resume=1), observation(1))
@@ -314,13 +318,13 @@ def test_a_trigger_that_arrives_during_a_consult_runs_once_afterwards(tmp_path: 
         link.say(perceived("3", spoke("3", speaker="5", utterance="again")))
         await _settle()
         gate.set()
-        await _logged(tmp_path, 2)
+        await _logged(tmp_path, 1)
         await _cancel(task)
 
     run(scenario())
     records = _decisions(tmp_path)
-    assert [record.consult for record in records] == [1, 2]
-    assert records[-1].input.trigger.event == "3"
+    assert [record.input.trigger.event for record in records] == ["3"]
+    assert _counters(tmp_path)["preempted_consults"] == 1
 
 
 def test_a_fallback_at_a_hosted_seat_hands_it_back_and_rejoins_after_the_handback_period(
@@ -746,6 +750,12 @@ def test_under_verify_a_scope_account_that_under_reports_stops_the_seat_by_name(
 # ── The absolute consult deadline (DM-20261127-3 C1, §§4.4, 4.5) ─────────────────────────────────────────
 
 
+def _counters(tmp_path: Path) -> dict[str, int]:
+    """The runner's last counters line of the decision log."""
+    lines = (tmp_path / "store" / "alice.decisions.jsonl").read_text(encoding="utf-8").splitlines()
+    return [json.loads(line) for line in lines if '"kind":"counters"' in line][-1]
+
+
 def _stale_triggers(tmp_path: Path) -> int:
     """The runner's `stale_triggers` counter from the last counters line of the decision log."""
     lines = (tmp_path / "store" / "alice.decisions.jsonl").read_text(encoding="utf-8").splitlines()
@@ -799,8 +809,8 @@ class _EachHeld:
 def test_the_pending_wait_spends_the_deadline_and_a_late_answer_is_not_acted_on(
     tmp_path: Path,
 ) -> None:
-    # Line 3 arrives while line 2's consult runs; that consult takes 15 s, so line 3 has 5 s left when its own
-    # consult starts. Its answer comes 6 s later: past the expiry, the answer is not acted on and the consult
+    # Line 3 (another speaker, so it does not preempt line 2: `Pending.unless_preempted`) arrives while line 2's
+    # consult runs; that consult takes 15 s, so line 3 has 5 s left when its own consult starts. Its answer comes 6 s later: past the expiry, the answer is not acted on and the consult
     # ends `fell_back` at the deadline. Before the fix line 3's consult started a fresh 20 s and chose.
     async def scenario() -> None:
         clock = FakeClock()
@@ -810,7 +820,7 @@ def test_the_pending_wait_spends_the_deadline_and_a_late_answer_is_not_acted_on(
         await until(lambda: "join" in link.kinds(), "the join")
         link.say(perceived("2", spoke("2", speaker="5")))
         await until(lambda: backend.started == 1, "line 2 is asked")
-        link.say(perceived("3", spoke("3", speaker="5", utterance="again")))
+        link.say(perceived("3", spoke("3", speaker="6", utterance="again")))
         await _settle()
         clock.now += 15.0
         backend.release[0].set()
@@ -903,12 +913,12 @@ def test_a_greeting_nobody_can_hear_waits_and_is_offered_when_the_person_comes_w
     """DM-20261128-4 A4 (operator, 2026-11-27: "跳过没人听见的打招呼"): an arrival of someone I may not talk to yet
     costs no consult and is not marked greeted; once the world offers `talk` to that person it is offered and
     marked (red-team #565). The range is the server's: only an available `talk` affordance counts."""
-    from mineworld_cognition.controller.triggers import Greetings, Pending
+    from mineworld_cognition.controller.triggers import GREETING_WAIT_S, Greetings, Pending
 
     vera, bob = EntityId("20"), EntityId("7")
     vera_arrived = Trigger(event=EventId("338"), kind="arrived", speaker=vera, words="")
     greetings, pending = Greetings(), Pending()
-    greetings.arrived(vera_arrived)
+    greetings.arrived(vera_arrived, 90)
 
     def talk_to(*people: EntityId, available: bool = True) -> Observation:
         return Observation.model_validate(
@@ -953,5 +963,55 @@ def test_a_greeting_nobody_can_hear_waits_and_is_offered_when_the_person_comes_w
         greetings.offer(talk_to(vera), pending, 4.0)
         with pytest.raises(TimeoutError):
             await take()
+        # An arrival that waited longer than GREETING_WAIT_S expires unmarked (red team, gate 2).
+        late = Greetings()
+        late.arrived(vera_arrived, 100 - GREETING_WAIT_S - 1)
+        late.offer(talk_to(vera), pending, 5.0)
+        assert vera not in late.greeted
+        with pytest.raises(TimeoutError):
+            await take()
 
     run(scenario())
+
+
+def test_a_persons_newer_words_abandon_a_consult_their_answer_would_not_serve() -> None:
+    """Red team #565, gate 2: each player line waited 10 to 15 s behind a consult whose answer was then dropped. A
+    consult on an arrival, or on older words of the same speaker, is abandoned (cancelled, counted) the moment that
+    person's newer words wait in the slot; a consult on another speaker's words runs to its end."""
+    from mineworld_cognition.controller.triggers import Pending
+
+    vera, bob = EntityId("20"), EntityId("7")
+    arrived = Trigger(event=EventId("1"), kind="arrived", speaker=vera, words="")
+    bob_line = Trigger(event=EventId("2"), kind="spoken_to", speaker=bob, words="Morning")
+    vera_line = Trigger(event=EventId("3"), kind="spoken_to", speaker=vera, words="My code is 12.")
+
+    async def scenario() -> tuple[str | None, str | None, int]:
+        pending = Pending()
+        cancelled: list[str] = []
+
+        async def slow(name: str) -> str:
+            try:
+                await asyncio.sleep(5)
+            except asyncio.CancelledError:
+                cancelled.append(name)
+                raise
+            return name
+
+        first = asyncio.ensure_future(pending.unless_preempted(slow("greeting"), arrived))
+        await asyncio.sleep(0.01)
+        pending.offer(vera_line, 3, 0.0)
+        abandoned = await asyncio.wait_for(first, 1)
+        assert (await pending.take()).trigger == vera_line, "the player's line is next"
+
+        async def quick(name: str) -> str:
+            await asyncio.sleep(0.05)
+            return name
+
+        second = asyncio.ensure_future(pending.unless_preempted(quick("bob"), bob_line))
+        await asyncio.sleep(0.01)
+        pending.offer(vera_line, 4, 0.0)
+        kept = await asyncio.wait_for(second, 1)
+        assert cancelled == ["greeting"]
+        return abandoned, kept, pending.preempted
+
+    assert run(scenario()) == (None, "bob", 1)
