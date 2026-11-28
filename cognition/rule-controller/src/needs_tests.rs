@@ -75,6 +75,9 @@ struct View {
     terms: (u16, u16),
     sleep_offered: bool,
     meals: Vec<(&'static str, u64)>,
+    /// The `needs` record's schema and whether it is the food-energy shape (`ARC-370`).
+    schema: u32,
+    food_energy: bool,
 }
 
 impl View {
@@ -90,7 +93,17 @@ impl View {
             terms: (15, 840),
             sleep_offered: true,
             meals: Vec::new(),
+            schema: 1,
+            food_energy: false,
         }
+    }
+
+    /// The same needs, disclosed as a schema-2 food-energy record: `hunger` normalized from the
+    /// reserve, each kind's `hunger` its motivation score beside its kcal and serving.
+    fn in_food_energy(mut self) -> Self {
+        self.schema = 2;
+        self.food_energy = true;
+        self
     }
 
     fn feeling(mut self, hunger: u16, tiredness: u16) -> Self {
@@ -138,20 +151,40 @@ impl View {
             let nourishment: Vec<Value> = self
                 .nourishment
                 .iter()
-                .map(|(raw, hunger)| json!({ "item": item(*raw), "hunger": hunger }))
+                .map(|(raw, hunger)| {
+                    if self.food_energy {
+                        json!({ "item": item(*raw), "hunger": hunger, "energy_kcal": hunger * 2,
+                                "serving": { "label": "1", "quantity": { "unit": "g", "amount": 1 } } })
+                    } else {
+                        json!({ "item": item(*raw), "hunger": hunger })
+                    }
+                })
                 .collect();
-            mine.push(record(
-                ME,
-                "needs",
-                json!({
-                    "hunger": hunger, "tiredness": tiredness,
-                    "words": { "hunger": "fine", "tiredness": "fine" }, "asleep": self.asleep,
-                    "rates": { "hunger_per_hour": 120, "hunger_asleep_per_hour": 40,
-                               "tiredness_per_hour": 60, "rest_per_hour": self.rest_per_hour },
-                    "restore": { "hunger": ["eating"], "tiredness": ["sleeping"] },
-                    "nourishment": nourishment,
-                }),
-            ));
+            let mut payload = json!({
+                "hunger": hunger, "tiredness": tiredness,
+                "words": { "hunger": "fine", "tiredness": "fine" }, "asleep": self.asleep,
+                "rates": { "hunger_per_hour": 120, "hunger_asleep_per_hour": 40,
+                           "tiredness_per_hour": 60, "rest_per_hour": self.rest_per_hour },
+                "restore": { "hunger": ["eating"], "tiredness": ["sleeping"] },
+                "nourishment": nourishment,
+            });
+            if self.food_energy {
+                payload["hunger_model"] = json!("food-energy");
+                payload["rates"] =
+                    json!({ "tiredness_per_hour": 60, "rest_per_hour": self.rest_per_hour });
+                payload["food_energy"] = json!({ "unit": "kcal", "available_kcal": 2000 - hunger * 2,
+                    "capacity_kcal": 2000, "use_kcal_per_world_day": 2000,
+                    "bar": { "value": 1000 - hunger, "maximum": 1000 }, "replaces_need": "hunger" });
+            }
+            let mut needs = record(ME, "needs", payload);
+            if self.schema != 1 {
+                needs = serde_json::from_value(json!({
+                    "entity": ME.to_string(), "component_type": "needs",
+                    "schema_version": self.schema, "payload": needs.payload(),
+                }))
+                .expect("a record");
+            }
+            mine.push(needs);
         }
         let asleep =
             |who| ComponentRecord::new::<Asleep>(id(who), json!({ "asleep": true, "since": 0 }));
@@ -220,6 +253,29 @@ fn slept_for(request: &ActionRequest) -> u16 {
 fn eaten(request: &ActionRequest) -> Value {
     let payload: Value = serde_json::from_slice(request.payload().payload()).expect("JSON");
     payload["item"]["entity"].clone()
+}
+
+/// A schema-2 food-energy record decides exactly as the schema-1 record with the same normalized
+/// numbers (same ranks, no policy change); a schema this controller does not read is not read at all,
+/// so the needs bands stay inert rather than guess (`ARC-370`).
+#[test]
+fn a_food_energy_record_ranks_food_as_before_and_an_unknown_schema_is_not_read() {
+    let policy = NeedsPolicy::default();
+    let mut view = View::at(AFTERNOON).feeling(650, 0);
+    view.nourishment = vec![(7, 300), (8, 500), (9, 500), (10, 0)];
+    view.meals = vec![("eat", 7), ("drink", 9), ("eat", 8), ("eat", 10)];
+    let before = policy.eat(&view.build()).expect("schema 1 eats");
+    let energy = view.clone().in_food_energy();
+    let after = policy.eat(&energy.build()).expect("schema 2 eats");
+    assert_eq!(after, before);
+    assert_eq!(eaten(&after), json!("8"));
+    let mut unknown = energy;
+    unknown.schema = 3;
+    assert!(
+        policy.eat(&unknown.build()).is_none(),
+        "schema 3 is not read"
+    );
+    assert!(crate::needs::own(&unknown.build()).is_none());
 }
 
 #[test]

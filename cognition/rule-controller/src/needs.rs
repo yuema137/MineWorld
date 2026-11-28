@@ -447,13 +447,21 @@ impl Felt {
     }
 }
 
-/// My own needs, if the observation discloses them.
+/// The `needs` record's schemas this controller reads (`ARC-370`): 1 (S35's deficits) and 2 (either
+/// hunger model). In both, `hunger` is the normalized deficit 0 … 1 000 and each kind's `hunger` the
+/// score food is ranked by, so the same fields decode; any other schema is not read at all.
+const NEEDS_SCHEMAS: [u32; 2] = [1, 2];
+
+/// My own needs, if the observation discloses them in a schema this controller reads.
 pub fn own(observation: &Observation<Value>) -> Option<Felt> {
     let me = observation.entity(observation.observer())?;
     let record = me
         .components()
         .iter()
         .find(|record| record.component_type().as_str() == NEEDS)?;
+    if !NEEDS_SCHEMAS.contains(&record.schema_version().value()) {
+        return None;
+    }
     serde_json::from_value(record.payload().clone()).ok()
 }
 

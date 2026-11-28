@@ -241,6 +241,8 @@ fn outcome(resolved: &Result<Resolved<Pack>, ConfigurationRefusal>) -> String {
         Ok(resolved) => format!("{resolved:?}"),
         Err(ConfigurationRefusal::ClassUndefined { .. }) => "ClassUndefined".to_owned(),
         Err(ConfigurationRefusal::Ambiguous { .. }) => "Ambiguous".to_owned(),
+        // The synthetic pack keeps the default `validate_authored`, which refuses nothing.
+        Err(ConfigurationRefusal::Owner { code, .. }) => format!("Owner({code})"),
     }
 }
 

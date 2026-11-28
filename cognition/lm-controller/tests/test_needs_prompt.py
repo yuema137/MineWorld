@@ -86,3 +86,44 @@ def test_each_sleep_line_is_within_its_byte_bound_and_shows_no_entity_id() -> No
     line = next(x for x in text.splitlines() if x.startswith("I am asleep since "))
     assert len(line.encode("utf-8")) <= 160
     assert raw["observer"] not in line.split()
+
+
+def _food_energy(raw: dict[str, Any], schema: int, block: Any) -> dict[str, Any]:  # noqa: ANN401
+    """The recording with my `needs` record restated as a schema-`schema` food-energy record (ARC-370)."""
+    edited = json.loads(json.dumps(raw))
+    me = next(e for e in edited["entities"] if e["id"] == edited["observer"])
+    for record in me["components"]:
+        if record["component_type"] == "needs":
+            record["schema_version"] = schema
+            record["payload"]["hunger_model"] = "food-energy"
+            record["payload"]["food_energy"] = block
+    return edited
+
+
+RESERVE = {
+    "unit": "kcal",
+    "available_kcal": 1500,
+    "capacity_kcal": 2000,
+    "use_kcal_per_world_day": 2000,
+    "bar": {"value": 750, "maximum": 1000},
+    "replaces_need": "hunger",
+}
+
+
+def test_a_food_energy_seat_reads_its_reserve_in_one_bounded_line() -> None:
+    text = user_text(_food_energy(recorded("market-town-night"), 2, RESERVE))
+    line = "My food energy: 1500 of 2000 kcal; I use 2000 kcal a day."
+    assert text.count(line) == 1, text
+    assert len(line.encode("utf-8")) <= 160
+
+
+def test_no_reserve_line_for_schema_1_an_unknown_schema_or_a_malformed_block() -> None:
+    raw = recorded("market-town-night")
+    for edited in [
+        raw,
+        _food_energy(raw, 3, RESERVE),
+        _food_energy(raw, 2, {**RESERVE, "available_kcal": 2001}),
+        _food_energy(raw, 2, {**RESERVE, "available_kcal": True}),
+        _food_energy(raw, 2, {**RESERVE, "unit": "kJ"}),
+    ]:
+        assert "My food energy" not in user_text(edited)

@@ -888,6 +888,9 @@ msgstr "睡眠中"
 msgid "ui.row.need"
 msgstr "{need}：{word}"
 
+msgid "ui.row.reserve"
+msgstr "{need}：{word} — {available} / {capacity} 千卡（每天 {use} 千卡）"
+
 msgid "ui.row.asleep"
 msgstr "自 {since} 起在睡，闹钟 {alarm}"
 

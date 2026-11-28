@@ -7,7 +7,7 @@
     {
       "parameters": [
         {
-          "hunger_asleep_per_hour": 30
+          "energy_kcal_per_day": 2000
         }
       ]
     }
@@ -87,6 +87,14 @@
             "pattern": "^(\\*|[a-z0-9]([a-z0-9_-]*[a-z0-9])?)$",
             "type": "string"
           },
+          "energy_kcal_per_day": {
+            "default": 2000,
+            "description": "Food energy used per world day (86 400 world seconds), kcal, and the reserve's capacity: 2 000 by default, the FDA Daily Value reference intake on US Nutrition Facts labels (21 CFR 101.9(c)(9)). Only in `food-energy`, where a base entry must set it.",
+            "format": "uint32",
+            "maximum": 100000,
+            "minimum": 1,
+            "type": "integer"
+          },
           "hunger_asleep_per_hour": {
             "default": 30,
             "description": "How much hunger rises per hour asleep: suppressed in sleep, so breakfast follows a night rather than a famine (authored).",
@@ -94,6 +102,11 @@
             "maximum": 500,
             "minimum": 0,
             "type": "integer"
+          },
+          "hunger_model": {
+            "$ref": "#/$defs/HungerModel",
+            "default": "unitless",
+            "description": "Which model hunger is in: `unitless` (a deficit, the rates below) or `food-energy` (a kcal reserve, `energy_kcal_per_day`)."
           },
           "hunger_per_hour": {
             "default": 120,
@@ -208,6 +221,14 @@
                   "pattern": "^(\\*|[a-z0-9]([a-z0-9_-]*[a-z0-9])?)$",
                   "type": "string"
                 },
+                "energy_kcal_per_day": {
+                  "default": 2000,
+                  "description": "Food energy used per world day (86 400 world seconds), kcal, and the reserve's capacity: 2 000 by default, the FDA Daily Value reference intake on US Nutrition Facts labels (21 CFR 101.9(c)(9)). Only in `food-energy`, where a base entry must set it.",
+                  "format": "uint32",
+                  "maximum": 100000,
+                  "minimum": 1,
+                  "type": "integer"
+                },
                 "hunger_asleep_per_hour": {
                   "default": 30,
                   "description": "How much hunger rises per hour asleep: suppressed in sleep, so breakfast follows a night rather than a famine (authored).",
@@ -215,6 +236,11 @@
                   "maximum": 500,
                   "minimum": 0,
                   "type": "integer"
+                },
+                "hunger_model": {
+                  "$ref": "#/$defs/HungerModel",
+                  "default": "unitless",
+                  "description": "Which model hunger is in: `unitless` (a deficit, the rates below) or `food-energy` (a kcal reserve, `energy_kcal_per_day`)."
                 },
                 "hunger_per_hour": {
                   "default": 120,

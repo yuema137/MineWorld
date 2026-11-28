@@ -146,6 +146,22 @@ impl PackConfiguration for Probe {
         settings.table.iter().collect()
     }
 
+    /// Refuses a step of 99 beside a place, as the owner's own refusal (`ARC-370`): whole-file, so it
+    /// names no entry.
+    fn check(
+        settings: &Settings,
+        _: &ConfigurationContext<'_>,
+    ) -> Result<(), mineworld_authoring::ConfigurationRefusal> {
+        if settings.step.0 == 99 && settings.at.is_some() {
+            return Err(mineworld_authoring::ConfigurationRefusal::Owner {
+                entry: None,
+                code: mineworld_contracts::RejectionCode::from_static("probe-step-beside-place"),
+                detail: "a step of 99 may not name a place".to_owned(),
+            });
+        }
+        Ok(())
+    }
+
     /// States `probe-configured { step }`, `SystemInternal`; refuses a step of 100 — a refusal only the
     /// owner can state, at genesis.
     fn seed(
@@ -1053,4 +1069,33 @@ fn a_changed_attachment_is_drift_and_an_unchanged_one_is_not() {
         Err(PackError::ConfigurationDrift { system, .. }) => assert_eq!(system, Probe::ID),
         other => panic!("expected ConfigurationDrift, got {other:?}"),
     }
+}
+
+/// An owner's own refusal (`ConfigurationRefusal::Owner`, `ARC-370`) reaches the author with the file,
+/// the owner, its code and the entry — `the file` when the owner blames none — and an acceptable
+/// configuration passes the same check.
+#[test]
+fn an_owners_refusal_names_the_file_the_owner_its_code_and_the_entry() {
+    let classes = mineworld_authoring::EntityClasses::default();
+    let refused = found(
+        Capability::Presence,
+        serde_json::json!({ "step": 99, "at": "square" }),
+    );
+    match super::check(&classes, &refused) {
+        Err(error @ PackError::ConfigurationContradictory { .. }) => {
+            let text = error.to_string();
+            for part in [
+                "in-memory/configure/presence.yaml",
+                "'probe'",
+                "probe-step-beside-place",
+                "the file",
+                "a step of 99 may not name a place",
+            ] {
+                assert!(text.contains(part), "{part:?} missing from: {text}");
+            }
+        }
+        other => panic!("expected ConfigurationContradictory, got {other:?}"),
+    }
+    let accepted = found(Capability::Presence, serde_json::json!({ "step": 99 }));
+    super::check(&classes, &accepted).expect("a step of 99 alone is the owner's to accept");
 }

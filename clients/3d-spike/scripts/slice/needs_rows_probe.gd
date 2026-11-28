@@ -12,7 +12,7 @@ extends SceneTree
 
 const NeedsHud := preload("res://scripts/slice/needs_hud.gd")
 
-const FIXTURES := ["market-town-night", "commute-late", "commute-sleeper"]
+const FIXTURES := ["market-town-night", "commute-late", "commute-sleeper", "market-town-food-energy"]
 const LOCALES := ["en", "zh_Hans"]
 
 

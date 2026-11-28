@@ -8,30 +8,150 @@
       "minimum": 0,
       "type": "integer"
     },
-    "AuthoredNourishment": {
+    "AuthoredFoodEnergy": {
       "additionalProperties": false,
-      "description": "The item form's one field.",
+      "description": "The person's food-energy form.",
       "properties": {
-        "hunger": {
-          "$ref": "#/$defs/Amount",
-          "description": "How much one of this item lowers hunger when eaten or drunk, 0 … 1 000."
+        "initial_kcal": {
+          "$ref": "#/$defs/Kcal",
+          "description": "The person's reserve at genesis, whole kcal, 0 … their daily use."
         }
       },
       "required": [
-        "hunger"
+        "initial_kcal"
       ],
+      "type": "object"
+    },
+    "AuthoredServing": {
+      "$ref": "#/$defs/Serving",
+      "description": "A serving, checked where it is written."
+    },
+    "Kcal": {
+      "description": "Whole kcal, `0 ..= 100 000`: refused at its own line and column otherwise.",
+      "format": "uint32",
+      "maximum": 100000,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "Quantity": {
+      "additionalProperties": false,
+      "description": "How much one serving is: an amount in a unit.",
+      "properties": {
+        "amount": {
+          "description": "The amount, 1 … 100 000.",
+          "format": "uint32",
+          "maximum": 100000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "unit": {
+          "$ref": "#/$defs/QuantityUnit",
+          "description": "Grams or millilitres."
+        }
+      },
+      "required": [
+        "unit",
+        "amount"
+      ],
+      "type": "object"
+    },
+    "QuantityUnit": {
+      "description": "The unit a serving is measured in.",
+      "oneOf": [
+        {
+          "const": "g",
+          "description": "Grams.",
+          "type": "string"
+        },
+        {
+          "const": "ml",
+          "description": "Millilitres.",
+          "type": "string"
+        }
+      ]
+    },
+    "Serving": {
+      "additionalProperties": false,
+      "description": "One inventory unit of a food-energy item kind: a whole serving, with a label for people and a quantity. Display text only; never parsed.",
+      "properties": {
+        "label": {
+          "description": "What a serving is called, 1 … 128 bytes, no control characters: \"1 bowl\", \"2 slices\".",
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "quantity": {
+          "$ref": "#/$defs/Quantity",
+          "description": "How much it is."
+        }
+      },
+      "required": [
+        "label",
+        "quantity"
+      ],
+      "type": "object"
+    },
+    "WrittenNourishment": {
+      "additionalProperties": false,
+      "description": "The item form's keys, as written.",
+      "properties": {
+        "energy_kcal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Kcal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Food energy: kcal in one whole serving, 0 … 100 000 (with `serving`)."
+        },
+        "hunger": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Amount"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Unitless: how much one of this item lowers hunger when eaten or drunk, 0 … 1 000."
+        },
+        "serving": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AuthoredServing"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Food energy: what one inventory unit is (with `energy_kcal`)."
+        }
+      },
       "type": "object"
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "In a person file, the person's starting hunger and tiredness (each 0 … 1 000; `{}` for 300 and 700); in an item file, `nourishment: { hunger }`, how much one lowers hunger. Never both forms.",
+  "description": "In a person file, the person's starting hunger and tiredness; in an item file, `nourishment`, what one does to hunger. Never both forms; never both models' keys.",
   "examples": [
     {
       "hunger": 200
     }
   ],
   "properties": {
+    "food_energy": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AuthoredFoodEnergy"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Food energy: a person's starting reserve, `{ initial_kcal }`; required in a food-energy world."
+    },
     "hunger": {
       "anyOf": [
         {
@@ -41,12 +161,12 @@
           "type": "null"
         }
       ],
-      "description": "A person's starting hunger, 0 (sated) … 1 000 (famished); 300 when not written."
+      "description": "Unitless: a person's starting hunger, 0 (sated) … 1 000 (famished); 300 when not written."
     },
     "nourishment": {
       "anyOf": [
         {
-          "$ref": "#/$defs/AuthoredNourishment"
+          "$ref": "#/$defs/WrittenNourishment"
         },
         {
           "type": "null"

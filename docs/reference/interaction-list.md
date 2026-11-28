@@ -349,7 +349,7 @@ Example:
 
 ```yaml
 parameters:
-  - hunger_asleep_per_hour: 30
+  - energy_kcal_per_day: 2000
 ```
 
 ### Actions of `configure/needs.yaml`
@@ -369,7 +369,9 @@ A parameter entry may name `actor`.
 
 | Field | Type | Required | Default | Bounds | Description |
 | --- | --- | --- | --- | --- | --- |
+| `energy_kcal_per_day` | whole number | no | `2000` | 1 to 100000 | Food energy used per world day (86 400 world seconds), kcal, and the reserve's capacity: 2 000 by default, the FDA Daily Value reference intake on US Nutrition Facts labels (21 CFR 101.9(c)(9)). Only in `food-energy`, where a base entry must set it. |
 | `hunger_asleep_per_hour` | whole number | no | `30` | 0 to 500 | How much hunger rises per hour asleep: suppressed in sleep, so breakfast follows a night rather than a famine (authored). |
+| `hunger_model` | [HungerModel](#configure-needs-block-hungermodel) | no | `"unitless"` | — | Which model hunger is in: `unitless` (a deficit, the rates below) or `food-energy` (a kcal reserve, `energy_kcal_per_day`). |
 | `hunger_per_hour` | whole number | no | `120` | 10 to 500 | How much hunger rises per hour awake: from sated to hungry (600) in 5 hours by default, the spacing of the American Time Use Survey's meal peaks. |
 | `rest_per_hour` | whole number | no | `125` | 10 to 1000 | How much tiredness falls per hour asleep at level 300: the fall is in proportion to the level (the two-process model's recovery, Q-Nc3-5; `mineworld_sleep::recovery`), so an 8-hour night from 1 000 ends near 35, about 121 per hour on average. |
 | `restore` | [Restore](#configure-needs-block-restore) | no | `{"hunger":["eating"],"tiredness":["sleeping"]}` | — | What restores each need: hunger from [eating], tiredness from [sleeping]. |
@@ -377,6 +379,17 @@ A parameter entry may name `actor`.
 | `tiredness_per_hour` | whole number | no | `60` | 10 to 500 | How much tiredness rises per hour awake: 1 000 over the ~16.7 waking hours of a day with an 8-hour night. |
 
 ### Types used above
+
+<a id="configure-needs-block-hungermodel"></a>
+
+#### `HungerModel`
+
+Which model hunger is in (`ARC-370`): a unitless deficit, or a kcal reserve.
+
+**Type:** `unitless` or `food-energy`.
+
+- `unitless`: A deficit 0 … 1 000 rising at `hunger_per_hour` (`ARC-284`): today's behaviour.
+- `food-energy`: A kcal reserve, full at `energy_kcal_per_day`, draining at that rate asleep and awake.
 
 <a id="configure-needs-block-restore"></a>
 
