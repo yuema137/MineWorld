@@ -43,3 +43,25 @@ and the clients would stop being pure protocol clients); a launcher framework su
 window toolkit to start two processes is a dependency larger than the problem, `REUSE_POLICY.md` §12).
 No dependency is added: `MessageBoxW` is one `user32` declaration, as `DEP-29`'s note did for
 `GenerateConsoleCtrlEvent`, so no `windows-sys` feature is needed.
+
+
+### Amendment — played towns and private host controls (2026-11-23)
+
+Actual operator trial exposed a stale packaged launch path: only Alice had a reactive
+controller, and the existing clock controls had no local host capability. Played runs now
+use the existing `--town` policy (ARC-345), leaving the explicit Alice fixture for smoke.
+This corrects launch integration without changing worlds, controllers or saved composition.
+
+On 2026-11-23 the operator explicitly approved, in the Codex coordination session (relayed by the coordinator; recorded in `.structured-coding/plans/mvp0/handoff-coordinator.md` "November 23 continued execution"), “同意复用现有 getrandom 库” ("agree to reuse the existing getrandom library"). Item 2's standard-library-only
+restriction is amended solely to reuse workspace `getrandom` for a per-run 128-bit OS-random
+admin capability. Existing server code already uses that dependency for secrets. Handwritten
+platform randomness, subprocess-generated secrets and a new server secret-output handshake
+were rejected as unnecessary additional surface. The launcher keeps the capability in memory
+and passes it only through owned child environments; failures fail closed before launch.
+Inherited capabilities are replaced/removed and the secret never enters argv, logs or files.
+
+The admin capability enables existing local World-tab clock controls. Item 4's stdin-EOF
+shutdown remains unchanged and does not depend on the admin surface. No `--hosted-here`,
+Keep Running or `--solo` is added; both clients may coexist and closing one does not stop
+the other's world. Design/evidence: `.structured-coding/plans/mvp0/pr-launcher-living-correction.md`;
+specification: `tools/launch/LAUNCHER.md` §7.1.

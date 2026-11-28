@@ -20,6 +20,7 @@ mod bundle;
 mod children;
 mod config;
 mod dialog;
+mod hosting;
 mod join;
 mod user;
 
@@ -32,6 +33,7 @@ use std::process::ExitCode;
 use bundle::Bundle;
 use children::{Clients, Server};
 use config::Choice;
+use hosting::Hosting;
 use user::{Log, Run, UserDir};
 
 /// What an entry point plays (`LAUNCHER.md` §2).
@@ -202,14 +204,22 @@ fn run(mode: Mode, options: &Options, log: &mut Log) -> Result<u8, Failure> {
         save.display()
     ));
 
-    let mut server = Server::start(&bundle, &world, &save, &user.log(run, "server"), log)?;
+    let hosting = Hosting::new(options.smoke.is_some())?;
+    let mut server = Server::start(
+        &bundle,
+        &world,
+        &save,
+        &hosting,
+        &user.log(run, "server"),
+        log,
+    )?;
     let join = server.join()?;
     log.line(&format!("the server is ready at {}", join.address));
     let code = Clients {
         bundle: &bundle,
         join: &join,
         world: &choice.world,
-        smoke: options.smoke.is_some(),
+        hosting: &hosting,
     }
     .run(
         &clients,

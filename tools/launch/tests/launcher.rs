@@ -30,6 +30,9 @@ use mineworld_test_support::{Scratch, scratch};
 use serde_json::{Value, json};
 use tokio_tungstenite::tungstenite::Message;
 
+#[path = "launcher/living.rs"]
+mod living;
+
 const STUB: &str = "MINEWORLD_LAUNCH_STUB";
 const STUB_WAIT: &str = "MINEWORLD_LAUNCH_STUB_WAIT";
 const STUB_CODE: &str = "MINEWORLD_LAUNCH_STUB_CODE";
@@ -43,7 +46,11 @@ fn main() -> ExitCode {
     if let Some(record) = std::env::var_os(STUB) {
         return stub(Path::new(&record));
     }
-    let cases: [(&str, fn()); 4] = [
+    let cases: [(&str, fn()); 5] = [
+        (
+            "played_town_and_private_clock_controls",
+            living::played_town_and_private_clock_controls,
+        ),
         (
             "play_joins_with_working_arguments_stops_gracefully_and_resumes",
             play_joins_with_working_arguments_stops_gracefully_and_resumes,
@@ -117,6 +124,19 @@ fn stub(record: &Path) -> ExitCode {
     let partial = record.join(format!("{label}.partial"));
     fs::write(&partial, text).expect("the record folder is writable");
     fs::rename(&partial, record.join(format!("{label}.args"))).expect("the record is renamed");
+
+    if let Ok(phase) = std::env::var(living::PROBE)
+        && panic::catch_unwind(|| living::child(record, &label, &arguments, &phase)).is_err()
+    {
+        fs::write(record.join(format!("{label}.failed")), "FAIL").unwrap();
+        return ExitCode::FAILURE;
+    }
+    if arguments.iter().any(|arg| arg == "--headless") {
+        assert!(
+            std::env::var_os("MINEWORLD_ADMIN_TOKEN").is_none(),
+            "smoke client must not inherit an admin capability"
+        );
+    }
 
     if std::env::var_os(STUB_WAIT).is_some() {
         let release = record.join(format!("{label}.release"));
@@ -682,9 +702,22 @@ fn smoke_both_runs_two_headless_clients_on_one_server_and_leaves_no_scratch() {
 
     let output = bundle
         .launcher("both", &["--smoke=both"])
+        .env("MINEWORLD_ADMIN_TOKEN", "unrelated-parent-smoke-capability")
         .output()
         .expect("the launcher runs");
     assert!(output.status.success(), "{}", finished(&output));
+
+    for path in bundle.logs("server") {
+        let printed = fs::read_to_string(path).expect("smoke server log");
+        assert!(
+            printed.contains("no admin surface"),
+            "smoke has no admin surface"
+        );
+        assert!(
+            printed.contains("1 seat(s) driven in-server"),
+            "smoke retains its one reactive fixture"
+        );
+    }
 
     let (two_d, three_d) = (bundle.record_of("2d"), bundle.record_of("3d"));
     for (client, probe) in [(&two_d, "--drive"), (&three_d, "--slice-link")] {
