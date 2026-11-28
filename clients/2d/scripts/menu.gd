@@ -144,8 +144,11 @@ func refresh(observation: MineWorldObservation) -> void:
 		else observation.affordances("", "" if _self else subject)
 	entries = _build(observation, offered)
 	var seen := {} if _self or _object else observation.entity(subject)
-	glance = MineWorldAttributes.glance(seen)
-	inspect = MineWorldAttributes.inspect(MineWorldAttributes.blocks(seen))
+	# In the player's language when the world offers it (S30-k): re-composed on every refresh.
+	var language := MineWorldText.language()
+	glance = MineWorldAttributes.glance(seen, language)
+	inspect = MineWorldAttributes.inspect(MineWorldAttributes.blocks(seen),
+		MineWorldAttributes.reading_of(seen, language))
 	var signature := JSON.stringify([glance, inspect, entries.map(func(e: Dictionary) -> Array:
 		return [e["label"], e["enabled"], e["available"]])])
 	if signature == _signature:

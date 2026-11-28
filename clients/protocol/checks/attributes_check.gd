@@ -26,6 +26,11 @@ func _init() -> void:
 		return
 	for case in golden["cases"]:
 		_case(case)
+	# A dash is read as an underscore, and a language with one offered locale reads it.
+	var offered := {"zh_Hans": {"join": "+", "more": "~", "pair": "=", "yes": "y", "no": "n"}}
+	_claim("reading", "zh-Hans", Attributes.reading("zh-Hans", offered)["locale"], "zh_Hans")
+	_claim("reading", "zh_CN", Attributes.reading("zh_CN", offered)["locale"], "zh_Hans")
+	_claim("reading", "de", Attributes.reading("de", offered)["locale"], "")
 	print("[attributes] %s — %d failure(s)" % ["PASS" if _failures == 0 else "FAIL", _failures])
 	if _failures == 0:
 		print("all attributes checks pass")
@@ -50,13 +55,23 @@ func _case(case: Dictionary) -> void:
 	for entry in entries:
 		merged.append(String(entry["attribute"]))
 	_claim(name, "merged", merged, case["merged"])
-	for composition in case["compose"]:
+	# The case's own expectations are English: through the English default and a reader asking for en.
+	_reading(name, entries, Attributes.ENGLISH, case)
+	var offered := Attributes.words({"components": records})
+	_reading(name + " as en", entries, Attributes.reading("en", offered), case)
+	for expected in case.get("readings", []):
+		var locale := String(expected["locale"])
+		_reading("%s in %s" % [name, locale], entries, Attributes.reading(locale, offered), expected)
+
+
+func _reading(name: String, entries: Array, reader: Dictionary, expected: Dictionary) -> void:
+	for composition in expected["compose"]:
 		var facet: Variant = composition["facet"]
 		var budget: Variant = composition["budget"]
 		var text := Attributes.compose(entries, "" if facet == null else String(facet),
-			-1 if budget == null else int(budget))
+			-1 if budget == null else int(budget), reader)
 		_claim(name, "compose %s at %s" % [facet, budget], text, composition["text"])
 		if budget != null and text.to_utf8_buffer().size() > int(budget):
 			_claim(name, "within %s bytes" % budget, text.to_utf8_buffer().size(), int(budget))
-	_claim(name, "inspect", Array(Attributes.inspect(entries)), case["inspect"])
-	_claim(name, "sheet", Array(Attributes.sheet(entries)), case["sheet"])
+	_claim(name, "inspect", Array(Attributes.inspect(entries, reader)), expected["inspect"])
+	_claim(name, "sheet", Array(Attributes.sheet(entries, reader)), expected["sheet"])

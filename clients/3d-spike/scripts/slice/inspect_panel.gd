@@ -62,6 +62,12 @@ func hide_panel() -> void:
 static func lines_for(observation: MineWorldObservation, aimed: String) -> PackedStringArray:
 	if observation == null:
 		return PackedStringArray()
+	# In the player's language when the world offers it (S30-k), English otherwise.
+	var language := MineWorldText.language()
 	if aimed == "":
-		return MineWorldAttributes.sheet(MineWorldAttributes.blocks(observation.entity(observation.observer())))
-	return MineWorldAttributes.inspect(MineWorldAttributes.blocks(observation.entity(aimed)))
+		var me := observation.entity(observation.observer())
+		return MineWorldAttributes.sheet(MineWorldAttributes.blocks(me),
+			MineWorldAttributes.reading_of(me, language))
+	var seen := observation.entity(aimed)
+	return MineWorldAttributes.inspect(MineWorldAttributes.blocks(seen),
+		MineWorldAttributes.reading_of(seen, language))

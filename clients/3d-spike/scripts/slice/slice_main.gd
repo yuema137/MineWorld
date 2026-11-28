@@ -703,7 +703,7 @@ func _process(_d: float) -> void:
 		_hud_looking.text = _looking_line()
 		hud.set_aiming(link.aiming != "")
 	if _hud_glance != null and link != null:
-		_hud_glance.text = MineWorldAttributes.glance(_aimed_record())
+		_hud_glance.text = MineWorldAttributes.glance(_aimed_record(), MineWorldText.language())
 	if _inspect != null and link != null:
 		if Input.is_action_pressed("inspect") and not (talk_line != null and talk_line.is_open()):
 			var aimed := _aimed_person()
