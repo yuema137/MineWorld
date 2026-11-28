@@ -28,6 +28,11 @@ ruling Q-FF-3; every walkable scene closes every view on a far field, `docs/MODU
 Needs **Godot 4.7** on `PATH` (`brew install godot`). Nothing else. The first
 run builds Godot's resource cache automatically and takes about 30 s extra.
 
+**Renderer on macOS.** Run from this checkout (the slice, its probes, `--perf`, `--shots`), the client uses
+Godot's Metal driver, this project's default. Packaged bundles render through Vulkan (MoltenVK), set in
+`clients/runtime/project.godot` (`DEP-164`). So macOS timings and stills taken from source are Metal's;
+add `--rendering-driver vulkan` before `--` to match a bundle.
+
 | Control | |
 | --- | --- |
 | `W` / `S` | walk forward / back |

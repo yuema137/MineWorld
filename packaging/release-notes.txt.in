@@ -34,6 +34,8 @@ The demo is not signed.
   (`Cargo.lock`, `uv.lock`) only; Godot's bundled libraries are listed in the archive's
   `LICENSES/godot/COPYRIGHT.txt`. Check it with
   `gh attestation verify <archive> -R yuema137/MineWorld --predicate-type https://spdx.dev/Document/v2.3`.
+- On macOS the renderer is MoltenVK (Apache-2.0, `DEP-164`), which Godot's `COPYRIGHT.txt` does not list; its
+  licence is `LICENSES/godot/MoltenVK-LICENSE.txt`.
 
 ## What's new
 

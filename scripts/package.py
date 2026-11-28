@@ -62,6 +62,11 @@ GODOT_NOTICES = {
     "LICENSE.txt": "b0435e3b3e4e55238f05f4b306f30524a1b2e20147810d436eaa554fa6855c80",
     "COPYRIGHT.txt": "cb1980c88089573bcacd7221d777c689bb8bbd778799f24c27fca0fe5f774d6d",
 }
+# MoltenVK (Apache-2.0), statically linked in Godot's official macOS templates and the renderer of the
+# macOS bundle (DEP-164). Godot's COPYRIGHT.txt does not list it, so its licence ships beside Godot's;
+# the text is KhronosGroup/MoltenVK's LICENSE, identical at v1.4.0, v1.4.1 and v1.4.2.
+MOLTENVK_NOTICE = ("packaging/notices/MoltenVK-LICENSE.txt",
+                   "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30")
 WORLDS = ("social-cafe", "market-town", "bodies-yard")
 PACK_2D = "presentation/mineworld-default/2D"
 PACK_2D_PARTS = ("art", "assets", "i18n", "renderer", "far_field", "daylight.json", "manifest.yaml",
@@ -541,14 +546,20 @@ def godot_notices(given: str | None, into: Path) -> None:
             raise Failure(f"Godot's {name} does not match its pinned SHA-256")
 
 
-def licences(bundle: Path, godot_dir: str | None) -> None:
-    """LICENSES/: Rust notices (DEP-38), Godot's (DEP-41), the font's, the asset records (as .txt)."""
+def licences(bundle: Path, godot_dir: str | None, target: Target) -> None:
+    """LICENSES/: Rust notices (DEP-38), Godot's (DEP-41), on macOS MoltenVK's (DEP-164), the font's, the
+    asset records (as .txt)."""
     out = bundle / "LICENSES"
     out.mkdir(parents=True, exist_ok=True)
     run(["cargo", "about", "generate", "--locked", "--manifest-path", "tools/cli/Cargo.toml",
          "-c", "packaging/about.toml", "packaging/about.hbs",
          "-o", str(out / "THIRD_PARTY_RUST.html")], cwd=ROOT)
     godot_notices(godot_dir, out / "godot")
+    if target.macos:
+        source, digest = MOLTENVK_NOTICE
+        if hashlib.sha256((ROOT / source).read_bytes()).hexdigest() != digest:
+            raise Failure(f"{source} does not match its pinned SHA-256")
+        shutil.copy2(ROOT / source, out / "godot" / "MoltenVK-LICENSE.txt")
     (out / "fonts").mkdir(parents=True, exist_ok=True)
     shutil.copy2(ROOT / "clients/shared/settings/fonts/OFL.txt", out / "fonts" / "OFL.txt")
     assets = out / "assets"
@@ -628,7 +639,7 @@ def assemble(target: Target, keys: list[str], godot: str, server: str | None,
     shutil.copytree(work_dir(target) / "clients", runtime / "clients", dirs_exist_ok=True, symlinks=True)
     placed = {k: runtime / "clients" / e.relative_to(work_dir(target) / "clients") for k, e in executables.items()}
     place_launchers(bundle, target, binaries, version)
-    licences(bundle, notices)
+    licences(bundle, notices, target)
     write_bundle_toml(bundle, target, version, placed)
     missing = missing_entry_points(bundle, target)
     if missing:
