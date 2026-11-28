@@ -507,3 +507,9 @@ E4 delta review (coordinator, 2026-11-27, narrow BLOCK) fixed: D-1 content roots
 `concat!(env!("CARGO_MANIFEST_DIR"), "/../../worlds/…")` (tools/cli/tests/ac13_clients.rs), both confirmed on
 the real tree; D-2 a platform file nothing reads (a new `.ps1`) is `full`. Cases added; 49 + 39 PASS.
 P1 (`64af5b96`, with main `4b86c9d9`) merged in; E4 sections renumbered 3.6/3.7 after P1's 3.5.
+
+D-1 test gap (coordinator mutation, 2026-11-27): dropping `-w` from `git_readers` survived the synthetic
+cases. Added a self-test that runs the real `git grep` on a throwaway repository (`join("../../worlds")` and
+`"/../../worlds/…"` must match, `networlds_fixture`/`worldsmith` must not); the same planted mutation now
+fails it (`impact FAILED: 1 case(s)`). 49 + 40 PASS. Full run 46100024262 on `f2ace9c7`: no new failures vs
+main (judgement on #540); one more full run on the new head per the CI-change rule.

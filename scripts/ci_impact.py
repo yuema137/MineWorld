@@ -46,6 +46,7 @@ import math
 import posixpath
 import re
 import subprocess
+import tempfile
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -239,12 +240,12 @@ Readers = Callable[[str], list[str]]
 WORD = "word:"
 
 
-def git_readers(prefix: str) -> list[str]:
+def git_readers(prefix: str, root: Path = ROOT) -> list[str]:
     """The tracked Rust files that name `prefix` (as a whole word when it starts with WORD)."""
     word = prefix.startswith(WORD)
     needle = prefix[len(WORD):] if word else prefix
     result = subprocess.run(["git", "grep", "-l", "-F", *(["-w"] if word else []), needle, "--", "*.rs"],
-                            cwd=ROOT, capture_output=True, text=True)
+                            cwd=root, capture_output=True, text=True)
     if result.returncode not in (0, 1):
         raise Unknown(f"`git grep {prefix}` failed: {result.stderr.strip()}")
     return [line for line in result.stdout.splitlines() if line]
@@ -655,6 +656,25 @@ def self_test(is_docs: Callable[[str], bool] | None = None) -> int:
             problems.append(f"shards={got.shards(workspace)}")
         failed += bool(problems)
         print(f"[self-test] {'FAIL' if problems else 'ok  '} impact: {name}{': ' + '; '.join(problems) if problems else ''}")
+    # The real reader search (git grep) on a throwaway repository: a content root is matched as a whole word,
+    # so a relative path `join("../../worlds")` and `"/../../worlds/x"` are readers and `networlds_fixture`
+    # is not (E4 delta D-1). The synthetic reader map above cannot catch a regression here.
+    with tempfile.TemporaryDirectory() as directory:
+        repo = Path(directory)
+        files = {
+            "a/tests/relative.rs": 'let w = root.join("../../worlds");\n',
+            "b/tests/concat.rs": 'concat!(env!("CARGO_MANIFEST_DIR"), "/../../worlds/market-town");\n',
+            "c/src/substring.rs": "fn networlds_fixture() {}\nlet worldsmith = 1;\n",
+        }
+        for name, text in files.items():
+            (repo / name).parent.mkdir(parents=True, exist_ok=True)
+            (repo / name).write_text(text, encoding="utf-8")
+        subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+        subprocess.run(["git", "add", "."], cwd=repo, check=True)
+        found = sorted(git_readers(f"{WORD}worlds", repo))
+        good = found == ["a/tests/relative.rs", "b/tests/concat.rs"]
+        failed += not good
+        print(f"[self-test] {'ok  ' if good else 'FAIL'} impact: git grep matches a content root as a whole word: {found}")
     # The shard count follows ARC-110's weights: a hub-sized selection takes the full run's six shards.
     heavy = Selection(tests={unit: {"mw-cli"} for unit in ci_shard.WEIGHTS if unit not in (ci_shard.DOC, ci_shard.LIB_BINS)})
     count = len(heavy.shards(workspace))
@@ -668,7 +688,7 @@ def self_test(is_docs: Callable[[str], bool] | None = None) -> int:
     good = sorted(u for part in parts for u in part) == sorted(core["units"])
     failed += not good
     print(f"[self-test] {'ok  ' if good else 'FAIL'} impact: a selection partitions completely")
-    total = len(cases()) + 2
+    total = len(cases()) + 3
     print(f"[self-test] impact {'passed' if not failed else f'FAILED: {failed} case(s)'}: {total} case(s)")
     return 1 if failed else 0
 
