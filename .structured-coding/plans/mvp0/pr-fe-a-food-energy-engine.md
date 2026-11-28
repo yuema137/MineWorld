@@ -686,3 +686,10 @@ final head, recorded separately from local results. Review starts while CI runs.
     pytest/ruff/pyright are recorded above, the remote gate is not claimed.
   - Validation: `cargo test -p mineworld-cli --test food_energy` 7 passed; `--test needs_rows_parity -- --ignored` 1
     passed; clippy on cli tests clean; `check_client_rules.py` PASS.
+- **Second red-team note (3D overlap reported on `8ece2bd6`).** `needs_hud.gd::_show_bar` now measures the row with
+  the label's own font and size (`Font.get_string_size(line.text, …, get_theme_font_size("font_size"))`) instead of
+  the label's minimum size, which lags a text change until the next layout. All 8 3D stills (en, zh_Hans) re-taken
+  and each inspected: the hunger bar starts after "(2000 kcal a day)" / "（每天 2000 千卡）" with a visible gap; the
+  `fe-evidence/e6/3d-*.jpg` files are replaced. Schema audit: every needs record in the four recorded fixtures states
+  `schema_version` (1, 1, 2, 1, by `jq`); the only GDScript needs frame without one is `needs_check.gd::_energy_frame`'s
+  deliberate `null` case. `needs_check` 0 failures; R7 PASS.

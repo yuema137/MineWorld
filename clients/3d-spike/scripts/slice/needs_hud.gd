@@ -169,7 +169,12 @@ func _show_bar(index: int, level: int, maximum: int, line: Label) -> void:
 		_bars[index] = bar
 	var shown := _bars[index] as ProgressBar
 	# Beside the row's text, never over it: a reserve row ("… 1849 / 2000 kcal …") is wider than a word row.
-	var text_end := line.position.x + line.get_minimum_size().x + BAR_GAP
+	# Measured with the font and size the label draws with, for the text it holds now (a label's minimum
+	# size lags a text change until the next layout pass, and differs per locale).
+	var font := line.get_theme_font("font")
+	var size := line.get_theme_font_size("font_size")
+	var width := font.get_string_size(line.text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+	var text_end := line.position.x + width + BAR_GAP
 	shown.position = Vector2(maxf(BAR_X, text_end), line.position.y + BAR_Y_OFFSET)
 	shown.max_value = maximum
 	shown.value = level
