@@ -1,0 +1,52 @@
+day 1  revision 1721  facts 2732
+day 2  revision 3500  facts 5452
+day 3  revision 5325  facts 8297
+consults   5647
+requests   accept-invitation accepted 92
+requests   decline-invitation accepted 43
+requests   drink accepted 9
+requests   eat accepted 40
+requests   fish accepted 41
+requests   give accepted 109
+requests   invite accepted 139
+requests   join-group-activity accepted 27
+requests   leave-group-activity accepted 39
+requests   shove accepted 63
+requests   talk accepted 854
+requests   walk-step accepted 2767
+requests   walk-to accepted 943
+facts      agenda-changed 130
+facts      appeared 10
+facts      arrived 3136
+facts      became-acquainted 62
+facts      conversation-started 568
+facts      fishing-ended 41
+facts      fishing-spot 2
+facts      fishing-started 41
+facts      gave-way 305
+facts      group-activity-ended 92
+facts      group-activity-started 92
+facts      invitation-accepted 92
+facts      invitation-declined 43
+facts      invited 139
+facts      item-kind-declared 13
+facts      items-consumed 49
+facts      items-produced 36
+facts      items-transferred 109
+facts      joined-group-activity 27
+facts      left-group-activity 49
+facts      named 10
+facts      passage-opened 9
+facts      person-entered-place 242
+facts      person-shoved 63
+facts      place-shaped 10
+facts      relationship-changed 51
+facts      routine-assigned 10
+facts      spoke 854
+facts      stocked 21
+facts      stopped-short 105
+facts      walk-ended 943
+facts      walk-started 943
+activity   days 1-3  alba move 261 talk 80  bruno move 261 talk 82  celia move 284 talk 109  dario move 240 talk 93  elin move 265 talk 81  finn move 244 talk 88  greta move 326 talk 92  hugo move 325 talk 65  ines move 296 talk 74  nils move 265 talk 90
+faults     0
+history    8297 facts, fingerprint 38369569320503b9 (FNV-1a 64, for reading; not evidence)

@@ -85,4 +85,4 @@ facts      weather-day 4
 facts      woke 33
 activity   days 1-3  alice move 620 talk 40  bob move 783 talk 36  carol move 453 talk 43  dev move 1032 talk 22  erin move 935 talk 20  felix move 572 talk 42  grace move 794 talk 46  hana move 808 talk 39  ivan move 770 talk 24  visitor move 685 talk 39  wanderer move 567 talk 28
 faults     0
-history    13636 facts, fingerprint 40f26d60a37e3557 (FNV-1a 64, for reading; not evidence)
+history    13636 facts, fingerprint f16232799eb151ca (FNV-1a 64, for reading; not evidence)

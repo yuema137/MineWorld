@@ -438,6 +438,15 @@ fit 96 MiB without changing a frozen contract. Options for the operator: (a) ASR
 movement/bodies record a blocked walker's `stopped-short` once per walk rather than per stride (bodies' fact,
 not S34-d1's; size unmeasured); (c) route walkers around a sitter (revises S34-b Q-S34b-3).
 
+#### Merge with main after S34-c2 (#553), FE-a (#555) and N1 (#552)
+
+Lakeside now installs posture and joins every `posture_life` run by discovery (Q-S34d-3): short profile,
+rule 100 % seen seated, motivated 20 %, median 3-4 consults, zero bobbing, invariants hold. The no-posture
+fixtures were re-recorded with main's controllers (this PR's `cognition/rule-controller` and
+`cognition/motivated` checked out from origin/main for the recording, then restored): Social Café unchanged,
+Market Town moved by N1's shop hours, Lakeside added. Golden re-captured (`sit accepted 765`). `decisions`,
+`reference`, `posture_life` (short) pass locally.
+
 #### C5 — Docs
 - [ ] Implementation: dated notes on `ARC-147` (NPCs sit through a rest band; why no stillness gate) and on
   `ARC-151` (`sit`, `stand` decided by name); the rule controller's module docs.
