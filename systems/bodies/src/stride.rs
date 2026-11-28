@@ -22,6 +22,7 @@ use crate::geometry::{
 use crate::push::Lay;
 use crate::rapier::{Against, Scene, Touch};
 use crate::resolve::{Answer, Degraded, Here, Objects, Outcome, Policy, Route};
+use crate::route::Starts;
 
 /// Everybody's position in one candidate result: the walker's and each displaced person's.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -151,6 +152,7 @@ pub(crate) fn stride(
                 }
         })
         .collect();
+    let starts = Starts::new(room, &placed);
     let attempt = |walls: Against| {
         let reach = reach(&scene, me, &behind, start, aim, walls);
         match nudge(
@@ -161,7 +163,9 @@ pub(crate) fn stride(
             reach.candidate,
             fallback,
             walls,
-        ) {
+        )
+        .and_then(|nudged| nudged.startable(&starts))
+        {
             Ok(nudged) => Tried {
                 candidate: Candidate {
                     walker: reach.candidate,
@@ -217,15 +221,7 @@ pub(crate) fn stride(
     // later (or at the same instant, with a higher id) — asks them to give way before it settles for
     // less. Only a walker (a walk in progress) outranks anybody; a direct `move` does not.
     if here.walking[me].is_some() && result.walker != target {
-        let moved = give_way(
-            room,
-            &other_points,
-            &yields,
-            &here.doors,
-            &laid,
-            start,
-            target,
-        );
+        let moved = give_way(here, &other_points, &yields, &laid, start, target);
         if let Some(moved) = moved
             && laid
                 .iter()
@@ -412,6 +408,19 @@ pub(crate) fn verifies(
 pub(crate) struct Nudged {
     pub(crate) moved: Vec<(usize, Point)>,
     pub(crate) generations: usize,
+}
+
+impl Nudged {
+    /// This pass when every person it moved stands where a route can start ([`Starts`]); otherwise
+    /// the pass fails like any other, and the caller degrades to blocked at first contact: a nudge
+    /// never leaves a body where no route can start (Q-S34d1-3).
+    pub(crate) fn startable(self, starts: &Starts<'_>) -> Result<Self, ()> {
+        if self.moved.iter().all(|(_, at)| starts.from(*at)) {
+            Ok(self)
+        } else {
+            Err(())
+        }
+    }
 }
 
 /// The nudge pass (step-11 SD-B7; QB-10, I-11). Generation 1's pusher is the arriving person at

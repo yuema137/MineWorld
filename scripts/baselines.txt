@@ -52,12 +52,14 @@ reason fix-activity-double-draw #274 (operator ruling 2026-10-18, F-S27b-5, ARC-
 reason WE-a #189 merged after 12d #171, S26-a #206, S27-b #241 and P6a #236: happenings and market-day prices enabled in Market Town (configure/happenings.yaml, configure/economy.yaml; QWE-1 (a)), and economy's declaration at version 2 in the genesis composition (F-WE-a-9), on top of main's bodies, persona, appearance and group-activity offers: every market-town key moved; no other world moved; re-recorded from a long record of WE-a's merge with main 73e5462 (Darwin/arm64)
 reason fix-activity-double-draw #274 merged with main b1969ca9 (after WE-a #189, S32-p #259, S34-a #301): the paced rule's narrower offered band on top of market-day happenings and prices; every key of the three towns re-recorded from a local long record of that merge (Darwin/arm64); bodies-yard unchanged
 reason milestone F re-record (2026-10-20, one re-record for the step): every key re-recorded from the nightly long record of main f92e3cad (parity-long-mac, run 39407548463, Darwin/arm64; verdict PASS), after TW-e's calendar in social-cafe (ARC-269), LE-a's genesis rows, economy SystemVersion 3, S35's sleep and needs content, S29's station and S34-c1's posture with its sit points; no number edited by hand
-summary-300 399 4a7c7a1dc561a89ccfda697d1d1252ef8a7231e3d9ecf1e362e63b3b81b1ca6a
-summary-1000 1123 4448c2d4c38e4eca186dbb44a6330ae651d734f1afbd071e04d15f6f9c87fe20
-summary-300s 398 5074ddc099fda0c0b1c2c08dd007293fcde4cdd31da98a9cb48dcb26b4866209
-facts-300s 6135 460d89d081035a385592da9c95c4f4da4dd215829ac01f5facc9d231763f3675
-journal-300s 4540 c19fd50b1bfd04d7c59da9f8f12047ca9bc999645510e66884f50deffb5cb887
-sealed-300s 528 e97e994def6b2c7ea9849bf002ed1b17dc7ee8b26210bd8846c95b6dfd604fcd
+reason N1 #552 (ARC-364, operator ruling Q-L1; coordinator 2026-11-27): Market Town's three shops author daily hours, so genesis shop-opened carries them and every key moves; recorded from a long-profile record of 9af926e7 (merge with main 29401a26; Darwin/arm64, ci_parity record --root of a root holding only worlds/market-town + entities + presentation, 1401 s) and written by ci_parity baseline write; the keys also absorb main's Market Town drift since the milestone F re-record; no other world written
+reason N1 #552 merged with main a2be71e4 (after FE-a #555, needs v2): re-recorded again from a long-profile record of ae34d202 (Market Town only, --root, Darwin/arm64, 1674 s) by ci_parity baseline write
+summary-300 401 65c429438ea92530d4689a0bf69e92b03ec3f00c39a5fcbe9e47af254a6edda2
+summary-1000 1127 0264a9eb8b398a7e8db960b4fdf4ec7dbbe494dda70385c123baa4890e35ff45
+summary-300s 400 a357530de048ec3c365b809be200e7535b361afb87da517eb8b9cf785df19894
+facts-300s 6032 0bb704b806f1441bcaab56fdd183ecdef8069557bc3a60fe7fd18bae5c843b62
+journal-300s 4170 b825bc574967107388156e6ce3f205143c04c07ba97807d64782991abddf6974
+sealed-300s 263 6867e8ea43c3499df6771db83f989c716e3d6eaaf8a72dc8c874323fb31d0965
 [world social-cafe]
 reason 13c #162: journal-300s re-recorded on main 9f853e1 (after #153, #157, #159); journal bytes moved in every world, summaries and facts did not (F-13c-impl-3)
 reason FG-a: re-recorded on mvp0/pr-fg-a eadc5df. Summaries and facts-300s were stale on main 6306977 (nightly issue #170, walking towns) and now equal that commit's own record; journal-300s moves at its genesis row only, which carries the composition (relationships v3, conversation v4, acquaintance-forgotten declared); no fact or summary moved by FG-a (pr-fg-a FA-1, F-FGA-16)

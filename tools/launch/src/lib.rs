@@ -173,16 +173,18 @@ fn run(mode: Mode, options: &Options, log: &mut Log) -> Result<u8, Failure> {
     let bundle = Bundle::locate(options.bundle.clone())?;
 
     let played = options.smoke.unwrap_or(mode);
-    // A smoke run checks the bundle, never the player's conversation (`LAUNCHER.md` §10.1).
+    // A smoke run plays its fixed fixture and never reads launch.toml or the cognition profile
+    // (`pr-launcher-solo.md` Q-LS5; `LAUNCHER.md` §10.1).
     let profile = if options.smoke.is_some() {
         None
     } else {
         read_optional(&user.profile())?
     };
-    let (choice, keys) = match &profile {
-        Some(text) => config::profile(played, &user.profile().display().to_string(), text)
+    let (choice, keys) = match (options.smoke, &profile) {
+        (Some(smoke), _) => (config::smoke(smoke), None),
+        (None, Some(text)) => config::profile(mode, &user.profile().display().to_string(), text)
             .map_err(Failure::new)?,
-        None => (chosen(&bundle, played)?, None),
+        (None, None) => (chosen(&bundle, mode)?, None),
     };
     let world = bundle.world(&choice.world)?;
     let clients = choice
@@ -221,7 +223,8 @@ fn run(mode: Mode, options: &Options, log: &mut Log) -> Result<u8, Failure> {
         save.display()
     ));
 
-    let hosting = Hosting::new(options.smoke.is_some())?;
+    // One player is a single-player world; Both seats two players and is shared (Q-LS2).
+    let hosting = Hosting::new(options.smoke.is_some(), mode != Mode::Both)?;
     let setup = match keys {
         Some(keys) => conversation(
             &bundle,

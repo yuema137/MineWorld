@@ -249,6 +249,7 @@ A shop, as its operator authors it: where it is, what it sells at what price, an
 | Field | Type | Required | Default | Bounds | Description |
 | --- | --- | --- | --- | --- | --- |
 | `at` | [EntityKey](#section-economy-entitykey) | yes | — | — | The place the shop is in: a place key. |
+| `hours` | [Hours](#section-economy-hours) | no | `null` | — | When the shop sells, every day: up to 8 intervals `{ from: "HH:MM", until: "HH:MM" }`, each open from `from` up to but not including `until`; an interval whose `until` is earlier runs past midnight. Leave it out and the shop is always open; `[]` closes it all day. An empty interval (`from` = `until`) or two that overlap are refused, naming the interval's index. Unattended: no keeper needs to be there. Outside its hours every way of buying is refused `shop-closed`. |
 | `keepers` | list of [EntityKey](#section-economy-entitykey) | no | `[]` | — | The people who may list, re-price and withdraw the shop's goods while standing in it: person keys, each once, at most 8. Without keepers the shop keeps its opening prices. |
 | `prices` | mapping: each key matches `^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$`, each value is whole number (at least 1) | yes | — | — | What it sells: an item key, then its asking price in minor units, 1 to 10^12. These are the organization's asks. |
 
@@ -259,6 +260,33 @@ A shop, as its operator authors it: where it is, what it sells at what price, an
 An authoring key: the name of a file in people/, places/, items/ or organizations/ without .yaml. 1 to 64 lowercase letters, digits, - and _, not starting or ending with - or _.
 
 **Type:** text. **Bounds:** 1 to 64 characters; matches `^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$`.
+
+<a id="section-economy-hours"></a>
+
+#### `Hours`
+
+The shop's daily sales hours: intervals [from, until), "HH:MM". An interval whose until is earlier than its from runs past midnight. from = until is refused, and no two intervals may overlap once wrapped. [] is closed all day; leaving `hours` out is always open.
+
+**Type:** list of [Opening](#section-economy-opening). **Bounds:** at most 8 entries.
+
+<a id="section-economy-opening"></a>
+
+#### `Opening`
+
+One interval of a day in which a shop sells: from `from`, up to but not including `until`.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `from` | [TimeOfDay](#section-economy-timeofday) | yes | — | — | When the shop begins selling, "HH:MM". |
+| `until` | [TimeOfDay](#section-economy-timeofday) | yes | — | — | When it stops, "HH:MM", exclusive. Earlier than `from`, the interval runs past midnight. |
+
+<a id="section-economy-timeofday"></a>
+
+#### `TimeOfDay`
+
+A time of day on a 24-hour clock, HH:MM, such as "06:30" — quoted in YAML.
+
+**Type:** text. **Bounds:** matches `^([01][0-9]|2[0-3]):[0-5][0-9]$`.
 
 <a id="section-job"></a>
 

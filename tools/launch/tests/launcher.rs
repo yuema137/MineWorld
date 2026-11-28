@@ -34,6 +34,8 @@ use tokio_tungstenite::tungstenite::Message;
 mod cognition;
 #[path = "launcher/living.rs"]
 mod living;
+#[path = "launcher/solo.rs"]
+mod solo;
 
 const STUB: &str = "MINEWORLD_LAUNCH_STUB";
 const STUB_WAIT: &str = "MINEWORLD_LAUNCH_STUB_WAIT";
@@ -55,7 +57,7 @@ fn main() -> ExitCode {
     if let Some(record) = std::env::var_os(STUB) {
         return stub(Path::new(&record));
     }
-    let cases: [(&str, fn()); 9] = [
+    let cases: [(&str, fn()); 10] = [
         (
             "cognition_child_is_started_with_its_own_environment_and_stopped_before_the_server",
             cognition::cognition_child_is_started_with_its_own_environment_and_stopped_before_the_server,
@@ -71,6 +73,10 @@ fn main() -> ExitCode {
         (
             "fresh_deletes_this_worlds_store_and_keeps_the_profile_and_other_worlds",
             cognition::fresh_deletes_this_worlds_store_and_keeps_the_profile_and_other_worlds,
+        ),
+        (
+            "market_town_by_default_solo_alone_and_a_carol_save_resumes_as_the_visitor",
+            solo::market_town_by_default_solo_alone_and_a_carol_save_resumes_as_the_visitor,
         ),
         (
             "played_town_and_private_clock_controls",
@@ -152,6 +158,12 @@ fn stub(record: &Path) -> ExitCode {
 
     if let Ok(phase) = std::env::var(living::PROBE)
         && panic::catch_unwind(|| living::child(record, &label, &arguments, &phase)).is_err()
+    {
+        fs::write(record.join(format!("{label}.failed")), "FAIL").unwrap();
+        return ExitCode::FAILURE;
+    }
+    if let Ok(phase) = std::env::var(solo::PROBE)
+        && panic::catch_unwind(|| solo::child(record, &label, &arguments, &phase)).is_err()
     {
         fs::write(record.join(format!("{label}.failed")), "FAIL").unwrap();
         return ExitCode::FAILURE;
@@ -717,7 +729,7 @@ fn killing_the_launcher_stops_its_server() {
 /// `--smoke=both`: one server, two headless clients with their probes and the `AC-15` seats; the exit
 /// status is the clients'; the scratch save is removed; old runs' logs beyond five are pruned.
 fn smoke_both_runs_two_headless_clients_on_one_server_and_leaves_no_scratch() {
-    let bundle = Bundle::new("launch-smoke", &["social-cafe"]);
+    let bundle = Bundle::new("launch-smoke", &["social-cafe", "market-town"]);
     let logs = bundle.user().join("logs");
     fs::create_dir_all(&logs).expect("the logs folder");
     for run in 1..=6 {
@@ -725,6 +737,8 @@ fn smoke_both_runs_two_headless_clients_on_one_server_and_leaves_no_scratch() {
     }
     fs::write(logs.join("keep-me.log"), "not a run's").expect("an unrelated file");
 
+    // A player's launch.toml never steers a smoke run (Q-LS5): this one names Market Town and Carol.
+    bundle.overrides("[both]\nworld = \"market-town\"\nseat-2d = \"carol\"\n[3d]\nworld = \"market-town\"\nseat = \"carol\"\n");
     let output = bundle
         .launcher("both", &["--smoke=both"])
         .env("MINEWORLD_ADMIN_TOKEN", "unrelated-parent-smoke-capability")
@@ -767,6 +781,13 @@ fn smoke_both_runs_two_headless_clients_on_one_server_and_leaves_no_scratch() {
     }
     assert_eq!(two_d.user("seat"), "visitor");
     assert_eq!(three_d.user("seat"), "wanderer");
+    for client in [&two_d, &three_d] {
+        assert_eq!(
+            client.user("world-key"),
+            "social-cafe",
+            "the fixture, not launch.toml"
+        );
+    }
     assert_eq!(
         two_d.user("server"),
         three_d.user("server"),
@@ -797,8 +818,9 @@ fn smoke_both_runs_two_headless_clients_on_one_server_and_leaves_no_scratch() {
         "a file not of a run is never touched"
     );
 
-    // A failing client's exit status is the launcher's.
-    bundle.overrides("[2d]\nworld = \"social-cafe\"\n");
+    // A failing client's exit status is the launcher's. The smoke fixture ignores a player's
+    // launch.toml (`pr-launcher-solo.md` Q-LS5): 2D smoke stays Carol on Market Town.
+    bundle.overrides("[2d]\nworld = \"social-cafe\"\nseat = \"visitor\"\n");
     for name in ["2d.args", "3d.args"] {
         fs::remove_file(bundle.record().join(name)).expect("the old record");
     }
@@ -808,6 +830,31 @@ fn smoke_both_runs_two_headless_clients_on_one_server_and_leaves_no_scratch() {
         .output()
         .expect("the launcher runs");
     assert_eq!(failing.status.code(), Some(3), "{}", finished(&failing));
+    let fixture = bundle.record_of("2d");
+    assert_eq!(
+        fixture.user("seat"),
+        "carol",
+        "the fixture's seat, not launch.toml's"
+    );
+    assert_eq!(fixture.user("world-key"), "market-town");
+    bundle.overrides("[3d]\nworld = \"market-town\"\nseat = \"carol\"\n");
+    fs::remove_file(bundle.record().join("2d.args")).expect("the old record");
+    let three_d_smoke = bundle
+        .launcher("3d", &["--smoke=3d"])
+        .output()
+        .expect("the launcher runs");
+    assert!(
+        three_d_smoke.status.success(),
+        "{}",
+        finished(&three_d_smoke)
+    );
+    let fixture = bundle.record_of("3d");
+    assert_eq!(
+        fixture.user("seat"),
+        "visitor",
+        "the fixture, not launch.toml"
+    );
+    assert_eq!(fixture.user("world-key"), "social-cafe");
     assert!(
         !bundle.user().join("scratch").exists(),
         "removed after a failure too"
