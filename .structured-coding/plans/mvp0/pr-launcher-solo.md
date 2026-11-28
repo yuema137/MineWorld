@@ -1,24 +1,24 @@
 # Launcher P1 + P3 — packaged launchers default to Market Town; packaged single-player worlds start `--solo`
 
-## DRAFT — FREEZE-READY (awaiting operator rulings Q-LS1 … Q-LS7, §0)
+## DESIGN FROZEN — 2026-11-27 (operator approved every recommendation, Q-LS1 … Q-LS7)
 
 ```text
-Design revision:        revision 4 (2026-11-27): revision 3 + delta re-review E1–E3 (§9); earlier: D1–D4, F1–F10 of
-                        _reviews/design-launcher-solo.md. Dispositions in §9. No ruling is assumed.
-Approved by / evidence: NOT YET APPROVED. Freeze requires the operator's answers to §0; recommendations are not rulings
+Design revision:        revision 4 (2026-11-27) + freeze nit (clock wait polls GET /admin/clock); review rounds F1–F10,
+                        D1–D4, E1–E4 of _reviews/design-launcher-solo.md; dispositions in §9.
+Approved by / evidence: the operator, 2026-11-27, relayed by the primary coordinator: "启动器按推荐；启动加载和启动器设计冻结，接受慢 8 秒，3D 实跑放到里程碑" ("launcher as recommended; ... designs frozen; ..."). Every §0 recommendation is now the ruling.
 Implementation base:    #549 head fcba4c1d6b40acb63cdfdd04e141674f20d5d4ba (fix/launcher-living-world), which owns
                         the `Hosting` seam this PR edits. Code starts on the main SHA that contains #544, #548 and
                         #549 (PR stacks on no unmerged branch); seams are re-checked on that SHA before C1
-Start condition:        #549 ratified (frozen) and merged to main, and this design frozen
+Start condition:        #549 (ratified 2026-11-27) merged to main; this design is frozen
 Execution contract:     §7 of this document (one authority; no separate contract file)
 Parent:                 operator-playable-mvp-20261123.md; pr-nightlife.md §1.3 (P1, P3);
                         pr-playable-dialogue-memory.md §§2, 3.2 (PR-B launcher seams and profile)
-Lifecycle:              DRAFT — FREEZE-READY; implementation not started
+Lifecycle:              FROZEN (2026-11-27); implementation not yet started
 ```
 
 ## 0. Questions for the operator (freeze gate)
 
-| ID | Question | Recommendation |
+| ID | Question | Ruling (operator, 2026-11-27: as recommended) |
 | --- | --- | --- |
 | **Q-LS1** | Which world does each packaged launcher play by default? Today 2D plays `market-town`, while 3D and 2D+3D play `social-cafe`. Social Café has no sleep/needs packs, so the town's night, shops and sleep never appear in 3D. | **Market Town for all three modes**, subject to the Q-LS7 acceptance bound. **Pre-decided fallback:** if 3D Market Town misses Q-LS7, 3D and 2D+3D keep `social-cafe` (2D is unchanged) and the miss is reported with its measurements; P3 still lands. In that branch, P1 is recorded **partial** in this ledger (2D only); LAUNCHER.md §2 rows state `social-cafe` for 3D/2D+3D; nightlife N2-C4's 3D sleep check is noted to need `world = "market-town"` in `launch.toml` (this design records it; the frozen nightlife text is not edited). **P1's resident cycle is proven here, not handed off:** C3 is a dedicated, budgeted packaged run (§5) whose pass condition is a non-Alice resident's home → asleep → awake → commute sequence. Social Café stays selectable with `world = "social-cafe"` in `launch.toml` (LAUNCHER.md §4). Saves are per world (`saves/<world>/`), so an existing Social Café save is neither touched nor resumed. The per-mode defaults are owned here; dialogue PR-B's cognition profile only overrides them per mode (`pr-playable-dialogue-memory.md` §3.3) and does not edit `config.rs` defaults. |
 | **Q-LS2** | Which packaged runs start the host `--solo`? `--solo` is the single-player declaration of `ARC-69` item 5, which nightlife N2's sleep advance requires. | **2D and 3D play runs: yes. 2D+3D run: no.** It seats two human players (`AC-15`); the operator's 2026-11-23 bound gives no blanket solo authority to both-client mode (`operator-playable-mvp-20261123.md` §3). **Smoke runs: no.** This aligns the packaged path with the source shell launchers, which already pass `--solo` (`clients/shared/HOST.md` §6 item 3; `ARC-69` Consequences: "a launcher starts a single-player world with `--solo` and a generated admin token"). **Consequences to rule on knowingly:** (a) `--solo` restricts **no** admission. It only requires a loopback listener and widens permissions (§2), so a cognition child, a second client or an MCP agent holding the invite still joins. (b) In dialogue PR-B's LM profile, LM Alice is attached, so nightlife Q-L4 A always refuses the sleep advance ("another controller is connected"; the named message is owned by N2-C4 item 3) until a future N3. |
@@ -135,7 +135,7 @@ Nothing new is adopted. This PR reuses `--solo` (`ARC-69`), the `Hosting` seam (
       sells only 05:30–22:00, and genesis is 00:00. The scratch save is therefore first positioned inside café
       hours:
       - start the same server with `--solo --time-scale 3600` and a test admin token in its environment only;
-      - wait for a `clock` frame showing world time ≥ 07:30;
+      - poll `GET /admin/clock` (with that token) once per wall second until its `at` is ≥ 27000 (07:30); the `clock` frame is sent only on a change (`PROTOCOL.md` §5.9), so it cannot be waited on for time passing;
       - `POST /admin/clock {"time_scale":12}`;
       - then join the probe.
 
