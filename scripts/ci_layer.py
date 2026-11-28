@@ -73,6 +73,11 @@ LAYERS: dict[str, list[list[str]]] = {
         # Every pack's place art within its 10 MB budget (operator ruling on F-d1-5, S14 16f-d2).
         ["python3", "scripts/check_pack_size.py"],
         ["python3", "scripts/check_pack_size.py", "--self-test"],
+        # Optional packs stay optional (X-S30-18, S30-h1 §5.10): no tracked file outside an optional pack
+        # and its declared paths names it; the checker's planted cases. Its declared binary checks run in
+        # `core`; the copy without every optional pack, in the nightly.
+        ["python3", "scripts/check_optional_packs.py", "scan"],
+        ["python3", "scripts/check_optional_packs.py", "--self-test"],
         ["python3", "scripts/ci_changes.py", "--self-test"],
         # The packaging script's A-R3 exclusions, A-R4 budget and archive determinism (S23 R-a).
         ["python3", "scripts/package.py", "--self-test"],

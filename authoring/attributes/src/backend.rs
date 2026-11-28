@@ -11,8 +11,13 @@
 //! catalogues: [appearance, background]        # this pack's attributes/ files, by stem
 //! masks: { default: core, ships: [core, appearance] }
 //! sampling: [profile]
-//! provenance: { source: mineworld }            # S30-h verifies upstream digests
+//! provenance: { source: mineworld }            # or upstream's: source, version, commit, files
+//! keeps: []                                    # `core` ids a foreign backend leaves as MineWorld's
+//! mapping: <stem>                              # mappings/<stem>.yaml: views of built-ins (S30-h1)
 //! ```
+//!
+//! An upstream provenance is checked for its shape only (a 40-hex commit, 64-hex SHA-256 digests); the
+//! digests themselves are verified by the backend pack's own import check, never at load (D-h-6).
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
@@ -22,7 +27,7 @@ use serde::{Deserialize, Serialize};
 /// The built-in backend's id.
 pub const MINEWORLD: &str = "mineworld";
 
-/// The sampling modes this engine knows (`log-linear` is S30-h's).
+/// The sampling modes this engine knows (`log-linear` is S30-h2's).
 pub const SAMPLING: [&str; 1] = ["profile"];
 
 /// A backend's masks: the default and the ones it ships.
@@ -50,10 +55,88 @@ pub struct BackendFile {
     masks: BackendMasks,
     sampling: Vec<String>,
     #[serde(default)]
-    provenance: BTreeMap<String, String>,
-    /// S30-h's; refused here when present.
+    provenance: Provenance,
     #[serde(default)]
-    mapping: Option<serde_json::Value>,
+    keeps: Vec<String>,
+    #[serde(default)]
+    mapping: Option<String>,
+}
+
+/// Where a backend's catalogue comes from: `{ source: mineworld }`, or an upstream release — its
+/// source, version, commit and the SHA-256 of every imported file.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Provenance {
+    /// `mineworld`, or where the upstream lives.
+    pub source: String,
+    /// The upstream's version.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub version: Option<String>,
+    /// The upstream commit, 40 hexadecimal digits.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub commit: Option<String>,
+    /// Each imported file, by its path in the pack, with its SHA-256 (64 hexadecimal digits).
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub files: BTreeMap<String, String>,
+}
+
+impl Provenance {
+    /// Whether this is MineWorld's own catalogue.
+    pub fn is_mineworld(&self) -> bool {
+        self.source == MINEWORLD
+            && self.version.is_none()
+            && self.commit.is_none()
+            && self.files.is_empty()
+    }
+
+    /// The shape rule: `{ source: mineworld }`, or a source, a version, a 40-hex commit and at least one
+    /// file with a 64-hex digest.
+    fn check(&self) -> Result<(), String> {
+        if self.is_mineworld() {
+            return Ok(());
+        }
+        let hex = |text: &str, length: usize| {
+            text.len() == length
+                && text
+                    .bytes()
+                    .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        };
+        if self.source.trim().is_empty() || self.source == MINEWORLD {
+            return Err(
+                "{ source: mineworld } alone, or an upstream source, version, commit and files"
+                    .to_owned(),
+            );
+        }
+        if self.version.as_deref().is_none_or(|v| v.trim().is_empty()) {
+            return Err("an upstream provenance states its version".to_owned());
+        }
+        if !self.commit.as_deref().is_some_and(|commit| hex(commit, 40)) {
+            return Err("an upstream commit is 40 lower-case hexadecimal digits".to_owned());
+        }
+        if self.files.is_empty() {
+            return Err("an upstream provenance lists the files it imported".to_owned());
+        }
+        if let Some((file, _)) = self.files.iter().find(|(_, digest)| !hex(digest, 64)) {
+            return Err(format!(
+                "the digest of '{file}' is not 64 lower-case hexadecimal digits (SHA-256)"
+            ));
+        }
+        Ok(())
+    }
+}
+
+impl core::fmt::Display for Provenance {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match (&self.version, &self.commit) {
+            (Some(version), Some(commit)) => write!(
+                f,
+                "{} {version} at {commit} ({} files)",
+                self.source,
+                self.files.len()
+            ),
+            _ => f.write_str(&self.source),
+        }
+    }
 }
 
 /// A backend, checked.
@@ -76,7 +159,11 @@ pub struct Backend {
     /// Its sampling modes.
     pub sampling: BTreeSet<String>,
     /// Its provenance.
-    pub provenance: BTreeMap<String, String>,
+    pub provenance: Provenance,
+    /// The `core` attributes it leaves as MineWorld's (`ARC-126`; Q-S30h-4).
+    pub keeps: BTreeSet<crate::id::QualifiedId>,
+    /// Its mapping's file stem in `mappings/`, when it maps values onto built-ins.
+    pub mapping: Option<String>,
 }
 
 /// `BackendMalformed { pack, field }`, with the reason.
@@ -143,21 +230,32 @@ impl Backend {
                 format!("'{mode}' is not one of {SAMPLING:?}"),
             ));
         }
-        if file.mapping.is_some() {
-            return Err(malformed(
-                pack,
-                "mapping",
-                "a mapping is S30-h's, not yet read",
-            ));
-        }
-        if file.provenance.len() != 1
-            || file.provenance.get("source").map(String::as_str) != Some(MINEWORLD)
+        if let Some(stem) = &file.mapping
+            && !crate::id::is_namespace(stem)
         {
             return Err(malformed(
                 pack,
-                "provenance",
-                "only { source: mineworld } is read until S30-h verifies upstream digests",
+                "mapping",
+                format!("'{stem}' is not a file stem of lower-case letters, digits and '-'"),
             ));
+        }
+        file.provenance
+            .check()
+            .map_err(|reason| malformed(pack, "provenance", reason))?;
+        let mut keeps = BTreeSet::new();
+        for kept in &file.keeps {
+            let id = crate::id::QualifiedId::new(kept)
+                .map_err(|reason| malformed(pack, "keeps", format!("'{kept}': {reason}")))?;
+            if id.namespace() != crate::catalogue::CORE {
+                return Err(malformed(
+                    pack,
+                    "keeps",
+                    format!("'{kept}' is not a `core` attribute"),
+                ));
+            }
+            if !keeps.insert(id) {
+                return Err(malformed(pack, "keeps", format!("'{kept}' is named twice")));
+            }
         }
         Ok(Self {
             id: file.backend.clone(),
@@ -169,6 +267,8 @@ impl Backend {
             masks: file.masks.clone(),
             sampling: file.sampling.iter().cloned().collect(),
             provenance: file.provenance.clone(),
+            keeps,
+            mapping: file.mapping.clone(),
         })
     }
 

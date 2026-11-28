@@ -16,3 +16,11 @@ attributes:
     mutability: evolving
     label: Focus
     phrase: "{value} focus"
+  rhythm:
+    group: behaviour
+    facets: [decision]
+    kind: { category: [dawn, dusk, any] }
+    visibility: learnable
+    mutability: fixed
+    label: Rhythm
+    phrase: "keeps a {value} rhythm"

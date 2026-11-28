@@ -16,7 +16,17 @@ fn each_malformed_field_is_named() {
     for (from, to, field) in [
         ("sampling: [profile]", "sampling: [log-linear]", "sampling"),
         ("default: core", "default: wide", "masks"),
-        ("source: mineworld", "source: matraix", "provenance"),
+        ("source: mineworld", "source: elsewhere", "provenance"),
+        (
+            "sampling: [profile]",
+            "sampling: [profile]\nkeeps: [toy.rhythm]",
+            "keeps",
+        ),
+        (
+            "sampling: [profile]",
+            "sampling: [profile]\nkeeps: [core.a, core.a]",
+            "keeps",
+        ),
         ("catalogues: [appearance]", "catalogues: []", "catalogues"),
     ] {
         let refusal = Backend::check("person-attributes", &file(&MINEWORLD.replacen(from, to, 1)))
@@ -26,11 +36,51 @@ fn each_malformed_field_is_named() {
             "{refusal}"
         );
     }
-    let mapped = format!("{MINEWORLD}mapping: {{ a: b }}\n");
+    let mapped = format!("{MINEWORLD}mapping: Not_A_Stem\n");
     assert!(
         Backend::check("p", &file(&mapped))
             .expect_err("mapping")
             .contains("'mapping'")
+    );
+    assert!(Backend::check("p", &file(&format!("{MINEWORLD}mapping: toy\n"))).is_ok());
+}
+
+/// An upstream provenance is checked for its shape only (§5.9, D-h-6): a source, a version, a 40-hex
+/// commit and 64-hex file digests.
+#[test]
+fn an_upstream_provenance_is_checked_for_its_shape() {
+    let commit = "0123456789abcdef0123456789abcdef01234567";
+    let digest = "ab".repeat(32);
+    let upstream = |commit: &str, digest: &str| {
+        MINEWORLD.replace(
+            "provenance: { source: mineworld }",
+            &format!(
+                "provenance:\n  source: example.org/upstream\n  version: \"schema 1.0\"\n  commit: {commit}\n  files: {{ .upstream/a.json: {digest} }}"
+            ),
+        )
+    };
+    let checked = Backend::check("p", &file(&upstream(commit, &digest))).expect("upstream");
+    assert_eq!(
+        checked.provenance.to_string(),
+        format!("example.org/upstream schema 1.0 at {commit} (1 files)")
+    );
+    for (bad_commit, bad_digest) in [
+        ("0123456", digest.as_str()),
+        ("0123456789ABCDEF0123456789ABCDEF01234567", digest.as_str()),
+        (commit, "abc"),
+    ] {
+        let refusal =
+            Backend::check("p", &file(&upstream(bad_commit, bad_digest))).expect_err("bad shape");
+        assert!(refusal.contains("'provenance'"), "{refusal}");
+    }
+    let unversioned = MINEWORLD.replace(
+        "provenance: { source: mineworld }",
+        &format!("provenance: {{ source: example.org/upstream, commit: {commit} }}"),
+    );
+    assert!(
+        Backend::check("p", &file(&unversioned))
+            .expect_err("no version")
+            .contains("'provenance'")
     );
 }
 

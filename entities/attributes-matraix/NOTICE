@@ -1,0 +1,35 @@
+attributes-matraix
+Optional person-generation backend built on the MatrAIx persona schema (Li, Hao et al., 2026,
+arXiv 2608.04205; MIT), imported unchanged.
+
+Upstream
+--------
+Repository: https://github.com/MatrAIx-ai/MatrAIx-Persona-8B
+Commit:     3633d8dab149a9482a71b024418a49ae828cc941
+Licence:    MIT, Copyright (c) 2026 MatrAIx (LICENSE in this directory, verbatim)
+Citation:   CITATION.cff in this directory, verbatim
+Paper:      "MatrAIx: Simulating the World with 8.3 Billion Persona Agents", arXiv 2608.04205,
+            https://arxiv.org/abs/2608.04205
+
+Files imported byte for byte (SHA-256)
+--------------------------------------
+LICENSE                                         933dffa19cada2c4f6d27bfc366b99017e0c7b829a8e1dbc8b5aa816d893b2c2
+CITATION.cff                                    4490a665fab9e2c98b232e1fab437542ef1e7d09baf2727a4f25912e220d4b68
+.upstream/dimensions.json                       cbf4db9d887dec057431aff409e1d28d83f345e7a31e29a4275a607212ecfca5
+.upstream/labels/dimensions.labels.es.json      f488187aa1b81d0d78d724a36c1dad1e690ac38d4bfca5c603ad67268b88485f
+.upstream/labels/dimensions.labels.ja.json      678f54ab8effcdc7ee15988093183b509d937abe7c975d18df3c94f4141b0dcd
+.upstream/labels/dimensions.labels.ko.json      e1714339890c798c714be917d820d59fabee1a86609a529173a29fdb97903ee6
+.upstream/labels/dimensions.labels.pt-BR.json   5f2dcf2a1da5c4ef02d442cf1c7b93ade6026db662561a8fa82baa703f12f309
+.upstream/labels/dimensions.labels.zh-Hans.json 7abbcef3bb1132fe4d75ece0855cb189b90f94e96e611067ae52ea144701c613
+.upstream/labels/dimensions.labels.zh-Hant.json 21a3047b5e12db6597d778d482feafb91649d50dfa2fc2d6a9fec09cf1b85fb3
+
+Excluded by licence (DEP-66)
+----------------------------
+The 50 dimensions whose `source_origin.license` is not MIT (28 `citation-only`, 22
+`research-use-reference`) are present in the verbatim .upstream/dimensions.json and absent from every
+file the loader reads: .tools/import.py drops them and refuses any other count.
+
+Not imported
+------------
+No upstream code is run or committed. The synthesis graph and the Persona-1M coreset are not in this
+pack (DEP-66, DEP-67).
