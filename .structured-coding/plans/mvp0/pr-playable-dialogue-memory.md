@@ -325,21 +325,21 @@ with an `ARC-73` cross-reference; affected cognition docs. No retry redesign, no
 launcher change.
 
 **Implementation.**
-- [ ] One absolute expiry from `Pending` receipt through the caller chain; remove the consult-start reset.
-- [ ] Gateway admission+backend and consult awaitables bounded by the remaining budget; expiry recheck at backend
+- [x] One absolute expiry from `Pending` receipt through the caller chain; remove the consult-start reset.
+- [x] Gateway admission+backend and consult awaitables bounded by the remaining budget; expiry recheck at backend
   invocation and after `_submit_lock`; normalized `deadline` terminal record.
-- [ ] Release on every exit; charge exactly the started backend calls, including cancellation, at invocation time;
+- [x] Release on every exit; charge exactly the started backend calls, including cancellation, at invocation time;
   `CancelledError` not swallowed.
-- [ ] `ARC-57` dated note (new order, cancellation charge, source: this design + QP6-6 intent).
+- [x] `ARC-57` dated note (new order, cancellation charge, source: this design + QP6-6 intent).
 
 **Validation.**
-- [ ] Two seats, `max_in_flight=1`, first backend blocked: second expires in the queue without invoking the
+- [x] Two seats, `max_in_flight=1`, first backend blocked: second expires in the queue without invoking the
   backend; a third obtains the freed slot.
-- [ ] Pending wait and late first Observation consume the deadline; a backend finishing after E cannot submit;
+- [x] Pending wait and late first Observation consume the deadline; a backend finishing after E cannot submit;
   retry delay and `_submit_lock` wait cannot dispatch late.
-- [ ] Cancel before admission vs. during backend: correct accounting, nothing held, no duplicate action after an
+- [x] Cancel before admission vs. during backend: correct accounting, nothing held, no duplicate action after an
   uncertain acknowledgement.
-- [ ] Existing consult/retry/frame-rejection/pacer tests green; failing-before-fix run captured.
+- [x] Existing consult/retry/frame-rejection/pacer tests green; failing-before-fix run captured.
 
 **Acceptance.** Captured timestamps show no backend start or submit at ≥ E; no fresh deadline after
 pending/Observation wait; slot and budget usable after every exit; one charge per started call; `seat.py` no net
@@ -353,9 +353,9 @@ cognition/lm-controller/tests/test_controller_consult.py cognition/lm-controller
 ruff format/check; strict pyright on the cognition member. NOT RUN.
 
 **Boundary/review.**
-- [ ] Independent logic review of every gateway caller (including the summary gateway), charge paths,
+- [x] Independent logic review of every gateway caller (including the summary gateway), charge paths,
   timeout-vs-sent uncertainty, stop/pacer locks, size commitments.
-- [ ] Staged-diff inspection; commit only this correction, its tests and the ARC-57 note.
+- [x] Staged-diff inspection; commit only this correction, its tests and the ARC-57 note.
 
 ### C2 — profile, store and contracts (PR-B, base: `main` containing the client stack and PR-A)
 
@@ -617,7 +617,52 @@ Review: `_reviews/design-dialogue.md`, verdict FREEZE-AFTER-FIXES.
 
 ### PR-A (C1)
 
-Base `8c971f0f`. Branch, owner and evidence: not started.
+Base `8c971f0f` (merged forward with `main` after #535). Branch `mvp0/pr-dialogue-a-deadline`, PR #547, worktree
+`/Users/yuema137/mineworld-worktrees/impl-dialogue-a`, one delegated execution session. Status: C1 implemented, READY FOR
+OPERATOR REVIEW; not merged. Semantic commit `83e52776` (fix) plus `687e65ed` (handoff); detail and full tables in
+[`handoff-playable-dialogue-memory.md`](handoff-playable-dialogue-memory.md).
+
+**Implementation.** New `controller/deadline.py` (81 lines: `Expiry`, `before`, `send_locked`, `NEVER`, `EXPIRED`).
+`seat.py::_consults` derives the expiry from `Waiting.received_at` and bounds the first-observation wait;
+`_consult_once(…, expiry)`; `_submit` goes through `send_locked` (re-check once the lock is held). `consult.py`:
+`ConsultLimits(expiry, max_calls)`; a late answer is not acted on; pre-submit check; retry delay `>= remaining`
+ends at the deadline; all `fell_back`/`deadline`. `gateway.py`: timeout starts before the slot, `_still_open`
+re-check, uncharged `Failed(timeout)` for a queued expiry, one charge per started call dated at its start, also on
+cancellation (re-raised). `ARC-57` and `ARC-73` dated notes 2026-11-27. `seat.py` 765 → 765 lines.
+
+**Bounded deviations.** (1) `ConsultLimits` callers outside the named files migrated mechanically:
+`controller/log.py` (replay, never-expiring), `tests/reporter_harness.py`, `test_controller_log.py`,
+`test_milestone_d_fallback.py`. (2) `triggers.py` unchanged: `Waiting.received_at` already carries R. (3)
+`call_timeout_s` description now includes the slot wait; `docs/reference/cognition-toml.md` and schema regenerated
+(spec/code agreement). (4) PR-A evidence first lived in the handoff because this file was unmerged; copied here
+after #535 merged.
+
+**Validation.** Failing-before-fix on `8c971f0f` + tests: 4 of 5 new gateway/seat tests FAIL (the fifth,
+cancel-before-slot, was already correct). On `83e52776`: targeted cognition suites PASS 168 passed / 2 skipped
+(one Windows-only shim); real-binary `test_controller_resilience` + `test_milestone_d_fallback` PASS 3 passed
+(129 s, one heavy slot); `ruff format --check`, `ruff check`, strict `pyright cognition/lm-controller` clean.
+Mutations M1–M6 (lock re-check, late answer acted on, pre-submit check, fresh deadline after observation wait,
+uncharged cancellation, charge dated at pre-check) each caught; M3 caught only after adding the rate-limit overrun
+test. Equivalent under fake clocks: dropping the observation-wait timer (clock re-check still discards). CI:
+`fast` PASS on `687e65ed`; terminal CI on the merged head recorded in the PR.
+
+**Review.** Gateway callers: seat, log replay, assisted summary via `SummaryBoundaryGateway`, compress summarizer
+(their slot wait is now bounded by `call_timeout_s`; queued expiry → uncharged `Failed`), model spike. Charge
+paths, timeout-vs-sent (post-send answer wait not cut; no re-send except expiry-checked `rate_limited`), pacer
+(`NEVER`) and stop paths reviewed. Known limitation: log replay does not reproduce a late-answer deadline
+(replay never expires).
+
+**Red-team follow-ups (review `_reviews/pr547.md`, PASS-WITH-FOLLOWUPS).** (1) A queued call now fails with a new
+`FailureReason` `queue_timeout` (transport, retryable; `backend/model.py`, `failures.py`), and `counters_from`
+excludes it from `model_calls` (now documented as "calls that reached a backend"); it still counts under
+`timeouts`. This closes the earlier limitation, so the live gate may use `model_calls`. (2)
+`test_a_summary_queued_behind_a_consult_past_call_timeout_s_fails_uncharged_instead_of_waiting` drives the
+assisted-summary chain (`sharing(SummaryBoundaryGateway)` → `SummaryGateway`) while a consult holds the only slot:
+after `call_timeout_s` (1 s) the summary returns `Failed(queue_timeout)`, not an exception, reaches no backend,
+costs no call, holds nothing, and the slot is usable afterwards; the pass allowance counts it as asked. The
+counter test gains a queued consult. Mutations: M7 (counter counts `queue_timeout`) and M8 (gateway returns plain
+`timeout`) are both caught. Rerun: targeted suites 202 passed / 2 skipped; real-binary resilience,
+milestone-D fallback and Anthropic adapter tests 24 passed; ruff and strict pyright clean.
 
 ### PR-B (C2–C5)
 

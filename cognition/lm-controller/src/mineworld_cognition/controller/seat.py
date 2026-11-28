@@ -65,6 +65,7 @@ from mineworld_cognition.controller.consult import (
     breaker_outcome,
     consult,
 )
+from mineworld_cognition.controller.deadline import NEVER, Expired, Expiry, before, send_locked
 from mineworld_cognition.controller.homes import HeldSeat, SeatHomes
 from mineworld_cognition.controller.log import (
     Counters,
@@ -481,11 +482,10 @@ class SeatRunner:
     # ── Walking (a `go` choice) ───────────────────────────────────────────────────────────────────
 
     async def _submit(
-        self, seat: ResumingSeat, request: ActionRequest
-    ) -> Answered | RefusedRequest:
-        """One request, one in flight across the consults and the pacer."""
-        async with self._submit_lock:
-            answer = await seat.submit(request)
+        self, seat: ResumingSeat, request: ActionRequest, expiry: Expiry = NEVER
+    ) -> Answered | RefusedRequest | Expired:
+        """One request, one in flight across the consults and the pacer, sent only before `expiry` (§4.4)."""
+        answer = await send_locked(self._submit_lock, expiry, self._clock, seat.submit, request)
         if isinstance(answer, Answered):
             self._last_action = (seat.connection, answer.action_id)
         return answer
@@ -518,6 +518,7 @@ class SeatRunner:
             return "stop"
         try:
             answer = await self._submit(seat, request)
+            assert not isinstance(answer, Expired), "a pacer step has no deadline"
         except (AnswerLost, NotConnected):
             return "stepped"
         except SeatLost:
@@ -536,14 +537,14 @@ class SeatRunner:
 
     async def _consults(self, seat: ResumingSeat) -> bool:
         """Runs one consult at a time. Returns `True` when the seat must be handed back (§5.8)."""
-        deadline = float(self._controller.consult_deadline_s)
         while True:
             trigger, heard_at, received = await self._pending.take()
-            if self._clock() - received > deadline:
+            expiry = Expiry.after(received, self._controller.consult_deadline_s)
+            observed = await before(expiry, self._clock, self._observed.wait)
+            if isinstance(observed, Expired) or expiry.passed(self._clock()):
                 self._runner_counts["stale_triggers"] += 1
                 continue
-            await self._observed.wait()
-            record = await self._consult_once(seat, trigger, heard_at)
+            record = await self._consult_once(seat, trigger, heard_at, expiry)
             if self._handback_due(record) and seat.welcome.took_over == "hosted":
                 return True
 
@@ -560,9 +561,9 @@ class SeatRunner:
     # ── One consult ───────────────────────────────────────────────────────────────────────────────
 
     async def _consult_once(
-        self, seat: ResumingSeat, trigger: Trigger, heard_at: int
+        self, seat: ResumingSeat, trigger: Trigger, heard_at: int, expiry: Expiry
     ) -> ConsultRecord:
-        """One consult on `trigger`, whose fact is at world time `heard_at`.
+        """One consult on `trigger`, whose fact is at world time `heard_at`, within the trigger's `expiry`.
 
         Recall is made at the later of the newest observation's `at` and `heard_at`. The observation can trail
         the facts already absorbed by a frame (D-P6b-30); at 12x a 100 ms tick is 1.2 world seconds, and recall
@@ -605,11 +606,13 @@ class SeatRunner:
         memory = recalled.section
         answers: list[str] = []
 
-        async def submit(request: ActionRequest) -> Answered | RefusedRequest:
+        async def submit(request: ActionRequest) -> Answered | RefusedRequest | Expired:
             walk = request.action_type == WALK_TO
             if walk or request.action_type == SLEEP:
                 await self._stop_pacing()
-            answer = await self._submit(seat, request)
+            answer = await self._submit(seat, request, expiry)
+            if isinstance(answer, Expired):
+                return answer
             answers.append(_answer_kind(answer))
             if walk and _accepted(answer) and self._pacer is not None:
                 await self._pacer.start()
@@ -623,10 +626,7 @@ class SeatRunner:
             clock=self._clock,
             sleep=self._sleep,
             policies=self._policies,
-            limits=ConsultLimits(
-                deadline_s=float(self._controller.consult_deadline_s),
-                max_calls=self._controller.max_calls,
-            ),
+            limits=ConsultLimits(expiry=expiry, max_calls=self._controller.max_calls),
         )
         record = await consult(
             ConsultInput(

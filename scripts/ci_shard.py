@@ -23,14 +23,28 @@ longest-processing-time rule: units by descending weight (ties by name), each to
 from __future__ import annotations
 
 import json
+import math
 import subprocess
 import sys
+import tempfile
+import tomllib
 from pathlib import Path
+from xml.etree import ElementTree
 
 ROOT = Path(__file__).resolve().parent.parent
 
 LIB_BINS = "<lib+bins>"
 DOC = "<doc>"
+
+# The runners a shard's tests can run under (DEP-163): nextest for `core`, cargo for the nightly's
+# `core-repeat`. `--profile ci` is .config/nextest.toml's: JUnit, no fail-fast.
+RUNNERS = {"nextest", "cargo"}
+NEXTEST = ["cargo", "nextest", "run", "--workspace", "--profile", "ci", "--no-fail-fast"]
+CARGO_TEST = ["test", "--workspace", "--no-fail-fast"]
+
+# The `harness = false` test targets (DEP-163): their own `main` does not answer nextest's `--list`, so they
+# run under `cargo test`. The self-test fails when the workspace's manifests name a different set.
+CUSTOM_HARNESS = frozenset({"arrival_resolvers_resume", "kill_and_resume", "launcher", "newcomers_resume"})
 
 # Seconds per unit on windows-2025: the wall time between cargo's `Running` lines, summed over the
 # packages sharing the name. Re-measured 2026-10-21 (ARC-110 re-weigh note) from the `core` shard logs of
@@ -129,22 +143,117 @@ def partition(units: list[str], count: int, weights: dict[str, int]) -> list[lis
     return [sorted(shard) for shard in shards]
 
 
-def commands(shard: list[str]) -> list[list[str]]:
-    """The cargo commands that run exactly this shard's units, building first as `core` does."""
+def commands(shard: list[str], runner: str = "nextest", archive: Path | None = None) -> list[list[str]]:
+    """Run exactly this shard's units, using an archive or building local targets first.
+
+    `runner` is `nextest` (the `core` layer, DEP-163) or `cargo` (the nightly's `core-repeat`, whose flake
+    classifier reads `cargo test`'s output). Under nextest, the custom-harness targets and the doctests still
+    run with `cargo test`, which is the only runner they support."""
+    if runner not in RUNNERS:
+        raise ValueError(f"a runner is one of {sorted(RUNNERS)}, not {runner!r}")
     targets: list[str] = ["--lib", "--bins"] if LIB_BINS in shard else []
+    custom: list[str] = []
     for unit in shard:
-        if unit not in (LIB_BINS, DOC):
+        if unit in (LIB_BINS, DOC):
+            continue
+        if runner == "nextest" and unit in CUSTOM_HARNESS:
+            custom += ["--test", unit]
+        else:
             targets += ["--test", unit]
     # --no-fail-fast: one red test binary must not hide the results of the binaries after it (F-1).
     result: list[list[str]] = []
+    if archive is not None and runner != "nextest":
+        raise ValueError("archives are only supported by the nextest runner")
+    if archive is None and (targets or custom):
+        result.append(["cargo", "test", "--workspace", "--no-run", *targets, *custom])
     if targets:
-        result += [
-            ["cargo", "test", "--workspace", "--no-run", *targets],
-            ["cargo", "test", "--workspace", "--no-fail-fast", *targets],
-        ]
+        if archive is not None:
+            filters = ["kind(lib) | kind(bin) | kind(proc-macro)"] if LIB_BINS in shard else []
+            filters += [f"(kind(test) & binary(={unit}))" for unit in shard
+                        if unit not in (LIB_BINS, DOC) and unit not in CUSTOM_HARNESS]
+            result.append(["cargo", "nextest", "run", "--profile", "ci", "--no-fail-fast",
+                           "--archive-file", str(archive / "tests.tar.zst"),
+                           "--extract-to", str(ROOT), "--extract-overwrite",
+                           "-E", " | ".join(filters)])
+        else:
+            result.append([*NEXTEST, *targets] if runner == "nextest" else ["cargo", *CARGO_TEST, *targets])
+    if custom:
+        result.append(["cargo", *CARGO_TEST, *custom])
     if DOC in shard:
-        result.append(["cargo", "test", "--workspace", "--no-fail-fast", "--doc"])
+        result.append(["cargo", *CARGO_TEST, "--doc"])
     return result
+
+
+def is_test_run(command: list[str]) -> bool:
+    """A command that runs tests (not a build of them): `cargo test` or `cargo nextest run`, without
+    `--no-run`. Its failure is reported and the layer goes on to the next command (F-1)."""
+    if len(command) > 2 and command[1] == "scripts/ci_repeat.py" and "--" in command:
+        return is_test_run(command[command.index("--") + 1:])
+    if "--no-run" in command or command[:1] != ["cargo"]:
+        return False
+    return command[1:2] == ["test"] or command[1:3] == ["nextest", "run"]
+
+
+def custom_harness_targets(root: Path = ROOT) -> set[str]:
+    """Every `[[test]]` target with `harness = false` in the workspace's manifests: these run under
+    `cargo test` only, because their own `main` does not answer nextest's `--list` (DEP-163)."""
+    found: set[str] = set()
+    for manifest in root.rglob("Cargo.toml"):
+        if any(part in ("target", ".git", "node_modules") for part in manifest.relative_to(root).parts):
+            continue
+        data = tomllib.loads(manifest.read_text(encoding="utf-8"))
+        found |= {target["name"] for target in data.get("test", []) if target.get("harness") is False}
+    return found
+
+
+def unit_of(binary_id: str) -> str:
+    """The partition unit of a nextest binary id: `crate` and `crate::bin/name` are `<lib+bins>`, and
+    `crate::name` is the integration test target `name`."""
+    _, separator, rest = binary_id.partition("::")
+    if not separator or rest.startswith("bin/"):
+        return LIB_BINS
+    return rest
+
+
+def weigh(paths: list[Path]) -> dict[str, int]:
+    """Seconds per unit from nextest JUnit files: every test's own time, summed per unit and over the
+    files given (one OS's shards). Units under 3 s are left out, as the table leaves them to
+    DEFAULT_WEIGHT."""
+    totals: dict[str, float] = {}
+    seen: set[tuple[str, str]] = set()
+    for path in paths:
+        root = ElementTree.parse(path).getroot()
+        if root.tag != "testsuites":
+            raise ValueError(f"{path}: expected nextest testsuites")
+        cases = 0
+        for suite in root.findall("testsuite"):
+            binary = suite.get("name")
+            if not binary:
+                raise ValueError(f"{path}: missing binary identity")
+            unit = unit_of(binary)
+            for case in suite.findall("testcase"):
+                name = case.get("name")
+                identity = (binary, name)
+                if not name or identity in seen:
+                    raise ValueError(f"{path}: missing or duplicate test identity {identity}")
+                seen.add(identity)
+                if any(case.find(tag) is not None for tag in ("failure", "error", "skipped")):
+                    raise ValueError(f"{path}: incomplete/failed timing for {identity}")
+                seconds = float(case.attrib["time"])
+                if not math.isfinite(seconds) or seconds < 0:
+                    raise ValueError(f"{path}: invalid duration for {identity}")
+                totals[unit] = totals.get(unit, 0.0) + seconds
+                cases += 1
+        if not cases:
+            raise ValueError(f"{path}: no test records")
+    return {unit: round(seconds) for unit, seconds in totals.items() if seconds >= 3}
+
+
+def print_weights(weights: dict[str, int]) -> None:
+    """The table as WEIGHTS is written, heaviest first, ready to paste."""
+    for unit, seconds in sorted(weights.items(), key=lambda item: (-item[1], item[0])):
+        name = "DOC" if unit == DOC else "LIB_BINS" if unit == LIB_BINS else f'"{unit}"'
+        print(f"    {name}: {seconds},")
 
 
 def parse_shard(text: str) -> tuple[list[int], int]:
@@ -168,17 +277,21 @@ def workspace_units() -> list[str]:
     return units_of(json.loads(output))
 
 
-def shard_commands(text: str) -> tuple[list[list[str]], str]:
-    """Shard K/N's commands (or K,L/N's, their units together) and a one-line account of the whole
-    partition for the log."""
+def shard_commands(
+    text: str, runner: str = "nextest", archive: Path | None = None, units: list[str] | None = None,
+) -> tuple[list[list[str]], str]:
+    """Shard K/N's commands (or K,L/N's, their units together) under `runner`, and a one-line account of
+    the whole partition for the log."""
     indices, count = parse_shard(text)
-    shards = partition(workspace_units(), count, WEIGHTS)
+    if units is None:
+        units = workspace_units()
+    shards = partition(units, count, WEIGHTS)
     loads = [sum(WEIGHTS.get(unit, DEFAULT_WEIGHT) for unit in shard) for shard in shards]
     account = ", ".join(
         f"{number}/{count}: {len(shard)} units ~{load} s" for number, (shard, load) in enumerate(zip(shards, loads), 1)
     )
     units = sorted(unit for index in indices for unit in shards[index - 1])
-    return commands(units), f"partition by ARC-110 weights: {account}"
+    return commands(units, runner, archive), f"partition by ARC-110 weights: {account}"
 
 
 def plan(count: int) -> int:
@@ -208,9 +321,9 @@ def self_test() -> int:
     units = units_of(metadata)
     check(units == [LIB_BINS, DOC, "admin", "new_one", "slow"], f"units_of: a shared name is one unit: {units}")
 
-    many = [LIB_BINS, DOC, *(f"t{number:03}" for number in range(180))]
+    many = [LIB_BINS, DOC, *sorted(CUSTOM_HARNESS), *(f"t{number:03}" for number in range(180))]
     weights = {"t000": 480, "t001": 470, "t002": 300, "t003": 260, **{f"t{n:03}": n % 7 for n in range(4, 180)}}
-    for count in (1, 2, 3, 4):
+    for count, runner in ((count, runner) for count in (1, 2, 3, 4) for runner in sorted(RUNNERS)):
         shards = partition(many, count, weights)
         flat = [unit for shard in shards for unit in shard]
         check(sorted(flat) == sorted(many), f"{count} shards: every unit exactly once")
@@ -221,23 +334,82 @@ def self_test() -> int:
         check(max(loads) <= total / count + max(weights.values()), f"{count} shards: LPT bound {loads}")
         ran: list[str] = []
         for shard in shards:
-            for command in commands(shard):
-                if "--no-run" in command:
+            for command in commands(shard, runner):
+                if not is_test_run(command):
                     continue
-                ran += [command[i + 1] for i, argument in enumerate(command) if argument == "--test"]
+                tests = [command[i + 1] for i, argument in enumerate(command) if argument == "--test"]
+                check(
+                    command[1] == "test" or not CUSTOM_HARNESS & set(tests),
+                    f"{count} shards, {runner}: a custom-harness target never runs under nextest: {command}",
+                )
+                ran += tests
                 ran += [LIB_BINS] if "--lib" in command else []
                 ran += [DOC] if "--doc" in command else []
-        check(sorted(ran) == sorted(many), f"{count} shards: the commands run every unit once")
+        check(sorted(ran) == sorted(many), f"{count} shards, {runner}: the commands run every unit once")
 
+    for runner in sorted(RUNNERS):
+        check(
+            commands([DOC], runner) == [["cargo", "test", "--workspace", "--no-fail-fast", "--doc"]],
+            f"{runner}: a doc-only shard never mixes --doc and runs every doctest binary",
+        )
+        build = commands(["launcher", "x"], runner)[0]
+        check(
+            build[:4] == ["cargo", "test", "--workspace", "--no-run"]
+            and sorted(build[4:]) == sorted(["--test", "launcher", "--test", "x"]),
+            f"{runner}: build every target first, custom-harness ones included: {build}",
+        )
+        check(
+            all("--no-fail-fast" in command for command in commands(["x", "launcher"], runner) if is_test_run(command)),
+            f"{runner}: every test command of a shard is --no-fail-fast",
+        )
     check(
-        commands([DOC]) == [["cargo", "test", "--workspace", "--no-fail-fast", "--doc"]],
-        "a doc-only shard never mixes --doc and runs every doctest binary",
+        commands(["x"])[1] == [*NEXTEST, "--test", "x"] and commands(["x"], "cargo")[1][:2] == ["cargo", "test"],
+        "core runs nextest with the ci profile; core-repeat runs cargo test",
     )
-    check(commands(["x"])[0] == ["cargo", "test", "--workspace", "--no-run", "--test", "x"], "build first")
-    check(
-        all("--no-fail-fast" in command for command in commands(["x"]) if "--no-run" not in command),
-        "every test command of a shard is --no-fail-fast",
-    )
+    check(not is_test_run(["cargo", "test", "--workspace", "--no-run"]), "a build is not a test run")
+    check(is_test_run([*NEXTEST]) and is_test_run(["cargo", *CARGO_TEST]), "both runners are test runs")
+    try:
+        commands(["x"], "pytest")
+        failures.append("commands accepted an unknown runner")
+    except ValueError:
+        pass
+
+    # The custom-harness set is the workspace's: a new `harness = false` target must be named (DEP-163).
+    declared = custom_harness_targets()
+    check(declared == set(CUSTOM_HARNESS), f"CUSTOM_HARNESS {sorted(CUSTOM_HARNESS)} != manifests' {sorted(declared)}")
+
+    # Weights from JUnit: per-test times summed per unit; lib and bin suites are <lib+bins>.
+    check(unit_of("mineworld-kernel") == LIB_BINS, "a library's suite is <lib+bins>")
+    check(unit_of("mineworld-cli::bin/mineworld") == LIB_BINS, "a binary's suite is <lib+bins>")
+    check(unit_of("mineworld-cli::market_town") == "market_town", "an integration test's suite is its name")
+    with tempfile.TemporaryDirectory() as directory:
+        junit = Path(directory) / "junit.xml"
+        junit.write_text(
+            '<testsuites><testsuite name="mineworld-cli::slow">'
+            '<testcase name="a" time="40.4"/><testcase name="b" time="2.0"/></testsuite>'
+            '<testsuite name="mineworld-kernel"><testcase name="c" time="1.0"/></testsuite>'
+            '<testsuite name="mineworld-cli::bin/mineworld"><testcase name="d" time="2.5"/></testsuite>'
+            "</testsuites>",
+            encoding="utf-8",
+        )
+        weighed = weigh([junit])
+        check(weighed == {"slow": 42, LIB_BINS: 4}, f"weigh sums per unit within a file: {weighed}")
+        # Two shards' files hold disjoint tests: their times add up per unit across the files.
+        other = Path(directory) / "junit-2.xml"
+        other.write_text(
+            '<testsuites><testsuite name="mineworld-cli::slow"><testcase name="e" time="10.0"/></testsuite>'
+            '<testsuite name="mineworld-persistence"><testcase name="f" time="3.2"/></testsuite>'
+            "</testsuites>",
+            encoding="utf-8",
+        )
+        weighed = weigh([junit, other])
+        check(weighed == {"slow": 52, LIB_BINS: 7}, f"weigh sums per unit over disjoint files: {weighed}")
+        # The same test in two files is a double count (one OS's shards are disjoint): refused.
+        try:
+            weigh([junit, junit])
+            failures.append("weigh accepted the same test identity in two files")
+        except ValueError:
+            pass
     for bad in ("0/3", "4/3", "3", "a/b", "1/0", "1,1/3", "1,4/3", ",/3", "1,/3"):
         try:
             parse_shard(bad)
@@ -258,7 +430,10 @@ def main(arguments: list[str]) -> int:
         return self_test()
     if len(arguments) == 2 and arguments[0] == "--plan" and arguments[1].isdigit() and int(arguments[1]) >= 1:
         return plan(int(arguments[1]))
-    print("usage: ci_shard.py --plan N | --self-test", file=sys.stderr)
+    if len(arguments) >= 2 and arguments[0] == "--weigh":
+        print_weights(weigh([Path(argument) for argument in arguments[1:]]))
+        return 0
+    print("usage: ci_shard.py --plan N | --weigh JUNIT.xml... | --self-test", file=sys.stderr)
     return 2
 
 

@@ -295,6 +295,9 @@ async fn a_hosted_request_meets_the_actor_check_and_the_sessions_allocator() {
             flag: Some(std::num::NonZeroU32::new(600).expect("non-zero")),
             pack: None,
         },
+        // Above 24x only a solo world may start (`ARC-69` item 5, F-TWc-5); solo selects no other
+        // code path, and this test binds loopback.
+        solo: true,
         // Bob submits as fast as the socket answers, for up to three seconds: no person's pace, and
         // not what this test is about (`tests/request_budget.rs` owns the budget, S27-a).
         request_budget: None,

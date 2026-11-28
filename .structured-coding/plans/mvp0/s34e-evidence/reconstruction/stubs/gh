@@ -1,0 +1,3 @@
+#!/bin/sh
+echo "STUB gh $*" >&2
+exit 0

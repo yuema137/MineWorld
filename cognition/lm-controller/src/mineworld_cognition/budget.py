@@ -70,7 +70,10 @@ class BudgetPolicy(BaseModel):
         int,
         Field(
             ge=1,
-            description="Seconds to wait for one model call before it is abandoned.",
+            description=(
+                "Seconds to wait for one model call, its wait for an in-flight slot included, "
+                "before it is abandoned."
+            ),
         ),
     ] = 20
 
