@@ -262,11 +262,28 @@ One slot, expected <3 minutes; each subprocess bounded at 600 seconds, no paid c
 - [ ] deterministic validation
 - [ ] LLM logic review
 
-### E4 — impact job (P4)
+### E4 — impact selection per PR (P4, revised by the operator ruling of 2026-11-27)
 
-- [ ] implementation
-- [ ] deterministic validation
-- [ ] LLM logic review
+Branch `ci/econ-impact-select`, worktree `/Users/yuema137/mineworld-worktrees/ci-econ-impact-select`, stacked on E1
+(`ci/econ-p1-nextest`, #534). Authority: the operator ruling of 2026-11-27 (ARC-154's dated note), which
+replaces "deferred" with impact-selected tests per PR and keeps the full matrix for milestones and the nightly.
+
+- [x] Implementation: `scripts/ci_impact.py` (the selection), `ci_changes.py` (mode `impact`, the `impact_*`
+  outputs, fail closed to `full`), `ci_shard.py` (`scope`: `-p` per package instead of `--workspace`),
+  `ci_layer.py` (`core --select FILE`, `python --areas A,B`), `.github/actions/{layer,native}` (`select`,
+  `areas` inputs), `ci.yml` (`impact-core`, `impact-core-native`, `impact-python`, `impact-godot`; the four
+  required gates judge them), ARC-154 dated note. Full-mode commands are unchanged: `--list` of `fast`, `docs`
+  and `python` is byte-identical to E1's.
+- [x] Deterministic validation (local): see 3.6 and 3.7.
+- [ ] LLM logic review: independent red-team pending (coordinator-owned).
+- [ ] Hosted: the PR's own run is `full` (it changes `.github/` and `scripts/ci_*`); as a draft it ran
+  `changes` (mode=full, correct) and `fast` PASS at `d0c6cb0f` (run 46075364676), whose `fast` layer runs the
+  new self-tests on the hosted runner. Hosted `impact` probe: throwaway PR #541 (one comment line in
+  `authoring/attributes/tests/fidelity.rs`, stacked on this branch, closed unmerged), run 46075867316:
+  `changes` -> mode=impact, 1 shard; `impact-core (1/1)` built the `-p` scope in 174 s and ran 122 tests with
+  nextest (121 pass, 1 FAIL = the known `currency_names` debt), job 7m13s; `test` red for that reason only;
+  `test-windows`, `test-macos` and `removability` passed with their not-selected notes. PASS for the wiring;
+  the final-head full run of this PR after #534 merges remains open.
 
 ### E5 — required check (operator)
 
@@ -389,3 +406,110 @@ failures compared with main, and archives built and consumed on all three OSes.
   `newcomers_resume`; `ci_shard --self-test` caught it (the DEP-163 inventory audit working as designed) and
   it joins `CUSTOM_HARNESS`. No second full run is dispatched for this (coordinator); the final head's
   `fast` and the PR run are its evidence.
+### 3.6 E4 departures from the frozen design and local evidence (2026-11-27)
+
+Departures (the ruling governs; each is bounded and recorded rather than escalated):
+
+- D-E4-1. No separate required `impact` job (design §2.4, Q-1, E5). The ruling makes the existing required
+  gates (`test`, `test-windows`, `test-macos`, `removability`) judge the selected jobs, so branch protection
+  does not change and E5 is moot unless the operator wants a separate check.
+- D-E4-2. No recorded test -> pack map yet (design §2.3 "Build (small)", rule 2's CLI narrowing, rule 3).
+  After red-team B-2 the replacement is conservative, not clever: content roots select every package naming
+  the root plus Godot and Python; package sources that name a path are kept; a crate reaching the binary runs
+  Godot and Python. It fails closed on breadth rather than on a missing map.
+  **Decision packet for the operator.** Question: build the frozen design's recorded test -> pack map (a CLI
+  opt-in that records each test's world and System Packs; the milestone run uploads it; `impact` reads it,
+  and a missing or stale map means full), or accept the conservative rule above as the standing rule 3?
+  Cost today: a single System Pack or kernel change runs ~226-247 of ~250 Rust units on six Linux shards
+  plus the Godot tests (three shards) and the Python areas, about the full Linux matrix; Godot-, Python-,
+  test- and docs-only PRs are already narrow (1-2 shards). The map would cut a pack change to the tests of
+  the worlds that install that pack, at the price of a small CLI hook, an artifact, and a staleness rule.
+  **Recommendation:** accept the conservative rule now (it is safe and already removes macOS/Windows and
+  most of the matrix from typical PRs), and schedule the pack map as P4b after P2 (the long tier) lands,
+  since P2 cuts the same pack-change PRs' wall time by ~40 % first.
+  **Operator ruling 2026-11-27: "CI 按推荐"** (CI as recommended): the conservative rule is standing rule 3;
+  the recorded test -> pack map is scheduled as P4b after P2.
+- D-E4-3. Hub paths (`kernel`, `contracts`, ...) are not a special "gate tier" rule; rule 2's reverse
+  dependents reach the same set. `Cargo.lock`, the root manifest and the toolchain pin are `full`, not
+  "gate tier", per the operator brief ("unknown/global changes fall back to full"). The long tier (P2) is
+  not split yet, so a hub change takes the full run's six Linux shards.
+- D-E4-4. The 25-minute cap is not enforced: a selection is sharded 1-6 ways by ARC-110 weight, never
+  trimmed (design: "sharded, never trimmed"); six shards is the full run's own count.
+- D-E4-5. Python and Godot selection (design rule 5 left Python to another lane): Python areas run the
+  `python` layer subset; Godot paths and direct `server/` changes run the Godot client tests (the nightly
+  `clients` layer, three Linux shards). The 3D rendered far-field check (`farfield`, 50 min) stays full-only.
+- D-E4-6. macOS and Windows run the selection only for platform-specific changes. Source: operator ruling
+  2026-11-27, "ci不要总是跑全套，每次跑相关的，只有到大里程碑才走全套ci" (each run runs what is relevant; the
+  full CI only at major milestones), relayed in the coordinator's dispatch. The design ran no tests per PR on
+  macOS/Windows either; all three OSes run everything at milestones, unchanged. Unmarked platform bugs and
+  native Python are nightly/milestone-only (ARC-154 note).
+
+Local evidence (macOS, this worktree):
+
+- PASS `ci_changes.py --self-test`: 49 mode/classification cases plus 27 selection cases (single crate,
+  kernel with transitive dependents, one test file, a test module directory, shared test modules, a dev-only
+  helper, Python-only (SDK, lock), Godot-only (2D client, launcher), docs-only, workflow -> full, CI script
+  -> full, `Cargo.lock` -> full, unknown path -> full, a guide link target -> the guide test, a world -> its
+  readers, the server -> Python and Godot, platform path and platform line, a crate manifest ->
+  removability, a hub-sized selection -> 6 shards, partition completeness), and a failed `cargo metadata`
+  -> full. Mutation check: dropping transitive dependents and the `scripts/ci_` global rule fails 6 cases.
+- PASS `ci_shard.py --self-test` (new scoped-command cases), `test_ci_execution.py` (6), `check_ci_pins`,
+  `ci_godot.py --self-test`; YAML of ci.yml and both actions parses.
+- Real diffs (`ci_changes.py --event pull_request` over single-class commits): weather pack 0599b2b5 ->
+  impact, 226 units, 6 shards; kernel 92aa9723 -> impact, 247 units, 6 shards; SDK a5c1ef95 -> impact,
+  python=sdk/python, 19 units (the scan suite), 1 shard, removability; 2D client c86304e9 -> impact, godot,
+  1 shard of client/scan targets; 3D client 884fe65a -> impact, godot, removability, 2 shards; guide-linked
+  spec c9ba481a -> impact, the guide test + scan suite, 1 shard; workflow d5d10362 -> full; one CLI test file
+  563f517b -> impact, that target + scan suite, 1 shard.
+- Real Cargo acceptance of the scoped flags: see the E4 cargo note below.
+
+E4 cargo note (2026-11-27, macOS, one slot, own target dir): the selection of a one-test change in
+`authoring/attributes/tests/fidelity.rs` (20 units: the target, the scan suite, `<lib+bins>`, `<doc>`) was
+listed by `ci_layer.py --list core --select` and its commands executed with `cargo test` in place of
+`cargo nextest run` (nextest is not installed locally): Cargo accepted every `-p`/target flag set (build,
+tests, custom harness, doctests). PASS for flag acceptance; nextest's own run is NOT RUN locally.
+Finding: `mineworld-acceptance::currency_names::no_reference_world_currency_name_is_written_into_code`
+FAILS on main's content (`clients/shared/TRADE.md`, `clients/shared/checks/money_check.gd`,
+`cognition/{motivated,rule-controller}/src/price_tests.rs` name 'US dollar'). This is pre-existing debt the
+deferred mode hid, not an E4 regression; since the scan suite joins every Rust selection, every impact PR's
+`test` gate is red until its owner fixes it. Escalated to the coordinator.
+
+### 3.7 E4 red-team review (2026-11-27, BLOCK) — disposition
+
+Review `/Users/yuema137/mineworld-worktrees/_reviews/e4-impact.md` at `44537cf8`. Fixed in the next commit:
+
+- B-1: `cover_selected` derives coverage from the layers (`ci_godot.GODOT_TESTS`, the `python` layer's
+  ignored commands, every other layer's ignored commands = nightly). Godot targets set `godot`;
+  `milestone_d`/`price_reporter_lm` add `cognition/lm-controller`; a changed nightly-only test file is
+  `full`. All-ignored targets no layer runs are listed in the ARC-154 note as run by no CI (pre-existing).
+- B-2: package-source readers are always kept; content roots search the root's own name and run Godot and
+  the binary-driving Python areas (+ the character pipeline for presentation/). D-E4-2 decision packet above.
+- M-1: a selection reaching `tools/cli` runs Godot and the binary-driving Python areas.
+- M-2: wider platform detector (nested `cfg`, `std::os::*`, `consts::OS`, `MAIN_SEPARATOR`, GDScript
+  `OS.get_name`/`OS.has_feature`; `.gd` lines scanned). Native Python stays a recorded gap.
+- M-3: a changed line naming `clients/3d-spike`, `lm-controller`, `mineworld-slice` or `mineworld-3d` runs
+  removability.
+- M-4: the `currency_names` debt is fixed separately in #546; E4 must not merge before it.
+- M-5: a script is fast-covered only when a `fast` command names it; others fall through to readers/full.
+- m-1: Python areas and Godot targets are imported from `ci_layer`/`ci_godot`. m-2: named flag constants
+  replace slice indices in `ci_shard`; `ci_layer.py` size debt (828 lines) and the lazy `ci_changes` import
+  in `ci_impact.self_test` remain, recorded. m-3: feature-unification difference recorded in ARC-154.
+  m-4: D-E4-6 quote recorded. m-5: 11 new regression cases (38 selection cases in all).
+
+Evidence after the fix: `ci_changes.py --self-test` 49 + 38 PASS; `ci_shard.py --self-test` PASS;
+`test_ci_execution.py` 6 PASS; `--list fast` and `--list python` byte-identical to E1. Real replays: weather
+0599b2b5 and kernel 92aa9723 -> 6 shards + Godot + 5 Python areas; SDK a5c1ef95 -> 1 shard, sdk/python;
+2D client c86304e9 -> 1 shard + Godot; 3D client 884fe65a -> 2 shards + Godot + lm-controller area +
+removability; guide-linked spec c9ba481a and one CLI test file 563f517b -> 1 shard; workflow d5d10362 -> full.
+
+E4 delta review (coordinator, 2026-11-27, narrow BLOCK) fixed: D-1 content roots are searched as whole words
+(`git grep -w`), which finds `join("../../worlds")` (systems/posture/tests/shipped.rs) and
+`concat!(env!("CARGO_MANIFEST_DIR"), "/../../worlds/…")` (tools/cli/tests/ac13_clients.rs), both confirmed on
+the real tree; D-2 a platform file nothing reads (a new `.ps1`) is `full`. Cases added; 49 + 39 PASS.
+P1 (`64af5b96`, with main `4b86c9d9`) merged in; E4 sections renumbered 3.6/3.7 after P1's 3.5.
+
+D-1 test gap (coordinator mutation, 2026-11-27): dropping `-w` from `git_readers` survived the synthetic
+cases. Added a self-test that runs the real `git grep` on a throwaway repository (`join("../../worlds")` and
+`"/../../worlds/…"` must match, `networlds_fixture`/`worldsmith` must not); the same planted mutation now
+fails it (`impact FAILED: 1 case(s)`). 49 + 40 PASS. Full run 46100024262 on `f2ace9c7`: no new failures vs
+main (judgement on #540); one more full run on the new head per the CI-change rule.

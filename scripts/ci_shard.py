@@ -39,8 +39,10 @@ DOC = "<doc>"
 # The runners a shard's tests can run under (DEP-163): nextest for `core`, cargo for the nightly's
 # `core-repeat`. `--profile ci` is .config/nextest.toml's: JUnit, no fail-fast.
 RUNNERS = {"nextest", "cargo"}
-NEXTEST = ["cargo", "nextest", "run", "--workspace", "--profile", "ci", "--no-fail-fast"]
-CARGO_TEST = ["test", "--workspace", "--no-fail-fast"]
+NEXTEST_FLAGS = ["--profile", "ci", "--no-fail-fast"]
+CARGO_TEST_FLAGS = ["--no-fail-fast"]
+NEXTEST = ["cargo", "nextest", "run", "--workspace", *NEXTEST_FLAGS]
+CARGO_TEST = ["test", "--workspace", *CARGO_TEST_FLAGS]
 
 # The `harness = false` test targets (DEP-163): their own `main` does not answer nextest's `--list`, so they
 # run under `cargo test`. The self-test fails when the workspace's manifests name a different set.
@@ -143,15 +145,43 @@ def partition(units: list[str], count: int, weights: dict[str, int]) -> list[lis
     return [sorted(shard) for shard in shards]
 
 
-def commands(shard: list[str], runner: str = "nextest", archive: Path | None = None) -> list[list[str]]:
+def scope_flags(shard: list[str], scope: dict | None, units: list[str]) -> list[str]:
+    """`--workspace`, or the `-p` flags of an impact selection (scripts/ci_impact.py): the packages that
+    own this shard's test targets, and, when the shard holds `<lib+bins>` or `<doc>`, the selected
+    packages with a library or a binary. Cargo applies every target filter to every listed package and
+    refuses only a filter that no listed package has, so the union is exact enough: a lib's unit tests of
+    an owner that was not selected whole are a second or two, and selecting more is never unsafe."""
+    if scope is None:
+        return ["--workspace"]
+    names: set[str] = set()
+    for unit in units:
+        if unit == LIB_BINS:
+            names.update(scope["lib_packages"], scope["bin_packages"])
+        elif unit == DOC:
+            names.update(scope["lib_packages"])
+        else:
+            names.update(scope["owners"][unit])
+    return [flag for name in sorted(names) for flag in ("-p", name)]
+
+
+def commands(shard: list[str], runner: str = "nextest", archive: Path | None = None,
+             scope: dict | None = None) -> list[list[str]]:
     """Run exactly this shard's units, using an archive or building local targets first.
 
     `runner` is `nextest` (the `core` layer, DEP-163) or `cargo` (the nightly's `core-repeat`, whose flake
     classifier reads `cargo test`'s output). Under nextest, the custom-harness targets and the doctests still
-    run with `cargo test`, which is the only runner they support."""
+    run with `cargo test`, which is the only runner they support. `scope` is an impact selection
+    (scripts/ci_impact.py `Selection.core`): its packages replace `--workspace`, and it never uses an
+    archive (the archive is the full run's, built for the whole workspace)."""
     if runner not in RUNNERS:
         raise ValueError(f"a runner is one of {sorted(RUNNERS)}, not {runner!r}")
-    targets: list[str] = ["--lib", "--bins"] if LIB_BINS in shard else []
+    if scope is not None and archive is not None:
+        raise ValueError("an impact selection builds its own targets; it takes no archive")
+    lib_bins: list[str] = []
+    if LIB_BINS in shard:
+        lib_bins = ["--lib", "--bins"] if scope is None else (
+            (["--lib"] if scope["lib_packages"] else []) + (["--bins"] if scope["bin_packages"] else []))
+    targets: list[str] = lib_bins
     custom: list[str] = []
     for unit in shard:
         if unit in (LIB_BINS, DOC):
@@ -164,8 +194,10 @@ def commands(shard: list[str], runner: str = "nextest", archive: Path | None = N
     result: list[list[str]] = []
     if archive is not None and runner != "nextest":
         raise ValueError("archives are only supported by the nextest runner")
+    tested = [unit for unit in shard if unit != DOC]
+    where = scope_flags(shard, scope, tested)
     if archive is None and (targets or custom):
-        result.append(["cargo", "test", "--workspace", "--no-run", *targets, *custom])
+        result.append(["cargo", "test", *where, "--no-run", *targets, *custom])
     if targets:
         if archive is not None:
             filters = ["kind(lib) | kind(bin) | kind(proc-macro)"] if LIB_BINS in shard else []
@@ -176,11 +208,15 @@ def commands(shard: list[str], runner: str = "nextest", archive: Path | None = N
                            "--extract-to", str(ROOT), "--extract-overwrite",
                            "-E", " | ".join(filters)])
         else:
-            result.append([*NEXTEST, *targets] if runner == "nextest" else ["cargo", *CARGO_TEST, *targets])
+            regular = [unit for unit in tested if unit not in CUSTOM_HARNESS or runner != "nextest"]
+            within = scope_flags(shard, scope, regular)
+            result.append(["cargo", "nextest", "run", *within, *NEXTEST_FLAGS, *targets] if runner == "nextest"
+                          else ["cargo", "test", *within, *CARGO_TEST_FLAGS, *targets])
     if custom:
-        result.append(["cargo", *CARGO_TEST, *custom])
+        result.append(["cargo", "test", *scope_flags(shard, scope, [u for u in shard if u in CUSTOM_HARNESS]),
+                       *CARGO_TEST_FLAGS, *custom])
     if DOC in shard:
-        result.append(["cargo", *CARGO_TEST, "--doc"])
+        result.append(["cargo", "test", *scope_flags(shard, scope, [DOC]), *CARGO_TEST_FLAGS, "--doc"])
     return result
 
 
@@ -279,6 +315,7 @@ def workspace_units() -> list[str]:
 
 def shard_commands(
     text: str, runner: str = "nextest", archive: Path | None = None, units: list[str] | None = None,
+    scope: dict | None = None,
 ) -> tuple[list[list[str]], str]:
     """Shard K/N's commands (or K,L/N's, their units together) under `runner`, and a one-line account of
     the whole partition for the log."""
@@ -291,7 +328,7 @@ def shard_commands(
         f"{number}/{count}: {len(shard)} units ~{load} s" for number, (shard, load) in enumerate(zip(shards, loads), 1)
     )
     units = sorted(unit for index in indices for unit in shards[index - 1])
-    return commands(units, runner, archive), f"partition by ARC-110 weights: {account}"
+    return commands(units, runner, archive, scope), f"partition by ARC-110 weights: {account}"
 
 
 def plan(count: int) -> int:
@@ -368,6 +405,26 @@ def self_test() -> int:
     )
     check(not is_test_run(["cargo", "test", "--workspace", "--no-run"]), "a build is not a test run")
     check(is_test_run([*NEXTEST]) and is_test_run(["cargo", *CARGO_TEST]), "both runners are test runs")
+    # An impact selection (scripts/ci_impact.py): `-p` per owning package instead of `--workspace`, and the
+    # lib/bin flags only where a selected package has that kind of target (cargo refuses a filter nobody has).
+    scope = {"lib_packages": ["mw-kernel"], "bin_packages": [], "owners": {"clock": ["mw-kernel"],
+             "market_town": ["mw-cli"], "launcher": ["mw-cli"]}}
+    scoped = commands([LIB_BINS, DOC, "launcher", "market_town"], "nextest", None, scope)
+    check(scoped == [
+        ["cargo", "test", "-p", "mw-cli", "-p", "mw-kernel", "--no-run", "--lib", "--test", "market_town",
+         "--test", "launcher"],
+        ["cargo", "nextest", "run", "-p", "mw-cli", "-p", "mw-kernel", "--profile", "ci", "--no-fail-fast", "--lib",
+         "--test", "market_town"],
+        ["cargo", "test", "-p", "mw-cli", "--no-fail-fast", "--test", "launcher"],
+        ["cargo", "test", "-p", "mw-kernel", "--no-fail-fast", "--doc"],
+    ], f"impact scope: -p per owner, no --bins without a binary: {scoped}")
+    check(commands(["market_town"], "nextest", None, scope)[1][3:5] == ["-p", "mw-cli"],
+          "impact scope: a test-only shard names only its owners")
+    try:
+        commands([LIB_BINS], "nextest", Path("archive"), scope)
+        failures.append("an impact selection accepted an archive")
+    except ValueError:
+        pass
     try:
         commands(["x"], "pytest")
         failures.append("commands accepted an unknown runner")

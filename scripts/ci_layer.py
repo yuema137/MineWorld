@@ -24,6 +24,10 @@ command's exit status. Nothing is retried and no failure is ignored (ARC-48).
     python3 scripts/ci_layer.py python-smoke      the same without the binary or the real_server tests
     python3 scripts/ci_layer.py core --shard K/N  shard K of N of `core` (ARC-110; scripts/ci_shard.py
                                                    says which tests): the shards of `test`, `test-macos`, `test-windows`
+    python3 scripts/ci_layer.py core --select FILE [--shard K/N]
+                                                   a pull request's impact selection (scripts/ci_impact.py,
+                                                   ARC-154's note of 2026-11-27): `-p` per selected package
+    python3 scripts/ci_layer.py python --areas A,B  the `python` layer over those areas only (impact)
     python3 scripts/ci_layer.py <layer> <layer>...  several layers in order; the first failure stops them
                                                    (macOS's two jobs, ARC-110)
     python3 scripts/ci_layer.py --list <layer> [--shard K/N]
@@ -361,34 +365,53 @@ CAST_DIRECTOR_CHECK = [
 # lint or type error blocks a merge like a Rust one. The `python` layers keep them too, so that they are
 # also judged on Windows and macOS, where `fast` does not run (D-P3-11, AP-12).
 LAYERS["fast"] += PYTHON_STATIC
-LAYERS["python"] = [
-    *PYTHON_STATIC,
-    # The real_server tests start the real binary; they fail, never skip, without it (D-P3-10).
-    ["cargo", "build", "-p", "mineworld-cli"],
-    ["uv", "run", "--locked", "pytest", "sdk/python"],
-    ["uv", "run", "--locked", "pytest", "cognition/lm-controller"],
-    ["uv", "run", "--locked", "pytest", "clients/agent"],
-    ["uv", "run", "--locked", "pytest", "tools/onboarding"],
-    ["uv", "run", "--locked", "pytest", "tools/worldgen"],
-    ["uv", "run", "--locked", "pytest", f"{PIPELINE}/tests"],
-    [sys.executable, f"{PIPELINE}/cast.py", "check-characters"],
+# The `python` layer's test commands, each with the area (a path, scripts/ci_impact.py PYTHON_AREAS) it
+# tests. A pull request's impact selection runs only its areas' commands (`python --areas A,B`); a full run
+# runs them all, in this order.
+PYTHON_AREA_COMMANDS: list[tuple[str, list[str]]] = [
+    ("sdk/python", ["uv", "run", "--locked", "pytest", "sdk/python"]),
+    ("cognition/lm-controller", ["uv", "run", "--locked", "pytest", "cognition/lm-controller"]),
+    ("clients/agent", ["uv", "run", "--locked", "pytest", "clients/agent"]),
+    ("tools/onboarding", ["uv", "run", "--locked", "pytest", "tools/onboarding"]),
+    ("tools/worldgen", ["uv", "run", "--locked", "pytest", "tools/worldgen"]),
+    (PIPELINE, ["uv", "run", "--locked", "pytest", f"{PIPELINE}/tests"]),
+    (PIPELINE, [sys.executable, f"{PIPELINE}/cast.py", "check-characters"]),
     # S36-P1: C-3 and C-4 over every prop of the model library (needs numpy and the mesh libraries, so it runs
     # from the uv environment); a prop without a mount entry fails.
-    ["uv", "run", "--locked", "python", f"{PIPELINE}/cast.py", "contact-items"],
-    CAST_DIRECTOR_CHECK,
-    ["uv", "run", "--locked", "pytest", f"{ASSET_GENERATION}/tests"],
+    (PIPELINE, ["uv", "run", "--locked", "python", f"{PIPELINE}/cast.py", "contact-items"]),
+    (PIPELINE, CAST_DIRECTOR_CHECK),
+    (ASSET_GENERATION, ["uv", "run", "--locked", "pytest", f"{ASSET_GENERATION}/tests"]),
     # Milestone D (S10 P7, D-P7-4): the real server and the real cognition process, started with the
     # workspace's interpreter, so it runs here, where both toolchains are, and is ignored in `core`. Its
     # unplugged half is an ordinary test and runs in `core`.
-    [
+    ("cognition/lm-controller", [
         "cargo", "test", "-p", "mineworld-cli", "--test", "milestone_d", "--",
         "--ignored", "--exact", "she_remembers_across_the_two_views",
-    ],
+    ]),
     # S31-d AC-d-11: the price clerk on a scripted LM (the real cognition process) and on `price-reporter`
     # post the same kind of notice, in two worlds; ignored in `core` for the same reason as Milestone D.
-    ["cargo", "test", "-p", "mineworld-cli", "--test", "price_reporter_lm", "--", "--ignored"],
-    [sys.executable, "scripts/check_scratch.py", "left", "--target-dir", "target"],
+    ("cognition/lm-controller", ["cargo", "test", "-p", "mineworld-cli", "--test", "price_reporter_lm", "--",
+                                 "--ignored"]),
 ]
+# The areas none of whose commands needs the `mineworld` binary.
+PYTHON_NO_BINARY = {PIPELINE, ASSET_GENERATION}
+
+
+def python_commands(areas: set[str] | None) -> list[list[str]]:
+    """The `python` layer: the static checks, the binary when an area needs it, the areas' commands (all
+    of them when `areas` is None), and the scratch check."""
+    chosen = [command for area, command in PYTHON_AREA_COMMANDS if areas is None or area in areas]
+    needs_binary = areas is None or bool(areas - PYTHON_NO_BINARY)
+    return [
+        *PYTHON_STATIC,
+        # The real_server tests start the real binary; they fail, never skip, without it (D-P3-10).
+        *([["cargo", "build", "-p", "mineworld-cli"]] if needs_binary else []),
+        *chosen,
+        [sys.executable, "scripts/check_scratch.py", "left", "--target-dir", "target"],
+    ]
+
+
+LAYERS["python"] = python_commands(None)
 # IC-7 (S10 P7): a copy of the checkout without `cognition/lm-controller/` and its workspace line still
 # syncs, builds and passes — the SDK, the agent library, and the whole Rust workspace, Milestone D's
 # unplugged run among it (`scripts/ci_removability.py`, `pr-s10-p7-milestone-d.md` D-P7-3). And ARC-347
@@ -572,9 +595,13 @@ def repeat_commands(cargo: list[list[str]]) -> list[list[str]]:
     return out
 
 
-def commands_of(layer: str, shard: str | None, archive: Path | None = None) -> list[list[str]]:
+def commands_of(layer: str, shard: str | None, archive: Path | None = None, selection: dict | None = None,
+                areas: set[str] | None = None) -> list[list[str]]:
     """A layer's commands, or shard K/N's of it: ci_shard.py's cargo commands, then the layer's
-    non-cargo-test commands in their order."""
+    non-cargo-test commands in their order. `selection` (core) and `areas` (python) narrow a layer to a
+    pull request's impact selection (scripts/ci_impact.py)."""
+    if layer == "python" and areas is not None:
+        return python_commands(areas)
     if shard is None and layer == "core":
         shard = "1/1"
     if shard is None:
@@ -585,7 +612,10 @@ def commands_of(layer: str, shard: str | None, archive: Path | None = None) -> l
     runner = "cargo" if layer == "core-repeat" else "nextest"
     source = archive if layer == "core" else None
     units = ci_archive.verify(source)["units"] if source is not None else None
-    cargo, account = ci_shard.shard_commands(shard, runner, source, units)
+    if layer == "core" and selection is not None:
+        units = selection["units"]
+        print(f"[ci] impact selection: {len(units)} unit(s): {' '.join(units)}", flush=True)
+    cargo, account = ci_shard.shard_commands(shard, runner, source, units, selection if layer == "core" else None)
     print(f"[ci] shard {shard} of {layer}; {account}", flush=True)
     if layer == "core-repeat":
         return repeat_commands(cargo)
@@ -655,7 +685,8 @@ def write_failure_summary(
     FAILED_TESTS.write_text("\n".join(body) + "\n", encoding="utf-8")
 
 
-def run(layer: str, shard: str | None = None, archive: Path | None = None) -> int:
+def run(layer: str, shard: str | None = None, archive: Path | None = None, selection: dict | None = None,
+        areas: set[str] | None = None) -> int:
     print(f"[ci] layer {layer}{f' shard {shard}' if shard else ''} in {ROOT}", flush=True)
     FAILED_TESTS.unlink(missing_ok=True)
     if layer == "core":
@@ -667,7 +698,7 @@ def run(layer: str, shard: str | None = None, archive: Path | None = None) -> in
         disk("before")
     result(layer, "started")
     started = time.monotonic()
-    commands = commands_of(layer, shard, archive)
+    commands = commands_of(layer, shard, archive, selection, areas)
     failed: list[tuple[list[str], int]] = []
     failures: list[str] = []
     for command in commands:
@@ -735,6 +766,32 @@ def main(arguments: list[str]) -> int:
         return prune_cache()
     if arguments == ["--offline-check"]:
         return offline_check()
+    selection = None
+    if "--select" in arguments:
+        position = arguments.index("--select")
+        if position + 1 >= len(arguments) or "core" not in arguments:
+            print("ci_layer.py: --select FILE requires core", file=sys.stderr)
+            return 2
+        try:
+            selection = json.loads(Path(arguments[position + 1]).read_text(encoding="utf-8"))
+            if selection.get("schema") != 1 or not selection.get("units"):
+                raise ValueError("not an impact selection with units (scripts/ci_impact.py)")
+        except (OSError, ValueError) as error:
+            print(f"ci_layer.py: --select: {error}", file=sys.stderr)
+            return 2
+        arguments = arguments[:position] + arguments[position + 2:]
+    areas = None
+    if "--areas" in arguments:
+        position = arguments.index("--areas")
+        if position + 1 >= len(arguments) or "python" not in arguments:
+            print("ci_layer.py: --areas A,B requires python", file=sys.stderr)
+            return 2
+        areas = {area for area in arguments[position + 1].split(",") if area}
+        unknown = areas - {area for area, _ in PYTHON_AREA_COMMANDS}
+        if not areas or unknown:
+            print(f"ci_layer.py: --areas: unknown or empty {sorted(unknown)}", file=sys.stderr)
+            return 2
+        arguments = arguments[:position] + arguments[position + 2:]
     archive = None
     if "--archive" in arguments:
         position = arguments.index("--archive")
@@ -755,14 +812,14 @@ def main(arguments: list[str]) -> int:
             print(f"ci_layer.py: {error}", file=sys.stderr)
             return 2
     if len(arguments) == 2 and arguments[0] == "--list" and arguments[1] in LAYERS:
-        for command in commands_of(arguments[1], shard, archive):
+        for command in commands_of(arguments[1], shard, archive, selection, areas):
             print(shlex.join(command))
         return 0
     # Several layers run in order and the first failure stops the rest: macOS packs its checks into two
     # jobs, because its runners are the scarce ones (ARC-110). A shard applies to the shardable layers.
     if arguments and all(argument in LAYERS for argument in arguments):
         for layer in arguments:
-            status = run(layer, shard if layer in SHARDABLE else None, archive)
+            status = run(layer, shard if layer in SHARDABLE else None, archive, selection, areas)
             if status != 0:
                 return status
         return 0
