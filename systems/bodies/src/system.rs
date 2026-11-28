@@ -69,10 +69,12 @@ impl System for BodiesSystem {
     /// walks end off the threshold, idle people give way and `gave-way` is stated (`ARC-330`), which
     /// changes results and vocabulary, so a version-5 save is refused too. Version 7: walkers yield by
     /// rank — give-way and nudges move only people who rank lower, and a routed stride is always clear
-    /// (`ARC-333`) — which changes results, so a version-6 save is refused too. A Rapier upgrade also
+    /// (`ARC-333`) — which changes results, so a version-6 save is refused too. Version 8: a nudge or a
+    /// give-way moves a person only to a point a route can start from (`ARC-330`'s 2026-11-27 note,
+    /// Q-S34d1-3), which changes results, so a version-7 save is refused too. A Rapier upgrade also
     /// changes results, so it bumps this version with it (`DEP-13`; `tests/rapier_pin.rs` holds the
     /// two together).
-    const VERSION: SystemVersion = SystemVersion::new(7);
+    const VERSION: SystemVersion = SystemVersion::new(8);
 
     /// Depends on presence (where people are, and the seam this pack resolves through); owns the
     /// shapes of places and objects and where the objects lie; provides `kick`, `throw` and `shove`;

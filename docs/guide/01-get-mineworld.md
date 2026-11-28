@@ -9,41 +9,9 @@ commands in a **terminal**: Terminal on macOS, a terminal window on Linux, or Po
 ### Step 1.1 — Get the `mineworld` command
 
 **Do this.** Get the command in one of two ways. Both end the same way: `mineworld` is on your `PATH`.
-Way 1 downloads a ready-made program from the first release on. Way 2 builds it from the source code, and it
-works today.
-
-**Way 1: download (from the first release on).** Open the
-[latest release](https://github.com/yuema137/MineWorld/releases/latest) and download the archive for your
-computer: `macos-universal.zip` for macOS, `windows-x86_64.zip` for Windows, `linux-x86_64.tar.gz` for 64-bit
-Linux on Intel or AMD, or `linux-arm64.tar.gz` for Linux on arm64. Unpack it in your home folder. The folder
-takes the archive's name, such as `MineWorld-0.1.0-macos-universal`. Then run the block for your system once.
-It adds the folder's `runtime` folder to your `PATH`:
-
-<!-- guide: operator-only -->
-
-```sh
-xattr -dr com.apple.quarantine "$HOME/MineWorld-0.1.0-macos-universal"
-export PATH="$HOME/MineWorld-0.1.0-macos-universal/runtime:$PATH"
-```
-
-On Linux, the same idea, with your archive's folder name:
-
-<!-- guide: operator-only -->
-
-```sh
-export PATH="$HOME/MineWorld-0.1.0-linux-x86_64/runtime:$PATH"
-```
-
-On Windows, in PowerShell:
-
-<!-- guide: operator-only -->
-
-```powershell
-$env:PATH = "$HOME\MineWorld-0.1.0-windows-x86_64\runtime;$env:PATH"
-```
-
-The archive also holds `PLAY.txt`. It shows how to check the download against `SHA256SUMS`, and how to open
-the program the first time, because the program is not signed yet.
+Way 1 downloads a ready-made program from the first release on. Its commands are in
+[Step 1.5](#step-15--or-download-a-ready-made-program) at the end of this page: do that step now, then come back here
+and continue at "Make a new, empty folder". Way 2 builds the program from the source code, and it works today.
 
 **Way 2: build from source (works today).** You need [Git](https://git-scm.com) and
 [Rust](https://rustup.rs). Then run these commands once. The first one goes to your home folder, so the
@@ -157,6 +125,46 @@ What the words mean:
 - `--seed 1` picks the dice. The same seed gives exactly the same run, every time, on every computer.
 - `--days 2` runs the world until it is two days old. Two days of world time take well under a second.
 - A **fact** is one thing that happened, such as "first spoke to second". The world keeps every fact.
+
+### Step 1.5 — Or download a ready-made program
+
+This is Way 1 of Step 1.1: it replaces building from source, from the first release on.
+
+**Do this.** Open the
+[latest release](https://github.com/yuema137/MineWorld/releases/latest) and download the archive for your
+computer: `macos-universal.zip` for macOS, `windows-x86_64.zip` for Windows, `linux-x86_64.tar.gz` for 64-bit
+Linux on Intel or AMD, or `linux-arm64.tar.gz` for Linux on arm64. Unpack it in your home folder. The folder
+takes the archive's name, such as `MineWorld-0.1.0-macos-universal`. Then run the block for your system once.
+It adds the folder's `runtime` folder to your `PATH`:
+
+<!-- guide: operator-only -->
+
+```sh
+xattr -dr com.apple.quarantine "$HOME/MineWorld-0.1.0-macos-universal"
+export PATH="$HOME/MineWorld-0.1.0-macos-universal/runtime:$PATH"
+```
+
+On Linux, the same idea, with your archive's folder name:
+
+<!-- guide: operator-only -->
+
+```sh
+export PATH="$HOME/MineWorld-0.1.0-linux-x86_64/runtime:$PATH"
+```
+
+On Windows, in PowerShell:
+
+<!-- guide: operator-only -->
+
+```powershell
+$env:PATH = "$HOME\MineWorld-0.1.0-windows-x86_64\runtime;$env:PATH"
+```
+
+The archive also holds `PLAY.txt`. It shows how to check the download against `SHA256SUMS`, and how to open
+the program the first time, because the program is not signed yet.
+
+**Now go back** to Step 1.1 and continue at "Make a new, empty folder". Your `PATH` is already set, so skip the
+two `PATH` blocks there.
 
 ## Why it works this way
 
