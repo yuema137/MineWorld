@@ -264,7 +264,10 @@ owned_component! {
 ///
 /// `price` is what the line costs here now, after the shop's adjustments. While any adjustment is in
 /// force the line also discloses `ask`, the operator's own asking price before it: the price `set-price`
-/// moves and `price-set` states (F-S31d-13). A shop with no adjustment in force encodes without it.
+/// moves and `price-set` states (F-S31d-13). It is on every line while one is, including a line whose price
+/// the adjustment leaves unchanged (a small price rounded back to itself, or `ask == price`); its presence
+/// says an adjustment is in force, not that this line moved. A shop with no adjustment in force encodes
+/// without it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Listed {
     item: ItemId,
