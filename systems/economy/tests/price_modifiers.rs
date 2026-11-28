@@ -12,6 +12,7 @@ use mineworld_economy::{Buy, Listing, MoneyTransferred, PricesAdjusted, PricesRe
 use mineworld_happenings::{HappeningBegan, HappeningEnded};
 use mineworld_kernel::World;
 use mineworld_presence::{PerceptionProvider, observe};
+use mineworld_rule_controller::price::wire::ListingSeen;
 use mineworld_test_support::Scratch;
 use mineworld_worldpack::{AssembledWorld, WorldPack};
 use serde::Deserialize;
@@ -147,8 +148,13 @@ fn item(loaded: &Loaded, key: &str) -> ItemId {
     ItemId::new(id(loaded, key), mineworld_contracts::EntityType::Item).expect("an item")
 }
 
-/// The store's listing as Alice perceives it: (item, price) in item order.
-fn listed(world: &World, providers: &[&dyn PerceptionProvider], alice: EntityId) -> Vec<u64> {
+/// The store's listing as Alice perceives it, in item order: each line's price and its disclosed ask
+/// (F-S31d-13) — read through economy's type and through the rule controller's mirror, which agree.
+fn listed(
+    world: &World,
+    providers: &[&dyn PerceptionProvider],
+    alice: EntityId,
+) -> Vec<(u64, Option<u64>)> {
     let seen = observe(world, alice, WorldTime::from_seconds(0), providers);
     let record = seen
         .entities()
@@ -157,7 +163,23 @@ fn listed(world: &World, providers: &[&dyn PerceptionProvider], alice: EntityId)
         .find(|record| record.component_type().as_str() == "shop")
         .expect("the store's listing");
     let listing: Listing = serde_json::from_value(record.payload().clone()).expect("a listing");
-    listing.listed().iter().map(|line| line.price()).collect()
+    let mirror: ListingSeen =
+        serde_json::from_value(record.payload().clone()).expect("the mirror reads it");
+    let lines: Vec<(u64, Option<u64>)> = listing
+        .listed()
+        .iter()
+        .map(|line| (line.price(), line.ask()))
+        .collect();
+    let seen: Vec<(u64, Option<u64>)> = mirror
+        .listed
+        .iter()
+        .map(|line| (line.price, line.ask))
+        .collect();
+    assert_eq!(
+        lines, seen,
+        "the mirror reads the listing as economy wrote it"
+    );
+    lines
 }
 
 /// The price Alice is asked for `item` where she stands now: the operator's ask, as the shop adjusts
@@ -244,7 +266,10 @@ fn a_market_day_lowers_the_stores_prices_while_it_runs() {
             .expect("advances")
             .into_events(),
     );
-    assert_eq!(listed(&loaded.world, &providers, alice), [100, 333]);
+    assert_eq!(
+        listed(&loaded.world, &providers, alice),
+        [(100, None), (333, None)]
+    );
     assert_eq!(buy(&mut loaded.world, alice, apple, before, 1), 100);
 
     // In the instant the market begins, its adjustment is already in force.
@@ -266,7 +291,11 @@ fn a_market_day_lowers_the_stores_prices_while_it_runs() {
             .expect("advances")
             .into_events(),
     );
-    assert_eq!(listed(&loaded.world, &providers, alice), [90, 300]);
+    // The discount is disclosed: each line shows its ask, the price `set-price` moves (F-S31d-13).
+    assert_eq!(
+        listed(&loaded.world, &providers, alice),
+        [(90, Some(100)), (300, Some(333))]
+    );
     assert_eq!(buy(&mut loaded.world, alice, apple, during, 2), 90);
     assert_eq!(buy(&mut loaded.world, alice, bread, during, 3), 300);
 
@@ -278,7 +307,10 @@ fn a_market_day_lowers_the_stores_prices_while_it_runs() {
             .expect("advances")
             .into_events(),
     );
-    assert_eq!(listed(&loaded.world, &providers, alice), [100, 333]);
+    assert_eq!(
+        listed(&loaded.world, &providers, alice),
+        [(100, None), (333, None)]
+    );
     assert_eq!(buy(&mut loaded.world, alice, bread, after, 4), 333);
 
     let began = of::<HappeningBegan>(&facts);

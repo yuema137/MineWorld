@@ -6,8 +6,9 @@
 //! ```text
 //! configures  configure/economy.yaml   the world's one currency (ARC-111)
 //! section     economy              a person's or organization's `economy: { wallet }`; a person may
-//!                                  add `asks`, an organization `shop: { at, prices, keepers }`; an
-//!                                  item kind carries `{ reference }` only (ARC-112, ARC-113)
+//!                                  add `asks`, an organization `shop: { at, prices, keepers,
+//!                                  hours }`; an item kind carries `{ reference }` only (ARC-112,
+//!                                  ARC-113); `hours` optional daily sales intervals (ARC-364)
 //! emits       currency-declared    at genesis, from the configuration; SystemInternal
 //!             funded               at genesis: a holder's opening balance; visible to the holder
 //!             reference-declared   at genesis: an item kind's reference value; SystemInternal
@@ -21,7 +22,7 @@
 //!             items-transferred    inventory's fact, for a purchase, through `transfer` (ARC-26)
 //! owns        Wallet               on Persons and Organizations
 //!             Asks                 on a seller: a Person, or a shop's operating Organization
-//!             Shop                 on the Place it is in: operator, keepers, adjustments
+//!             Shop                 on the Place it is in: operator, keepers, adjustments, hours
 //!             ReferenceValue       on an item kind; never charged
 //!             one `economy-currency` Process: the declared currency
 //! provides    buy { item, price }  one complete affordance per ask, in a shop or of a person seller
@@ -75,6 +76,7 @@ pub mod configuration;
 pub mod currency;
 pub mod event;
 pub mod haggle;
+pub mod hours;
 pub mod money;
 pub mod proposal;
 pub mod system;
@@ -100,6 +102,7 @@ pub use event::{
     ProposalWithdrawn, ReferenceDeclared, ShopOpened, Sold, WageUnpaid, Withdrawn,
 };
 pub use haggle::{AcceptProposal, DeclineProposal, ProposePrice, WithdrawProposal};
+pub use hours::{Hours, HoursError, MAX_OPENINGS, Opening};
 pub use money::{PRICE_MAX, admit_payment, balance, price_in_range};
 pub use proposal::{
     PROPOSAL_VALID_FOR, PROPOSALS_PER_SELLER, Proposal, ProposalId, ProposalLine, ProposalStatus,

@@ -30,6 +30,8 @@
 //! hash map, nothing kept between calls: the answer is a function of the place's shape, its objects,
 //! the person to avoid and the two points (`ARC-25`). The only file that names `pathfinding`.
 
+use std::cell::OnceCell;
+
 use mineworld_contracts::{LocalPosition, Millimetres, PersonId, PlaceId};
 use mineworld_kernel::WorldRead;
 use mineworld_movement::{RouteAnswer, RouteAsk, Wayfinder, Waypoints};
@@ -37,7 +39,8 @@ use pathfinding::directed::astar::astar;
 
 use crate::component::{BodyShape, PlaceShape};
 use crate::doorway::{doors, off_the_threshold};
-use crate::entry::nearest_free;
+use crate::entry::{nearest_free, nearest_free_within};
+use crate::footprint::Placed;
 use crate::geometry::{Area, GAP, PERSON_RADIUS, Point, Room, blocks, corners};
 use crate::objects::lying_in;
 use crate::system::BodiesSystem;
@@ -127,17 +130,20 @@ impl Wayfinder for BodiesSystem {
 /// The loose objects lying in `place`, each one's shape and where its centre lies.
 fn objects_in(world: &WorldRead<'_>, place: PlaceId) -> Vec<(BodyShape, LocalPosition)> {
     lying_in(world, place)
-        .into_iter()
-        .map(|(_, placed)| {
-            (
-                placed.shape,
-                LocalPosition::on_ground(
-                    Millimetres::new(placed.centre.x),
-                    Millimetres::new(placed.centre.y),
-                ),
-            )
-        })
+        .iter()
+        .map(|(_, placed)| as_planned(placed))
         .collect()
+}
+
+/// A loose object as the planner takes it: its shape and the ground point under its centre.
+fn as_planned(placed: &Placed) -> (BodyShape, LocalPosition) {
+    (
+        placed.shape,
+        LocalPosition::on_ground(
+            Millimetres::new(placed.centre.x),
+            Millimetres::new(placed.centre.y),
+        ),
+    )
 }
 
 /// How near the walker another person must stand to be planned round after a stop: 3 m, a few strides.
@@ -185,19 +191,10 @@ fn route_among(
     let Some(goal) = goal(&room, floor, &boxes, point(to)) else {
         return RouteAnswer::Unreachable;
     };
-    // A start that is not free — within the margin of the floor's edge or of a grown box, where the
-    // resolver may legally have left the walker — first steps to the nearest free point, the goal's
-    // own snap (SD-N5; step-11 §21.15 M-3), when that point is within the margin's own width (GROWN)
-    // of it: a short step out of the margin, which the resolver resolves like any stride. A start with
-    // no free point that near is held where it is, and N-D7's core rule lets it leave the box holding
-    // it.
+    // A start that is not free first steps out of the margin (`begin`); a start with no free point
+    // that near is held where it is, and N-D7's core rule lets it leave the box holding it.
     let start = point(from);
-    let snapped = if free(floor, &boxes, start) {
-        None
-    } else {
-        nearest_free(&room, start, &|p| free(floor, &boxes, p))
-            .filter(|p| *p != start && length2(start, *p) <= i64::from(GROWN) * i64::from(GROWN))
-    };
+    let snapped = begin(&room, floor, &boxes, start).filter(|p| *p != start);
     let graph = Graph::new(snapped.unwrap_or(start), goal, floor, boxes);
     let Some(mut path) = graph.search() else {
         return RouteAnswer::Unreachable;
@@ -215,6 +212,64 @@ fn route_among(
         .map(|p| LocalPosition::new(Millimetres::new(p.x), Millimetres::new(p.y), height))
         .collect();
     Waypoints::new(waypoints).map_or(RouteAnswer::Unreachable, RouteAnswer::Waypoints)
+}
+
+/// Where a route from `start` begins (SD-N5; step-11 §21.15 M-3): `start` itself when it is free;
+/// else — within the margin of the floor's edge or of a grown box, where the resolver may legally have
+/// left a person — the nearest free point, the goal's own snap, when it lies within the margin's own
+/// width (GROWN) of `start`: a short step out of the margin, which the resolver resolves like any
+/// stride. [`None`] when there is no free point that near. The search is bounded by GROWN: it never
+/// looks past the margin.
+fn begin(room: &Room, floor: Area, boxes: &[Area], start: Point) -> Option<Point> {
+    if free(floor, boxes, start) {
+        return Some(start);
+    }
+    nearest_free_within(room, start, i64::from(GROWN), &|p| free(floor, boxes, p))
+}
+
+/// The points a route of this planner can start from, in one place as its solids and loose objects
+/// stand: those where [`begin`] finds a free point. A person moved by someone else — nudged (step-11
+/// SD-B7) or giving way (`ARC-330` R2) — is only ever moved to such a point, so that a nudge never
+/// leaves a body where no route can start (Q-S34d1-3: Market Town's Erin, given way into the 541 mm
+/// slot between a terrace table and a clay pot, had every walk refused `no-route` for 30 days).
+///
+/// Deliberately stricter than the planner: a start with no free point within GROWN is held by N-D7's
+/// core rule, which only sometimes finds an edge out (step-11 §21.15 M-3); such a point is not offered.
+/// Other people are not obstacles here: they move, and a re-plan plans round them.
+///
+/// Lazy: the grown obstacles are built the first time a point is asked about, so a stride that moves
+/// nobody pays nothing; each question is then a box test, and only a point inside the margin searches
+/// the lattice, no farther than GROWN.
+pub(crate) struct Starts<'a> {
+    room: &'a Room,
+    objects: &'a [Placed],
+    plan: OnceCell<(Area, Vec<Area>)>,
+}
+
+impl<'a> Starts<'a> {
+    /// The start rule for `room` holding `objects`, as the wayfinder plans in it.
+    pub(crate) const fn new(room: &'a Room, objects: &'a [Placed]) -> Self {
+        Self {
+            room,
+            objects,
+            plan: OnceCell::new(),
+        }
+    }
+
+    /// Whether a route can start from `p`.
+    pub(crate) fn from(&self, p: Point) -> bool {
+        let (floor, boxes) = self.plan.get_or_init(|| {
+            let objects: Vec<(BodyShape, LocalPosition)> =
+                self.objects.iter().map(as_planned).collect();
+            (
+                grow(self.room.floor, -GROWN),
+                obstacles(self.room, &objects, &[], GROWN),
+            )
+        });
+        floor.min.x <= floor.max.x
+            && floor.min.y <= floor.max.y
+            && begin(self.room, *floor, boxes, p).is_some()
+    }
 }
 
 /// Every obstacle of the plan, each grown by `by` on every side: the place's solids, its loose objects

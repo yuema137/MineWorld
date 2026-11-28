@@ -10,39 +10,9 @@
 ### Step 1.1 — 拿到 `mineworld` 命令
 
 **照着做。** 有两种方式拿到命令，最后都是让 `mineworld` 出现在你的 `PATH` 里。
-方式一是下载现成的程序，要等第一个正式版本发布以后才能用。方式二是从源代码自己 build，现在就能用。
-
-**方式一：下载（第一个正式版本发布以后）。** 打开[最新发布页](https://github.com/yuema137/MineWorld/releases/latest)，
-下载适合你电脑的压缩包：macOS 用 `macos-universal.zip`，Windows 用 `windows-x86_64.zip`，
-64 位的 Intel 或 AMD Linux 用 `linux-x86_64.tar.gz`，arm64 的 Linux 用 `linux-arm64.tar.gz`。
-把它解压到你的主文件夹。解压出来的文件夹和压缩包同名，比如 `MineWorld-0.1.0-macos-universal`。
-然后运行你系统对应的那一段，跑一次。它会把文件夹里的 `runtime` 加进 `PATH`：
-
-<!-- guide: operator-only -->
-
-```sh
-xattr -dr com.apple.quarantine "$HOME/MineWorld-0.1.0-macos-universal"
-export PATH="$HOME/MineWorld-0.1.0-macos-universal/runtime:$PATH"
-```
-
-Linux 上是同样的做法，文件夹名换成你的压缩包解压出来的名字：
-
-<!-- guide: operator-only -->
-
-```sh
-export PATH="$HOME/MineWorld-0.1.0-linux-x86_64/runtime:$PATH"
-```
-
-Windows 上，在 PowerShell 里这样写：
-
-<!-- guide: operator-only -->
-
-```powershell
-$env:PATH = "$HOME\MineWorld-0.1.0-windows-x86_64\runtime;$env:PATH"
-```
-
-压缩包里还有一个 `PLAY.txt`。它说明了怎么用 `SHA256SUMS` 核对下载的文件，也说明了第一次打开程序时怎么做，
-因为这个程序现在还没有签名。
+方式一是下载现成的程序，要等第一个正式版本发布以后才能用。它的命令在这一页最后的
+[Step 1.5](#step-15--或者下载现成的程序) 里：先做那一步，再回到这里，从“新建一个空文件夹”那里接着做。
+方式二是从源代码自己 build，现在就能用。
 
 **方式二：从源代码 build（现在就能用）。** 你需要先装好 [Git](https://git-scm.com) 和
 [Rust](https://rustup.rs)，然后把下面几条命令跑一次。第一条先回到你的主文件夹，这样源代码会放在那里的 `MineWorld` 里。
@@ -157,6 +127,44 @@ faults     0
 
 总结里的 `facts` 数的是 fact。一个 fact 就是世界里发生过的一件事，比如“first 对 second 说了一句话”。
 世界会把每一件事都记下来。
+
+### Step 1.5 — 或者下载现成的程序
+
+这一步就是 Step 1.1 的方式一：从第一个正式版本发布以后，它可以代替从源代码 build。
+
+**照着做。** 打开[最新发布页](https://github.com/yuema137/MineWorld/releases/latest)，
+下载适合你电脑的压缩包：macOS 用 `macos-universal.zip`，Windows 用 `windows-x86_64.zip`，
+64 位的 Intel 或 AMD Linux 用 `linux-x86_64.tar.gz`，arm64 的 Linux 用 `linux-arm64.tar.gz`。
+把它解压到你的主文件夹。解压出来的文件夹和压缩包同名，比如 `MineWorld-0.1.0-macos-universal`。
+然后运行你系统对应的那一段，跑一次。它会把文件夹里的 `runtime` 加进 `PATH`：
+
+<!-- guide: operator-only -->
+
+```sh
+xattr -dr com.apple.quarantine "$HOME/MineWorld-0.1.0-macos-universal"
+export PATH="$HOME/MineWorld-0.1.0-macos-universal/runtime:$PATH"
+```
+
+Linux 上是同样的做法，文件夹名换成你的压缩包解压出来的名字：
+
+<!-- guide: operator-only -->
+
+```sh
+export PATH="$HOME/MineWorld-0.1.0-linux-x86_64/runtime:$PATH"
+```
+
+Windows 上，在 PowerShell 里这样写：
+
+<!-- guide: operator-only -->
+
+```powershell
+$env:PATH = "$HOME\MineWorld-0.1.0-windows-x86_64\runtime;$env:PATH"
+```
+
+压缩包里还有一个 `PLAY.txt`。它说明了怎么用 `SHA256SUMS` 核对下载的文件，也说明了第一次打开程序时怎么做，
+因为这个程序现在还没有签名。
+
+**然后回到** Step 1.1，从“新建一个空文件夹”那里接着做。你的 `PATH` 已经设好了，所以跳过那里的两段 `PATH` 命令。
 
 ## 为什么是这样
 

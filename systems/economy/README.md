@@ -7,7 +7,7 @@ money.
 configures  configure/economy.yaml   required: the world's one currency (ARC-111); optional
                                      price_modifiers that answer happenings (ARC-88)
 section     economy              a person's `economy: { wallet, asks? }`; an organization's
-                                 `economy: { wallet, shop?: { at, prices, keepers? } }`; an item
+                                 `economy: { wallet, shop?: { at, prices, keepers?, hours? } }`; an item
                                  kind's `economy: { reference }`
 emits       currency-declared    at genesis, SystemInternal
             funded, shop-opened  at genesis
@@ -42,7 +42,8 @@ in its `configure/economy.yaml`: no currency is written into code. A buyer submi
 if the seller changed it, the buy is refused `price-changed` and nothing moves. A sale is settled in
 one dispatch: `sold`, the payment and the hand-over, or a refusal by name and nothing at all. An
 accepted proposal is settled the same way, at the proposed price, with every check re-run; nothing is
-reserved while it waits.
+reserved while it waits. A shop may have daily `hours`; outside them every way of buying from it is
+refused `shop-closed` ([`ARC-364`](../../docs/decisions/ARC-364.md)).
 
 ```sh
 cargo test -p mineworld-economy

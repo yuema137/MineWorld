@@ -12,6 +12,9 @@ pub const NOT_FOR_SALE: RejectionCode = RejectionCode::from_static("not-for-sale
 pub const PRICE_CHANGED: RejectionCode = RejectionCode::from_static("price-changed");
 /// The buyer holds less than the price.
 pub const INSUFFICIENT_FUNDS: RejectionCode = RejectionCode::from_static("insufficient-funds");
+/// The shop is outside its sales hours now (`ARC-364`): every way of buying from it is refused, before
+/// self-trade, funds or stock are judged.
+pub const SHOP_CLOSED: RejectionCode = RejectionCode::from_static("shop-closed");
 /// The seller holds none of the kind.
 pub const OUT_OF_STOCK: RejectionCode = RejectionCode::from_static("out-of-stock");
 /// The buyer cannot carry one more.

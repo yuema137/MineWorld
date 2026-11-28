@@ -38,3 +38,13 @@
   reduces them into `Shop.adjustments`. Its `SystemVersion` is 2.
 - **Market Town opts in by configuration** (QWE-1 (a)), with the store at 900 ‰ on market days. AC-1
   admits that file under `ARC-35`'s note of 2026-10-15.
+
+**Dated note, 2026-11-27 (F-S31d-13 option (a), operator ruling 2026-11-27).** While any adjustment is in
+force, each line of a shop's disclosed listing carries `ask`, the operator's own asking price before the
+adjustments — the price `set-price` moves and `price-set` states — beside `price`, what the line costs now.
+While one is, `ask` appears on every line, including a line the adjustment leaves unchanged
+(`ask == price` after rounding): its presence means an adjustment is in force, not that the line moved.
+With no adjustment in force the field is absent, so the listing's encoding outside a happening is unchanged
+and the `shop` component stays at schema 2 (an optional, owner-written field; `ARC-182`'s mirror and its
+owner-side drift test carry it). Economy alone computes it; a controller pricing a shop ask steps from `ask`
+when present, never from the adjusted price.

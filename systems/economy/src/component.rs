@@ -1,11 +1,12 @@
 //! The state this pack owns — a holder's money, a seller's asks, a place's shop, an item kind's
 //! reference value — and the views it discloses from them.
 
-use mineworld_contracts::{EntityId, ItemId, OrganizationId, PersonId, PlaceId};
+use mineworld_contracts::{EntityId, ItemId, OrganizationId, PersonId, PlaceId, WorldTime};
 use mineworld_happenings::HappeningRef;
 use mineworld_kernel::owned_component;
 use serde::{Deserialize, Serialize};
 
+use crate::hours::Hours;
 use crate::system::EconomySystem;
 
 /// How many keepers one shop may name (`ARC-112`).
@@ -132,12 +133,20 @@ impl Asks {
 /// While a configured happening runs, every asking price is scaled by the shop's [`Adjustment`]s —
 /// written only by this pack's reductions of `prices-adjusted` and `prices-restored` (WE-a design
 /// §6.2). A shop never adjusted encodes without them.
+///
+/// Its sales [`Hours`] are its operator's authored terms, carried by `shop-opened`
+/// (`pr-nightlife.md` N1-I1, N1-I4). A shop without hours is always open and encodes without them, so a
+/// shop saved before hours existed decodes unchanged, always open (the `adjustments` precedent: no
+/// schema bump). Whether it sells now is [`Shop::open_at`] of the instant a read is taken at: nothing
+/// stores it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Shop {
     operator: OrganizationId,
     keepers: Vec<PersonId>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     adjustments: Vec<Adjustment>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    hours: Option<Hours>,
 }
 
 /// A multiplier on every price of a shop for as long as one happening runs.
@@ -160,12 +169,28 @@ impl Adjustment {
 }
 
 impl Shop {
-    pub(crate) const fn new(operator: OrganizationId, keepers: Vec<PersonId>) -> Self {
+    pub(crate) const fn new(
+        operator: OrganizationId,
+        keepers: Vec<PersonId>,
+        hours: Option<Hours>,
+    ) -> Self {
         Self {
             operator,
             keepers,
             adjustments: Vec::new(),
+            hours,
         }
+    }
+
+    /// Its sales hours; `None` when it is always open.
+    pub const fn hours(&self) -> Option<&Hours> {
+        self.hours.as_ref()
+    }
+
+    /// Whether it sells at `at`: always without hours, else when `at`'s time of day lies in one of
+    /// them (N1-I2). Every sale path judges this at the authoritative instant ([`crate::sale`]).
+    pub fn open_at(&self, at: WorldTime) -> bool {
+        self.hours.as_ref().is_none_or(|hours| hours.open_at(at))
     }
 
     /// The Organization that runs it and is paid.
@@ -261,10 +286,19 @@ owned_component! {
 }
 
 /// One line of a shop's listing.
+///
+/// `price` is what the line costs here now, after the shop's adjustments. While any adjustment is in
+/// force the line also discloses `ask`, the operator's own asking price before it: the price `set-price`
+/// moves and `price-set` states (F-S31d-13). It is on every line while one is, including a line whose price
+/// the adjustment leaves unchanged (a small price rounded back to itself, or `ask == price`); its presence
+/// says an adjustment is in force, not that this line moved. A shop with no adjustment in force encodes
+/// without it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Listed {
     item: ItemId,
     price: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    ask: Option<u64>,
     in_stock: u32,
 }
 
@@ -274,9 +308,15 @@ impl Listed {
         self.item
     }
 
-    /// What it costs.
+    /// What it costs here now, after any adjustment in force.
     pub const fn price(&self) -> u64 {
         self.price
+    }
+
+    /// The operator's asking price before the shop's adjustments, while any is in force; `None` when
+    /// none is, and then the ask is [`Listed::price`].
+    pub const fn ask(&self) -> Option<u64> {
+        self.ask
     }
 
     /// How many the operator holds now.
@@ -286,7 +326,8 @@ impl Listed {
 }
 
 /// What a shop discloses to whoever perceives its place: who runs it, and per kind the operator asks
-/// for, its price and how many the operator holds (step-10 QS-45). The `shop` component as an observer
+/// for, its price, its ask while an adjustment is in force, and how many the operator holds (step-10
+/// QS-45). The `shop` component as an observer
 /// sees it; its shape did not change when prices moved to the operator's asks (SD-S31a-12).
 ///
 /// A view, built when it is disclosed, never stored: the stock count is read from inventory's
@@ -307,6 +348,7 @@ impl Listing {
                 .map(|ask| Listed {
                     item: ask.item,
                     price: shop.adjust(ask.price),
+                    ask: (!shop.adjustments.is_empty()).then_some(ask.price),
                     in_stock: in_stock(ask.item),
                 })
                 .collect(),
@@ -430,7 +472,7 @@ mod tests {
     fn shop() -> Shop {
         let operator =
             OrganizationId::new(EntityId::from_raw(5), EntityType::Organization).expect("an org");
-        Shop::new(operator, Vec::new())
+        Shop::new(operator, Vec::new(), None)
     }
 
     /// 333 × 900 ‰ = 299.7 → 300; 5 × 900 ‰ = 4.5 → 5 (half up); 1 × 100 ‰ = 0.1 → 1 (never free).
@@ -472,10 +514,11 @@ mod tests {
     }
 }
 
-/// `shop-stock`: every shop of the world, by its place, and the kinds its operator asks for and holds
-/// at least one of — kinds only, never counts (S35 N-h R5, Q-Nh-4). What a shop window or a "sold out"
-/// sign tells a passer-by, so a person can skip a shop that has nothing for them without walking in to
-/// find out, and a controller that keeps no memory needs none (F-Ng-3).
+/// `shop-stock`: every shop of the world, by its place, and the kinds its operator asks for, holds at
+/// least one of, **and has on sale now** — kinds only, never counts (S35 N-h R5, Q-Nh-4; `ARC-364`
+/// N1-I6). What a shop window, a "sold out" or a "closed" sign tells a passer-by, so a person can skip a
+/// shop that has nothing for them without walking in to find out, and a controller that keeps no memory
+/// needs none (F-Ng-3). A shop outside its hours is listed with nothing stocked; schema unchanged.
 ///
 /// Disclosed to each living Person about itself, wherever it stands: perception lists only the place one
 /// stands in, so a shop's own record (its [`Listing`]) is seen from inside it alone. Computed when

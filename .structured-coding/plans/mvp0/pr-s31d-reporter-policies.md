@@ -1409,6 +1409,12 @@ F-S31d-1 … F-S31d-12 (§3.2) and SD-S31d-1 … 14 (§11), recorded at design t
   base / skips while adjusted (R-S31d-4's first branch; recommended); (b) the oracle classifies moves under an
   active adjustment as the recorded limitation; (c) W2 drops the store's modifier. Every other criterion run
   locally passed.
+  - *Disposition, 2026-11-27 (operator ruled option (a); also covers S34-d1's Q-S34d1-4).* Branch
+    `fix/economy-discount-disclosure`: economy's listing line discloses `ask` (the base) while an adjustment
+    is in force (`ARC-88` dated note); `price::wire::ListedSeen` mirrors it; the seller band prices a shop ask
+    from `ask` when present. S34-d1's five "away" moves have the same signature (e.g. bread ask 132, shown
+    119 at 900 ‰, stepped to 121 toward 143), so the oracle keeps reading the newest notice; see the PR
+    for the runs.
 
 ---
 

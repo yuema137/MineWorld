@@ -7,6 +7,9 @@
 # only on its own shell's systems (§4.6), so the count on one system may be higher.
 minimum_passed = 164
 not_run = [
+  "01-get-mineworld | Step 1.5 — Or download a ready-made program | operator-only",
+  "01-get-mineworld | Step 1.5 — Or download a ready-made program | operator-only",
+  "01-get-mineworld | Step 1.5 — Or download a ready-made program | operator-only",
   "06-play-it | Step 6.2 — Host the world | operator-only",
   "06-play-it | Step 6.3 — Walk around as Ben | operator-only",
   "14-play-as-an-agent | Step 14.2 — Start the world with a seat grant | operator-only",
