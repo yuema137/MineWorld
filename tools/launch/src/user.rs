@@ -1,9 +1,11 @@
-//! The per-user `MineWorld` folder (`LAUNCHER.md` §5): saves, logs and smoke scratch. Nothing is ever
-//! written beside the executable, whose folder may be read-only (step-23 F-R8).
+//! The per-user `MineWorld` folder (`LAUNCHER.md` §5): saves, logs, smoke scratch, and the cognition
+//! profile and stores (§10). Nothing is ever written beside the executable, whose folder may be
+//! read-only (step-23 F-R8).
 
 use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::Failure;
@@ -11,6 +13,8 @@ use crate::config::WorldName;
 
 /// How many runs' log files are kept.
 const KEPT_RUNS: usize = 5;
+/// The cognition profile's file name, under `cognition/`.
+const PROFILE: &str = "profile.toml";
 
 /// The per-user folder.
 #[derive(Debug)]
@@ -77,6 +81,23 @@ impl UserDir {
         self.root.join("saves").join(world.as_str())
     }
 
+    /// The per-user cognition profile (`LAUNCHER.md` §10.1): conversation is on only while it exists.
+    pub fn profile(&self) -> PathBuf {
+        self.root.join("cognition").join(PROFILE)
+    }
+
+    /// A world's cognition store (`LAUNCHER.md` §10.3), beside its save and deleted with it by
+    /// `--fresh`. A world named like the profile has none: its store would be the profile's path.
+    pub fn store(&self, world: &WorldName) -> Result<PathBuf, Failure> {
+        if world.as_str() == PROFILE {
+            return Err(Failure::new(format!(
+                "the world {world} cannot have a cognition store: its folder would be the profile, {}",
+                self.profile().display()
+            )));
+        }
+        Ok(self.root.join("cognition").join(world.as_str()))
+    }
+
     /// A smoke run's scratch save, removed when the run ends.
     pub fn scratch(&self, run: Run) -> PathBuf {
         self.root.join("scratch").join(run.to_string())
@@ -135,8 +156,10 @@ fn platform_folder() -> Option<PathBuf> {
 }
 
 /// The launcher's own log: every line also goes to standard error.
+#[derive(Clone)]
 pub struct Log {
-    file: Option<File>,
+    // Shared with the cognition supervisor's thread (`cognition.rs`), which logs the process's states.
+    file: Option<Arc<Mutex<File>>>,
     path: Option<PathBuf>,
 }
 
@@ -153,7 +176,7 @@ impl Log {
     pub fn write_to(&mut self, path: &Path) -> Result<(), Failure> {
         let file = File::create(path)
             .map_err(|error| Failure::new(format!("cannot write {}: {error}", path.display())))?;
-        self.file = Some(file);
+        self.file = Some(Arc::new(Mutex::new(file)));
         self.path = Some(path.to_path_buf());
         Ok(())
     }
@@ -165,7 +188,9 @@ impl Log {
 
     pub fn line(&mut self, text: &str) {
         eprintln!("[launch] {text}");
-        if let Some(file) = &mut self.file {
+        if let Some(file) = &self.file
+            && let Ok(mut file) = file.lock()
+        {
             let _ = writeln!(file, "{text}");
         }
     }

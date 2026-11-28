@@ -29,6 +29,16 @@ YOUR SAVES AND LOGS
   saves/<world>/ holds each world; delete it to start that world over.
   Saves may not load in a later 0.x version.
 
+TALKING WITH ALICE (optional; requires a local runtime)
+  Out of the box nobody here uses an AI model. If you have a MineWorld source
+  checkout with its Python environment and a local model service (for example
+  Ollama) on this computer, Alice can answer what you say and remember it:
+  copy runtime/cognition-profile.template.toml to cognition/profile.toml in
+  the folder above and follow the steps written in it. This is not
+  self-contained: without that setup the game plays normally and the launch
+  log says why conversation is off. Delete cognition/profile.toml to turn it
+  off. Starting a world over also deletes what Alice remembers of it.
+
 UNINSTALL
   Delete this folder, and the folder above if you want your saves gone too.
 
@@ -67,6 +77,14 @@ MineWorld 是一个用来构建"活着的"游戏世界的开源框架。这个�
 存档与日志
   位置同上方英文部分。saves/<world>/ 是各个世界的存档;删除它即可让该世界重新开始。
   存档不保证能在之后的 0.x 版本中读取。
+
+与 Alice 对话(可选;需要本机运行环境)
+  默认情况下,这里没有任何人使用 AI 模型。如果你的电脑上有 MineWorld 源代码及其
+  Python 环境,并且有本地模型服务(例如 Ollama),Alice 就能回答你说的话并记住它:
+  把 runtime/cognition-profile.template.toml 复制为上述文件夹中的
+  cognition/profile.toml,并按其中写明的步骤操作。这不是自带的功能:没有这些准备时
+  游戏照常运行,启动日志会说明对话为何关闭。删除 cognition/profile.toml 即可关闭。
+  让一个世界重新开始时,Alice 对它的记忆也会一并删除。
 
 卸载
   删除本文件夹;如需同时删除存档,再删除上述存档文件夹。

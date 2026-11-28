@@ -369,17 +369,17 @@ preflight, manifest writer); `runtime/cognition-profile.template.toml`; `runtime
 the R1 decision record. No new TOML parser, no shell command interface.
 
 **Implementation.**
-- [ ] Profile read from the per-user folder with the existing parser; partial/unknown/duplicate keys fail by name.
-- [ ] Assignment resolution with the same decisions file as the server; LM seat ≠ human seat; exactly one LM seat.
-- [ ] Store creation, `--fresh` deletion of `saves/<world>/` and `cognition/<world>/`, smoke scratch store;
+- [x] Profile read from the per-user folder with the existing parser; partial/unknown/duplicate keys fail by name.
+- [x] Assignment resolution with the same decisions file as the server; LM seat ≠ human seat; exactly one LM seat.
+- [x] Store creation, `--fresh` deletion of `saves/<world>/` and `cognition/<world>/`, smoke scratch store;
   cognition-side `instance` binding.
-- [ ] `--preflight`, `--write-runtime-manifest` and supervised overrides in `supervised.py`; loopback check.
-- [ ] Specs (§3.4) and decision record written with the code.
+- [x] `--preflight`, `--write-runtime-manifest` and supervised overrides in `supervised.py`; loopback check.
+- [x] Specs (§3.4) and decision record written with the code.
 
 **Validation.**
-- [ ] No profile ⇒ behaviour identical to today; partial keys, invalid seat, stale manifest, non-loopback backend,
+- [x] No profile ⇒ behaviour identical to today; partial keys, invalid seat, stale manifest, non-loopback backend,
   wrong world/format, missing interpreter each give their named outcome.
-- [ ] Store tests: restart reuse, `--fresh` deletes both, smoke isolation, read-only bundle, upgrade keeps
+- [x] Store tests: restart reuse, `--fresh` deletes both, smoke isolation, read-only bundle, upgrade keeps
   per-user files, log pruning never touches `cognition/`, instance mismatch refused without modification.
 
 **Acceptance.** Server and resolver agree; resident selection checked; no secret on disk or argv; missing runtime ⇒
@@ -392,8 +392,8 @@ malformed profile fails before any child starts.
 supervised tests; doc link and decision-ID checks. CI runs all three OSes. NOT RUN.
 
 **Boundary/review.**
-- [ ] Review: path escapes, save/store collision, writer isolation, grammar reuse, secret flow, spec/code match.
-- [ ] Commit configuration, specs and tests together; no child supervision before C3.
+- [x] Review: path escapes, save/store collision, writer isolation, grammar reuse, secret flow, spec/code match.
+- [x] Commit configuration, specs and tests together; no child supervision before C3.
 
 ### C3 — supervise one cognition child
 
@@ -405,20 +405,20 @@ two-window lifetime, on all three OSes.
 `tools/launch/tests/launcher/` real-process fixtures. No server/client domain change; no model-service ownership.
 
 **Implementation.**
-- [ ] Start town server with `--decisions`, resolve assignment, start the child per §4.11; own stdin and handle.
-- [ ] `--supervised` EOF ⇒ Stopper; status lines per §3.4.1; standalone CLI unchanged.
-- [ ] Bounded status reading during play; unexpected exit ⇒ `degraded(child_exited)`, world continues.
-- [ ] Ordered shutdown on final client exit and error/drop paths; kill/reap only the owned child after the bound.
+- [x] Start town server with `--decisions`, resolve assignment, start the child per §4.11; own stdin and handle.
+- [x] `--supervised` EOF ⇒ Stopper; status lines per §3.4.1; standalone CLI unchanged.
+- [x] Bounded status reading during play; unexpected exit ⇒ `degraded(child_exited)`, world continues.
+- [x] Ordered shutdown on final client exit and error/drop paths; kill/reap only the owned child after the bound.
 
 **Validation.**
-- [ ] Real child (scripted backend): `ready` after welcome+home; unreachable endpoint; malformed answer; killed
+- [x] Real child (scripted backend): `ready` after welcome+home; unreachable endpoint; malformed answer; killed
   child; launch failure after server start; shutdown during an in-flight request; malformed status line.
-- [ ] Two clients: first closes, second still acts; last closes, server persists, all owned children reaped.
+- [x] Two clients: first closes, second still acts; last closes, server persists, all owned children reaped.
   Killing the launcher stops server and cognition via EOF.
-- [ ] Other residents act during blocked inference; no cloud attempt; child environment has no
+- [x] Other residents act during blocked inference; no cloud attempt; child environment has no
   `MINEWORLD_ADMIN_TOKEN`; a planted invite never appears in the **cognition child's** argv, stderr log, status
   lines or store files (the server log and client argv hold it by existing design, LAUNCHER.md).
-- [ ] Same lifecycle tests on Windows and Linux in CI (B3).
+- [ ] Same lifecycle tests on Windows and Linux in CI (B3). Pending: the PR CI run (core `test-windows`, `test`; `python` layer on three OSes).
 
 **Acceptance.** Direct interpreter child; status reflects held seat/home; no orphaned owned child; only owned
 processes stopped; world responsive under model failure.
@@ -430,9 +430,9 @@ HTTP cancellation may not stop Ollama GPU work: measured and reported, never cla
 Milestone D protocol path where applicable. Scripted backend only; ≤ 10 min, one heavy slot. NOT RUN.
 
 **Boundary/review.**
-- [ ] Red-team: EOF inheritance, kill/reap, status bounds, stdin ownership, drop order, partial-launch exits,
+- [x] Red-team: EOF inheritance, kill/reap, status bounds, stdin ownership, drop order, partial-launch exits,
   environment construction, Windows behaviour.
-- [ ] Commit lifecycle atomically.
+- [x] Commit lifecycle atomically.
 
 ### C4 — corrected memory and controller substitution through a real save
 
@@ -666,5 +666,127 @@ milestone-D fallback and Anthropic adapter tests 24 passed; ruff and strict pyri
 
 ### PR-B (C2–C5)
 
-Base: pending the client-stack merge and PR-A merge; the exact `main` SHA and the launcher seam re-audit result
-are recorded here before C2. Not started.
+**Base and seam re-audit (before C2).** Branch `mvp0/pr-dialogue-b`, worktree
+`/Users/yuema137/mineworld-worktrees/impl-dialogue-b`, one execution session (2026-11-27). Base `origin/main` @
+`b0b4690397c37a95a03aa7879fd45d9d6676f43a` (#549 merge), which contains the client stack (#544, #548, #549 with
+`Hosting`) and PR-A (#547, `83e52776` is an ancestor). Seams re-audited on that SHA: `lib.rs::run` (profile-free
+`chosen` → `Server::start(…, hosting, …)` → `join` → `Clients::run` → `Server::stop`); `hosting.rs` (`Played{admin}`
+adds `--town` and sets `MINEWORLD_ADMIN_TOKEN` through `configure_client`); `children.rs` (server env removes
+`MINEWORLD_INVITE`, `CREATE_NO_WINDOW` inline, clients waited for in order); `config.rs` (strict `launch.toml`
+subset, defaults 2D `carol`/market-town, 3D/both social-cafe); `user.rs` (`saves/`, `logs/` pruned to five runs,
+`scratch/`); `join.rs`. All as §2 states; no deviation. The C4 lane (correction scenario, isolation, MCP case,
+live-gate harness) is delegated to one sub-agent in its own worktree
+(`/Users/yuema137/mineworld-worktrees/impl-dialogue-b-c4`, branch `mvp0/pr-dialogue-b-c4`, same base, never pushed);
+its commits are cherry-picked onto this branch.
+
+**Concurrency.** Launcher-solo (#550 design; code lane starting in parallel) edits `config.rs` defaults, `hosting.rs`
+and `lib.rs`. This PR's launcher edits, kept minimal and listed for that lane: `config.rs` (a `Grammar` switch, four
+profile keys, `profile()`, defaults moved unchanged into `applied()`); `user.rs` (`profile()`, `store()`, `Log`
+shareable); `bundle.rs` (`file()`); `children.rs` (`Server::start` takes `decisions`, `no_window`/`log_files`
+shared); `lib.rs` (profile read, `--fresh` store deletion, preflight/assignment/child wiring); new `cognition.rs`.
+`hosting.rs` is not touched.
+
+#### C2 — profile, store and contracts
+
+**Implementation.**
+
+- [x] Profile from the per-user folder with the existing parser: `config::profile(mode, file, text)` reuses
+  `parse`/`pair`/`set` with `Grammar::Profile`, which adds `cognition-python`, `cognition-config`,
+  `cognition-manifest` (absolute) and `cognition-decisions` (bundle-relative, plain components); partial,
+  relative, `..`, duplicate and unknown keys fail by name and line; `launch.toml` refuses the four keys. The profile
+  replaces `launch.toml` for every mode; smoke ignores it (`lib.rs::run`).
+- [x] Assignment with the same decision list as the server: `cognition::Setup::assignment` runs the owned server
+  binary `decisions <world> --decisions <file> --json` into `cognition/<world>/run/assignment.json` (30 s bound,
+  killed after); `Server::start(…, decisions)` adds `--decisions` for the same file. Exactly one LM seat:
+  `supervised._one_seat` (`assignment_invalid`). LM seat ≠ human seat: see deviation D-B1.
+- [x] Store: `UserDir::store(world)` = `cognition/<world>/`, created when conversation is on; `--fresh` removes
+  `saves/<world>/` and `cognition/<world>/` only; a world named `profile.toml` has no store. Smoke starts no
+  cognition, so it needs no scratch store (deviation D-B2). Cognition-side binding:
+  `supervised.BoundHomes._bind` writes `<store>/instance` on the first welcome, refuses another instance before any
+  home opens.
+- [x] `supervised.py` (flags, overrides via `model_copy`, loopback `ws://` check, invite from `MINEWORLD_INVITE`,
+  ledger default `<store>/budget.sqlite`, status channel, preflight) and `runtime_manifest.py` (writer, deriver,
+  comparison, entry-point resolution, Git revision read without Git). `__main__.py`: `--config` checked by hand so
+  `--write-runtime-manifest` needs none; serving moved into `_serve_until_stopped` (standalone behaviour unchanged);
+  `serve(…, homes=None)`.
+- [x] Specs and record: `docs/reference/cognition-supervised.md` (new); `tools/launch/LAUNCHER.md` §§1, 3, 4, 5, 9, 10;
+  MODULE_SPEC §5 LM Controller bullet (the stale "never chooses movement" replaced by the `go`/pacer fact, link
+  added); `cognition/lm-controller/tools/reference.py` intro (supervised link) and regenerated
+  `docs/reference/cognition-toml.md`; `examples/local.toml` stale "format 1"/"FG-c is not merged" fixed;
+  `packaging/cognition-profile.template.toml`; `packaging/decisions/market-town-alice-lm.yaml`;
+  `docs/decisions/ARC-371.md` + index.
+
+**Bounded deviations (C2).**
+
+- *D-B1 — LM seat vs. human seat, learned from the status line.* Previous assumption: the launcher reads the LM seat
+  from `assignment.json`. Audit: the launcher has no JSON library, and `ARC-78`'s amendment admits only `getrandom`
+  with operator approval; a JSON dependency would be a material dependency change. Resolution: the child's status
+  line carries the LM seat (`seat`, §3.4.1); a seat that is a human seat of the mode is refused by the launcher's
+  watcher as `degraded(profile_invalid)` and the child is stopped. `take_over=False` already guarantees no seat theft
+  in the window before the line is read. Validation: launcher case `cognition_failures_leave_the_world_playing`
+  (`seat-visitor`).
+- *D-B2 — no smoke store.* §3.4.4 names `scratch/<run>/cognition/` for smoke, while §3.2 says smoke ignores the
+  profile; with no profile read, no cognition child is started in smoke, so no store is made. Recorded, not
+  implemented.
+- *D-B3 — preflight in C2.* The launcher's preflight call (`Setup::preflight`) landed with C2's code because the
+  profile's interpreter, configuration and manifest are only used by it, and an unused key would fail clippy; the
+  child supervision itself is C3.
+- *D-B4 — `runtime_manifest.py`.* The manifest writer/deriver is its own module beside `supervised.py` (cohesion and
+  size; `supervised.py` holds the flags, preflight, overrides, binding and status). Third-party distributions are
+  recorded with `files: []`.
+- *D-B5 — preflight model listing.* `model_unavailable` is produced by preflight's `GET <base_url>/models` on
+  loopback (stdlib `urllib`, not the provider adapter; DEP-27 keeps `httpx2` in `openai_compatible.py`). A listing,
+  not inference; skipped in replay mode.
+
+#### C3 — supervise one cognition child
+
+**Implementation.**
+
+- [x] Launcher: `cognition::Cognition::start` runs `<python> -I -m mineworld_cognition --config … --supervised
+  --server-url=ws://<join>/ws --store-dir … --assignment …`, environment built by `Setup::command` (removes
+  `MINEWORLD_ADMIN_TOKEN` and the inherited `MINEWORLD_INVITE`, then sets the join's invite), `CREATE_NO_WINDOW`,
+  `.exe` check on Windows; stderr to `<run>-cognition.log`; never through `Hosting`.
+- [x] Python: `--supervised` stdin EOF ⇒ `Stopper.stop` (thread-safe; an early stop is honoured when serving begins);
+  status lines `starting`/`ready`/`stopped`/`degraded` (`Status`, original stdout only; `sys.stdout` → stderr);
+  `ready` only from `BoundHomes.hold`; closed reasons from `reason_of` (exception groups unwrapped).
+- [x] Watcher thread (`Watch::run`): strict status parse (four flat keys, no escapes, ≤ 512 bytes); malformed ⇒
+  `status_invalid`; human seat ⇒ `profile_invalid`; no `ready` in 60 s ⇒ `readiness_timeout`; unexpected exit ⇒
+  `child_exited`; each state one launch-log line. World and clients never wait.
+- [x] Ordered shutdown: after `Clients::run`, `Cognition::stop` closes stdin, waits ≤ 20 s (child's own bound 15 s),
+  kills/reaps only that child; then `Server::stop`. `Drop` does the same on error paths; declared after the server,
+  so it drops first. `seat.py` unchanged (0 lines; readiness hook lives in `BoundHomes`).
+
+**Sizes.** `seat.py` 765 → 765; `config.py` 732 → 732; `supervised.py` new; `runtime_manifest.py` new;
+`tools/launch/src/cognition.rs` new.
+
+*D-B6 — one commit for C2 and C3.* The launcher's preflight (C2) and child (C3) share `Setup::command` and
+`cognition.rs`; splitting them would commit a dead-code state that fails clippy. C2 and C3 are one semantic commit;
+the checkboxes above stay separate.
+
+**Validation (C2 + C3), working tree on base `b0b46903`, 2026-11-27, macOS (this Mac).**
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Launcher unit | `cargo test -p mineworld-launch --lib` | PASS 10/10 (profile grammar incl. all-or-none/absolute/`..`/duplicate/unknown keys and `launch.toml` refusing them; status-line strict reader; reason set fail-closed) |
+| Launcher real-process | `cargo test -p mineworld-launch --test launcher` (one slot) | PASS 9/9: 4 new (`cognition_child_is_started_with_its_own_environment_and_stopped_before_the_server`, `cognition_failures_leave_the_world_playing` over `preflight=runtime_mismatch`, `garbage`, `exit`, `seat-visitor`, `silent` (60 s readiness), `deaf` (killed after 20 s), `killing_the_launcher_stops_its_cognition_child`, `fresh_deletes_this_worlds_store_and_keeps_the_profile_and_other_worlds`) + 5 existing unchanged |
+| Python unit | `pytest tests/test_supervised.py` | PASS 5 (overrides win and are loopback/absolute only; stdout is status lines only with named reasons; this checkout's manifest passes preflight, a changed SDK digest → `runtime_mismatch`; instance binding writes once and refuses another instance with the store byte-identical; reasons inside exception groups) |
+| Python real process | `pytest tests/test_supervised_process.py` (real server, held loopback model) | PASS: `starting`→`starting(alice)`→`ready` only with `instance` + `<instance>/memory.sqlite`; other residents' requests journaled while Alice's one request was held; stdin closed → last line `stopped/stopping`, exit 0 within 15 s; one request, ledger charged 1; fresh join `hosted`; planted invite in no stderr/store file |
+| Regression | `test_shutdown`, `test_controller_log`, `test_controller_server` (real binary), `test_milestone_d_fallback`, `test_reference` | PASS (30 passed incl. the above, 114 s) |
+| Static | `cargo fmt --check`, `cargo clippy -p mineworld-launch --all-targets -D warnings`; `ruff format --check`, `ruff check`, strict `pyright cognition/lm-controller`; `check_doc_headings.py`, `check_decision_ids.py` | PASS / clean |
+| Manual | `python -I -m mineworld_cognition --write-runtime-manifest`, `--preflight` against `examples/local.toml` | PASS; preflight listed `qwen3.5:4b` at the local Ollama (`GET /v1/models`; no inference, $0) |
+
+Coverage map for C3 validation items: "unreachable endpoint" = preflight `model_unavailable` (no service at `base_url`, the launcher forwards the child's reason: fake `preflight=` case); "malformed answer" = existing `test_controller_resilience` (30 % garbage, unchanged) — supervised mode changes no consult path; "killed child" = `exit` case; "launch failure after server start" = `seat-visitor`/`garbage`/`silent` cases (world keeps admitting players); "shutdown during an in-flight request" = `test_supervised_process.py`.
+
+Mutations (applied, run, reverted): M-B1 `Setup::command` keeps `MINEWORLD_ADMIN_TOKEN` → caught ("no admin token
+reaches cognition"); M-B2 server stopped before cognition → caught (`server-down` at the child's EOF). Static test
+coverage of the Windows `.exe` check is by CI on Windows (core `test-windows` runs the launcher test; `python` layer on
+three OSes runs the Python tests) — local runs are macOS only.
+
+**Review (C2 + C3, implementer's logic review).** Path escapes: profile decision list plain components only, store
+name refuses `profile.toml`; save/store collision impossible (`saves/` vs `cognition/`). Writer isolation: one store
+per world, home lock (`home_busy`), instance binding before any open. Grammar reuse: one parser, a `Grammar` switch.
+Secret flow: admin token removed, invite only in env, never argv/log/status/store (tests). Spec/code match checked
+line by line for §§1–4 of `cognition-supervised.md` and LAUNCHER.md §10. EOF inheritance: stdin piped only to the
+child; stdout pipe drained on its own thread (a full pipe never blocks the child); stop order cognition → server;
+`Drop` covers error paths; only owned handles killed. Watch loop does not spin on a closed pipe. Remaining: a status
+line could be split across reads only past 512 bytes, which is refused by design.

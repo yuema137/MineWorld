@@ -30,6 +30,8 @@ use mineworld_test_support::{Scratch, scratch};
 use serde_json::{Value, json};
 use tokio_tungstenite::tungstenite::Message;
 
+#[path = "launcher/cognition.rs"]
+mod cognition;
 #[path = "launcher/living.rs"]
 mod living;
 
@@ -43,10 +45,33 @@ const PATIENCE: Duration = Duration::from_secs(90);
 const STOP: Duration = Duration::from_secs(15);
 
 fn main() -> ExitCode {
+    // The scripted cognition process is started as `<python> -I -m mineworld_cognition …` (cognition.rs).
+    if let Some(record) = std::env::var_os(cognition::FAKE) {
+        let arguments: Vec<String> = std::env::args().skip(1).collect();
+        if arguments.first().map(String::as_str) == Some("-I") {
+            return cognition::fake(Path::new(&record), &arguments);
+        }
+    }
     if let Some(record) = std::env::var_os(STUB) {
         return stub(Path::new(&record));
     }
-    let cases: [(&str, fn()); 5] = [
+    let cases: [(&str, fn()); 9] = [
+        (
+            "cognition_child_is_started_with_its_own_environment_and_stopped_before_the_server",
+            cognition::cognition_child_is_started_with_its_own_environment_and_stopped_before_the_server,
+        ),
+        (
+            "cognition_failures_leave_the_world_playing",
+            cognition::cognition_failures_leave_the_world_playing,
+        ),
+        (
+            "killing_the_launcher_stops_its_cognition_child",
+            cognition::killing_the_launcher_stops_its_cognition_child,
+        ),
+        (
+            "fresh_deletes_this_worlds_store_and_keeps_the_profile_and_other_worlds",
+            cognition::fresh_deletes_this_worlds_store_and_keeps_the_profile_and_other_worlds,
+        ),
         (
             "played_town_and_private_clock_controls",
             living::played_town_and_private_clock_controls,

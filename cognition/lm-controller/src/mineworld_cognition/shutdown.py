@@ -61,20 +61,44 @@ class Stopper:
         self._timer: threading.Timer | None = None
         self.received: signal.Signals | None = None
         """The first stop signal received, or `None`."""
+        self._stopping = False
+        self._serving: tuple[asyncio.AbstractEventLoop, asyncio.Task[None]] | None = None
+        self._early: str | None = None
+        """A `stop` that arrived before serving began: honoured as soon as it begins."""
+        self._lock = threading.Lock()
 
     async def serve(self, serving: Coroutine[Any, Any, None]) -> None:
-        """Awaits `serving` in its own task. A stop signal cancels it and returns normally; anything else it
-        raised is raised here."""
+        """Awaits `serving` in its own task. A stop signal or `stop` cancels it and returns normally; anything
+        else it raised is raised here."""
         loop = asyncio.get_running_loop()
         task = loop.create_task(serving)
+        with self._lock:
+            self._serving = (loop, task)
+            early = self._early
         installed = self._install(loop, task)
+        if early is not None:
+            self._begin(early, loop, task)
         try:
             await task
         except asyncio.CancelledError:
-            if self.received is None:
+            if not self._stopping:
                 raise
         finally:
             self._uninstall(loop, installed)
+            with self._lock:
+                self._serving = None
+
+    def stop(self, why: str) -> None:
+        """Stops serving exactly as a first stop signal does, from any thread: the end of a supervisor's standard
+        input (`--supervised`, `docs/reference/cognition-supervised.md` §1). Before serving begins, it is kept and
+        honoured when it does."""
+        with self._lock:
+            serving = self._serving
+            if serving is None:
+                self._early = why
+                return
+        loop, task = serving
+        loop.call_soon_threadsafe(self._begin, why, loop, task)
 
     def disarm(self) -> None:
         """Ends the forced-exit bound: the caller has finished stopping."""
@@ -122,7 +146,14 @@ class Stopper:
             self._forced(f"{number.name} again")
             return
         self.received = number
-        print(f"[cognition] {number.name}: stopping", file=sys.stderr, flush=True)
+        self._begin(number.name, loop, task)
+
+    def _begin(self, why: str, loop: asyncio.AbstractEventLoop, task: asyncio.Task[None]) -> None:
+        """The first stop: cancel serving, and arm the forced exit."""
+        if self._stopping:
+            return
+        self._stopping = True
+        print(f"[cognition] {why}: stopping", file=sys.stderr, flush=True)
         timer = threading.Timer(
             self._force_after_s,
             self._forced,

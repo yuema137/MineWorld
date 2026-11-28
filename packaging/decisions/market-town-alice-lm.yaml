@@ -1,0 +1,10 @@
+# The bundle's decision list for conversation (tools/launch/LAUNCHER.md §10; design
+# .structured-coding/plans/mvp0/pr-playable-dialogue-memory.md §3.2, operator ruling Q-D2).
+# Shipped as runtime/decisions/market-town-alice-lm.yaml and read only when the per-user cognition
+# profile names it: Alice Moreau is driven by the LM controller; while no cognition process holds her
+# seat, her rule controller drives her in the server. Every other resident stays on its rules. It names
+# no provider, model, address or key: those are the operator's cognition configuration.
+models:
+  lm: { fallback: rule }
+assign:
+  - { seat: alice, model: lm }

@@ -74,6 +74,11 @@ PACK_3D = "presentation/mineworld-default/3D"
 PACK_3D_PARTS = ("far_field", "characters/cast.yaml", "characters/cast", "manifest.yaml", "pack.yaml",
                  "assets", "depictions", "furniture", "i18n", "materials", "places", "sit_points", "stations")
 SHARED_FILES = ("clients/shared/settings/locale", "clients/shared/settings/fonts")
+# Conversation, off by default (tools/launch/LAUNCHER.md §10; ARC-371): the decision list a cognition profile names,
+# and an inactive profile template. Nothing reads either unless the player writes cognition/profile.toml.
+COGNITION_FILES = (("packaging/decisions/market-town-alice-lm.yaml", "decisions/market-town-alice-lm.yaml"),
+                   ("packaging/cognition-profile.template.toml", "cognition-profile.template.toml"))
+PROFILE_TEMPLATE = "runtime/cognition-profile.template.toml"
 
 
 @dataclass(frozen=True)
@@ -614,6 +619,9 @@ def layout(bundle: Path, target: Target, server: Path, version: str) -> Path:
         copy_tracked(f"{PACK_3D}/{part}", runtime)
     for folder in SHARED_FILES:
         copy_tracked(folder, runtime)
+    for source, rel in COGNITION_FILES:
+        (runtime / rel).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(ROOT / source, runtime / rel)
     return runtime
 
 
@@ -648,6 +656,12 @@ def pck_files(bundle: Path) -> list[Path]:
     return sorted(p for p in bundle.rglob("*.pck") if p.is_file())
 
 
+def active_lines(path: Path) -> list[str]:
+    """The lines of a shipped profile template that a launcher would read: any that is not blank or a comment."""
+    return [line for line in path.read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.lstrip().startswith("#")]
+
+
 def check_contents(bundle: Path) -> list[str]:
     """Every file of the bundle, and every file inside its packs, against A-R3's list."""
     problems = []
@@ -655,6 +669,8 @@ def check_contents(bundle: Path) -> list[str]:
         rel = path.relative_to(bundle).as_posix()
         if why := forbidden(rel):
             problems.append(f"{rel}: {why}")
+        elif rel == PROFILE_TEMPLATE and active_lines(path):
+            problems.append(f"{rel}: the template must stay inactive (every line a comment)")
     for pck in pck_files(bundle):
         for name, _ in read_pck(pck):
             if why := forbidden(name):
@@ -1208,6 +1224,12 @@ def self_test() -> int:
         cases.append(("read_pck reads a written pack",
                       read_pck(pack) == [("scenes/a.scn", 10), ("shaders/b.gdshader", 3000)]))
         cases.append(("a clean bundle passes A-R3", check_contents(bundle) == []))
+        template = bundle / PROFILE_TEMPLATE
+        shutil.copy2(ROOT / COGNITION_FILES[1][0], template)
+        cases.append(("the shipped profile template is inactive", check_contents(bundle) == []))
+        template.write_text("[2d]\nworld = \"market-town\"\n", encoding="utf-8")
+        cases.append(("an active profile template fails the contents check", len(check_contents(bundle)) == 1))
+        template.unlink()
         (bundle / "shots").mkdir()
         (bundle / "shots" / "x.png").write_bytes(b"x")
         cases.append(("a planted shots/x.png fails A-R3 (A-R3)", len(check_contents(bundle)) == 1))
