@@ -129,3 +129,55 @@ investigation stays open as its own follow-up.
   - Headless closed-port probe (`probe-join-fail-graphics.log`): the new stage is printed in order after the
     character stage; named FAIL after 19 s, exit 1, so the probe wait stays bounded. PASS.
   - A windowed Metal cold-cache visual check that the new text is what stays on screen: NOT RUN in this lane.
+
+### Bounded correction R3 — 2026-11-27 (window that cannot draw)
+
+- **Finding** (perf lane, `perf-startup/target/perf-evidence/comparison.txt` note 2). `drawn()` waited on
+  `RenderingServer.frame_post_draw` without a bound. Godot on macOS draws nothing while no window can draw:
+  `godot_window_delegate.mm` sets `is_visible` from `occlusionState`, and `main.cpp` gates the draw on
+  `can_any_window_draw()`. In that state the signal never fires, so startup paused for as long as the window
+  stayed covered: 5–82 s in 9 warm runs, and over 227 s in one run while the engine printed 145 FPS. A player who
+  switches apps while loading stalls the load.
+- **Fix** (`clients/shared/loading/loading.gd`). The wait is bounded in process frames. After
+  `UNDRAWN_FRAMES` (3) process frames without a draw, `drawn()` returns false. It logs `window not drawing
+  (covered or minimised); loading continues` once, and loading proceeds. A draw that is only slow (a cold
+  pipeline compile) also delays the next process frame, so it is still waited for in full. When the window does
+  not draw, the 3D finish logs `client scene ready (window not drawing)` instead of `client scene visible`.
+  Stage text is unchanged, and the next drawn frame shows the current stage. Headless runs are unchanged.
+  `LOADING.md` updated.
+- **Evidence** (`fix-loading-occluded/target/occl/`, warm cache, before = origin/main `d0c70515` export,
+  after = this change; each runtime run once per condition per round, 2 rounds, 120 s watchdog).
+  - "covered" means `--position 30000,30000`, which puts the window off every screen.
+  - "visible" means `--always-on-top`. In this desktop session the window still lost drawability mid-load;
+    the after-fix logs show `window not drawing`. These runs are therefore a second covered-ish condition,
+    not proof of a visible window.
+  - Before: covered 1 no first view in 120 s, covered 2 105.4 s, visible 1 and 2 no first view in 120 s
+    → **stall reproduced (3/4 never loaded)**.
+  - After: covered 12.0 s and 12.2 s; visible 54.9 s and 47.9 s (first run of the new export: world build
+    30 s, still compiling). All 4 reached first view → **PASS**.
+  - `ci_gdparse.py clients/runtime clients/3d-spike`: PASS.
+  - The headless closed-port probe (`probe-join-fail-occluded-fix.log`) ends with a named FAIL after 18 s,
+    exit 1. The probe's bounded failure is kept → PASS.
+  - **Not run:** a visible-window warm run that proves the drawn path is unchanged (no controllable visible
+    window in this session). Its logic is the same: the first process frame after a drawn iteration sees the
+    flag.
+- **Red-team follow-ups** (`_reviews/pr560.md`; evidence in `target/occl/`, builds `fix` = this branch 2D+3D and
+  `mutant` = this branch with `UNDRAWN_FRAMES := 1000000000`, exported, then reverted; `git diff` clean
+  afterwards).
+  - **Visible warm window, 2D.** `act2d-visible-1/2` (app activated with `open`, `--always-on-top`) and
+    `fix2d-visible-1` logged `loading UI drawn` and `client scene visible`, with no "window not drawing",
+    scene visible in 0.8–1.6 s → **PASS (3/3 drawn runs)**. `fix2d-visible-2` lost drawability and logged
+    it, then `client scene ready (window not drawing)`.
+  - **Visible warm window, 3D: INCONCLUSIVE.** In all 4 runs (`act3d-visible-1/2`, `fix3d-visible-1/2`, with
+    `--fullscreen` or activation plus on-top), the window drew `loading UI drawn` and then stopped drawing at
+    the stage after `_decor()`. The mutant under the same conditions waited there more than 113 s
+    (`mutant3d-ontop-2`), so these are real no-draw periods, not the bound firing early. The session's
+    display was held by a full-screen Zoom call (`pmset -g assertions`: zoom.us NoDisplaySleepAssertion). A
+    3D window that stays visible could not be produced here. The run is still needed with the operator's
+    screen free.
+  - **Planted mutation (limit never gives up).** `mutant3d-ontop-2`: no first view in 120 s, stalled at
+    "Preparing lighting". `mutant3d-ontop-1`: 48.6 s. `mutant3d-covered`: 66.7 s, of which 36 s was spent
+    waiting at the join stage. Under the same conditions the fixed build reached first view in 12–50 s every
+    time → the evidence detects the regression → **PASS**.
+  - **Render-thread caveat.** `UNDRAWN_FRAMES` is documented in `loading.gd` and `LOADING.md` as valid only
+    while drawing runs on the main thread; revisit it if rendering moves to a separate thread.
