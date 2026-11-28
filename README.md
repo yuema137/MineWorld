@@ -22,6 +22,7 @@
   <a href="#one-world-many-players">One world</a> ·
   <a href="#a-town-that-lives-on-its-own">A living town</a> ·
   <a href="#new-worlds-same-engine">New worlds</a> ·
+  <a href="#what-you-can-play-today">Play today</a> ·
   <a href="#quick-start">Quick start</a> ·
   <a href="#whats-in-the-box">What's in the box</a> ·
   <a href="docs/VISION.md">Vision</a>
@@ -172,6 +173,26 @@ zero lines.
 
 Next come regions linked by train, then markets and institutions, one pack at a time
 ([scope](#scope)).
+
+## What you can play today
+
+Market Town is the default world. A new game starts at 07:00.
+
+- The town lives in the packaged build too: people go to work, eat, go home and sleep, run by simple rules.
+- Shops keep hours. The café sells from 05:30 to 22:00, the corner store from 06:00 to 23:00. After closing,
+  the server refuses a purchase and says why.
+- Both clients show a loading screen with its progress.
+- On macOS the 3D client draws through Vulkan (MoltenVK). Its first start takes about 47 seconds.
+- Quit one client and open the other right away. Your seat is free at once, and you carry on in the same world.
+- A world can count food energy in kilocalories (the `needs` engine).
+
+Being built:
+
+- 🚧 Market Town's food in kilocalories: 2000 kcal a day, a USD 10,000 start, realistic food prices.
+- 🚧 People who remember your conversations after a restart.
+- 🚧 Sleep until morning, with the night run faster when you play alone.
+- 🚧 People who sit down cleanly.
+- 🚧 Agent onboarding: an agent turns a short brief into a playable world ([`docs/onboarding`](docs/onboarding/README.md)).
 
 ## Download and play
 
