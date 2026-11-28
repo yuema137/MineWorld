@@ -6,12 +6,13 @@
 //! resolved features    rapier3d's include enhanced-determinism, and exclude simd8, parallel and
 //!                      serde-serialize — as the whole workspace resolves them, so no other crate can
 //!                      switch one on behind this pack's back
-//! the pair             (BodiesSystem::VERSION, the locked rapier3d version) = (8, "0.36.0") — bodies
+//! the pair             (BodiesSystem::VERSION, the locked rapier3d version) = (9, "0.36.0") — bodies
 //!                      moved to 2 with loose objects (step-11 SD-O20; QO-16: the literal, not the
 //!                      claim), to 3 with SD-Z5 (step-11 §20), to 4 with the walk out of the
 //!                      planner's margin (step-11 §21.15 M-3), to 5 with the doorway refusal and
 //!                      the 250 mm radius (step-11 §19, QD-6), to 6 and 7 with ARC-330 and ARC-333,
-//!                      and to 8 with routable nudges (ARC-330's 2026-11-27 note)
+//!                      to 8 with routable nudges (ARC-330's 2026-11-27 note), and to 9
+//!                      with routes round seated people (S34-b A1)
 //! ```
 //!
 //! The features are read from `cargo tree`, run through the `cargo` that built this test, offline:
@@ -108,7 +109,7 @@ fn rapier_is_pinned_with_exactly_the_chosen_features_and_moves_with_this_packs_v
     // literals together, never one.
     assert_eq!(
         (BodiesSystem::VERSION, rapier[0].as_str()),
-        (SystemVersion::new(8), "0.36.0"),
+        (SystemVersion::new(9), "0.36.0"),
         "bodies' version and the locked Rapier move together"
     );
 }

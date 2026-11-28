@@ -29,6 +29,8 @@ First pre-alpha. Packaged clients for macOS, Windows and Linux are not yet publi
   run started alone is now a single-player (`--solo`) world. 2D + 3D and smoke runs are not. Smoke checks
   ignore `launch.toml`. 3D and 2D + 3D stay on Social Café until the packaged 3D Market Town timing passes
   (#561).
+- Walkers plan their route round seated people instead of being stopped short at them stride after stride;
+  saves of worlds with bodies made by earlier builds no longer load (bodies version 9) (S34-b A1).
 - Saves of worlds with bodies made by earlier builds no longer load: bodies is now version 8, and a version-7 save is
   refused by name. Keep the previous build to play them (#557).
 - Saves of worlds that enable `needs` made by earlier builds no longer load: keep the previous build to play

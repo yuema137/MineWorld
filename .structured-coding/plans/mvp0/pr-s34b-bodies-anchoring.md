@@ -267,3 +267,129 @@ Escalate:               any change to presence, movement, kernel or contracts; a
 | **Q-S34b-1** | The step said bodies' version bumps (5 → 6), which re-baselines bodies-yard, Social Café and Market Town although none of them has a seated person. Bump posture's version instead? | **Yes, bump posture (1 → 2), keep bodies at 5.** Only worlds with posture behave differently, and posture's version is in their saves; three worlds stay byte-identical |
 | **Q-S34b-2** | The "sit point inside furniture" load check: run it in whichever of the two reductions comes second (order-free), or require `bodies` before `posture` in `systems:`? | **Order-free, one shared bodies function.** No new ordering rule for world authors |
 | **Q-S34b-3** | Should the walk planner route around seated people (treat them as fixed discs), or only stop walkers short? | **Stop short now; add routing only if AC-b-6's seeded run shows walkers stuck.** Smallest change first |
+
+## 13. Amendment A1 (2026-11-27): walkers route around seated people
+
+```text
+Design revision:        A1 to revision 1, with the red team's fixes 1–3 (_reviews/s34b-a1.md)
+Approved by / evidence: operator, 2026-11-27, "S34-b 修订冻结" (after red-team FREEZE-AFTER-FIXES); ruled
+                        option (c) the same day ("存档选 C")
+Lifecycle:              DESIGN FROZEN — 2026-11-27
+Revises:                Q-S34b-3 ("stop short now; add routing only if walkers get stuck"); §1, §5, §9 row 2
+Implementation base:    origin/main @ bdb83457112b08977997f5e4b8d8716fb065a4be (bodies v8, after #557)
+Branch / worktree:      fix/route-around-seated · /Users/yuema137/mineworld-worktrees/seated-routing
+```
+
+### A1.1 Why
+
+S34-d1 (#551) seats people who stay put. Its ledger (§ "Storage finding", 2026-11-27) measured Market
+Town, seed 7, 300 days, with #557: the save is 96.8 MiB against ASRB-1's 96 MiB bound. Most of the growth
+is walking, not posture's own facts: `arrived` +62 802, `walk-step` +53 476, `stopped-short` +17 518, and
+`gave-way` +4 896. Walkers whose route crosses a seated (anchored) person are stopped short at them stride
+after stride, because Q-S34b-3 kept the planner blind to sitters. The re-plan after a stop already plans
+round people within 3 m (`route.rs` `still_people`), so each sitter costs at least one wasted stride, a
+`stopped-short`, a re-plan and its requests per walk that meets them. The operator chose option (c) over
+raising the bound (a) or thinning the fact (b).
+
+### A1.2 Decision
+
+**SD-b-A1. A seated person is a static obstacle to route planning.** Bodies' wayfinder (`route.rs`
+`Wayfinder::route`) adds every person standing in the asked place whom the `Anchoring` catalog holds
+(`anchoring.rs` `anchored_in`, the catalog that already exempts them from nudges and shoves), other than
+the walker, to the plan's obstacles from the first plan of every leg. It uses the same mechanism as the
+person to avoid after a stop: `obstacles(…, avoid, GROWN)` grows a PERSON_RADIUS square by
+R + GAP + PLAN_MARGIN. This adds no solver, no new obstacle kind and no new constant.
+
+**Bounded cost (red-team fix 3).** Only sitters within `AROUND` (3 m, the re-plan's existing radius) of the
+leg's straight segment from `from` to `to` are added, and at most `SEATED_MAX` = 16 of them, nearest `from`
+first. Each one adds a box and four corners to the visibility graph. A sitter farther off is met, if at all,
+by a later leg's plan or by the existing re-plan after a stop. `SEATED_MAX` is a pack constant, not world
+data.
+
+1. **Fallback, so no walk is lost.** When the plan round the sitters is `Unreachable` (for example, a
+   sitter blocks the only way through), the wayfinder plans as today, without them. The walker then meets
+   the sitter and is stopped short, exactly as S34-b's frozen behaviour does. Liveness is never worse than
+   today.
+2. **Unchanged.** The resolver: a stride still treats an anchored person as unmovable (nudge fails, the
+   walker is blocked at contact, V1–V4 verify). The start rule (`Starts`, #557): sitters move only when
+   they stand, so they are not part of it. `arrival_spot`: it already keeps 2R + GAP from everyone.
+   Movement's contract (`Wayfinder`, `RouteAsk`, `RouteAnswer`) and posture are untouched, and no
+   client-side logic is added.
+3. **The goal.** A goal inside a sitter's grown box snaps to the nearest free lattice point by the
+   planner's existing goal rule (SD-N5). Sit points are at least 600 mm apart (Q-S34-8), and a sitter's
+   grown half-width is 560 mm, so a walk to the next sit point still ends on it.
+4. **Version.** Bodies 8 → 9: routes change, so the results of every world with seated people change. A
+   v8 save is refused by name (`ARC-25`). `rapier_pin.rs` moves with it, and the CHANGELOG records the
+   break. A dated note on `ARC-147` records the revision of Q-S34b-3.
+
+**Options considered.** (a) raising ASRB-1 to 98 MiB and (b) recording `stopped-short` once per walk were
+both offered by S34-d1 and not chosen by the operator. Planning round *every* standing person from the
+first plan was rejected: people who are walking or idle move or give way (`ARC-330`/`ARC-333`), and
+planning round all of them would detour walks for no reason and slow the planner (`AROUND`). Velocity
+avoidance (ORCA/RVO) was already rejected in `ARC-330`.
+
+### A1.3 Acceptance (decided before measuring, `ARC-23`)
+
+| Id | Criterion | Test |
+| --- | --- | --- |
+| AC-b-A1 | A walker whose straight line to its goal passes through a seated person, with room to pass, arrives with **no** `stopped-short` naming the sitter, and the sitter's position and `Seated` row are unchanged. Before the change, the same scenario records at least one such stop | `systems/posture/tests/anchoring.rs` (new scenario) |
+| AC-b-A2 | Fallback: a sitter who blocks a corridor's only passage. The walk is still accepted, not refused `no-route`, and the walker is stopped short at the sitter as before | same file |
+| AC-b-A3 | No interpenetration: AC-b-6's seeded run (2 000 requests) still holds after every request. Every seated person stays at their point, and every pair stays at least CLEARANCE apart | existing AC-b-6 |
+| AC-b-A4 | No stopped-short storms (red-team fix 1; threshold fixed before measuring). Market Town, seed 7, 300 days, release, `mineworld run … --save`. Compare this head merged with #551 against **base** = origin/main @ bdb83457 merged with the same #551 head, both read from the `run` summary. The total of `stopped-short` must fall by **at least 8 759**, half of the +17 518 that S34-d1's ledger attributes to walkers stopped by sitters. The summary does not separate `stopped-short` naming a sitter from the rest, so the total is the measured quantity. The per-fact-type deltas (`arrived`, `walk-step`, `stopped-short`, `gave-way`, `walk-to`) are recorded | local runs, §A1.5 |
+| AC-b-A5 | Save size (red-team fix 2). On this head merged with #551, the 300-day save is **≤ 96 MiB for seed 7 and for seed 8**, and the margin under the bound is reported for each. Seed 7 is measured by `tools/cli/tests/market_town.rs` passing in full, ASRB-1 and ASRB-2 included. Seed 8 is `mineworld run worlds/market-town --headless --seed 8 --days 300 --save`, file size. On this head alone (without #551), `market_town` passes too | local runs, §A1.5 |
+| AC-b-A7 | Planning cost (red-team fix 3). Market Town, seed 7, 30 days, release, three runs each: this head's median wall time is **≤ 110 %** of origin/main @ bdb83457's median, both measured on the same machine, one after the other | local runs, §A1.5 |
+| AC-b-A6 | Every existing `mineworld-bodies` and `mineworld-posture` test passes unchanged | `cargo test -p mineworld-bodies -p mineworld-posture` |
+
+If AC-b-A4, A5 or A7 fails while A1–A3 pass, the implementer stops and reports to the operator with the
+measurement. The bound is not raised and nothing is tuned to pass.
+
+### A1.4 Commit plan
+
+- **A1-C0, design:** this section. Docs only.
+- **A1-C1, implementation:** `route.rs` `Wayfinder::route`, sitters as obstacles with the fallback;
+  bodies v9; `rapier_pin.rs`; CHANGELOG; a dated note on `ARC-147`.
+  - Validation: AC-b-A1, A2, A6; `clippy -D warnings`.
+  - Logic review: red team.
+- **A1-C2, evidence:** AC-b-A3 to A5 in §A1.5. Goldens and long baselines that move are listed;
+  `scripts/baselines.txt` is left to main's next re-record, as #557 did.
+
+### A1.5 Evidence ledger
+
+Head `6fd6b533`, merged locally with #551 `880b86f8` (scratch merge `6fe5aa89`). Base = #551 `880b86f8`, which already contains origin/main @ bdb83457. Release builds on macOS arm64, 2026-11-27/28. The thresholds were committed in `6fd6b533`, before any run.
+
+- **AC-b-A1, A2, A6: PASS.** `cargo test -p mineworld-bodies -p mineworld-posture` all green, `clippy -D warnings` clean. Mutation: with `SEATED_MAX` = 0, AC-b-A1 turns red (dave is stopped short at alice).
+- **AC-b-A3: PASS.** AC-b-6's seeded run is unchanged and green.
+- **AC-b-A4: FAIL.** Total `stopped-short`, seed 7: 68 259 → 62 221 (−6 038). Seed 8: 66 241 → 61 700 (−4 541). The frozen threshold was −8 759. Other seed-7 deltas: `arrived` 1 012 510 → 1 003 083 (−9 427); `gave-way` 67 683 → 67 655; `sat-down` 5 225 → 5 240; `person-entered-place` 81 713 → 81 837; history 1 620 192 → 1 604 738 facts (−15 454).
+- **AC-b-A5: PASS.** Seed 7: 100 352 000 B = 95.70 MiB, 0.30 MiB under the bound, and `market_town` passes in full (ASRB-1 95.7 MiB, ASRB-2 0.270 MiB/day, ASRB-3 22.7 MiB). Seed 8: 99 831 808 B = 95.21 MiB, 0.79 MiB under. Base: 96.48 / 95.89 MiB.
+- **AC-b-A7: PASS, with a caveat.** Market Town, 30 days, seed 7: main took 22.59 / 32.91 / 24.89 s (median 24.89 s) and this head alone 20.53 / 65.88 / 21.52 s (median 21.52 s, 86 %). The machine was shared with other sessions, so the spread is large.
+
+**Disposition.** A4 fails while A1–A3, A5 and A7 pass, so by §A1.3 this goes to the operator with the measurement. Nothing was tuned. Most remaining `stopped-short` are not at sitters: base before #551 already had about 50 700 (S34-d1 ledger, +17 518 with #551). A1 removes about a third of the stops #551 added. The rest are walkers meeting walkers or idle people, which A1 does not cover. The 300-day save fits 96 MiB on both seeds.
+
+**Operator ruling, 2026-11-28 ("接受 A1 结果").** AC-b-A4 missed its threshold: −6 038 on seed 7 and
+−4 541 on seed 8, against −8 759. The operator accepts the miss, because A1's goal is met (the 300-day
+Market Town save with #551 is under 96 MiB on both seeds) and the remaining stops are walker-to-walker.
+Avoidance between walkers becomes a follow-up, analysed in
+`/Users/yuema137/mineworld-worktrees/_planning/walker-avoidance-20261128.md`.
+
+**Stops by stopper, 2026-11-28 (red-team follow-up on #576; this is the quantity AC-b-A4 meant).**
+Method: Market Town, seed 7, 300 days, release, with #551 merged. Each save's facts are streamed in
+order. Each `stopped-short` is classified by its `by`: no one (a solid); a person seated at that moment
+(tracked from `sat-down` / `stood-up`); a person with a walk in progress (`walk-started` / `walk-ended`);
+or an idle person. The reader is a scratch test, not committed.
+
+| Stopper | Base (#551) | Head (#551 + A1) | Change |
+| --- | --- | --- | --- |
+| seated | 5 032 | 1 084 | **−3 948 (−78.5 %)** |
+| walker | 55 509 | 54 485 | −1 024 |
+| idle | 2 454 | 1 998 | −456 |
+| solid | 5 264 | 4 654 | −610 |
+| total | 68 259 | 62 221 | −6 038 |
+
+**Coverage hole (sitters beyond 3 m of the straight line, or beyond the cap of 16), measured not
+patched.** The 1 084 remaining stops at a sitter are 1.7 % of all stops, over 300 days. About 70 % of them
+are in the café, in the 2 m × 1 m around `window-stools.1` (x 2 000–4 000, y 2 000–3 000). After such a stop, the existing re-plan
+already plans round everyone within 3 m of the walker, the sitter included (`still_people`), and now also
+round the sitters near the new line. So a detour that meets a sitter costs one stop, not a storm. A
+re-plan triggered when a seated body blocks the planned path would add a path-versus-sitter check to
+every leg to save about 3.6 stops a day. It is not added. The red team's option (b), "document and
+measure", is taken.

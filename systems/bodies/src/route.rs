@@ -37,11 +37,12 @@ use mineworld_kernel::WorldRead;
 use mineworld_movement::{RouteAnswer, RouteAsk, Wayfinder, Waypoints};
 use pathfinding::directed::astar::astar;
 
+use crate::anchoring::holds;
 use crate::component::{BodyShape, PlaceShape};
 use crate::doorway::{doors, off_the_threshold};
 use crate::entry::{nearest_free, nearest_free_within};
 use crate::footprint::Placed;
-use crate::geometry::{Area, GAP, PERSON_RADIUS, Point, Room, blocks, corners};
+use crate::geometry::{Area, GAP, PERSON_RADIUS, Point, Room, blocks, corners, segment_clear_of};
 use crate::objects::lying_in;
 use crate::system::BodiesSystem;
 use crate::system::standing_in;
@@ -76,18 +77,31 @@ impl Wayfinder for BodiesSystem {
             })
             .filter(|location| location.place() == place)
             .and_then(|location| location.local());
+        // S34-b A1 (SD-b-A1): a seated person, held where they sit, is a static obstacle from the first
+        // plan of every leg, so walkers go round them instead of being stopped short stride after stride.
+        let seated = seated_in(world, ask);
         // Stopped by somebody: plan round everybody else here too, so the next stop is not
         // just the next person of the same group (S35 N-h round 3: a walker kept stopped by a group
         // standing in a corridor, one member at a time, until her walk stalled). No way round them all,
-        // round the one who stopped me, as before.
+        // round the sitters and the one who stopped me; then round the one who stopped me, as before.
+        let mut tries: Vec<Vec<LocalPosition>> = Vec::new();
         if let Some(stopper) = avoid {
             let mut standing = still_people(world, ask);
             standing.push(stopper);
-            let around = route_among(shape, &objects, ask.from(), ask.to(), &standing);
-            if matches!(around, RouteAnswer::Waypoints(_)) {
-                return Some(around);
+            standing.extend(seated.iter().copied());
+            tries.push(standing);
+        }
+        if !seated.is_empty() {
+            tries.push(seated.into_iter().chain(avoid).collect());
+        }
+        for around in tries {
+            let planned = route_among(shape, &objects, ask.from(), ask.to(), &around);
+            if matches!(planned, RouteAnswer::Waypoints(_)) {
+                return Some(planned);
             }
         }
+        // No way round the sitters (one blocks the only passage): plan without them, and the walker is
+        // stopped short at the sitter, as S34-b's frozen behaviour does (A1 item 1).
         Some(route_in(shape, &objects, ask.from(), ask.to(), avoid))
     }
 
@@ -144,6 +158,34 @@ fn as_planned(placed: &Placed) -> (BodyShape, LocalPosition) {
             Millimetres::new(placed.centre.y),
         ),
     )
+}
+
+/// The most seated people one plan goes round: the nearest the walker first. Bounds the plan's cost
+/// (each adds a box and four corners to the visibility graph) however many sit in a place.
+const SEATED_MAX: usize = 16;
+
+/// Where the people held in place (`anchoring.rs`: seated, today) stand in the leg's place near its
+/// line — within [`AROUND`] of the straight segment from `from` to `to` — the walker excepted, at most
+/// [`SEATED_MAX`] of them, nearest `from` first: the planner goes round each of them (S34-b A1,
+/// SD-b-A1). A sitter farther off is met, if at all, by a later leg's plan.
+fn seated_in(world: &WorldRead<'_>, ask: &RouteAsk) -> Vec<LocalPosition> {
+    let (from, to) = (point(ask.from()), point(ask.to()));
+    let near = i32::try_from(AROUND).expect("3 m fits");
+    let mut seated: Vec<Point> = standing_in(world, ask.place())
+        .into_iter()
+        .filter(|(person, at)| {
+            *person != ask.person().entity_id()
+                && !segment_clear_of(from, to, *at, near)
+                && holds(world, *person)
+        })
+        .map(|(_, at)| at)
+        .collect();
+    seated.sort_by_key(|at| (length2(*at, from), at.y, at.x));
+    seated.truncate(SEATED_MAX);
+    seated
+        .into_iter()
+        .map(|at| LocalPosition::on_ground(Millimetres::new(at.x), Millimetres::new(at.y)))
+        .collect()
 }
 
 /// How near the walker another person must stand to be planned round after a stop: 3 m, a few strides.
