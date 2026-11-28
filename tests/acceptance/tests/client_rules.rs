@@ -268,7 +268,13 @@ const ACTION_LITERALS: [(&str, &str, &str); 40] = [
 ];
 
 /// Rule-named declarations admitted with a reason: (file, name, why). None in PR 16a (step-15 A16-10).
-const RULE_NAMES: [(&str, &str, &str); 0] = [];
+const RULE_NAMES: [(&str, &str, &str); 1] = [(
+    "clients/protocol/mineworld/needs.gd",
+    "capacity",
+    "the food-energy reserve's `capacity_kcal` as the needs owner discloses it (FE-a, #555): `_reserve` \
+     checks the wire value's type and stated bounds by equality only and passes it through for display \
+     (`pr-fe-a-food-energy-engine.md` §3.8); no client computes or decides a capacity",
+)];
 
 /// The words that name a rule a client might copy. `MAX_STRIDE` is matched as the pair.
 const RULE_WORDS: [&str; 5] = ["reach", "range", "clearance", "nudge", "capacity"];

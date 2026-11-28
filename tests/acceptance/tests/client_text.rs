@@ -41,10 +41,12 @@ mod client_3d;
 /// a place a doorway leads to (R-PK-1, ARC-82); the 2D client builds `place.<tag>` from a tag. `sign` is
 /// the words a fixture shows — a departures board, a ticket window's plate (S29-e §5.2); `station.` names
 /// the 3D station's node categories, not text. `trade` and `board` are the shared trade module's (S31-e,
-/// `clients/shared/TRADE.md`).
-const KEY_FAMILIES: [&str; 20] = [
+/// `clients/shared/TRADE.md`). `loading` is the startup loading layer's stage words
+/// (`clients/shared/LOADING.md`, `pr-startup-loading.md`).
+const KEY_FAMILIES: [&str; 21] = [
     "action", "reason", "state", "ui", "panel", "suggest", "format", "hud", "hint", "camera",
     "link", "note", "door", "language", "clock", "place", "word", "sign", "trade", "board",
+    "loading",
 ];
 
 /// Every word a System Pack discloses for a need or a lateness level (S35 N-e, F-Ne-2): each must have a
