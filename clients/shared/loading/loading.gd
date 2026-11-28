@@ -3,11 +3,14 @@ extends CanvasLayer
 ## Uses no imported assets: it must draw before a client pack is opened.
 
 const NODE_NAME := "MineWorldLoading"
+## Process frames without a draw after which the window counts as not drawing (`drawn`).
+const UNDRAWN_FRAMES := 3
 var _stage: Label
 var _elapsed: Label
 var _progress: ProgressBar
 var _quit: Button
 var _first_draw := true
+var _undrawn_said := false
 var _started := Time.get_ticks_msec()
 
 
@@ -89,18 +92,46 @@ func quit_text(words: String) -> void:
 
 
 ## process_frame precedes rendering. Wait for a completed draw before blocking work,
-## but never wait for a renderer in headless tests.
-func drawn() -> void:
+## but never wait for a renderer in headless tests. Returns whether a frame was drawn.
+##
+## Godot draws nothing while no window can draw: on macOS a window wholly covered by others
+## (godot_window_delegate.mm: occlusionState) or minimised. frame_post_draw then never fires,
+## and waiting for it stalled startup for as long as the window stayed covered (measured
+## 5-227 s, 2026-11-27). The engine still runs process frames, so the wait is bounded in them:
+## a draw happens in the same iteration as the process frame before it, unless the iteration
+## skips drawing. A draw that takes long (a cold pipeline compile) delays the next process frame
+## too, so it is still waited for in full. Undrawn, loading goes on; the next frame the window
+## draws shows the current stage, which is the one the work is in.
+func drawn() -> bool:
 	await get_tree().process_frame
-	if DisplayServer.get_name() != "headless":
-		await RenderingServer.frame_post_draw
-	if _first_draw:
+	if DisplayServer.get_name() == "headless":
+		return _note_drawn(true)
+	var state := {"drawn": false}
+	var mark := func() -> void: state["drawn"] = true
+	RenderingServer.frame_post_draw.connect(mark, CONNECT_ONE_SHOT)
+	for _i in UNDRAWN_FRAMES:
+		await get_tree().process_frame
+		if state["drawn"]:
+			break
+	if not state["drawn"]:
+		RenderingServer.frame_post_draw.disconnect(mark)
+	return _note_drawn(state["drawn"])
+
+
+func _note_drawn(was_drawn: bool) -> bool:
+	if not was_drawn and not _undrawn_said:
+		_undrawn_said = true
+		print("[startup] %d ms: window not drawing (covered or minimised); loading continues" % Time.get_ticks_msec())
+	if was_drawn and _first_draw:
 		_first_draw = false
 		print("[startup] %d ms: loading UI drawn" % Time.get_ticks_msec())
+	return was_drawn
 
 
 func finish() -> void:
 	hide()
-	await drawn()
-	print("[startup] %d ms: client scene visible" % Time.get_ticks_msec())
+	if await drawn():
+		print("[startup] %d ms: client scene visible" % Time.get_ticks_msec())
+	else:
+		print("[startup] %d ms: client scene ready (window not drawing)" % Time.get_ticks_msec())
 	queue_free()
