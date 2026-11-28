@@ -600,6 +600,13 @@ journal sits facing away from the point and is named (`posture::tests::a_sit_fac
     red (market-town moved against its base record).
   - X-d-7 (the checker skips facing): owned by `posture::tests::a_sit_facing_away_from_the_point_is_named`
     (C1). X-d-5, X-d-6 belong to S34-d2.
+- [x] Long-run baselines: `scripts/baselines.txt` `[world market-town]` and `[world social-cafe]` re-recorded
+  with a `reason S34-d1` line, from a local long record of 92fda43c (`/opt/homebrew/bin/python3.12 -I
+  scripts/ci_parity.py record --binary target/release/mineworld --profile long`, Darwin/arm64, 2 785 s; then
+  `baseline write` to a copy and only those two sections spliced in; `baseline check` then reports neither of
+  them). In the same record bodies-yard and Lakeside differ from their committed sections in every key; neither
+  installs posture and the rest band is inert there (AC-d-6), so that is main's drift since their last
+  re-record, left untouched and to main's next re-record (as S33-b did).
 - [x] Review: bodies-yard's and Lakeside's baseline sections untouched; the decisions golden diff is
   posture's: `sit accepted 50 → 1160`, `stand accepted 9 → 0`, and every count downstream of the walks a
   sitter no longer takes (consults 81 235 → 86 639, more facts per day); no `sit` is ever rejected, because

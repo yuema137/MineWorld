@@ -51,12 +51,13 @@ reason fix-activity-double-draw #274 (operator ruling 2026-10-18, F-S27b-5, ARC-
 reason WE-a #189 merged after 12d #171, S26-a #206, S27-b #241 and P6a #236: happenings and market-day prices enabled in Market Town (configure/happenings.yaml, configure/economy.yaml; QWE-1 (a)), and economy's declaration at version 2 in the genesis composition (F-WE-a-9), on top of main's bodies, persona, appearance and group-activity offers: every market-town key moved; no other world moved; re-recorded from a long record of WE-a's merge with main 73e5462 (Darwin/arm64)
 reason fix-activity-double-draw #274 merged with main b1969ca9 (after WE-a #189, S32-p #259, S34-a #301): the paced rule's narrower offered band on top of market-day happenings and prices; every key of the three towns re-recorded from a local long record of that merge (Darwin/arm64); bodies-yard unchanged
 reason milestone F re-record (2026-10-20, one re-record for the step): every key re-recorded from the nightly long record of main f92e3cad (parity-long-mac, run 39407548463, Darwin/arm64; verdict PASS), after TW-e's calendar in social-cafe (ARC-269), LE-a's genesis rows, economy SystemVersion 3, S35's sleep and needs content, S29's station and S34-c1's posture with its sit points; no number edited by hand
-summary-300 399 4a7c7a1dc561a89ccfda697d1d1252ef8a7231e3d9ecf1e362e63b3b81b1ca6a
-summary-1000 1123 4448c2d4c38e4eca186dbb44a6330ae651d734f1afbd071e04d15f6f9c87fe20
-summary-300s 398 5074ddc099fda0c0b1c2c08dd007293fcde4cdd31da98a9cb48dcb26b4866209
-facts-300s 6135 460d89d081035a385592da9c95c4f4da4dd215829ac01f5facc9d231763f3675
-journal-300s 4540 c19fd50b1bfd04d7c59da9f8f12047ca9bc999645510e66884f50deffb5cb887
-sealed-300s 528 e97e994def6b2c7ea9849bf002ed1b17dc7ee8b26210bd8846c95b6dfd604fcd
+reason S34-d1 (pr-s34d-npcs-agents-sit.md C4): the paced rule's rest band sits people down and `sit`/`stand` are decided by name, so residents sit ~20x more and never stand by chance; every key moved; recorded from a local long record of 92fda43c (Darwin/arm64, scripts/ci_parity.py record --profile long); only [world market-town] and [world social-cafe] are written: bodies-yard and lakeside (no posture) also differ from this file in that record, which is main's drift since their last re-record, left to main's next re-record
+summary-300 399 bb4a1488fa7e239bbb5034cc587b205f907976be5d43c8d9842444b0837d5b56
+summary-1000 1126 4d028222442a5bac613fb10240b1a9ec3d5be872f9384b36ff13584c9c95d76e
+summary-300s 398 67a3650b9253975a5f5343b4de734b63ff32424854128ee14e1ebcc684f1148f
+facts-300s 6077 c4a9d6de93361141c3f01f56a257fee94ed918536729f4963a1f5460c0369380
+journal-300s 4426 ac647fb069439d9688288fe9885902d625fc8523ffa67bd242f4a4426b8365a5
+sealed-300s 269 993e117685102f631f6a4a0c72df513c4978d49b1d2dbc053eb4c287fe27dfe0
 [world social-cafe]
 reason 13c #162: journal-300s re-recorded on main 9f853e1 (after #153, #157, #159); journal bytes moved in every world, summaries and facts did not (F-13c-impl-3)
 reason FG-a: re-recorded on mvp0/pr-fg-a eadc5df. Summaries and facts-300s were stale on main 6306977 (nightly issue #170, walking towns) and now equal that commit's own record; journal-300s moves at its genesis row only, which carries the composition (relationships v3, conversation v4, acquaintance-forgotten declared); no fact or summary moved by FG-a (pr-fg-a FA-1, F-FGA-16)
@@ -72,9 +73,10 @@ reason S26-a #206 merge with main e51ffc0 (after P6a #236, S27-b #241; Q-S26a-5,
 reason 12d #171 merged after S26-a #206: bodies, persona and appearance together; all six keys re-recorded from the CI long record of 12d's merge with main 9884c64 (scratch nightly run 39129402348, commit 572d1ce, Linux/x86_64; Linux/arm64, Darwin/arm64 and Windows/x86_64 equal); bodies-yard did not move
 reason fix-activity-double-draw #274 (operator ruling 2026-10-18, F-S27b-5, ARC-151): the paced rule's offered band no longer draws the actions the rule decides by name (leave, join, accept, decline, invite, talk, walk), so members leave once per decision, not twice; median activity 60 minutes again, as before S27-b; all six keys moved; bodies-yard unchanged; re-recorded from a local long record of the merge with main 44f050e3 (after 12d #171; 51f6f08, Darwin/arm64); still starts activities (group-activity-started 9579 in the 300-day run)
 reason milestone F re-record (2026-10-20, one re-record for the step): every key re-recorded from the nightly long record of main f92e3cad (parity-long-mac, run 39407548463, Darwin/arm64; verdict PASS), after TW-e's calendar in social-cafe (ARC-269), LE-a's genesis rows, economy SystemVersion 3, S35's sleep and needs content, S29's station and S34-c1's posture with its sit points; no number edited by hand
-summary-300 360 fcdb6960ff54fc08225bedc21781756f739e7245278ff4892ef59446bc8ea255
-summary-1000 1085 dba38006f0013153dc8a33ae746aeb6f33b3e36ae05add7fe72915cc3afa8b8c
-summary-300s 359 208e7d200effe21a39c6740f93f26860d7a14ee3468e0f97c917c095429fb422
-facts-300s 10422 2fa212f51a947b8cbf46d8f508f8ab5d328760ad048756dae4b4c1697df85dba
-journal-300s 7713 7ec5c9671045366f341b84bcf1c4bfeb039d1c34f57d19678f16499140050a0e
-sealed-300s 189 5384ec11c4a1da5647c791613acd284a7433da2f577753dac1e9dc6f2649e10d
+reason S34-d1 (pr-s34d-npcs-agents-sit.md C4): the paced rule's rest band sits people down and `sit`/`stand` are decided by name, so residents sit ~20x more and never stand by chance; every key moved; recorded from a local long record of 92fda43c (Darwin/arm64, scripts/ci_parity.py record --profile long); only [world market-town] and [world social-cafe] are written: bodies-yard and lakeside (no posture) also differ from this file in that record, which is main's drift since their last re-record, left to main's next re-record
+summary-300 360 efc32af768210c809ba3cba9f6c23abed0e2b6b56548f2da058445bd99ceea2c
+summary-1000 1085 6807f16a3d9ab21837e594a4735f709ecbf01081b6d02771c6db852bf5bc1248
+summary-300s 359 d07f18421bc89eecffed9cd7aa9721fcc0a0b5df00eba3b9dd957c2e308674c0
+facts-300s 9807 a6bdd10b4fc6e3a2785139e09cddc41d4ff2e386f10776714599b0ab56ac589f
+journal-300s 6704 950ea2d96edcb1f373e2ff98db17ad93fb45b6fd0411a298844b4792a501004c
+sealed-300s 202 9e4c035c1edb2eabf4165a20a88b4275a922f0d172d18b9a07b2e43998d73021
