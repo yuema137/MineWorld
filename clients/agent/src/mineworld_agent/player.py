@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Annotated, Final, cast, get_args
 
 from mineworld_sdk import offers
+from mineworld_sdk.attributes import parse_locale
 from mineworld_sdk.offers import NotOffered
 from mineworld_sdk.pacer import Pacer, Step, Wait, Walking
 from mineworld_sdk.perceived import CursorCell
@@ -45,7 +46,7 @@ from mineworld_sdk.wire.contract import (
 )
 from mineworld_sdk.wire.frames import Invite
 from mineworld_sdk.wire.ids import ActionTypeId, EntityId, EntityKey, JsonValue
-from pydantic import Field
+from pydantic import AfterValidator, Field
 
 from mineworld_agent.disclosed import Kind, proposal_buyer
 from mineworld_agent.handle import Handle
@@ -207,6 +208,9 @@ class PlayerConfig(AgentModel):
     state_dir: Path | None = None
     """Where a handle's resume secret and cursor are kept between processes (`state.py`); none if
     `None`."""
+    locale: Annotated[str, AfterValidator(parse_locale)] = "en"
+    """The language attribute text is read in, as typed (`zh-Hans` → `zh_Hans`): the world's offered locale
+    of it, else English (S30-k §5.9)."""
 
 
 type ConnectorFactory = Callable[[], Connector]
@@ -358,6 +362,7 @@ class Player:
             states=self._states,
             streamed=streamed,
             fresh=fresh,
+            locale=self._config.locale,
             on_inbox=None if hook is None else partial(hook, name),
         )
         handle.pacer = Pacer(

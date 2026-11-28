@@ -1,0 +1,22 @@
+# S30-k1's second fixture world (pr-s30k-localisation.md §5.10, AC-k-3): a harbour town with its own
+# attribute (sea-legs) and its own zh_Hans and fr label packs. It proves that a world adds a language and
+# translates its own attribute with files only. Read with --packs <repo>/entities.
+world:
+  id: labels-elsewhere
+  name: Labels Elsewhere
+  version: 0.1.0
+  license: MIT
+mineworld: "^0.1"
+requires:
+  person-attributes: "^1"
+systems:
+  - presence
+  - movement
+  - naming
+  - attributes
+configure:
+  - attributes
+places:
+  - quay
+population: [ines, tomas]
+seats: [ines, tomas]

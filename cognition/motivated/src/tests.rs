@@ -195,7 +195,7 @@ fn with_chronotype(value: Option<&str>) -> Observation<Value> {
     use mineworld_contracts::ComponentRecord;
     let mut me = PerceivedEntity::new(id(ME), EntityType::Person).at(here());
     if let Some(value) = value {
-        let block = serde_json::json!({ "schema": 2, "entries": [ { "attribute": "town.chronotype",
+        let block = serde_json::json!({ "schema": 3, "entries": [ { "attribute": "town.chronotype",
             "kind": "level", "label": "Chronotype", "facets": ["decision"],
             "value": { "level": value, "rank": 0 }, "text": "an early riser" } ] });
         me = me.with_components(vec![ComponentRecord::new::<Traits>(id(ME), block)]);

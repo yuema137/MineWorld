@@ -1,0 +1,42 @@
+# Test fixture (S30-k1, pr-s30k-localisation.md §5.10): a world-level, partial zh_Hans label pack —
+# enough for Bob's glance of Alice, a private and a hidden attribute (which must never reach Bob), and one
+# deliberate gap: core.hair-colour has no word for `grey`, so Alice's hair stays English, whole, on every
+# zh_Hans surface. S30-k2's core pack supersedes the core entries here.
+format: 1
+locale: zh_Hans
+words: { list: "、", and: "和", join: "，", more: "……", pair: "：", "yes": 是, "no": 否 }
+labels:
+  core.age-band:
+    label: 年龄段
+    phrase: "{value}"
+    words: { 60s: 六十多岁 }
+  core.stature:
+    label: 身高
+    phrase: "{value}米"
+    perceived_as: [个子矮, 中等身高, 个子高]
+  core.build:
+    label: 体型
+    phrase: "身材{value}"
+    words: { slim: 偏瘦 }
+  core.hair-colour:
+    label: 发色
+    phrase: "{value}头发"
+    words: { black: 黑色 }
+  core.glasses:
+    label: 眼镜
+    flag: 戴眼镜
+  core.pronouns:
+    label: 代词
+    phrase: "{value}"
+    words: { she-her: 她, he-him: 他, they-them: 他们 }
+  core.religion:
+    label: 宗教
+    phrase: "{value}"
+    words: { none: 无宗教信仰 }
+  attributes-consumers.freckles:
+    label: 雀斑
+    flag: 有雀斑
+  attributes-consumers.secret:
+    label: 秘密
+    phrase: "一个{value}秘密"
+    words: { low: 小, high: 重大 }

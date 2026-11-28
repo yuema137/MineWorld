@@ -1,0 +1,13 @@
+# The world's own attribute: how steady a person is on a moving deck.
+format: 1
+attributes:
+  sea-legs:
+    group: capability
+    facets: [observed, prompt]
+    kind: { level: [landlubber, steady, old-salt] }
+    visibility: perceivable
+    mutability: fixed
+    label: Sea legs
+    phrase: "{value} on deck"
+    words: { landlubber: unsteady, old-salt: sure-footed }
+    prompt_rank: 120

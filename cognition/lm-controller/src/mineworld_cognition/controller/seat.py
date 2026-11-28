@@ -442,7 +442,12 @@ class SeatRunner:
         one change is told once."""
         if self._store is None:
             return
-        situation = Situation.of(observation, NameBook.load(self._store), stride_s=self._stride())
+        situation = Situation.of(
+            observation,
+            NameBook.load(self._store),
+            stride_s=self._stride(),
+            locale=self._controller.locale,
+        )
         now = felt_of(situation)
         words = feeling_due(now, self._felt)
         self._felt = now
@@ -457,7 +462,12 @@ class SeatRunner:
         store holds, which seeds the request; it names no speaker, so no line supersedes it."""
         if self._store is None:
             return
-        situation = Situation.of(observation, NameBook.load(self._store), stride_s=self._stride())
+        situation = Situation.of(
+            observation,
+            NameBook.load(self._store),
+            stride_s=self._stride(),
+            locale=self._controller.locale,
+        )
         here = None if observation.self_location is None else observation.self_location.place.entity
         if not upcoming_due(
             situation.next,
@@ -573,9 +583,11 @@ class SeatRunner:
         store = self._store_or_raise()
         observation = self._observation()
         names = NameBook.load(store)
-        situation = Situation.of(observation, names, stride_s=self._stride())
+        situation = Situation.of(
+            observation, names, stride_s=self._stride(), locale=self._controller.locale
+        )
         persona, _absent = Persona.of(observation)
-        attributes = SelfAttributes.of(observation)
+        attributes = SelfAttributes.of(observation, self._controller.locale)
         counterparts = tuple(person.entity for person in situation.present)
         if trigger.speaker is not None and trigger.speaker not in counterparts:
             counterparts = (*counterparts, trigger.speaker)
@@ -674,7 +686,10 @@ class SeatRunner:
         observation = self._observation()
         return NewestState(
             situation=Situation.of(
-                observation, NameBook.load(self._store_or_raise()), stride_s=self._stride()
+                observation,
+                NameBook.load(self._store_or_raise()),
+                stride_s=self._stride(),
+                locale=self._controller.locale,
             ),
             observation=observation,
         )

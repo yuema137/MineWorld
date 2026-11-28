@@ -345,7 +345,7 @@ def test_a_change_to_a_paged_list_of_mine_answers_a_whole_view() -> None:
 
 def attribute_block(count: int) -> dict[str, Any]:
     return {
-        "schema": 2,
+        "schema": 3,
         "entries": [
             {
                 "attribute": f"test.a{n:03d}",
@@ -378,8 +378,8 @@ def test_my_attributes_are_my_sheet_typed_as_world_text() -> None:
         {"attribute": "test.glasses", "kind": "flag", "label": "Glasses", "facets": [],
          "rank": 35, "value": {"flag": False}},
     ]  # fmt: skip
-    plant(value, ME, "traits", {"schema": 2, "entries": entries})
-    plant(value, ME, "employment-like", {"attributes": {"schema": 2, "entries": [
+    plant(value, ME, "traits", {"schema": 3, "entries": entries})
+    plant(value, ME, "employment-like", {"attributes": {"schema": 3, "entries": [
         {"attribute": "work.occupation", "kind": "text", "label": "Occupation", "facets": ["prompt"],
          "rank": 15, "value": {"text": "barista"}, "text": "works as barista"}]}})  # fmt: skip
     shown, _, _ = view(value)
@@ -452,3 +452,38 @@ def test_a_change_to_my_attributes_answers_a_whole_view() -> None:
     assert delta_of(before, same, MOMENT, INBOX, Caps()) is not None
     assert delta_of(before, after, MOMENT, INBOX, Caps()) is None
     assert before.me.attributes == [], "kept apart: a delta's me never carries them"
+
+
+# ── A locale (S30-k §5.9): `--locale` picks the server's texts; English where an entry has none ───────
+
+
+def test_an_adapter_locale_reads_the_offered_texts_and_english_elsewhere() -> None:
+    from mineworld_sdk.wire.contract import PerceivedEntity
+
+    from mineworld_agent import disclosed
+
+    words = {"zz_Test": {"join": "+", "more": "~", "pair": "=", "yes": "y", "no": "n"}}
+    block = {
+        "schema": 3,
+        "words": words,
+        "entries": [
+            {"attribute": "test.age", "kind": "level", "label": "Age", "facets": ["observed"],
+             "rank": 10, "value": {"level": "sixties", "rank": 6}, "text": "in her sixties",
+             "labels": {"zz_Test": "AGE"}, "texts": {"zz_Test": "SIXTIES"}},
+            {"attribute": "test.hair", "kind": "category", "label": "Hair", "facets": ["observed"],
+             "rank": 20, "value": {"category": "grey"}, "text": "grey hair"},
+        ],
+    }  # fmt: skip
+    person = PerceivedEntity.model_validate(
+        {"id": "7", "entity_type": "person", "location": None, "tags": [], "components": [
+            {"entity": "7", "component_type": "traits", "schema_version": 1, "payload": block}]}
+    )  # fmt: skip
+    described = disclosed.description(person, "zz-Test")
+    assert described is not None and described.text == "SIXTIES+grey hair"
+    english = disclosed.description(person)
+    assert english is not None and english.text == "in her sixties, grey hair"
+    sheet = disclosed.my_attributes(person, "zz_Test")
+    assert [(line.label.text, line.text.text if line.text else None) for line in sheet] == [
+        ("AGE", "SIXTIES"),
+        ("Hair", "grey hair"),
+    ]

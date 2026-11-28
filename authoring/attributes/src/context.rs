@@ -3,6 +3,7 @@
 
 use std::collections::BTreeSet;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use mineworld_authoring::{DataOrigin, DataSource};
 use mineworld_contracts::EntityKey;
@@ -12,6 +13,7 @@ use crate::backend::{Backend, MINEWORLD, choose};
 use crate::catalogue::{AttributeError, CORE_PACK, Catalogue, Composition};
 use crate::config::AttributesConfiguration;
 use crate::declaration::DataFile;
+use crate::labels::Labels;
 use crate::lock::Lock;
 use crate::mask::Mask;
 use crate::newcomer::NewcomerContext;
@@ -85,6 +87,9 @@ pub struct AttributesContext {
     pub composition: Option<Composed>,
     /// Every backend the world's packs provide.
     pub backends: Vec<Backend>,
+    /// The label packs of the composition, merged (S30-k, `ARC-129`): presentation data, never stated
+    /// in `attributes-composed` or any other fact.
+    pub labels: Arc<Labels>,
 }
 
 /// The backend and mask a world's catalogue was composed under.
@@ -161,8 +166,10 @@ impl AttributesContext {
         let mut locks = Vec::new();
         let mut backends = Vec::new();
         let mut masks = Vec::new();
+        let mut label_files = Vec::new();
         for (origin, file) in files {
             match file {
+                DataFile::Labels(labels) => label_files.push((origin, *labels)),
                 DataFile::Profile(profile) => profiles.push((origin.path, *profile)),
                 DataFile::Backend(backend) => {
                     let checked = Backend::check(&origin.pack, &backend).map_err(|reason| {
@@ -270,6 +277,13 @@ impl AttributesContext {
                 .as_ref(),
         )?;
         let provided = backends.into_iter().map(|(_, backend)| backend).collect();
+        let labels =
+            Arc::new(
+                Labels::build(label_files, &catalogue).map_err(|refusal| ContextRefusal {
+                    file: Some(refusal.file),
+                    reason: refusal.reason,
+                })?,
+            );
         let Some(configuration) = configuration else {
             return Ok(Self {
                 newcomers: None,
@@ -277,6 +291,7 @@ impl AttributesContext {
                 population: None,
                 composition,
                 backends: provided,
+                labels,
             });
         };
         if configuration.profile.is_some()
@@ -346,6 +361,7 @@ impl AttributesContext {
             catalogue,
             composition,
             backends: provided,
+            labels,
             population: Some(Population {
                 profile,
                 seed: configuration.seed.clone().unwrap_or_default(),

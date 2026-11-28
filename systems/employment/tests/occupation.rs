@@ -29,7 +29,9 @@ const TITLED: &str = "{ employer: cafe-company, workplace: cafe, from: \"08:00\"
 fn town(with_attributes: bool) -> (World, EntityId, EntityId) {
     let mut world = compose(true);
     if with_attributes {
-        world.install(AttributesSystem).expect("attributes");
+        world
+            .install(AttributesSystem::default())
+            .expect("attributes");
     }
     let (mut world, keys, mut facts) = Town::assemble(world, false);
     {
@@ -88,7 +90,7 @@ fn the_holder_is_told_her_occupation_and_another_observer_nothing() {
     let own = employment_seen(&world, alice, alice).expect("Alice is told her own");
     assert_eq!(
         own["attributes"],
-        json!({ "schema": 2, "entries": [ { "attribute": "employment.occupation", "kind": "text",
+        json!({ "schema": 3, "entries": [ { "attribute": "employment.occupation", "kind": "text",
             "label": "Occupation", "facets": ["prompt"], "rank": 205,
             "value": { "text": "barista" }, "text": "works as barista" } ] })
     );

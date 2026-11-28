@@ -9,6 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from mineworld_cognition.config import (
     BUNDLED_RETRY,
@@ -174,3 +175,21 @@ def test_a_seat_override_changes_only_its_own_bounds() -> None:
     assert controller_for(config, "alice").recall_episodes == 6
     assert controller_for(config, "bob").recall_episodes == 8
     assert controller_for(config, "alice").max_calls == 5
+
+
+def test_a_seat_reads_attributes_in_its_own_locale_typed_either_way() -> None:
+    # M-k-7: the seat override's locale wins for that seat only; `zh-Hans` is normalised (S30-k §5.9).
+    config = _config(
+        {
+            "controller": {"locale": "fr"},
+            "seat_overrides": {"alice": {"controller": {"locale": "zh-Hans"}}},
+        }
+    )
+    assert controller_for(config, "alice").locale == "zh_Hans"
+    assert controller_for(config, "bob").locale == "fr"
+    assert controller_for(_config({}), "bob").locale == "en"
+
+
+def test_a_malformed_locale_is_refused_by_key() -> None:
+    with pytest.raises(ValidationError, match="locale"):
+        _config({"controller": {"locale": "Chinese"}})

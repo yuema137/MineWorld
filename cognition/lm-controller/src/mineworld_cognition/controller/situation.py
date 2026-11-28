@@ -119,9 +119,12 @@ class Situation(CognitionModel):
     """Whether sleep offers me `sleep` now (S35 N-e): the act takes `minutes`, so its offer is never complete."""
 
     @staticmethod
-    def of(observation: Observation, names: NameBook, *, stride_s: int = 1) -> Situation:
+    def of(
+        observation: Observation, names: NameBook, *, stride_s: int = 1, locale: str = "en"
+    ) -> Situation:
         """`stride_s` is the world seconds between two strides of this seat's walk: `time_scale` for a seat
-        whose walk is paced at one `walk-step` per wall second."""
+        whose walk is paced at one `walk-step` per wall second. `locale` is the seat's language for the
+        people's descriptions (S30-k): the world's offered locale of it, else English."""
         _learn(observation, names)
         people = _people(observation)
         labels = _labels(people, names)
@@ -133,7 +136,7 @@ class Situation(CognitionModel):
                     label=labels[entity],
                     entity=entity,
                     asleep=_asleep_record(observation, entity) is not None,
-                    description=description(observation, entity),
+                    description=description(observation, entity, locale),
                 )
                 for entity in people
                 if entity != observation.observer and _is_at(observation, entity, here_id)

@@ -1,0 +1,16 @@
+# Test fixture (S30-k1, pr-s30k-localisation.md §5.10): a test-only fr label pack of three entries, so a
+# second locale is offered beside zh_Hans; every other attribute is shown in English, whole.
+format: 1
+locale: fr
+words: { list: ", ", and: " et ", join: ", ", more: " …", pair: " : ", "yes": oui, "no": non }
+labels:
+  core.age-band:
+    label: Tranche d'âge
+    phrase: "{value}"
+    words: { 60s: la soixantaine }
+  core.glasses:
+    label: Lunettes
+    flag: porte des lunettes
+  attributes-consumers.freckles:
+    label: Taches de rousseur
+    flag: a des taches de rousseur

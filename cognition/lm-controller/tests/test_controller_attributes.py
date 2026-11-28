@@ -40,7 +40,7 @@ def _entry(attribute: str, facets: list[str], rank: int | None, text: str) -> di
 
 
 def _block(*entries: dict[str, Any]) -> dict[str, Any]:
-    return {"schema": 2, "entries": list(entries)}
+    return {"schema": 3, "entries": list(entries)}
 
 
 def _component(entity: EntityId, kind: str, payload: object) -> dict[str, Any]:
@@ -229,3 +229,52 @@ def test_two_hundred_entries_stay_within_every_budget() -> None:
     mine = SelfAttributes.of(observation)
     assert len(mine.about.encode()) <= 600 and mine.about.endswith(" …")
     assert len(mine.manner.encode()) <= 160 and mine.manner.startswith("phrase 000, phrase 001")
+
+
+ZH = {"join": "+", "more": "~", "pair": "=", "yes": "y", "no": "n"}
+"""A test locale's reader words: ASCII, so no language is named in code (I-k-4)."""
+
+
+def _localised(entry: dict[str, Any], text: str) -> dict[str, Any]:
+    return {**entry, "texts": {"zz_Test": text}, "labels": {"zz_Test": entry["label"].upper()}}
+
+
+def _observation_in_a_locale() -> Observation:
+    own = {
+        "schema": 3,
+        "words": {"zz_Test": ZH},
+        "entries": [
+            _localised(
+                _entry("test.age-band", ["observed", "prompt"], 10, "in her sixties"), "SIXTIES"
+            ),
+            _entry("test.formality", ["speech"], 500, "speaks softly"),
+        ],
+    }
+    seen = {
+        "schema": 3,
+        "words": {"zz_Test": ZH},
+        "entries": [
+            {**_entry("test.stature", ["observed"], 20, "tall"), "texts": {"zz_Test": "TALL"}},
+            _entry("test.hair-colour", ["observed"], 40, "grey hair"),
+        ],
+    }
+    data = _observation().model_dump(mode="json", by_alias=True)
+    data["entities"] = [
+        _person(ALICE, "Alice", _component(ALICE, "traits", own)),
+        _person(BOB, "Bob", _component(BOB, "traits", seen)),
+    ]
+    return Observation.model_validate(data)
+
+
+def test_a_seat_s_locale_reads_the_offered_texts_and_english_where_one_is_missing() -> None:
+    # S30-k §5.9: the seat's locale picks the server's texts; an entry without it stays English, whole.
+    observation = _observation_in_a_locale()
+    assert SelfAttributes.of(observation, "zz_Test") == SelfAttributes(
+        about="SIXTIES", manner="speaks softly"
+    )
+    assert description(observation, BOB, "zz-Test") == "TALL+grey hair"
+    assert SelfAttributes.of(observation) == SelfAttributes(
+        about="in her sixties", manner="speaks softly"
+    )
+    situation = Situation.of(observation, NameBook.load(open_view()), locale="zz_Test")
+    assert [(p.label, p.description) for p in situation.present] == [("Bob", "TALL+grey hair")]

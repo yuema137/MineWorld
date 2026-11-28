@@ -231,8 +231,7 @@ func _rows(kind: String, payload: Variant, observation: MineWorldObservation) ->
 		return null
 	# My own attributes (S30-f §5.9): the own sheet, `label: text`, from the server's phrases.
 	if kind == "traits":
-		var sheet := MineWorldAttributes.sheet(MineWorldAttributes.merged([{"component_type": kind,
-			"payload": payload}]))
+		var sheet := _attribute_sheet(kind, payload)
 		return sheet if not sheet.is_empty() else null
 	match kind:
 		"wallet":
@@ -302,13 +301,21 @@ func _rows(kind: String, payload: Variant, observation: MineWorldObservation) ->
 			if payload.get("shift") != null:
 				rows.append(Words.text("ui.row.on-shift"))
 			# The attributes this owner discloses within its own record, by the same sheet.
-			rows.append_array(MineWorldAttributes.sheet(MineWorldAttributes.merged([{"component_type": kind,
-				"payload": payload}])))
+			rows.append_array(_attribute_sheet(kind, payload))
 			return rows
 	return null
 
 
 ## Each entry of a listing through `row`, or null when the listing is not an array of objects.
+## The own sheet of the one attribute block `payload` carries (the `traits` payload, or an owner's
+## `attributes` member), in the player's language when the world offers it (S30-k §5.6), English
+## otherwise; re-read on every draw, so a language change shows at once.
+static func _attribute_sheet(kind: String, payload: Dictionary) -> PackedStringArray:
+	var records := [{"component_type": kind, "payload": payload}]
+	return MineWorldAttributes.sheet(MineWorldAttributes.merged(records),
+		MineWorldAttributes.reading(MineWorldText.language(), MineWorldAttributes.merged_words(records)))
+
+
 static func _list(listing: Variant, row: Callable) -> Variant:
 	if typeof(listing) != TYPE_ARRAY:
 		return null

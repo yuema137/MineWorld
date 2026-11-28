@@ -876,15 +876,15 @@ Bounded decisions recorded here, not asked: D-k-1 (readers select, §5.6), D-k-2
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 | | [ ] | [ ] | [ ] |
-| C1 | | [ ] | [ ] | [ ] |
-| C2 | | [ ] | [ ] | [ ] |
-| C3 | | [ ] | [ ] | [ ] |
-| C4 | | [ ] | [ ] | [ ] |
-| C5 | | [ ] | [ ] | [ ] |
-| C6 | | [ ] | [ ] | [ ] |
-| C7 | | [ ] | [ ] | [ ] |
-| C8 | | [ ] | [ ] | [ ] |
+| C0 | (this commit) | [x] base recorded | [x] doc checks PASS | [x] rulings applied (all as recommended) |
+| C1 | git log | [x] | [x] PASS (lib) | [ ] independent review pending |
+| C2 | git log | [x] | [x] PASS (lib, `pack`, `attributes`) | [ ] independent review pending; AC-k-9 sizes not yet measured |
+| C3 | git log | [x] | [x] PASS (`sdk`, `worldpack`, `attributes`, `employment`, `notices`, `attributes_seam`) | [ ] independent review pending |
+| C4 | git log | [x] | [x] PASS (`attributes_labels`, 7 tests) | [ ] independent review pending |
+| C5 | git log | [x] | [x] PASS (pytest 36, ruff, pyright) | [ ] independent review pending |
+| C6 | git log | [x] | [x] PASS (pytest 64 + 43, ruff, pyright) | [ ] independent review pending |
+| C7 | git log | [x] | [ ] Godot golden NOT RUN locally (CI) | [ ] independent review pending |
+| C8 | git log | [~] scan + fact-equality + CLI locale cases; per-surface `expected.<locale>.json` oracles not written | [x] PASS (`attribute_labels`, `attributes_labels`) | [ ] independent review pending |
 | C9 | | [ ] | [ ] | [ ] |
 | C10 | | [ ] | [ ] | [ ] |
 | D0 | | [ ] | [ ] | [ ] |
@@ -895,16 +895,43 @@ Bounded decisions recorded here, not asked: D-k-1 (readers select, §5.6), D-k-2
 
 ### Evidence
 
-(empty)
+- **C0 (S30-k1, 2026-10-27).** Base `origin/main @ 315a50a9` (#513). §15 ruled as recommended (header). PDN: only
+  its design merged (#499), no `Locale` in code, so C1 adds it to `mineworld-authoring`. S31-b2: design only;
+  the one caller of `disclose_owned` is `systems/employment/src/system.rs` `discloses`. Anchors A-k-1 … A-k-24
+  re-read; the cited files hold the cited facts (line numbers drifted by a few lines only; no fact moved).
+  `python3 scripts/check_doc_headings.py` → PASS (254 sections, none duplicated);
+  `python3 scripts/check_decision_ids.py` → PASS (257 ids, index current).
+- **C1–C8 (S30-k1, resumed 2026-11-27/28, worktree `impl-s30k1-2`, branch `mvp0/pr-s30k1-labels`, base
+  `origin/main @ bdb83457`).** The 2026-10-27 work was preserved as a WIP commit and rebased; the semantic commits
+  regroup it by plan commit. Local results, one command each (R-LOAD-1, no workspace run):
+  `cargo test -p mineworld-authoring --lib`, `-p mineworld-attributes-model`, `-p mineworld-attributes`,
+  `-p mineworld-employment`, `-p mineworld-notices`, `-p mineworld-sdk --lib`, `-p mineworld-worldpack --lib`,
+  `-p mineworld-cli --test attributes --test attributes_consumers --test client_2d_attributes --test attributes_builtin
+  --test attributes_labels`, `-p mineworld-acceptance --test attributes_seam --test newcomers_refusals --test
+  attribute_labels --test attribute_consumers` → all PASS. Python: `sdk/python` 36 PASS; `cognition/lm-controller`
+  (attributes, config, memory_render, choice, record_replay) 64 PASS; `clients/agent` (info, view) 43 PASS; ruff and
+  pyright clean. `cargo fmt --all --check` PASS; clippy on touched crates recorded in the PR. Godot checks NOT RUN
+  locally (CI).
+- AC-k-6 fact half: `labels_never_reach_a_fact_and_a_label_edit_resumes_without_drift` — `labels-elsewhere` with and
+  without `labels/` gives equal facts, journal and sealed blocks at day 1 and after a resume to day 2 following a
+  label edit; `show` then serves the edited words.
 
 ### Sizes (AC-k-9)
 
-(empty)
+Not yet measured (open; C2).
 
 ### Mutations
 
-(empty)
+- M-k-9: `const _PLANTED := "zh_Hans"` appended to `clients/2d/scripts/hud/readers.gd` → `attribute_labels` FAIL
+  naming `readers.gd:424`; restored from copy, `cmp` equal, PASS.
+- M-k-1 … M-k-8, M-k-10: not yet run (open).
 
 ### Deviations and findings
 
-(empty)
+- The fact-equality half of AC-k-6 lives in `tools/cli/tests/attributes_labels.rs` (it needs the real binary and a
+  save), not in `tests/acceptance/tests/attribute_labels.rs`, which holds the I-k-4 / I-k-8 scan. Bounded; same
+  evidence.
+- The scan treats comments and Python docstrings as documentation: `clients/agent/.../disclosed.py` quotes the
+  operator's Chinese principle in its docstring (pre-existing, not attribute text).
+- Open before MERGE-READY: per-locale surface oracles (§5.10), AC-k-9 sizes, remaining mutations, C9 spec sync,
+  independent review.

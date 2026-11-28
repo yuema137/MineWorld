@@ -2,14 +2,17 @@
 //! discloses.
 
 use std::collections::BTreeSet;
+use std::sync::Arc;
 
 use mineworld_attributes_model::facts::check_proposal;
+use mineworld_attributes_model::labels::Labels;
 use mineworld_attributes_model::section::SectionSchema;
 use mineworld_attributes_model::{
     ATTRIBUTES, AttributeChangeProposed, AttributesComposed, AttributesHanded, CatalogueProcess,
     Mutability, RunningCatalogue, TraitChanged, Traits, TraitsStated, View, Visibility, derive,
     render,
 };
+use mineworld_authoring::ProviderContexts;
 use mineworld_contracts::{
     ComponentRecord, ContractError, EntityId, EntityType, Event, EventEnvelope, EventRecord,
     EventTypeId, Rejection, RejectionCode, SystemId, Visibility as Audience,
@@ -25,8 +28,13 @@ use serde::de::DeserializeOwned;
 use serde_json::Value;
 
 /// A Person's declared attributes.
+///
+/// The installed system holds nothing. The perception provider holds the composition's label packs
+/// (S30-k, `ARC-129`): immutable presentation data from `attributes`' own context, never world state.
 #[derive(Debug, Default)]
-pub struct AttributesSystem;
+pub struct AttributesSystem {
+    labels: Option<Arc<Labels>>,
+}
 
 impl SystemIdentity for AttributesSystem {
     const ID: SystemId = ATTRIBUTES;
@@ -46,6 +54,13 @@ impl SystemPack for AttributesSystem {
 
     fn section_schema() -> Option<schemars::Schema> {
         Some(schemars::SchemaGenerator::default().into_root_schema_for::<SectionSchema>())
+    }
+
+    /// The provider keeps the label packs its own context decoded, so it renders every offered locale.
+    fn provider_in(contexts: &ProviderContexts<'_>) -> Self {
+        Self {
+            labels: Labels::from_contexts(contexts),
+        }
     }
 }
 
@@ -257,6 +272,7 @@ impl PerceptionProvider for AttributesSystem {
                 Mutability::Fixed | Mutability::Evolving => traits.value(&declaration.id).cloned(),
             },
             View::of(observer, subject),
+            self.labels.as_deref(),
         );
         disclosed
             .and_then(|disclosed| serde_json::to_value(disclosed).ok())

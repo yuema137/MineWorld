@@ -35,6 +35,8 @@ mod classes;
 mod configuration;
 mod content;
 mod data;
+mod locale;
+mod provider;
 pub mod schema;
 mod section;
 
@@ -54,4 +56,6 @@ pub use data::{
     OwnsData, ResolveRefusal, ResolvedSeeds, ResolvesSubjects, SectionInContext, ShippedData,
     Subject, SubjectResolution, data_context, decode_data_file, resolve_erased,
 };
+pub use locale::{Locale, LocaleError};
+pub use provider::ProviderContexts;
 pub use section::{AuthoredSection, ContentKind, Reference, SectionName, Seeding};

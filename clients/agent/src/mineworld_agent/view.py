@@ -302,11 +302,13 @@ def render(
     stride_s: int = 1,
     *,
     lexicon: Lexicon | None = None,
+    locale: str = "en",
 ) -> Rendered:
     """The whole rendering of one observation. References are assigned in a fixed order: me, my place,
     then every entity in the observation's order, then exits and offers' targets. `stride_s` is the
     world seconds of one paced stride (the session's `time_scale`), for `MeLine.plans`. `lexicon` is the
-    handle's own (a fresh one when `None`): it learns this observation's currency and item names first."""
+    handle's own (a fresh one when `None`): it learns this observation's currency and item names first.
+    `locale` is the language attribute text is read in (S30-k)."""
     me_id = observation.observer
     refs.ref(me_id)
     here = observation.self_location.place.entity if observation.self_location else None
@@ -355,7 +357,7 @@ def render(
     )
     acquaintances = disclosed.acquaintances(refs, mine)
     invitations = disclosed.invitations(refs, mine)
-    sheet = disclosed.my_attributes(mine)
+    sheet = disclosed.my_attributes(mine, locale)
     my_asks = disclosed.asks(refs, mine, known)
     calendar = calendar_of(observation)
     people: list[PersonLine] = []
@@ -374,7 +376,7 @@ def render(
                     walking=_walk(refs, entity, here),
                     doing=disclosed.doing(entity),
                     asleep=disclosed.asleep(entity),
-                    description=disclosed.description(entity),
+                    description=disclosed.description(entity, locale),
                     asks=selling[:ASKS_PER_PERSON],
                     asks_total=len(selling),
                 )

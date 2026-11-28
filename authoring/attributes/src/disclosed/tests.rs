@@ -30,6 +30,35 @@ fn strings(value: &Value) -> Vec<String> {
         .collect()
 }
 
+/// One reading's expectations (`compose`, `inspect`, `sheet`) against `disclosed`.
+fn assert_reading(name: &str, disclosed: &Disclosed, reading: &Reading, expected: &Value) {
+    for composition in expected["compose"].as_array().expect("compose") {
+        let facet = composition["facet"].as_str();
+        let budget = composition["budget"]
+            .as_u64()
+            .map(|budget| usize::try_from(budget).expect("fits"));
+        let text = compose_in(reading, disclosed.entries(), facet, budget);
+        assert_eq!(
+            text,
+            composition["text"].as_str().expect("text"),
+            "{name}: {facet:?} at {budget:?}"
+        );
+        if let Some(budget) = budget {
+            assert!(text.len() <= budget, "{name}: {} > {budget}", text.len());
+        }
+    }
+    assert_eq!(
+        inspect_in(reading, disclosed.entries()),
+        strings(&expected["inspect"]),
+        "{name}: inspect"
+    );
+    assert_eq!(
+        sheet_in(reading, disclosed.entries()),
+        strings(&expected["sheet"]),
+        "{name}: sheet"
+    );
+}
+
 #[test]
 fn every_golden_case_merges_composes_and_lists_as_written() {
     for case in cases() {
@@ -41,31 +70,35 @@ fn every_golden_case_merges_composes_and_lists_as_written() {
             .map(|entry| entry.attribute.to_string())
             .collect();
         assert_eq!(merged, strings(&case["merged"]), "{name}: merged");
-        for composition in case["compose"].as_array().expect("compose") {
-            let facet = composition["facet"].as_str();
-            let budget = composition["budget"]
-                .as_u64()
-                .map(|budget| usize::try_from(budget).expect("fits"));
-            let text = compose(disclosed.entries(), facet, budget);
-            assert_eq!(
-                text,
-                composition["text"].as_str().expect("text"),
-                "{name}: {facet:?} at {budget:?}"
+        // The case's own expectations are English, through the English entry points and through a
+        // reader that asks for `en` (I-k-3).
+        assert_reading(name, &disclosed, &Reading::english(), &case);
+        assert_reading(
+            name,
+            &disclosed,
+            &disclosed.reading(&Locale::english()),
+            &case,
+        );
+        assert_eq!(
+            compose(disclosed.entries(), Some("observed"), Some(160)),
+            compose_in(
+                &Reading::english(),
+                disclosed.entries(),
+                Some("observed"),
+                Some(160)
+            ),
+            "{name}: compose is the English reading"
+        );
+        for expected in case["readings"].as_array().into_iter().flatten() {
+            let wanted = expected["locale"].as_str().expect("a locale");
+            let reading = disclosed.reading(&Locale::parse(wanted).expect("a locale"));
+            assert_reading(
+                &format!("{name} in {wanted}"),
+                &disclosed,
+                &reading,
+                expected,
             );
-            if let Some(budget) = budget {
-                assert!(text.len() <= budget, "{name}: {} > {budget}", text.len());
-            }
         }
-        assert_eq!(
-            inspect(disclosed.entries()),
-            strings(&case["inspect"]),
-            "{name}: inspect"
-        );
-        assert_eq!(
-            sheet(disclosed.entries()),
-            strings(&case["sheet"]),
-            "{name}: sheet"
-        );
     }
 }
 

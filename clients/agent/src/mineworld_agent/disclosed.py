@@ -628,11 +628,17 @@ DESCRIPTION_BYTES = 160
 """Who I see of a person: the facet and the byte budget every surface shares (S30-f §5.4)."""
 
 
-def description(entity: PerceivedEntity | None) -> WorldText | None:
-    """How `entity` looks to me, composed from its own disclosed attributes; `None` when there is nothing."""
+def description(
+    entity: PerceivedEntity | None, locale: str = attributes.ENGLISH
+) -> WorldText | None:
+    """How `entity` looks to me, composed from its own disclosed attributes in `locale` where the world
+    offers it (S30-k); `None` when there is nothing."""
     if entity is None:
         return None
-    text = attributes.compose(attributes.blocks(entity), DESCRIPTION_FACET, DESCRIPTION_BYTES)
+    seen = attributes.read(entity)
+    text = attributes.compose(
+        seen.entries, DESCRIPTION_FACET, DESCRIPTION_BYTES, seen.reading(locale)
+    )
     return WorldText(text=text, kind="label") if text else None
 
 
@@ -658,21 +664,32 @@ def _value(value: attributes.AttributeValue) -> AttributeValueLine:
             return AttributeValueLine(instant=seconds)
 
 
-def my_attributes(me: PerceivedEntity | None) -> list[AttributeLine]:
-    """My own sheet, in rank order: every entry that shows a phrase or a value (`attributes.sheet`'s rule)."""
+def my_attributes(
+    me: PerceivedEntity | None, locale: str = attributes.ENGLISH
+) -> list[AttributeLine]:
+    """My own sheet, in rank order: every entry that shows a phrase or a value (`attributes.sheet`'s rule);
+    an entry the world renders in `locale` carries its label and text in it, any other its English ones
+    (S30-k §5.6)."""
     if me is None:
         return []
-    return [
-        AttributeLine(
-            attribute=_label(entry.attribute),
-            label=_label(entry.label),
-            kind=entry.kind,
-            value=None if entry.value is None else _value(entry.value),
-            text=_label(entry.text) if entry.text else None,
+    mine = attributes.read(me)
+    reading = mine.reading(locale)
+    lines: list[AttributeLine] = []
+    for entry in mine.entries:
+        if attributes.sheet_line(entry, reading) is None:
+            continue
+        localised = reading.label(entry)
+        text = reading.text(entry) if localised is not None else entry.text
+        lines.append(
+            AttributeLine(
+                attribute=_label(entry.attribute),
+                label=_label(localised if localised is not None else entry.label),
+                kind=entry.kind,
+                value=None if entry.value is None else _value(entry.value),
+                text=_label(text) if text else None,
+            )
         )
-        for entry in attributes.blocks(me)
-        if attributes.shown(entry) is not None
-    ]
+    return lines
 
 
 def named_entities(value: JsonValue) -> list[EntityId]:

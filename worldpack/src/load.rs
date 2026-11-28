@@ -40,7 +40,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use mineworld_authoring::{AuthoredContent, ResolvedSeeds, SectionName, Seeding};
+use mineworld_authoring::{AuthoredContent, ProviderContexts, ResolvedSeeds, SectionName, Seeding};
 use mineworld_contracts::{
     EntityId, EntityKey, EntityType, EventEnvelope, LocalPosition, Location, Metadata,
     Millidegrees, Orientation, PersonId, PlaceId, SystemId, WorldTime,
@@ -326,10 +326,19 @@ impl WorldPack {
     }
 
     /// The packs that answer for their own actions, in the order the pack composed them.
+    ///
+    /// Each is built with read access to the composition's owner contexts (`ARC-129`), which the pack
+    /// holds on creation and on resume alike, so a provider's presentation data is the same either way.
     fn providers(&self) -> Vec<Box<dyn PerceptionProvider>> {
+        let contexts = ProviderContexts::new(
+            self.systems()
+                .iter()
+                .filter_map(|capability| self.context(*capability))
+                .map(|context| &**context),
+        );
         self.systems()
             .iter()
-            .map(|capability| Capability::provider(*capability))
+            .map(|capability| Capability::provider(*capability, &contexts))
             .collect()
     }
 
