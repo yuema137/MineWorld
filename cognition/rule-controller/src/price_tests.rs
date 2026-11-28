@@ -69,6 +69,8 @@ struct Market {
     held: Vec<(u64, u32)>,
     /// The store's listing: item, price, in stock. `None`: not in a shop.
     listing: Option<Vec<(u64, u64, u32)>>,
+    /// A shop adjustment in force, per mille: the listing shows each price scaled and discloses its ask.
+    adjusted: Option<u64>,
     references: Vec<(u64, u64)>,
     board: Vec<Posted>,
     /// Remembered or perceived notices that are not on the board (X-6).
@@ -89,6 +91,7 @@ impl Market {
             own_asks: Vec::new(),
             held: Vec::new(),
             listing: Some(vec![(APPLE, 100, 4), (BREAD, 300, 5), (JUICE, 250, 4)]),
+            adjusted: None,
             references: vec![(APPLE, 100), (BREAD, 300), (JUICE, 250), (SCARF, 2_500)],
             board: Vec::new(),
             perceived: Vec::new(),
@@ -155,7 +158,14 @@ impl Market {
             let listed: Vec<Value> = listing
                 .iter()
                 .map(|(kind, price, stock)| {
-                    json!({ "item": item(*kind), "price": self.amount(*price), "in_stock": stock })
+                    let ask = self.amount(*price);
+                    match self.adjusted {
+                        None => json!({ "item": item(*kind), "price": ask, "in_stock": stock }),
+                        Some(permille) => json!({
+                            "item": item(*kind), "price": (ask * permille + 500) / 1_000, "ask": ask,
+                            "in_stock": stock,
+                        }),
+                    }
                 })
                 .collect();
             site_records.push(record(
@@ -327,6 +337,23 @@ fn toward_moves_the_bread_ask_one_step_at_its_index_only() {
     // W1b: 3 crowns toward 4 (3.30 rounded up): gap 1, a tenth of it truncates to 0, so one unit.
     let crowns = Market::keeper(index(2)).suggest(330).crowns();
     assert_eq!(what(band(&crowns, &toward())), set_price(BREAD, 4, true));
+}
+
+/// F-S31d-13: on market day the store shows bread at 270 (300 × 900 ‰) and discloses its ask, 300. The
+/// keeper steps from the ask `set-price` moves — 303, as on any other day — never from the shown 270.
+#[test]
+fn an_adjusted_listing_is_priced_from_its_disclosed_ask() {
+    let market = Market {
+        adjusted: Some(900),
+        ..Market::keeper(index(2)).suggest(330)
+    };
+    assert_eq!(what(band(&market, &toward())), set_price(BREAD, 303, true));
+    // Inside the deadband of the ask, though far from the shown price: no move.
+    let near = Market {
+        adjusted: Some(900),
+        ..Market::keeper(index(2)).suggest(309)
+    };
+    assert_eq!(band(&near, &toward()), None);
 }
 
 #[test]
