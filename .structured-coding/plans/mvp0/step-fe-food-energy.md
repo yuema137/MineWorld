@@ -65,7 +65,7 @@ optimizer.
 | PR | Design | Content | Depends on | State |
 | --- | --- | --- | --- | --- |
 | **FE-a** — food-energy engine | [`pr-fe-a-food-energy-engine.md`](pr-fe-a-food-energy-engine.md); contract [`pr-fe-a-contract.md`](pr-fe-a-contract.md) | `needs` v2 model, SDK owner-version/validation hook, `InvalidGenesisContent`, valid-genesis-first save creation in both CLI callers, schema-aware shared/2D/3D/agent/LM views. Synthetic worlds only. | `main` | DESIGN FROZEN 2026-11-27 (base `24dbc3bf`) |
-| **FE-b** — Market Town food-energy content | to be written after FE-a freezes; inputs in §6 | Market Town `configure/needs.yaml` food-energy 2000; every needs person initial reserve; ten items' kcal and serving; prices from dated sources; visitor 1 000 000 cents; reviewed NPC wallets, wages, stock and production; any explicit controller-profile change. | FE-a merged; §6 blockers closed | BLOCKED |
+| **FE-b** — Market Town food-energy content | [`pr-fe-b-market-town-food-content.md`](pr-fe-b-market-town-food-content.md); contract [`pr-fe-b-contract.md`](pr-fe-b-contract.md) (DRAFT — FREEZE-READY rev. 2 2026-11-28, Q-FEb-1 … 8 open); inputs in §6 | Market Town `configure/needs.yaml` food-energy 2000; every needs person initial reserve; ten items' kcal and serving; prices from dated sources; visitor 1 000 000 cents; reviewed NPC wallets, wages, stock and production; any explicit controller-profile change. | FE-a merged; §6 blockers closed | BLOCKED |
 
 Why one engine PR rather than two: the decisive real-CLI evidence for the generic seams (an invalid
 *genesis* refused with no save and no listener) needs a production owner that emits the new error, and that
