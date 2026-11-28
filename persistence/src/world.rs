@@ -125,11 +125,33 @@ impl PersistentWorld {
     /// Creates a save for a world that has been assembled — systems installed, entities created —
     /// and has not begun: genesis runs here, so that what is journaled as genesis is exactly what
     /// was applied. Returns the world and the facts it began with.
+    ///
+    /// `backend` already exists, so a world whose genesis is refused leaves it as it was made (an
+    /// empty save, for a file-backed one). For a caller holding a scratch or in-memory backend that is
+    /// what it asked for; a caller that would otherwise create a save file for this world uses
+    /// [`create_with_backend`](Self::create_with_backend) instead (`ARC-370`).
     pub fn create(
-        mut backend: Box<dyn PersistenceBackend>,
-        mut world: World,
+        backend: Box<dyn PersistenceBackend>,
+        world: World,
         creation: Creation,
     ) -> Result<(Self, Vec<EventEnvelope>), PersistError> {
+        Self::create_with_backend(world, creation, || Ok(backend))
+    }
+
+    /// [`create`](Self::create), with the backend made by `make_backend` only once the world's genesis
+    /// has been applied in memory and its manifest, genesis revision and snapshot have been encoded
+    /// (`ARC-370`): a world an owner refuses at genesis (`KernelError::InvalidGenesisContent`, or any
+    /// other error) never calls it, so no save artifact exists for it. `make_backend` runs at most
+    /// once; a storage failure after it (making or initializing the backend) is returned with no world,
+    /// and what it may have left on disk is not promised absent.
+    pub fn create_with_backend<F>(
+        mut world: World,
+        creation: Creation,
+        make_backend: F,
+    ) -> Result<(Self, Vec<EventEnvelope>), PersistError>
+    where
+        F: FnOnce() -> Result<Box<dyn PersistenceBackend>, PersistError>,
+    {
         let before = world.snapshot()?;
         let began = world.genesis(creation.at, creation.facts.clone())?;
         let manifest = Manifest {
@@ -149,13 +171,12 @@ impl PersistentWorld {
             &began,
             Some(&world.snapshot()?),
         )?;
-        backend.initialize(
-            &ManifestRow {
-                format: SAVE_FORMAT,
-                body: encode(&manifest)?,
-            },
-            &row,
-        )?;
+        let manifest = ManifestRow {
+            format: SAVE_FORMAT,
+            body: encode(&manifest)?,
+        };
+        let mut backend = make_backend()?;
+        backend.initialize(&manifest, &row)?;
         Ok((
             Self {
                 committed_at: world.now(),

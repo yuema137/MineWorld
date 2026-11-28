@@ -21,6 +21,8 @@ First pre-alpha. Packaged clients for macOS, Windows and Linux are not yet publi
 
 ### Fixed
 
+- `run --save` and `server --save` create a new save only after the world has assembled and begun, so a world
+  refused while loading no longer leaves an empty save that the next launch fails to resume (PR FE-a).
 - The café's chairs, stools and ledge are solids; 3D people no longer walk through them (#292).
 - `HostConfig.solo` is the single source of truth, and a start-time fast-forward is refused without it (#291).
 - The 3D package no longer ships the `res://tools` folder (#512).

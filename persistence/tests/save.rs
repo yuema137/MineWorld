@@ -1024,3 +1024,186 @@ fn a_world_whose_commit_failed_refuses_every_later_input() {
         "nothing past revision 2 on disk"
     );
 }
+
+// ---------------------------------------------------------------------------------------------
+// a new save is made only once genesis has succeeded in memory (ARC-370, PR FE-a C2)
+// ---------------------------------------------------------------------------------------------
+
+/// What a genesis note asks the stub owner below to do when it hears it.
+const CONTRADICTORY: &str = "contradictory";
+const UNENCODABLE: &str = "unencodable";
+const PICKY_CODE: &str = "picky-contradiction";
+
+/// A stub owner that hears the genesis notes: one saying [`CONTRADICTORY`] is refused as authored
+/// content (`InvalidGenesisContent`); one saying [`UNENCODABLE`] leaves a component no snapshot can
+/// encode; anything else is accepted silently.
+struct Picky;
+
+impl SystemIdentity for Picky {
+    const ID: SystemId = SystemId::from_static("picky");
+}
+
+/// A component whose encoding always fails — what makes a post-genesis encode fail.
+#[derive(serde::Deserialize)]
+struct Unencodable;
+
+impl serde::Serialize for Unencodable {
+    fn serialize<S: serde::Serializer>(&self, _: S) -> Result<S::Ok, S::Error> {
+        Err(serde::ser::Error::custom("this component never encodes"))
+    }
+}
+
+mineworld_kernel::owned_component! {
+    component = Unencodable,
+    owner = Picky,
+    component_type = "unencodable",
+    schema_version = 1,
+}
+
+impl System for Picky {
+    const VERSION: SystemVersion = SystemVersion::new(1);
+
+    fn declaration(&self) -> SystemDeclaration {
+        SystemDeclaration::of::<Self>()
+            .owning::<Unencodable>()
+            .subscribing_to::<support::Noted>()
+    }
+
+    fn install(
+        &self,
+        tables: &mut mineworld_kernel::Declarations<'_, Self>,
+    ) -> Result<(), KernelError> {
+        tables.component::<Unencodable>()
+    }
+
+    fn react(
+        &self,
+        world: &mut WorldView<'_, Self>,
+        event: &EventEnvelope,
+    ) -> Result<Vec<Emission>, KernelError> {
+        let note: support::Noted =
+            serde_json::from_slice(event.payload().payload()).expect("a note decodes");
+        let subject = event.subjects()[0];
+        if note.text == CONTRADICTORY {
+            let key = world.read().entity(subject).expect("exists").key().clone();
+            return Err(KernelError::InvalidGenesisContent {
+                system: Self::ID,
+                subject: key,
+                code: mineworld_contracts::RejectionCode::from_static(PICKY_CODE),
+                field: "note.text".into(),
+                detail: "a note may not contradict itself".into(),
+            });
+        }
+        if note.text == UNENCODABLE {
+            world.insert(subject, Unencodable)?;
+        }
+        Ok(Vec::new())
+    }
+}
+
+/// The stub world: the support systems and `Picky`, with every person noted `text` at genesis.
+fn picky(text: &str) -> (World, Creation) {
+    let (mut world, people) = assembled();
+    world.install(Picky).expect("installs");
+    let facts = people
+        .iter()
+        .map(|person| {
+            Emission::new::<support::Noted>(
+                encode(&support::Noted {
+                    text: text.to_owned(),
+                }),
+                Visibility::Public,
+            )
+            .about(vec![*person])
+        })
+        .collect();
+    let creation = Creation {
+        instance: INSTANCE,
+        pack: "picky".to_owned(),
+        at: t(0),
+        facts,
+    };
+    (world, creation)
+}
+
+/// Creates with a factory that counts its calls and makes a real file-backed save in `directory`.
+fn counted_create(
+    directory: &std::path::Path,
+    (world, creation): (World, Creation),
+) -> (
+    Result<(PersistentWorld, Vec<EventEnvelope>), PersistError>,
+    u32,
+) {
+    let calls = Cell::new(0_u32);
+    let result = PersistentWorld::create_with_backend(world, creation, || {
+        calls.set(calls.get() + 1);
+        let backend = SqliteBackend::create(directory, Durability::ProcessCrash)?;
+        Ok(Box::new(backend) as Box<dyn PersistenceBackend>)
+    });
+    (result, calls.get())
+}
+
+/// A genesis an owner refuses, and a genesis whose state cannot be encoded, never call the factory:
+/// the save directory that did not exist still does not. The refusal reaches the caller with the
+/// owner, the code, the entity key and the field in its text, through `PersistError` and through the
+/// loader's `PackError::Composition`.
+#[test]
+fn a_refused_or_unencodable_genesis_never_makes_a_backend() {
+    let scratch = Scratch::new("refused-genesis");
+    let save = scratch.path().join("never");
+    let (result, calls) = counted_create(&save, picky(CONTRADICTORY));
+    let Err(error @ PersistError::Kernel(KernelError::InvalidGenesisContent { .. })) = result
+    else {
+        panic!("expected InvalidGenesisContent");
+    };
+    assert_eq!(calls, 0, "no backend for a refused genesis");
+    assert!(!save.exists(), "the absent save directory stays absent");
+    let wrapped = mineworld_worldpack::PackError::from(match error {
+        PersistError::Kernel(kernel) => kernel,
+        _ => unreachable!(),
+    })
+    .to_string();
+    for part in ["'picky'", PICKY_CODE, support::PEOPLE[0], "note.text"] {
+        assert!(wrapped.contains(part), "{part:?} missing from: {wrapped}");
+    }
+
+    let (result, calls) = counted_create(&save, picky(UNENCODABLE));
+    assert!(
+        result.is_err(),
+        "a genesis state no snapshot encodes is refused"
+    );
+    assert_eq!(calls, 0, "no backend when encoding fails");
+    assert!(!save.exists());
+}
+
+/// A valid genesis calls the factory exactly once, after which the save holds one genesis revision that
+/// verification re-executes; `create` with a backend made beforehand is the same save.
+#[test]
+fn a_valid_genesis_makes_its_backend_once_and_saves_one_genesis() {
+    let scratch = Scratch::new("valid-genesis");
+    let save = scratch.path().join("made");
+    let (result, calls) = counted_create(&save, picky("born"));
+    let (persisted, began) = result.expect("a valid world is saved");
+    assert_eq!(calls, 1);
+    assert_eq!(persisted.revision(), WorldRevision::GENESIS);
+    assert_eq!(began.len(), support::PEOPLE.len());
+    drop(persisted);
+    let mut fresh = composed();
+    fresh.install(Picky).expect("installs");
+    let (resumed, how) =
+        PersistentWorld::resume(open_at(&save), fresh).expect("the created save resumes");
+    assert_eq!(how.head, WorldRevision::GENESIS);
+    assert_eq!(how.replayed, 0, "one genesis and nothing after it");
+    assert_eq!(resumed.revision(), WorldRevision::GENESIS);
+
+    let older = Scratch::new("valid-genesis-create");
+    let backend = SqliteBackend::create(older.path(), Durability::ProcessCrash).expect("creates");
+    let (world, creation) = picky("born");
+    let (_, also) = PersistentWorld::create(Box::new(backend), world, creation)
+        .expect("create with a backend made beforehand");
+    assert_eq!(also.len(), began.len());
+}
+
+fn open_at(directory: &std::path::Path) -> Box<dyn PersistenceBackend> {
+    Box::new(SqliteBackend::open(directory, Durability::ProcessCrash).expect("opens"))
+}

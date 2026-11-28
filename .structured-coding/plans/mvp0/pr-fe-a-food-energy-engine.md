@@ -422,14 +422,32 @@ full-workspace run.
    `tools/cli/src/serve.rs` and `tools/cli/src/run.rs`; one new CLI test target for the creation lifecycle (proposed
    name `save_creation`, not an existing target); `CHANGELOG.md` "Fixed" entry. SQLite format unchanged. Depends on
    C1 only for the error type.
-3. **Implementation:** [ ] common internal body; [ ] `create_with_backend`; [ ] `create` delegates; [ ] both callers
-   assemble first and pass the factory closure; [ ] success message and providers only after initialize;
-   [ ] CHANGELOG Fixed entry.
-4. **Validation:** [ ] stub-owner genesis failure and encode failure → factory called 0 times; success → exactly 1 and
-   replay shows one genesis; [ ] **real CLI** `run --save` and `server --save` on a synthetic pack whose assemble
-   fails (undecodable section) → non-zero exit, absent directory stays absent, no listener (today this leaves an
-   empty `world.sqlite` and the next launch fails on resume); [ ] real successful creation + reopen;
-   [ ] existing-save branch never reset or re-genesised; [ ] old `create` API save/replay unchanged.
+3. **Implementation:** [x] common internal body; [x] `create_with_backend`; [x] `create` delegates; [x] both callers
+   assemble first and pass the factory closure; [x] success message and providers only after initialize;
+   [x] CHANGELOG Fixed entry.
+   *Evidence:* `persistence/src/world.rs`: `create(backend, …)` is `create_with_backend(world, creation, || Ok(backend))`;
+   the factory runs after snapshot, genesis, manifest/row/snapshot encoding, then `initialize` once.
+   `tools/cli/src/serve.rs::persisted` and `tools/cli/src/run.rs::Begun::new` assemble first and pass
+   `|| SqliteBackend::create(save, …)`; the "created" line is printed only after success (unchanged position).
+4. **Validation:** [x] stub-owner genesis failure and encode failure → factory called 0 times; success → exactly 1 and
+   replay shows one genesis; [x] **real CLI** `run --save` and `server --save` on a synthetic pack whose assemble
+   fails → non-zero exit, absent directory stays absent, no listener; [x] real successful creation + reopen;
+   [x] existing-save branch never reset or re-genesised; [x] old `create` API save/replay unchanged.
+   *Evidence (working tree on `43a93fd5` + C2/C3 edits, 2026-11-27):* `cargo test -p mineworld-persistence --test save`
+   **15 passed** (new `a_refused_or_unencodable_genesis_never_makes_a_backend`: a stub owner's
+   `InvalidGenesisContent` and an unencodable genesis component → factory 0 calls, absent directory absent, and the
+   text through `PackError::Composition` names `'picky'`, the code, the entity key `ada` and the field — C1's
+   wrapper item, PASS; `a_valid_genesis_makes_its_backend_once_and_saves_one_genesis`: 1 call, resume shows head =
+   genesis and 0 replayed, old `create` still saves). The 13 pre-existing save tests (old `create` path) pass.
+   `cargo test -p mineworld-cli --test save_creation` **3 passed**: the assembly refusal (Market Town copy with
+   bread carrying the person form → `needs-section-kind` at seeding; the design's "undecodable section" would be
+   refused at read, before persistence, so a seed-time refusal is the honest assemble failure) stops `run --save`
+   and `server --save` with no "created", no "listening on", the save path absent; a valid Social Café `run --save`
+   creates and the same command resumes ("resumed"). First attempt failed on a missing `--seed` (test invocation,
+   fixed). **Bounded deviation:** the `save_creation` target is committed in C3, because its third test (the
+   genesis refusal) uses C3's food-energy fixture; the two C2 tests ran against this commit's executable content.
+   Mutation (moving `SqliteBackend::create` back before `assemble`) not run; the pre-FE-a behaviour is the audited
+   defect of step §7 item 2.
 5. **Acceptance:** E1 no-artifact property for assemble failures and stubbed genesis failures; E4 creation/replay
    invariant. The real-CLI *invalid genesis* proof is owned by C3 (review R3) and is listed there; C2's ledger marks
    it "deferred to C3", not passed.
@@ -439,7 +457,11 @@ full-workspace run.
    `cargo test -p mineworld-cli --test save_creation`, one existing run/server lifecycle regression target chosen at
    edit; check/clippy touched crates; fmt. Processes bounded, loopback only; record stderr, exit code, a complete
    listing of the save path and the port check.
-8. **Boundary:** generic lifecycle fix, no domain rule. [ ] Implementation [ ] Validation [ ] Independent review
+8. **Boundary:** generic lifecycle fix, no domain rule. [x] Implementation [x] Validation [x] Independent review
+   (self): no domain word in persistence/CLI; `make_backend` is `FnOnce`, so "at most once" is typed; a storage
+   failure after genesis returns an error with no world, as §3.6 allows; resume branches untouched; `SaveExists`
+   is now raised after assembly instead of before (both CLI callers check `exists` first, so unchanged in practice).
+   Clippy `-D warnings` and `cargo fmt --check` clean on persistence and cli. `run.rs` 686 → 689 lines.
 
 ### C3 — `needs` v2: food-energy model, forms, reactions, disclosure; synthetic persisted commerce
 
