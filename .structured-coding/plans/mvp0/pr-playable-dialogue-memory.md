@@ -925,3 +925,52 @@ or a manual dispatch, the coordinator's call).
 marked "checked on macOS only so far" (EN and zh-CN).
 
 **Record renumbered.** The R1 runtime record is `ARC-372` (was ARC-371, which #564 also took first); every citation moved in the same commit.
+
+## 11. Amendment DM-20261128-4 — prompt and citation format before one more gate (DRAFT, awaiting red-team)
+
+**Ruling.** Operator, 2026-11-27, relayed by the primary coordinator: "对话先改提示词" ("for dialogue, change the
+prompt first"): the §0 Q-D3 choice after the FAIL is the reviewed prompt/recall amendment, not a larger model and not
+rule-only. Scope as directed: (A1) the prompt lists the persons Alice may name; (A2) memory citations use a structured
+format the validator parses strictly; (A3) the gate scenario starts Alice fed/rested and pins `feeling` off; validation
+stays strict (no loosening, no canonicalising of malformed tokens); the player's-line fix (`Pending`, §10 follow-ups)
+stays; then the §6 gate is run **once more**, within the same Q-D3 caps (≤ 8 calls including the warm-up, ≤ 180 s
+inference, ≤ 20 s per reply, $0). Everything else in §§1–6 is unchanged. Status: draft; implementation starts after the
+red-team review of this text.
+
+**A1 — persons.** Audit: the prompt already prints "I can talk to: <labels>" and "People here", and the rule text says
+`"to"` is "a person from the list, or null"; in the gate the model answered `say` with `to: null` while the list said
+"nobody" (`unknown_person`), and addressed Bob when Vera's line was the trigger. Change (`controller/prompt.py`, rules
+and user text only): (a) the rule names the exact list — `"to"` must be copied exactly from "I can talk to"; (b) when that
+list is "nobody", the rule says to choose `"nothing"`; (c) when the trigger is a person speaking to me, the user text
+names that speaker as the one to answer if they are in the list; (d) a separate line "People I remember who are not
+here: …" (labels from the seat's own stable/known people, already in the shown memory) may be mentioned in words but is
+never valid as `"to"`. No new person source: every label already reaches the prompt today. The validator is unchanged
+(`unknown_person` stays).
+
+**A2 — structured citations.** Today a recall is a free string that must equal a shown token (`"[#12]"`, `"[#10-14]"`)
+or a digit string inside a shown range; the model wrote `"#[741]"` and `"#525"` for shown ids and was refused as
+`forged_recall`. Change: `recalls` becomes a list of objects `{"memory": N}` with N an integer event id (the prompt shows
+each memory line as `[memory N]`, or `[memory N-M]` for a range, and the example uses `{"memory": 338}`). The validator
+parses strictly: an entry that is not exactly an object with one integer key `memory` is a new content failure
+**`malformed_recall`**; a well-formed N not shown (not a line's id, not inside a shown range) stays `forged_recall`.
+Internally a valid recall is stored as today's canonical token (`"[#N]"`), so decision logs, the Milestone D/C4 oracles
+and `recall_names` keep their meaning. The scripted models (`milestone_d_cognition.py`, `correction_cognition.py`,
+`scripted_seat.py` fixtures) answer in the new format. Known consequence, recorded not hidden: the 2026-10 Milestone D
+cassette's prompts no longer match (`CassetteMiss`); `test_milestone_d_replay` keeps replaying its **recorded decision log**
+(it re-validates the logged answers): those answers use the old string format, so the replay test either pins the old
+validator for historical logs, or the historical fixture is retired with this amendment — the red team decides; my
+proposal is to retire it explicitly (the new gate cassette, if PASS, becomes the C4 replay fixture as §6 intended).
+
+**A3 — gate scenario.** (a) Fed start: the harness feeds Alice from what she carries before cognition starts (done in the
+§10 follow-ups). (b) `feeling` pinned off for the gate: a new operator key `[controller] feeling = true|false` (default
+`true`, today's behaviour; documented in the generated `cognition-toml.md`), set `false` only in the gate's
+configuration. Rest cannot be restored at the café (sleep needs a `residential` place, walking is wall-bound), so
+"rested" is not claimed. (c) Expected calls with (b): warm-up 1 + `arrived` ×2 + T1 ×5 = 8 = cap (no spare, as in the
+first run). Proposal for the red team, not yet in scope: skip the `arrived` consult when the arriving person is not in
+talk reach (the first run spent one call on Vera's arrival with "I can talk to: nobody"), which would restore one spare.
+
+**Validation plan.** Unit: prompt renders list the exact talk-to and remembered-absent lines and the citation format;
+validator accepts `{"memory": N}` for shown N, refuses malformed shapes as `malformed_recall` and unshown N as
+`forged_recall` (mutation: loosen the parser → caught); `feeling = false` offers no `feeling` trigger. Golden renders
+(`tests/golden/s28a_renders.json`, `s28b_parity.json`) regenerated with their capture scripts and the diff reviewed.
+Scripted Milestone D + C4 correction scenario PASS. Then the §6 gate once on the final head, same rubric and judges.
