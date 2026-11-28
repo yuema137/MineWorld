@@ -1,0 +1,325 @@
+{
+  "status": "PROPOSED drawing anchors only; not approved content or anatomy",
+  "model_parity": [
+    {
+      "model": "bar_chair_round_01",
+      "aabb_vs_source_max_mm": 3.456376926336269e-05,
+      "engine_vertex_vs_source_max_mm": 0.03215763384895043,
+      "engine_aabb_center_minus_true_center_mm": [
+        -0.007033348083499563,
+        0.003129243850041874,
+        -0.008836388587949925
+      ]
+    },
+    {
+      "model": "dining_chair_02",
+      "aabb_vs_source_max_mm": 1.4901161027314203e-05,
+      "engine_vertex_vs_source_max_mm": 0.03719329834028784,
+      "engine_aabb_center_minus_true_center_mm": [
+        0.0,
+        -0.026077032089011354,
+        -0.013738870620699783
+      ]
+    },
+    {
+      "model": "painted_wooden_chair_01",
+      "aabb_vs_source_max_mm": 1.4901161526914564e-05,
+      "engine_vertex_vs_source_max_mm": 0.0487267971034655,
+      "engine_aabb_center_minus_true_center_mm": [
+        -0.024452805519099882,
+        -0.0005066394810349095,
+        0.01284480094910015
+      ]
+    }
+  ],
+  "targets": [
+    {
+      "world": "social-cafe",
+      "point": "window-stools.1",
+      "prop": "stool.1",
+      "drawing_anchor_place_m": [
+        3.16001224517822,
+        1.66686725616455
+      ],
+      "seat_height_m": 0.689300000667572,
+      "proposed_seat_displacement_m": {
+        "east": 1.2e-05,
+        "north": -0.477133
+      },
+      "proposed_seat_height_m": 0.6893,
+      "height_delta_vs_offline_mm": 0.02255018989671953
+    },
+    {
+      "world": "social-cafe",
+      "point": "window-stools.2",
+      "prop": "stool.2",
+      "drawing_anchor_place_m": [
+        4.75932645797729,
+        1.66683411598206
+      ],
+      "seat_height_m": 0.689300000667572,
+      "proposed_seat_displacement_m": {
+        "east": -0.000674,
+        "north": -0.498166
+      },
+      "proposed_seat_height_m": 0.6893,
+      "height_delta_vs_offline_mm": 0.02255018989671953
+    },
+    {
+      "world": "social-cafe",
+      "point": "window-stools.3",
+      "prop": "stool.3",
+      "drawing_anchor_place_m": [
+        6.35864782333374,
+        1.66673278808594
+      ],
+      "seat_height_m": 0.689300000667572,
+      "proposed_seat_displacement_m": {
+        "east": -0.001352,
+        "north": -0.516267
+      },
+      "proposed_seat_height_m": 0.6893,
+      "height_delta_vs_offline_mm": 0.02255018989671953
+    },
+    {
+      "world": "social-cafe",
+      "point": "table-1.1",
+      "prop": "table.east.chair-w",
+      "drawing_anchor_place_m": [
+        4.30013275146484,
+        3.07349896430969
+      ],
+      "seat_height_m": 0.453183203935623,
+      "proposed_seat_displacement_m": {
+        "east": 0.652133,
+        "north": 0.013499
+      },
+      "proposed_seat_height_m": 0.453183,
+      "height_delta_vs_offline_mm": -0.024257462872823154
+    },
+    {
+      "world": "social-cafe",
+      "point": "table-1.2",
+      "prop": "table.east.chair-e",
+      "drawing_anchor_place_m": [
+        5.43986701965332,
+        3.22650098800659
+      ],
+      "seat_height_m": 0.453183233737946,
+      "proposed_seat_displacement_m": {
+        "east": -0.652133,
+        "north": -0.013499
+      },
+      "proposed_seat_height_m": 0.453183,
+      "height_delta_vs_offline_mm": -0.024227660549824837
+    },
+    {
+      "world": "social-cafe",
+      "point": "table-2.1",
+      "prop": "table.north.chair-w",
+      "drawing_anchor_place_m": [
+        6.49795389175415,
+        4.45053195953369
+      ],
+      "seat_height_m": 0.446999937295914,
+      "proposed_seat_displacement_m": {
+        "east": 0.593954,
+        "north": -0.009468
+      },
+      "proposed_seat_height_m": 0.447,
+      "height_delta_vs_offline_mm": -0.06546657998340866
+    },
+    {
+      "world": "social-cafe",
+      "point": "table-2.2",
+      "prop": "table.north.chair-e",
+      "drawing_anchor_place_m": [
+        7.74204587936401,
+        4.64946794509888
+      ],
+      "seat_height_m": 0.446999937295914,
+      "proposed_seat_displacement_m": {
+        "east": -0.047954,
+        "north": -0.498532
+      },
+      "proposed_seat_height_m": 0.447,
+      "height_delta_vs_offline_mm": -0.06546657998340866
+    },
+    {
+      "world": "social-cafe",
+      "point": "table-3.1",
+      "prop": "table.back.chair-w",
+      "drawing_anchor_place_m": [
+        1.70083153247833,
+        8.46646404266357
+      ],
+      "seat_height_m": 0.453183203935623,
+      "proposed_seat_displacement_m": {
+        "east": 0.100832,
+        "north": 0.486464
+      },
+      "proposed_seat_height_m": 0.453183,
+      "height_delta_vs_offline_mm": -0.024257462872823154
+    },
+    {
+      "world": "social-cafe",
+      "point": "table-3.2",
+      "prop": "table.back.chair-e",
+      "drawing_anchor_place_m": [
+        2.83916831016541,
+        8.63353633880615
+      ],
+      "seat_height_m": 0.453183203935623,
+      "proposed_seat_displacement_m": {
+        "east": -0.640832,
+        "north": -0.006464
+      },
+      "proposed_seat_height_m": 0.453183,
+      "height_delta_vs_offline_mm": -0.024257462872823154
+    },
+    {
+      "world": "market-town",
+      "point": "window-stools.1",
+      "prop": "stool.1",
+      "drawing_anchor_place_m": [
+        3.16001224517822,
+        1.66686725616455
+      ],
+      "seat_height_m": 0.689300000667572,
+      "proposed_seat_displacement_m": {
+        "east": 1.2e-05,
+        "north": -0.477133
+      },
+      "proposed_seat_height_m": 0.6893,
+      "height_delta_vs_offline_mm": 0.02255018989671953
+    },
+    {
+      "world": "market-town",
+      "point": "window-stools.2",
+      "prop": "stool.2",
+      "drawing_anchor_place_m": [
+        4.75932645797729,
+        1.66683411598206
+      ],
+      "seat_height_m": 0.689300000667572,
+      "proposed_seat_displacement_m": {
+        "east": -0.000674,
+        "north": -0.498166
+      },
+      "proposed_seat_height_m": 0.6893,
+      "height_delta_vs_offline_mm": 0.02255018989671953
+    },
+    {
+      "world": "market-town",
+      "point": "window-stools.3",
+      "prop": "stool.3",
+      "drawing_anchor_place_m": [
+        6.35864782333374,
+        1.66673278808594
+      ],
+      "seat_height_m": 0.689300000667572,
+      "proposed_seat_displacement_m": {
+        "east": -0.001352,
+        "north": -0.516267
+      },
+      "proposed_seat_height_m": 0.6893,
+      "height_delta_vs_offline_mm": 0.02255018989671953
+    },
+    {
+      "world": "market-town",
+      "point": "table-1.1",
+      "prop": "table.east.chair-w",
+      "drawing_anchor_place_m": [
+        4.30013275146484,
+        3.07349896430969
+      ],
+      "seat_height_m": 0.453183203935623,
+      "proposed_seat_displacement_m": {
+        "east": 0.652133,
+        "north": 0.013499
+      },
+      "proposed_seat_height_m": 0.453183,
+      "height_delta_vs_offline_mm": -0.024257462872823154
+    },
+    {
+      "world": "market-town",
+      "point": "table-1.2",
+      "prop": "table.east.chair-e",
+      "drawing_anchor_place_m": [
+        5.43986701965332,
+        3.22650098800659
+      ],
+      "seat_height_m": 0.453183233737946,
+      "proposed_seat_displacement_m": {
+        "east": -0.652133,
+        "north": -0.013499
+      },
+      "proposed_seat_height_m": 0.453183,
+      "height_delta_vs_offline_mm": -0.024227660549824837
+    },
+    {
+      "world": "market-town",
+      "point": "table-2.1",
+      "prop": "table.north.chair-w",
+      "drawing_anchor_place_m": [
+        6.49795389175415,
+        4.45053195953369
+      ],
+      "seat_height_m": 0.446999937295914,
+      "proposed_seat_displacement_m": {
+        "east": 0.593954,
+        "north": -0.009468
+      },
+      "proposed_seat_height_m": 0.447,
+      "height_delta_vs_offline_mm": -0.06546657998340866
+    },
+    {
+      "world": "market-town",
+      "point": "table-2.2",
+      "prop": "table.north.chair-e",
+      "drawing_anchor_place_m": [
+        7.74204587936401,
+        4.64946794509888
+      ],
+      "seat_height_m": 0.446999937295914,
+      "proposed_seat_displacement_m": {
+        "east": -0.047954,
+        "north": -0.498532
+      },
+      "proposed_seat_height_m": 0.447,
+      "height_delta_vs_offline_mm": -0.06546657998340866
+    },
+    {
+      "world": "market-town",
+      "point": "table-3.1",
+      "prop": "table.back.chair-w",
+      "drawing_anchor_place_m": [
+        1.70083153247833,
+        8.46646404266357
+      ],
+      "seat_height_m": 0.453183203935623,
+      "proposed_seat_displacement_m": {
+        "east": 0.100832,
+        "north": 0.486464
+      },
+      "proposed_seat_height_m": 0.453183,
+      "height_delta_vs_offline_mm": -0.024257462872823154
+    },
+    {
+      "world": "market-town",
+      "point": "table-3.2",
+      "prop": "table.back.chair-e",
+      "drawing_anchor_place_m": [
+        2.83916831016541,
+        8.63353633880615
+      ],
+      "seat_height_m": 0.453183203935623,
+      "proposed_seat_displacement_m": {
+        "east": -0.640832,
+        "north": -0.006464
+      },
+      "proposed_seat_height_m": 0.453183,
+      "height_delta_vs_offline_mm": -0.024257462872823154
+    }
+  ]
+}

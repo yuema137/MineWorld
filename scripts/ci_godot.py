@@ -111,6 +111,9 @@ GODOT_TESTS = ["client_2d", "client_2d_interact", "client_2d_interact_stub", "cl
                "client_depiction",
                # S33-f (AC-f-4, ARC-145): the 2D and 3D clients draw the same person on a contested seat
                "client_sit_rule",
+               # S34-e (I-e-3, S34-B, SD-e-4): the shared sit chain, pose/depiction loader and 2D seated
+               # sprite checks; and the live 2D click-walk-sit-stand lifecycle on two hosted worlds (AC-e-3/7)
+               "client_sit_checks", "client_2d_sit",
                # S14 16e (ARC-347): Demo B — AC-13 and AC-15 with the real 2D and 3D clients, and "one
                # world, two views" (the 3D runs take the ARC-291 low-cost flags like every slice launch)
                "ac13_clients", "ac15_clients", "shown_parity"]
@@ -124,7 +127,7 @@ GODOT_TESTS = ["client_2d", "client_2d_interact", "client_2d_interact_stub", "cl
 GODOT_WEIGHTS: dict[str, int] = {
     "client_settings": 1139, "client_far_field": 411, "ac13_clients": 300, "client_2d": 291, "demo_a": 227,
     "shown_parity": 170, "ac15_clients": 128, "client_2d_interact": 89, "client_2d_interact_stub": 31,
-    "client_sit_rule": 13, "client_station": 9, "client_2d_attributes": 8, "item_names": 5,
+    "client_sit_rule": 13, "client_2d_sit": 40, "client_sit_checks": 15, "client_station": 9, "client_2d_attributes": 8, "item_names": 5,
     "client_depiction": 4, "needs_rows_parity": 2,
 }
 # SET-b's connected 3D settings tests. They hung on llvmpipe and on WARP (nightly 38919486641: fewer than 12

@@ -1,0 +1,21 @@
+{
+  "source_head": "b191491e72be691a2e97926f0e102781da16f113",
+  "implementation": "3e287fda",
+  "p0_doc_repair": "2adf50427e920dad2284c7e484ae310146bee529",
+  "fixture_note": "Final fixture before comment/docstring-only edits; executable parity verified. MineWorld driver exercises unchanged Rust and ci_results parser.",
+  "files": {
+    "scripts/ci_archive.py": "98b188d64784da29cef3bbe60fa23df9d91d861539435a663d03c92b0e527bef",
+    "scripts/ci_layer.py": "741aa2cf297768bfc83135a54425be453dd1143ab62a2abeb72c3b5760fb7543",
+    "scripts/ci_shard.py": "de5f55fbdd38fc14b08d83790b2154c204748c02af84a0322fae4baec918c538",
+    "scripts/ci_results.py": "3c059d60c534ab4dbd30f2be6979bd73f6a57d525fd4edb7b4af0f4a583242a7",
+    "scripts/test_ci_execution.py": "6b45df31ba3bc088098ab83afbb614ec36eb804590084085db6f0f02fc040d41",
+    "scripts/check_ci_pins.py": "dabb7fabfc0d4336d6ca99a7f90918846dc3b91fe99abe336feb5d543e50967f",
+    ".config/nextest.toml": "e4b510fc157fb48ee3e5942ffb91df3b435f066ad46e9d684a15cb1fd1bc3ac0",
+    ".github/workflows/ci.yml": "48cddcb58edbf3519f3d8c7de711258695a6d405c99c7127ab2e38090c937059",
+    ".github/actions/native/action.yml": "8f1014056ae48f50ef03bc8c8378ad0e94e344eebf0a615f5a935f45a8f07e7d",
+    ".github/actions/layer/action.yml": "f5bb51cb685cae192e7f2544c785adc248dc9230d4ccbcb2f5dc182dd7912111",
+    "Dockerfile": "133226180e2a02a99d1478ae2cf2021d8bf60867227af8573ea5d1e3f9f16869",
+    "Cargo.lock": "34f4b1742d63a3c336cc09155134d536884f585b658fabdad8a2c379ea492b5d",
+    "rust-toolchain.toml": "9362a7575c42a33326c397df33f6aab675b9ae07b76c1f7d3e28dea7f6b57bd6"
+  }
+}

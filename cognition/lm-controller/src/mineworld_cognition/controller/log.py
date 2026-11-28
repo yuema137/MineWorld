@@ -37,6 +37,8 @@ from mineworld_cognition.controller.consult import (
     NewestState,
     consult,
 )
+from mineworld_cognition.controller.deadline import Expiry
+from mineworld_cognition.controller.failures import FailureRecord
 from mineworld_cognition.controller.persona import Persona
 from mineworld_cognition.controller.prompt import Trigger
 from mineworld_cognition.controller.retry import BoundRetry, RetryRegistry
@@ -103,6 +105,7 @@ class Counters(CognitionModel):
     dropped: int = Field(ge=0, default=0)
     handbacks: int = Field(ge=0, default=0)
     model_calls: int = Field(ge=0, default=0)
+    """Calls that reached a backend; a budget refusal and a `queue_timeout` (no slot in time) are not counted."""
     scope_defects: int = Field(ge=0, default=0)
     """Memory scopes withheld from a consult (pr-s28c §5.8): counted by the runner, as `handbacks` is."""
 
@@ -186,9 +189,10 @@ def counters_from(records: Iterable[DecisionRecord]) -> Counters:
     for item in records:
         result = item.record
         counts["consults"] += 1
-        # One attempt per model call, except a budget refusal (no call made) and a disconnect (a call made, and
-        # its submit failed before any attempt was written, so it is counted here).
-        calls = [a for a in result.attempts if a.failure is None or a.failure.cls != "budget"]
+        # One attempt per model call, except a budget refusal and a call whose bound ended while it waited for an
+        # in-flight slot (no call made), and a disconnect (a call made, and its submit failed before any attempt
+        # was written, so it is counted here).
+        calls = [a for a in result.attempts if a.failure is None or not _uncalled(a.failure)]
         counts["model_calls"] += len(calls) + (1 if result.outcome == "disconnected" else 0)
         if result.outcome == "acted":
             counts["acted"] += 1
@@ -212,7 +216,7 @@ def counters_from(records: Iterable[DecisionRecord]) -> Counters:
         for attempt in result.attempts:
             if attempt.failure is None:
                 continue
-            if attempt.failure.reason == "timeout":
+            if attempt.failure.reason in ("timeout", "queue_timeout"):
                 counts["timeouts"] += 1
             if attempt.failure.cls == "content":
                 counts["invalid_answers"] += 1
@@ -344,7 +348,7 @@ async def _replay_one(gateway: ModelGateway, logged: DecisionRecord) -> ConsultR
         clock=lambda: REPLAY_CLOCK_S,
         sleep=_no_sleep,
         policies=_bundled(),
-        limits=ConsultLimits(deadline_s=REPLAY_DEADLINE_S, max_calls=5),
+        limits=ConsultLimits(expiry=Expiry.after(REPLAY_CLOCK_S, REPLAY_DEADLINE_S), max_calls=5),
     )
     return await consult(
         ConsultInput(
@@ -383,3 +387,8 @@ def _differs(logged: ConsultRecord, replayed: ConsultRecord) -> str | None:
     if logged.request != replayed.request:
         return "the request differs"
     return None
+
+
+def _uncalled(failure: FailureRecord) -> bool:
+    """An attempt that reached no backend: a budget refusal, or a bound that ended in the slot queue."""
+    return failure.cls == "budget" or failure.reason == "queue_timeout"

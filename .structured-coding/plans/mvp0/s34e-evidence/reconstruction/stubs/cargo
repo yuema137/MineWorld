@@ -1,0 +1,3 @@
+#!/bin/sh
+echo "STUB cargo $*" >&2
+exit 0

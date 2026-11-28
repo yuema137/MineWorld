@@ -132,6 +132,124 @@ Inherited large command-table debt remains. Diagnostic retention scales with fai
 is not a hard fixed memory bound. Exact roots/tool versions deliberately trade portability
 for explicit refusal; custom-harness inventory fails on changes and requires future audit.
 
+### E1 implementation record — P1 recovery contract (2026-11-22)
+
+Merged verbatim from the P1 branch (headings demoted one level) when origin/main `7718d952` was merged
+into the reconstructed P1 branch on 2026-11-27. "Supersedes multi-PR execution above" applied to the
+2026-11-22 P1 recovery session only; the E1-E5 split in section 1 remains the lane plan.
+
+Owner: fresh P1 session only, isolated shared clone `/tmp/mineworld-recover-ci-p1`, branch
+`recover/ci-p1-nextest`. Source `631045e4161d59de89a5958cb751973ff427d8b2`; prerequisite
+P0 `ce69e9e5210c1ca11ed8637b943cc72aea38d5a0`, OPEN #523, functional independent review PASS at ce69e9e5. P0 doc-only correction
+`2adf50427e920dad2284c7e484ae310146bee529` integrated with executable parity PASS.
+Main `2b4d36fac345b9325a91fd4313d40e3633e728b0` deliberately merged before implementation;
+its ci_gdparse self-test is preserved. Old checkout is read-only and clean; snapshot
+`/tmp/ci-p1-recovery-snapshot/source.tar`, with status, diff and untracked inventory beside it.
+Shared worktree registration failed with Operation not permitted; authorized shared clone used.
+
+Authority: coordinator dispatch and kickoff-ci-p1-recovery.md from coordinator checkout; approved
+Q-3 at original operator JSONL lines 26848/26860 (2026-10-27T21:23:54.135Z).
+Only P1 implementation, bounded local validation and semantic commits authorized. No public writes,
+workflow dispatch, merge, paid APIs or subagents. Coordinator owns shared docs/dashboard and independent
+red-team review. Stop at local evidence readiness; full milestone CI is NOT RUN, a remote obligation.
+P2/P3/P4/P5, Python splitting, guide work and test semantics remain excluded. I-TH-1 holds unchanged.
+
+Implementation sequence: repair continuation/results; implement archive producer and consumers with
+workflow wiring; targeted real fixture and MineWorld validation; evidence/debt packet to primary.
+One heavy slot initially (maximum two), via cast-slots/with-slot.sh, respecting PAUSE/PRIORITY_ONLY;
+real runs approximately ten minutes each, one hour total; no full workspace test campaign.
+
+#### Bounded implementation decisions and audit
+
+- Preserved P1 ci_shard.is_test_run misses ci_repeat's Python wrapper. Restore continuation through the
+  wrapper (a P1 regression, not a P0 bug), retaining nonzero final status and diagnostic summary. Build failures still stop.
+- Adopted archive requirement is unfinished in preserved DEP-163; this recovery completes it.
+  One producer per OS emits nextest archive for regular lib/bin/integration tests; existing weighted
+  units select consumers by nextest filtersets. Doctests and custom harnesses retain Cargo fallback
+  on their owning shard (their compilation is not represented by nextest archives).
+- Tests embed env!(CARGO_MANIFEST_DIR) and env!(CARGO_BIN_EXE_mineworld). Remapping runtime variables
+  cannot fix compiled constants without prohibited Rust edits. Require identical absolute workspace
+  root, OS/architecture, toolchain and source SHA, and extract into the original target location.
+  Hosted producer/consumer use identical labels/checkouts and Linux toolchain container. Mismatch
+  fails explicitly. Archive includes non-test binaries through nextest's own machinery.
+- Authoritative semantics: https://nexte.st/docs/ci-features/archiving/ and pinned 0.9.148 installed
+  help (`/tmp/ci-p1-nextest-{run,archive}-help.txt`). Archive consumers cannot carry Cargo target flags;
+  selection uses binary filtersets. --extract-to plus --extract-overwrite preserves target paths.
+- Unit/static ownership: partition completeness, custom-harness coverage, wrapper continuation,
+  archive provenance and command plans, pins/config/workflow structure, strict JUnit aggregation.
+  Real lifecycle ownership: build once then consume twice, failures/ignored cases, binary paths,
+  custom harness and doctest fallback, real MineWorld small targets. Gate 1 N/A: no LM boundary.
+
+#### Recovery ledger
+
+- [x] Implementation: continuation, archive producer/consumers, provenance, strict results and pins.
+- [x] Deterministic validation: script/static checks and bounded real fixture/MineWorld runs.
+- [ ] LLM logic review: local contract/debt audit; independent red-team remains primary-owned.
+
+Current checkpoint: implementation and bounded deterministic validation PASS. No owned heavy job running.
+Final source revision `b191491e72be691a2e97926f0e102781da16f113` includes P0 doc-only correction.
+Next: send exact-head evidence for independent red-team. Stop for a material contract departure or missing capability
+that cannot be resolved within the recorded budget. Read this ledger and actual git/process state on resume.
+
+#### Real fixture Gate specification
+
+Claim: the implemented producer builds an archive once; two weighted consumers extract it after
+all original target outputs are removed, preserve the direct-run identity set (ignored tests stay
+ignored), reach an auxiliary executable through compile-time paths, and both fail visibly. Cargo
+custom harness and doctests continue after nextest failures. Owner: real subprocess/archive lifecycle.
+Command: `PATH=/tmp/ci-p1-tools:$PATH RUSTUP_TOOLCHAIN=1.97.1 .../with-slot.sh
+.../MineWorld/.venv/bin/python scripts/test_ci_execution.py --integration`.
+Budget: dependency-free fixture, one slot, expected <1 minute, bounded by 10-minute command timeout.
+Evidence: ci-p1-recovery-evidence/fixture.log and source-fingerprint.json. Full suite not run.
+Static baseline: ci_shard self-test and six focused orchestration regression tests PASS.
+System Python lacks tomllib; Homebrew Python has broken expat linkage. Existing uv Python 3.14.5
+(`/Users/yuema137/MineWorld/.venv/bin/python`) works; no interpreter files changed.
+
+#### MineWorld Gate specification
+
+Archive and execute `mineworld-packages` targets `manifest`, `structure` and `mineworld-test-support`
+target `scratch` using the shipping nextest ci profile, original source/target paths and toolchain 1.97.1.
+Compare archived JUnit identity set to direct nextest list; require all selected tests and final scratch
+cleanup to pass. This exercises actual source fixtures, compile-time paths and scratch guard behavior,
+without a whole-workspace test run. Command driver `/tmp/ci-p1-real-check.py` is retained in evidence.
+One slot, expected <3 minutes; each subprocess bounded at 600 seconds, no paid calls.
+
+
+#### Evidence and debt closeout
+
+- PASS: six focused orchestration/provenance/result tests; shard, repeat (11), gdparse (7) self-tests;
+  pin consistency, compileall, decision IDs and documentation headings. New modules pass Ruff lint/format.
+  Workflow YAML parses and three producer/consumer/gate graph checks pass; `workflow.log` records these.
+- PASS: `fixture.log` from the real pinned nextest subprocess fixture. One producer archive; original
+  target removed; two weighted consumers return 100, four nonignored identities equal direct list,
+  auxiliary binary via compiled env! path succeeds, custom harness and failing doctest run after failure.
+  Real wrapped `core-repeat` executes both alpha and doctest twice, `ran yes` for each sample, fails overall.
+  Saved shard XML and repeat summaries preserve results. Final fixture uses actual custom manifest audit.
+- PASS: `mineworld.log`, 16/16 actual MineWorld tests, archive identity set equals direct nextest list,
+  and scratch cleanup passes. `real-check.py` records the bounded command driver. TMPDIR, TMP and TEMP
+  point to `artifacts/real-temp` and are inherited by Cargo/nextest tests and the unchanged checker.
+- Initial MineWorld attempt: tests passed 16/16; global scratch scan FAILED on pre-existing retained
+  #530 full-link evidence `mineworld-full-link-honaky1m` (863.2 MiB). Coordinator confirmed ownership.
+  This is unrelated retained evidence, not a P1 leak. It was not deleted. Production checker/exclusions
+  remain unchanged. `mineworld-attempt1.log` preserves the original outcome.
+- Initial fixture attempts FAILED for fixture setup: missing generated Cargo.lock, then a doc-only shard
+  while the fixture expected JUnit on every shard. Generate the lock and balance alpha/beta explicitly;
+  shipping assertions/worlds/seeds untouched. Earlier attempt logs retained, not represented as PASS.
+- Timing configuration audit: retained `threads-required = "num-test-threads"` reserves all nextest
+  slots for each timing test; timing group max-threads=1 also serializes those tests. Upstream authority:
+  https://nexte.st/docs/configuration/threads-required/. This controls nextest scheduling only; it does
+  not constrain a test's child process threads or unrelated host load. No heavy timing test claim here.
+- PASS: no shipping Rust/assertion/seed/world changes, gdparse self-test retained. Streamed logs now retain
+  only diagnostic lines; full console output remains visible, JUnit supplies structured nextest failures.
+- NOT RUN: full workspace/milestone CI, hosted Linux container and Windows executions, hosted artifact
+  transfer/rerun behavior, wall-clock timing suites. Those remain final milestone/independent-review
+  obligations. Local macOS evidence does not certify them. No public write, dispatch, paid call or subagent.
+- Deployment constraint (explicit, not hidden debt): archives require matching revision, OS/architecture,
+  toolchain, nextest and absolute checkout; nondefault target directories are refused. Same hosted runner
+  label/root is required because tests compile env! paths. Cargo-only fallbacks compile on owning shards.
+- Logic self-audit complete; independent exact-head review still PENDING and owned by primary. No merge
+  readiness claim before that review. Original clean checkout and snapshot remain preserved.
+
 ### E2 — shared baselines (P3)
 
 - [ ] implementation
@@ -214,3 +332,60 @@ validation and independent P1 review have separate evidence; remote acceptance s
 Only this planning file changes, with no production/module boundaries, functions, inheritance
 or coupling affected. No new maintainability debt found. Independent review of this docs
 closeout remains PENDING with the coordinator/review_sol before publication.
+
+### 3.4 E1 reconstruction and publication (2026-11-27)
+
+The local candidate `1562cdcd` and its `/tmp` checkout were lost (~2026-11-26). Branch
+`recovered/ci-p1` reconstructs it by deterministic replay of the producer's recorded edit
+commands; the published branch is `ci/econ-p1-nextest`. Commit SHAs differ (recovery-time
+dates; `Recovered-From:` trailers name the originals).
+
+- PASS (recovery): all 13 files in the reviewed `source-fingerprint.json` match SHA-256
+  byte-for-byte; per-file numstat matches the reviewer-captured numstat.
+- PASS (re-run during replay and again after merging main `7718d952`): six orchestration
+  tests, shard/repeat/gdparse self-tests, pin consistency, doc headings, decision IDs,
+  compileall, YAML parse, workflow graph check.
+- Evidence packet: `ci-p1-recovery-evidence/` holds 8 of the 15 original files. LOST:
+  `fixture.log`, `fixture-shard-{1,2}.xml`, `mineworld-attempt1.log`, `mineworld-junit.xml`,
+  `repeat.txt`, `repeat-doc.txt`. The E1 items that cite them remain historical claims backed
+  by the independent red-team PASS at `1562cdcd`, not by files in this tree.
+- NOT RUN after reconstruction: the real pinned-nextest fixture and the MineWorld archive
+  check (the pinned 0.9.148 binary lived in `/tmp` and is gone). Hosted acceptance (the last
+  E1 item) stays open and is supplied by the PR's exact-head CI.
+- Per-file provenance of `ci-p1-recovery-evidence/` (red-team divergence flag, 2026-11-27):
+
+  | File | Provenance |
+  | --- | --- |
+  | `fixture-attempt1.log`, `fixture-attempt2.log`, `mineworld.log` | ORIGINAL output, reconstructed verbatim from the producer's rollout (line counts match) |
+  | `workflow.log` | ORIGINAL, byte-identical to the reviewer's capture |
+  | `static.log` | REGENERATED: the recorded static commands re-run during the 2026-11-27 replay, not the original run's log |
+  | `source-fingerprint.json` | REGENERATED by replaying the fingerprint command over the recovered tree, then EDITED by hand: `source_head` was set back to the original `b191491e…` (the recovered commit is `eaf06791`). The file hashes are recomputed and equal the reviewed ones |
+  | `p0-parity.txt`, `real-check.py` | REGENERATED by replaying the original commands (`real-check.py` is the driver's source text, not a result) |
+
+- Red-team (2026-11-27, PASS-WITH-FOLLOWUPS, `_reviews/cip1.md`) follow-ups fixed on this branch:
+  F-3 restored a two-disjoint-file `weigh()` self-test case, plus a duplicate-across-files refusal, and
+  fixed the stale message; F-2 makes `test`, `test-windows` and `test-macos` need their archive job and
+  name its result. Merge gate (F-1): one full hosted run on all three OSes on the final head, triggered
+  once (a CI-definition change, design §3.1 rule 3). F-4: record per-shard wall time from that run.
+- Merge of `7718d952`: the only conflict was this file (main #526 vs the P1 recovery
+  ledger). Resolution keeps main's text verbatim and inserts the P1 record as the
+  "E1 implementation record" subsection.
+
+### 3.5 E1 hosted merge-gate judgement (2026-11-27)
+
+Full run 46072962667 at `ddc4852e` (dispatched once, `milestone: true`). Coordinator-ruled gate for P1: no new
+failures compared with main, and archives built and consumed on all three OSes.
+
+- PASS archives: `test-archive` (Linux, 4.1 GB), `test-macos-archive` (0.93 GB) and `test-windows-archive`
+  (0.86 GB) succeeded. Every core shard ran `cargo nextest run --archive-file … --extract-to <checkout>`
+  on its OS, including `D:\a\MineWorld\MineWorld` on Windows; no provenance mismatch or rebuild of regular
+  targets was seen.
+- Red shards fail only on test assertions that already fail on main and are not touched by P1:
+  `mineworld-acceptance::currency_names` (fixed by #546, now merged), `mineworld-server::seats::
+  a_hosted_request_meets_the_actor_check_and_the_sessions_allocator`, `mineworld-cli::price_reporter::
+  clerk_publishes_and_keepers_follow` (F-S31d-13), and the Linux `python` layer's `clients/agent` pytest
+  cases. Another lane owns seats/pytest. Judgement: no new failures vs main. Gate PASS.
+- Merge of origin/main `4b86c9d9` (with #546) at the next commit: main added a `harness = false` target
+  `newcomers_resume`; `ci_shard --self-test` caught it (the DEP-163 inventory audit working as designed) and
+  it joins `CUSTOM_HARNESS`. No second full run is dispatched for this (coordinator); the final head's
+  `fast` and the PR run are its evidence.

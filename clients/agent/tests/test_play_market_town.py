@@ -53,6 +53,7 @@ from mineworld_agent.models import (
     EventLine,
     EventsArgs,
     EventsResult,
+    OfferLine,
     SpokenTo,
     ToPerson,
     ToPlace,
@@ -86,6 +87,26 @@ async def whole(player: Player, handle: str, transcript: Transcript) -> View:
     seen = transcript(await player.observe(ObserveArgs(handle=handle))).view
     assert isinstance(seen, View)
     return seen
+
+
+async def available_buy(
+    player: Player, handle: str, transcript: Transcript, view: View
+) -> OfferLine:
+    """The first available, complete `buy` over every page of `view`'s offers: Market Town's café offers a
+    `sit` per sit point (S34-c1), so its `buy` lies beyond the first window. A page keeps the view's number
+    and its offers' numbers, so the offer is attempted against `view`."""
+    page: View = view
+    for _ in range(50):
+        for offer in page.offers:
+            if offer.action_type == "buy" and offer.available and offer.complete:
+                return offer
+        more = [ref for ref in page.more if ref.list == "offers"]
+        if not more:
+            pytest.fail("no buy offer is available")
+        seen = transcript(await player.observe(ObserveArgs(handle=handle, page=more[0]))).view
+        assert isinstance(seen, View)
+        page = seen
+    pytest.fail("the offers never ended")
 
 
 async def walked(player: Player, handle: str, transcript: Transcript) -> None:
@@ -201,9 +222,7 @@ def test_the_player_plays_market_town(mineworld: Start, tmp_path: Path) -> None:
             assert reply.kind == "speech" and reply.text
             # 7 buy something offered here; my holdings and wallet show it
             view = await whole(player, h, transcript)
-            buy = next(
-                o for o in view.offers if o.action_type == "buy" and o.available and o.complete
-            )
+            buy = await available_buy(player, h, transcript, view)
             (item,) = buy.about
             held = {c.item: c.count for c in view.me.holdings}.get(item, 0)
             bought = transcript(
