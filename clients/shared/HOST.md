@@ -176,9 +176,12 @@ on a world without a save, as before.
 `tools/launch/LAUNCHER.md` §7.1 specifies the portable packaged path. It gives the owned
 server and clients a fresh private admin capability through their environments, so the
 existing World tab works. It does not pass `--hosted-here` or expose Keep Running: its
-stdin-EOF supervisor retains ownership until every client exits. It adds no `--solo`
-permission, including in Both mode. This distinction is deliberate; the shell-launcher
-close/keep-running rules above do not implicitly replace the packaged lifecycle.
+stdin-EOF supervisor retains ownership until every client exits. This distinction is deliberate;
+the shell-launcher close/keep-running rules above do not implicitly replace the packaged lifecycle.
+
+Note of 2026-11-27 (`pr-launcher-solo.md` Q-LS2, superseding this section's earlier "adds no `--solo`"):
+a 2D or 3D packaged play run starts the server `--solo`, as item 3 above does for the shell launchers.
+Both mode (two players) and smoke never do. The World tab is unchanged and offers at most 24×.
 
 ## 7. Per platform
 

@@ -6,12 +6,18 @@ use std::process::Command;
 use crate::Failure;
 
 pub enum Hosting {
-    Played { admin: String },
+    /// A player's run: town controllers, a private per-run admin capability, and — when one player
+    /// plays alone — the single-player declaration `--solo` (`ARC-69` item 5; `pr-launcher-solo.md`
+    /// Q-LS2). `--solo` restricts no admission; it only permits what a single-player world may do.
+    Played {
+        admin: String,
+        solo: bool,
+    },
     Smoke,
 }
 
 impl Hosting {
-    pub fn new(smoke: bool) -> Result<Self, Failure> {
+    pub fn new(smoke: bool, single_player: bool) -> Result<Self, Failure> {
         if smoke {
             return Ok(Self::Smoke);
         }
@@ -23,6 +29,7 @@ impl Hosting {
         })?;
         Ok(Self::Played {
             admin: bytes.iter().map(|byte| format!("{byte:02x}")).collect(),
+            solo: single_player,
         })
     }
 
@@ -32,8 +39,11 @@ impl Hosting {
 
     pub fn configure_server(&self, command: &mut Command) {
         match self {
-            Self::Played { .. } => {
+            Self::Played { solo, .. } => {
                 command.arg("--town");
+                if *solo {
+                    command.arg("--solo");
+                }
             }
             Self::Smoke => {
                 command.args(["--agent", "alice"]);
@@ -45,7 +55,7 @@ impl Hosting {
     pub fn configure_client(&self, command: &mut Command) {
         // Never inherit a capability for some unrelated host, including in scripted smoke clients.
         match self {
-            Self::Played { admin } => {
+            Self::Played { admin, .. } => {
                 command.env("MINEWORLD_ADMIN_TOKEN", admin);
             }
             Self::Smoke => {
