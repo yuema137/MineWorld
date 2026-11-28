@@ -7,8 +7,9 @@ bundle's layout, contents and budget. It adds only what a local trial needs and 
 1. a clean, detached checkout of exactly one commit (default `origin/main`), with its Git LFS files;
 2. `package.py assemble --no-archive` in that checkout (server, launchers, shared runtime, 2D and 3D packs);
 3. optionally `package.py smoke` on the result (the launcher's 2D, 3D and 2D + 3D entry points, headless);
-4. `START-HERE.txt`: the operator's start commands, every mode on one trial save folder (so a world played in
-   2D continues in 3D), kept apart from the player's normal saves;
+4. `runtime/launch.toml` (tools/launch/LAUNCHER.md §6) choosing Market Town for every mode, and `START-HERE.txt`:
+   the operator's start commands, relative to the trial folder, every mode on one trial save folder (so a
+   world played in 2D continues in 3D), kept apart from the player's normal saves;
 5. `manifest.json`: the source commit, the tool versions, every command with its duration and exit code, and
    the size and SHA-256 of every bundle file.
 
@@ -117,16 +118,35 @@ def files_of(bundle: Path) -> list[dict[str, object]]:
     return listed
 
 
-def start_here(out: Path, bundle: Path, sha: str, subject: str) -> str:
+# Every mode plays Market Town in the trial, so a world played in 2D continues in 3D. Since #561 the 3D and
+# 2D + 3D launchers default to Social Café until the packaged 3D Market Town passes the Q-LS7 timing gate
+# (tools/launch/LAUNCHER.md §§2, 6); this override is the documented way to choose the world.
+LAUNCH_TOML = """# Written by scripts/trial_bundle.py for an operator trial: every mode plays Market Town.
+[2d]
+world = "market-town"
+
+[3d]
+world = "market-town"
+
+[both]
+world = "market-town"
+"""
+
+
+def start_here(bundle_name: str, sha: str, subject: str) -> str:
     """The operator's start page, in Chinese (the operator's language; CLAUDE.md §2.1 governs Markdown, and
-    this is a plain-text note beside a local bundle, never a specification)."""
-    data = out / "trial-data"
+    this is a plain-text note beside a local bundle, never a specification). Every path is relative to the
+    trial folder, so the folder can be moved."""
     lines = [f"MineWorld 本地试玩包（macOS）— {sha[:8]} {subject}", "",
-             "每一行粘贴到终端就能启动。三种模式共用一个试玩存档（trial-data），和你平时的 MineWorld 存档分开，",
+             "先在终端里进入这个文件夹（START-HERE.txt 所在的文件夹），再把下面的一行粘贴进去启动。",
+             "三种模式都玩 Market Town，共用一个试玩存档（trial-data），和你平时的 MineWorld 存档分开，",
              "所以 2D 里做过的事，换到 3D 还在。", ""]
     for label, app, _key in MODES:
-        lines += [f"{label}：", f"open -n '{bundle / (app + '.app')}' --args --user-dir='{data}'", ""]
-    lines += ["关掉这个模式的所有窗口，本地服务器会保存并停止。再运行任意一行，就接着上次的存档玩。",
+        lines += [f"{label}：", f"open -n 'bundle/{bundle_name}/{app}.app' --args --user-dir=\"$PWD/trial-data\"", ""]
+    lines += ["注意：3D 的 Market Town 还没有通过启动时间检查（Q-LS7），所以正式版的 3D 默认还是 Social Café。",
+              "这个试玩包特意让 3D 也打开 Market Town（bundle 里的 runtime/launch.toml）。",
+              "请顺便记下 3D 从启动到看到画面用了多少秒，这是第一次实测。", "",
+              "关掉这个模式的所有窗口，本地服务器会保存并停止。再运行任意一行，就接着上次的存档玩。",
               "换模式前先关掉当前模式。要从头开始，删掉 trial-data 文件夹。", "",
               "3D：WASD 移动，鼠标看方向，Shift 慢跑，Space 跳，V 切换视角，Esc 打开菜单（退出也在这里）。",
               "2D：点地面走过去，点人物打开菜单，点座位走过去坐下；点自己可以站起来。", "",
@@ -178,10 +198,11 @@ def main(argv: list[str]) -> int:
         if args.smoke:
             record.run("smoke", [sys.executable, "scripts/package.py", "smoke", str(bundle),
                                  "--modes", "2d,3d,both"], cwd=source)
+        (bundle / "runtime" / "launch.toml").write_text(LAUNCH_TOML, encoding="utf-8")
         files = files_of(bundle)
         manifest.update(bundle=str(bundle), bundle_bytes=sum(int(f["bytes"]) for f in files),
                         bundle_files=len(files), files=files)
-        (out / "START-HERE.txt").write_text(start_here(out, bundle, sha, subject), encoding="utf-8")
+        (out / "START-HERE.txt").write_text(start_here(bundle.name, sha, subject), encoding="utf-8")
         verdict = "PASS"
     except (Failure, OSError, subprocess.CalledProcessError) as error:
         manifest["failure"] = str(error)
