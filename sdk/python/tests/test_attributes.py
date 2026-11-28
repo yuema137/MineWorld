@@ -33,17 +33,57 @@ def _disclosed(case: dict[str, Any]) -> attributes.Disclosed:
     )
 
 
-@pytest.mark.parametrize("case", CASES, ids=[case["name"] for case in CASES])
-def test_every_golden_case_merges_composes_and_lists_as_written(case: dict[str, Any]) -> None:
-    entries = _disclosed(case).entries
-    assert [entry.attribute for entry in entries] == case["merged"]
-    for composition in case["compose"]:
-        text = attributes.compose(entries, composition["facet"], composition["budget"])
+def _assert_reading(
+    entries: tuple[attributes.AttributeEntry, ...],
+    reading: attributes.Reading,
+    expected: dict[str, Any],
+) -> None:
+    for composition in expected["compose"]:
+        text = attributes.compose(entries, composition["facet"], composition["budget"], reading)
         assert text == composition["text"], (composition["facet"], composition["budget"])
         if composition["budget"] is not None:
             assert len(text.encode()) <= composition["budget"]
-    assert list(attributes.inspect(entries)) == case["inspect"]
-    assert list(attributes.sheet(entries)) == case["sheet"]
+    assert list(attributes.inspect(entries, reading)) == expected["inspect"]
+    assert list(attributes.sheet(entries, reading)) == expected["sheet"]
+
+
+@pytest.mark.parametrize("case", CASES, ids=[case["name"] for case in CASES])
+def test_every_golden_case_merges_composes_and_lists_as_written(case: dict[str, Any]) -> None:
+    disclosed = _disclosed(case)
+    entries = disclosed.entries
+    assert [entry.attribute for entry in entries] == case["merged"]
+    # The case's own expectations are English: by default, and for a reader asking for `en` (I-k-3).
+    _assert_reading(entries, attributes.ENGLISH_READING, case)
+    _assert_reading(entries, disclosed.reading("en"), case)
+    for expected in case.get("readings", []):
+        _assert_reading(entries, disclosed.reading(expected["locale"]), expected)
+
+
+@pytest.mark.parametrize(
+    ("typed", "canonical"),
+    [
+        ("en", "en"),
+        ("zh-Hans", "zh_Hans"),
+        ("zh_Hans", "zh_Hans"),
+        ("pt-BR", "pt_BR"),
+        ("es_419", "es_419"),
+    ],
+)
+def test_a_typed_locale_is_normalised(typed: str, canonical: str) -> None:
+    assert attributes.parse_locale(typed) == canonical
+
+
+@pytest.mark.parametrize("typed", ["", "EN", "zh_hans", "zh-Hans-", "chinese", "zh_Hans_cn"])
+def test_a_malformed_locale_is_refused(typed: str) -> None:
+    with pytest.raises(ValueError, match="is not a locale"):
+        attributes.parse_locale(typed)
+
+
+def test_a_language_with_two_offered_locales_reads_english() -> None:
+    words = attributes.ReaderWords(join="+", more="~", pair="=", yes="y", no="n")
+    offered = {"zh_Hans": words, "zh_Hant": words}
+    assert attributes.reading("zh_CN", offered) == attributes.ENGLISH_READING
+    assert attributes.reading("zh_Hant", offered).locale == "zh_Hant"
 
 
 def _entry(**changes: object) -> dict[str, object]:
@@ -60,7 +100,7 @@ def _entry(**changes: object) -> dict[str, object]:
     return entry
 
 
-def _traits(*entries: dict[str, object], schema: object = 2) -> attributes.Disclosed:
+def _traits(*entries: dict[str, object], schema: object = 3) -> attributes.Disclosed:
     block = cast(Any, {"schema": schema, "entries": list(entries)})
     return attributes.read_payloads([("traits", block)])
 
@@ -81,26 +121,27 @@ def test_a_readable_block_decodes_its_values_exactly() -> None:
     ("why", "block"),
     [
         ("schema 1", {"schema": 1, "entries": [_entry()]}),
-        ("schema as a float", {"schema": 2.0, "entries": [_entry()]}),
-        ("no entries", {"schema": 2}),
-        ("an unknown block member", {"schema": 2, "entries": [_entry()], "more": 1}),
-        ("an unknown entry field", {"schema": 2, "entries": [_entry(), _entry(colour="red")]}),
-        ("a float quantity", {"schema": 2, "entries": [_entry(value={"quantity": 1.5})]}),
+        ("schema 2, before locales", {"schema": 2, "entries": [_entry()]}),
+        ("schema as a float", {"schema": 3.0, "entries": [_entry()]}),
+        ("no entries", {"schema": 3}),
+        ("an unknown block member", {"schema": 3, "entries": [_entry()], "more": 1}),
+        ("an unknown entry field", {"schema": 3, "entries": [_entry(), _entry(colour="red")]}),
+        ("a float quantity", {"schema": 3, "entries": [_entry(value={"quantity": 1.5})]}),
         (
             "two kinds in one value",
-            {"schema": 2, "entries": [_entry(value={"flag": True, "category": "x"})]},
+            {"schema": 3, "entries": [_entry(value={"flag": True, "category": "x"})]},
         ),
-        ("a level without its rank", {"schema": 2, "entries": [_entry(value={"level": "low"})]}),
-        ("an id without a namespace", {"schema": 2, "entries": [_entry(attribute="mark")]}),
-        ("an unknown kind", {"schema": 2, "entries": [_entry(kind="colour")]}),
-        ("a rank as a string", {"schema": 2, "entries": [_entry(rank="10")]}),
+        ("a level without its rank", {"schema": 3, "entries": [_entry(value={"level": "low"})]}),
+        ("an id without a namespace", {"schema": 3, "entries": [_entry(attribute="mark")]}),
+        ("an unknown kind", {"schema": 3, "entries": [_entry(kind="colour")]}),
+        ("a rank as a string", {"schema": 3, "entries": [_entry(rank="10")]}),
         ("not an object", [_entry()]),
     ],
 )
 def test_a_block_that_does_not_decode_strictly_is_skipped_whole_and_counted(
     why: str, block: object
 ) -> None:
-    good = {"schema": 2, "entries": [_entry(attribute="t.kept", text="kept")]}
+    good = {"schema": 3, "entries": [_entry(attribute="t.kept", text="kept")]}
     disclosed = attributes.read_payloads(
         [("traits", cast(Any, block)), ("employment", cast(Any, {"attributes": good}))]
     )
