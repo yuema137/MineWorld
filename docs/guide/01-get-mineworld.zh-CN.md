@@ -21,7 +21,8 @@
 - [Rust](https://rustup.rs)，用来 build 程序。
 - 一个 C 编译器，因为 build 里有几部分是用 C 写的。macOS 上是 Xcode Command Line Tools
   （`xcode-select --install`）。Linux 上是 `build-essential`。Windows 上是 Visual Studio 的 C++
-  build 工具；Rust 的安装程序会提出帮你装。
+  build 工具（“使用 C++ 的桌面开发”）。请先装好它们：下面的命令会不加询问地安装 Rust，
+  所以不会提出帮你装。
 
 如果 Git 和 C 编译器已经有了，就装 Git LFS 和 Rust。macOS 上（用 [Homebrew](https://brew.sh)）和
 Linux 上（用 `apt`，比如 Debian 和 Ubuntu）这样写：

@@ -36,6 +36,10 @@ First pre-alpha. Packaged clients for macOS, Windows and Linux are not yet publi
 
 ### Fixed
 
+- `uv sync` in a fresh clone uses Python 3.12 (a root `.python-version`), so it no longer fails on a machine whose
+  newest Python is 3.15, for which `python-fcl` ships no build. Guide chapter 01 now gives the install commands for
+  Git LFS and Rust and names the C compiler a build needs; the server lines shown in chapters 06 and 14 match the
+  server again (#570).
 - A person who steps aside for a walker, or is nudged, is never left in a gap too tight for the route planner, from
   which every later walk was refused `no-route` (#557).
 - `run --save` and `server --save` create a new save only after the world has assembled and begun, so a world

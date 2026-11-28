@@ -20,7 +20,8 @@ and continue at "Make a new, empty folder". Way 2 builds the program from the so
 - [Rust](https://rustup.rs), to build the program.
 - A C compiler, because a few parts of the build are written in C. On macOS that is the Xcode
   Command Line Tools (`xcode-select --install`). On Linux it is `build-essential`. On Windows it is
-  the C++ build tools of Visual Studio; Rust's installer offers to install them.
+  the C++ build tools of Visual Studio ("Desktop development with C++"). Install them first: the commands
+  below install Rust without asking, so they do not offer to install them for you.
 
 If you have Git and a C compiler, install Git LFS and Rust. On macOS (with
 [Homebrew](https://brew.sh)) and on Linux (with `apt`, as on Debian and Ubuntu):

@@ -134,7 +134,13 @@ fn chapter_06(config: &Config, outcomes: &mut Vec<Outcome>) {
             "chapter 06's download branch (R-d) does not yet say how a bundle reader joins",
         ),
         (None, _, _) => not_covered(outcomes, "06.3", "the 06.2 server did not start"),
-        (Some(_), Layer::A, None) => not_covered(outcomes, "06.3", "no Godot was installed for it"),
+        // A Godot install that failed is a failed substitute, never a gap (red team on #570).
+        (Some(_), Layer::A, None) => timed(outcomes, "substitute 06.3 2D --drive=walk", || {
+            Err(
+                "no Godot was installed for it: the workflow's Godot step failed or named none"
+                    .to_owned(),
+            )
+        }),
         _ => {}
     }
     if let Some(running) = server {

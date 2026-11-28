@@ -760,6 +760,19 @@ stdlib only; registered with the scripts' self-tests in `fast` (`scripts/ci_laye
     14.2 gains a `...` between the first line and `listening on`. **Not re-run:** the two-run budget is spent, so these
     page edits are unverified by a cold-start run; the default guide test does not run operator-only blocks.
 - **Budget used:** two full runs plus one cancelled start; roughly 2 × (3 harness + 3 A + 3 short B) jobs.
+- **Coordinator decisions, 2026-11-28.** (a) F-25g-7 is resolved here: a root `.python-version` of `3.12` (CI's pin
+  everywhere: `setup-uv` `python-version: "3.12"`, pyright `pythonVersion = "3.12"`). With it, `uv python find` in
+  `clients/agent` gives CPython 3.12. `uv lock --check` reports the lock unchanged, so no `requires-python` upper bound
+  was added: the coordinator allowed the version file "and/or" the bound, and the bound would have required
+  regenerating the lock. Recorded as a dated note on `DEP-143`; CHANGELOG "Fixed" line (#570). (b) Layer B is
+  **NOT RUN**, not failed: it needs a successful Release run, and a release needs operator authorization (a milestone
+  item). (c) The red team (`_reviews/pr570.md`) approved one more cold-start run on the final head.
+- **Red-team fixes.** (1) A missing Godot on Linux or macOS layer A is now a FAILED `substitute 06.3`, never NOT
+  COVERED (`substitutes.rs`). (2) Chapter 01 no longer promises that Rust's installer offers the Visual Studio C++
+  tools: the commands run `rustup-init -y`, which does not ask. The page now tells Windows readers to install
+  "Desktop development with C++" first (both languages). (3) The default guide test was run on the final content (below).
+- **Deviation (coordinator, 2026-11-28):** a layer B leg with no Release run reports `NOT RUN` and does not turn the
+  workflow red (§7.1 had it INCONCLUSIVE-red); a found run whose bundle fails is still red.
 - **Machine note:** the local disk reached 100 % during validation (`No space left on device` in a scratch folder);
   this session removed only its own finished target folder (`_targets/fix-client-leave`).
 
@@ -778,7 +791,7 @@ stdlib only; registered with the scripts' self-tests in `fast` (`scripts/ci_laye
   must say where the pack comes from, or the bundle ships it.
 - **F-25g-5 (S25 guide):** README's quick start installs Git LFS and runs `git lfs pull`; chapter 01 does neither.
   The two front doors disagree on prerequisites (Q-25g-2).
-- **F-25g-7 (Python workspace / S25 guide):** on `macos-26`, `uv sync` in a fresh clone picks the image's CPython 3.15,
+- **F-25g-7 (Python workspace / S25 guide) — resolved in this PR by `.python-version` (§14.1):** on `macos-26`, `uv sync` in a fresh clone picks the image's CPython 3.15,
   and `python-fcl==0.7.0.11` (uv.lock) has no cp315 wheel, so chapter 14.3 fails for a reader whose newest Python is
   3.15. Owner decision: pin the workspace's interpreter (`requires-python` upper bound or `.python-version`) or have
   14.3 say `uv sync --python 3.12`. Not changed here (a dependency/ownership decision outside 25g).

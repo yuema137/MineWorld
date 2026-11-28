@@ -594,7 +594,8 @@ def verdicts(folder: Path) -> int:
     for path in files:
         verdict = path.read_text(encoding="utf-8").strip() or "INCONCLUSIVE"
         rows.append(f"| {path.stem.removeprefix('verdict-')} | {verdict} |")
-        red = red or verdict != "PASS"
+        # NOT RUN (layer B without a Release run) is listed, not failed: nothing was claimed (coordinator, 2026-11-28).
+        red = red or not (verdict == "PASS" or verdict.startswith("NOT RUN"))
     if not files:
         rows.append("| (no leg reported) | INCONCLUSIVE |")
         red = True
