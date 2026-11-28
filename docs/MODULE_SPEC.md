@@ -2093,7 +2093,7 @@ is byte-identical to one written before they existed.
 
 *`configure/sleep.yaml`* — owned by `sleep`.
 
-- **Actions.** The pack provides `sleep { for: <minutes> }` and `wake { }`. Only `sleep` is an action of the
+- **Actions.** The pack provides `sleep { for: <minutes> }`, `sleep-until { at: <instant> }` and `wake { }`. Only `sleep` is an action of the
   section, with roles `actor` and `place` (regional). `wake` is not: getting up is never forbidden, and a rule
   naming `wake` is refused at load as an action the section does not declare. `for` must lie within
   `shortest_minutes` … `longest_minutes` as the list gives them for the actor at their place; outside, the
@@ -2101,6 +2101,16 @@ is byte-identical to one written before they existed.
   example "for must be 15 … 600 minutes, not 841" — not at load. The bounds in force are disclosed to the
   person themself as the computed record `sleep-terms { shortest_minutes, longest_minutes }`, so no controller
   or client hard-codes them.
+- **`sleep-until { at }`** (`ARC-373`, pr-nightlife N2-I1/N2-I2). The same sleep with an exact alarm: `at` itself.
+  It is `sleep` in every other respect — one admission in one order, the same place ruling and parameters, resolved
+  with `sleep`'s action type, the same Process, alarm privacy and four ways to end — so every `{ action: sleep, … }`
+  rule governs it and it is not an action of the section (a rule naming `sleep-until` is refused at load). `at − now`
+  must lie within `shortest_minutes` … `longest_minutes` **in seconds**; a past, present, too near, too far or
+  overflowing `at` is refused `sleep-for-out-of-bound`. The pack offers it **complete**: `at` is the first instant at
+  `morning_minute` strictly more than `shortest_minutes` ahead, offered only when it is within `longest_minutes` and
+  the place allows sleep, and otherwise refused exactly as dispatch would refuse it; so no client or controller
+  computes the target. It is a world rule in every world; only the host's *advance* (`server/PROTOCOL.md` §11) is
+  single-player. The hosted rule and motivated controllers never take it by chance (N2-I1b).
 - **Where one may sleep.** Two levels. When the world's list has a rule that matches the request, or states
   `default: forbid`, the list decides. Otherwise the pack's own fallback applies: `sleep` is allowed at places
   tagged `residential`, a tag in the `sleep` pack's vocabulary, so it needs no class in
@@ -2117,6 +2127,7 @@ is byte-identical to one written before they existed.
   | `woken_by_talk` | `true` or `false` | `true` | being spoken to wakes a sleeper (`woke` with `reason: addressed`) |
   | `longest_minutes` | 60 … 840 | 840 | the longest `for`; an upper bound, not a norm |
   | `shortest_minutes` | 15 … 120 | 15 | the shortest `for`, a nap |
+  | `morning_minute` | 0 … 1439 | 420 | the morning `sleep-until` is offered for, a minute of the day (420 is 07:00; operator ruling Q-L2) |
 
 - **Facts and consequences.** `fell-asleep { person, place }` (audience: the place's occupants; it carries no
   alarm, which only the holder's disclosure shows) and `woke { person, slept, reason }`. A third fact,

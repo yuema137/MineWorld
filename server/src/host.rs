@@ -244,6 +244,8 @@ pub(crate) enum Command {
     },
     /// Stop the world thread, answering once it has checkpointed and reported.
     Shutdown(oneshot::Sender<()>),
+    /// Run the next slice of a single-player advance: posted by the world thread to itself (N2-I12).
+    AdvanceSlice,
 }
 
 /// The handle every part of the transport holds. Cheap to clone; the world is elsewhere.
@@ -287,12 +289,14 @@ impl WorldHost {
         let (ready, started) = oneshot::channel();
         let runtime_config = Arc::new(config);
         let thread_config = Arc::clone(&runtime_config);
+        let continuation = commands.downgrade();
 
         std::thread::Builder::new()
             .name("mineworld-world".to_owned())
             .spawn(move || match build() {
                 Ok(hosted) => match WorldRuntime::new(hosted, thread_config) {
                     Ok(runtime) => {
+                        let runtime = runtime.continuing_through(continuation);
                         if ready.send(Ok(())).is_err() {
                             return;
                         }

@@ -409,7 +409,8 @@ places carry `hungry` while nothing nourishing is held.
 
 Needs apply to every Person (`INV-1`: a seat is not a kind of person). A human sees their own needs in the HUD and
 gets `Sleep`/`Wake up`/`Eat …` buttons from the offers. There is no time skip in a shared world (Q-S35-9); a human
-who sleeps sees the world go on with a dimmed view until the alarm or `Wake up`. Needs have no forced consequence in
+who sleeps sees the world go on with a dimmed view until the alarm or `Wake up`. *(Dated note 2026-11-27, pr-nightlife
+ N2: unchanged for a shared world; a `--solo` world may now advance a `sleep-until` night, `ARC-373`, `ARC-374`.)* Needs have no forced consequence in
 MVP-0 (Q-S35-3), so a player who ignores them loses nothing but a comfortable HUD.
 
 ---
@@ -552,7 +553,7 @@ motivation only), Q-S35-8 (raise production and set prices in N-d), and every ot
 | **Q-S35-6** | How does sleep end? | **Alarm, `wake`, being addressed (configurable), acting (§4.3).** Movement and conversation stay ignorant of sleep |
 | **Q-S35-7** [OPERATOR] | Which reference worlds enable the packs in MVP-0? | **Market Town** (the full default demo, which has food, shops and jobs). **Lakeside** after S33's content PRs merge, as a follow-up content PR (it has `consumption`, a bakery and cottages tagged `residential`). Social Café and Bodies Yard stay without them, as the removal witnesses |
 | **Q-S35-8** [OPERATOR] | Market Town's supply and money cannot support three meals a day for 300 days (F-S35-3). Size it how? | **In N-d's content:** raise `produces` per shift and set prices so that the endowment of a person without a job lasts at least 300 days at three meals a day; record the arithmetic; L-13 (no income without a job) stays a recorded gap |
-| **Q-S35-9** | Time skip when a human sleeps? | **No** in a shared world; the view dims; recorded for single-player MVP-1 |
+| **Q-S35-9** | Time skip when a human sleeps? | **No** in a shared world; the view dims; recorded for single-player MVP-1. *Dated note 2026-11-27 (pr-nightlife N2, operator Q-L2/Q-L3):* the shared-world exclusion stays; the single-player half moved into MVP-0 as `sleep-until` (`ARC-373`) and the `--solo` advance (`ARC-374`) |
 | **Q-S35-10** | Sleep and the `posture` step (`ARC-147`): does `sleep` require or set a lying posture? | **Neither in MVP-0.** `sleep` stays independent; presentation shows `Asleep` over any posture; the posture step records that a sleeper's posture is presented as lying and that a bed anchor (with `bodies`) is a later refinement |
 | **Q-S35-11** | Individual variation from S30's `chronotype` and `sleep-need`? | **Later**, in a `needs`/`rule` follow-up once S30-c merges (S30 §9.4: the owning System's own PR); N-b reads no attribute |
 | **Q-S35-12** [OPERATOR] | Accept the defaults of §5.5 and the rhythm bounds of AC-S35-8 as fixed before any run? | **Accept.** They come from the committed ATUS table and the cited consensus, and a FAIL stops for you rather than being tuned |

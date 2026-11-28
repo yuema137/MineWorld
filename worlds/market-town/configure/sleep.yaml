@@ -2,9 +2,14 @@
 #
 # Where: no rule here, so the pack's own rule holds — people sleep at a place tagged `residential`, which
 # in this town is the apartments (systems/sleep/src/place.rs). A rule such as
-# `- { action: sleep, place: <class>, effect: permit }` would widen it.
+# `- { action: sleep, place: <class>, effect: permit }` would widen it; every `sleep` rule governs
+# `sleep-until` too (`ARC-373`).
 #
-# How long one may ask to sleep, and whether being spoken to wakes a sleeper: the pack's defaults, stated
-# so a reader sees them.
+# How long one may ask to sleep, whether being spoken to wakes a sleeper, and the morning `sleep-until` is
+# offered for: the pack's defaults, stated so a reader sees them. The morning, 07:00 (minute 420), is the
+# operator's ruling (pr-nightlife Q-L2); it agrees with the ATUS table the town's residents already follow
+# (cognition/motivated/data/atus-a3-2025.tsv, BLS American Time Use Survey Table A-3, 2025): the share of
+# people asleep falls through one half in the hour from 07:00 (659 ‰ in the 06:00 hour, 425 ‰ in the 07:00
+# hour).
 parameters:
-  - { shortest_minutes: 15, longest_minutes: 840, woken_by_talk: true }
+  - { shortest_minutes: 15, longest_minutes: 840, woken_by_talk: true, morning_minute: 420 }

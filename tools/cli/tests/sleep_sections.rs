@@ -121,6 +121,17 @@ fn what_a_sleep_section_cannot_say_is_refused_by_name_and_position() {
             "rules:\n  - { action: wake, effect: forbid }\n",
             "wake",
         ),
+        // `sleep-until` is `sleep` with an exact alarm: `sleep`'s rules govern it, and none names it (ARC-373).
+        (
+            "sleep-rule-until",
+            "rules:\n  - { action: sleep-until, effect: forbid }\n",
+            "sleep-until",
+        ),
+        (
+            "sleep-morning-high",
+            "parameters:\n  - { morning_minute: 1440 }\n",
+            "'morning_minute' is 0 … 1439, not 1440",
+        ),
     ] {
         let scratch = copy(name, "social-cafe", true, Some(text), CLASSES);
         let refused = refusal(&scratch).unwrap_or_else(|| panic!("{name}: accepted"));

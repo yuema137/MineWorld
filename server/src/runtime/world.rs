@@ -36,6 +36,9 @@ pub(super) struct HostClock {
     wall_anchor: Instant,
     scale: NonZeroU32,
     paused: bool,
+    /// Held by a single-player advance: the reading is the anchor, moved by the advance alone, and is not a
+    /// pause — nothing is journaled and `paused()` stays as it was (pr-nightlife N2-I12).
+    held: bool,
 }
 
 impl HostClock {
@@ -45,6 +48,7 @@ impl HostClock {
             wall_anchor: wall,
             scale,
             paused: false,
+            held: false,
         }
     }
 
@@ -55,7 +59,7 @@ impl HostClock {
 
     /// The instant the world should have reached at the wall instant `wall`.
     pub(super) fn now_at(&self, wall: Instant) -> WorldTime {
-        if self.paused {
+        if self.paused || self.held {
             return self.world_anchor;
         }
         let elapsed = wall.saturating_duration_since(self.wall_anchor).as_millis();
@@ -93,6 +97,23 @@ impl HostClock {
             self.wall_anchor = wall;
         }
         self.scale = scale;
+    }
+
+    /// Holds the clock at `at` for an advance, or moves the held reading on to `at`. The reading never goes
+    /// back: an earlier `at` leaves it where it is.
+    pub(super) fn hold_at(&mut self, wall: Instant, at: WorldTime) {
+        let reading = self.now_at(wall);
+        self.world_anchor = reading.max(at);
+        self.held = true;
+    }
+
+    /// Ends an advance's hold: the clock runs on from its held reading, from the wall instant `wall`, at the
+    /// scale it had — no wall time spent during the advance is folded in (N2-I10). Nothing when not held.
+    pub(super) fn release_at(&mut self, wall: Instant) {
+        if self.held {
+            self.held = false;
+            self.wall_anchor = wall;
+        }
     }
 
     pub(super) const fn paused(&self) -> bool {

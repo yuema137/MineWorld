@@ -108,6 +108,17 @@ const HOST_JOURNAL: &str = "
     );
 ";
 
+/// The host operations' table (`ARC-374`): an advance's lifecycle. Like the host journal, created by the
+/// first append and append-only; a binary that does not know it reads past it.
+const HOST_OPERATIONS: &str = "
+    CREATE TABLE IF NOT EXISTS host_operations (
+        seq       INTEGER PRIMARY KEY,
+        revision  INTEGER NOT NULL,
+        at        INTEGER NOT NULL,
+        record    BLOB    NOT NULL
+    );
+";
+
 /// The key columns of `sealed`, in the order every query here selects them.
 const BLOCK_KEYS: &str =
     "first_revision, last_revision, first_event_id, last_event_id, max_action_id";
@@ -724,25 +735,51 @@ impl PersistenceBackend for SqliteBackend {
     }
 
     fn append_host_record(&mut self, row: &HostRow) -> Result<(), PersistError> {
-        let transaction = self.connection.transaction().map_err(storage)?;
         // Created here, not by `SCHEMA`: a save that is never hosted keeps exactly the four tables it
-        // was created with (`ARC-69`, INV-TW-1). `IF NOT EXISTS` makes every later append a no-op here.
-        transaction.execute_batch(HOST_JOURNAL).map_err(storage)?;
+        // was created with (`ARC-69`, INV-TW-1).
+        self.append_lazy(HOST_JOURNAL, "host_journal", row)
+    }
+
+    fn host_records(&self) -> Result<Vec<HostRow>, PersistError> {
+        self.lazy_rows("host_journal")
+    }
+
+    fn append_operation_record(&mut self, row: &HostRow) -> Result<(), PersistError> {
+        self.append_lazy(HOST_OPERATIONS, "host_operations", row)
+    }
+
+    fn operation_records(&self) -> Result<Vec<HostRow>, PersistError> {
+        self.lazy_rows("host_operations")
+    }
+}
+
+impl SqliteBackend {
+    /// Appends `row` to `table`, creating it with `create` first. `IF NOT EXISTS` makes every later
+    /// creation a no-op. `table` is one of this file's own constants, never input.
+    fn append_lazy(
+        &mut self,
+        create: &str,
+        table: &str,
+        row: &HostRow,
+    ) -> Result<(), PersistError> {
+        let transaction = self.connection.transaction().map_err(storage)?;
+        transaction.execute_batch(create).map_err(storage)?;
         transaction
             .execute(
-                "INSERT INTO host_journal (revision, at, record) VALUES (?1, ?2, ?3)",
+                &format!("INSERT INTO {table} (revision, at, record) VALUES (?1, ?2, ?3)"),
                 params![signed(row.revision.raw())?, row.at, row.record],
             )
             .map_err(storage)?;
         transaction.commit().map_err(storage)
     }
 
-    fn host_records(&self) -> Result<Vec<HostRow>, PersistError> {
+    /// Every row of a lazily created `table` in the order appended; none when it was never created.
+    fn lazy_rows(&self, table: &str) -> Result<Vec<HostRow>, PersistError> {
         let present: i64 = self
             .connection
             .query_row(
-                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'host_journal'",
-                [],
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?1",
+                params![table],
                 |row| row.get(0),
             )
             .map_err(storage)?;
@@ -751,7 +788,9 @@ impl PersistenceBackend for SqliteBackend {
         }
         let mut statement = self
             .connection
-            .prepare("SELECT revision, at, record FROM host_journal ORDER BY seq")
+            .prepare(&format!(
+                "SELECT revision, at, record FROM {table} ORDER BY seq"
+            ))
             .map_err(storage)?;
         let rows = statement
             .query_map([], |row| {

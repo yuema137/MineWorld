@@ -15,6 +15,8 @@
 //!                   only list of System Packs, expanded into the catalog the loader reads
 //! extension         installed!'s optional lines, one per catalog: a pack-owned trait, its register
 //!                   function, and the types other packs implement it with (ARC-62)
+//! advance           AdvanceStop: how a host learns when a single-player advance stops, from the
+//!                   state a pack owns, and its catalog (an extension line; ARC-374)
 //! interactions      a pack's section of the World's Interaction List: InteractionSection,
 //!                   parameters!, interactions!, and the lookups permits / parameters / consequence
 //!                   (ARC-63 … ARC-65)
@@ -35,6 +37,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+pub mod advance;
 mod installed;
 pub mod interactions;
 mod pack;

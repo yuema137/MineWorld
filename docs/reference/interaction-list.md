@@ -329,6 +329,7 @@ A parameter entry may name `actor`, `place`.
 | Field | Type | Required | Default | Bounds | Description |
 | --- | --- | --- | --- | --- | --- |
 | `longest_minutes` | whole number | no | `840` | 60 to 840 | The most minutes one may ask to sleep: an upper bound, not a norm. |
+| `morning_minute` | whole number | no | `420` | 0 to 1439 | The morning a sleeper is offered to sleep until, as a minute of the day (0 is midnight, 420 is 07:00): the first such instant more than `shortest_minutes` ahead. |
 | `shortest_minutes` | whole number | no | `15` | 15 to 120 | The fewest minutes one may ask to sleep: a nap. |
 | `woken_by_talk` | true or false | no | `true` | — | Whether being spoken to wakes a sleeper. |
 

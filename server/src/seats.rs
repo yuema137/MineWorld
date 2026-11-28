@@ -437,6 +437,33 @@ impl SeatTable {
         due
     }
 
+    /// The connection driving `seat`, if one does.
+    pub(crate) fn connection_of(&self, seat: &EntityKey) -> Option<SubscriptionId> {
+        match self.seats.get(seat) {
+            Some(Binding::Connected(connected)) => Some(connected.subscription),
+            _ => None,
+        }
+    }
+
+    /// Whether any seat but `seat` is connected, or held for a connection that dropped: a decision session
+    /// a single-player advance must not run past (pr-nightlife N2-I3). Free and hosted seats are not.
+    pub(crate) fn another_driven(&self, seat: &EntityKey) -> bool {
+        self.seats.iter().any(|(other, binding)| {
+            other != seat && matches!(binding, Binding::Connected(_) | Binding::Held(_))
+        })
+    }
+
+    /// The earliest instant any hosted seat is next due, if any seat is hosted. Reads only.
+    pub(crate) fn earliest_due(&self) -> Option<WorldTime> {
+        self.seats
+            .values()
+            .filter_map(|binding| match binding {
+                Binding::Hosted(slot) => Some(slot.next()),
+                _ => None,
+            })
+            .min()
+    }
+
     /// The controller bound to a seat, if an in-server controller drives it now.
     pub(crate) fn hosted_mut(&mut self, seat: &EntityKey) -> Option<&mut HostedSlot> {
         match self.seats.get_mut(seat) {

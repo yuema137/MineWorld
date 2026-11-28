@@ -1,0 +1,84 @@
+day 1  revision 3395  facts 4775
+day 2  revision 6743  facts 9190
+consults   7474
+requests   accept-invitation accepted 25
+requests   buy accepted 113
+requests   decline-invitation accepted 11
+requests   drink accepted 16
+requests   eat accepted 106
+requests   give accepted 53
+requests   invite accepted 40
+requests   join-group-activity accepted 7
+requests   leave-group-activity accepted 7
+requests   shove accepted 6
+requests   sit accepted 1
+requests   sleep accepted 22
+requests   talk accepted 266
+requests   wake accepted 2
+requests   walk-step accepted 5413
+requests   walk-to accepted 559
+requests   walk-to rejected System { code: RejectionCode("no-route"), detail: Some("no way leads there inside the place") } 3
+facts      agenda-changed 90
+facts      alarm-set 22
+facts      appeared 12
+facts      arrived 5727
+facts      became-acquainted 85
+facts      body-formed 4
+facts      calendar-configured 1
+facts      conversation-started 177
+facts      currency-declared 1
+facts      day-began 3
+facts      daylight-changed 12
+facts      economy-configured 1
+facts      fell-asleep 22
+facts      funded 15
+facts      gave-way 309
+facts      group-activity-ended 25
+facts      group-activity-started 25
+facts      happening-announced 1
+facts      happening-withheld 1
+facts      happenings-configured 1
+facts      hired 3
+facts      invitation-accepted 25
+facts      invitation-declined 11
+facts      invited 40
+facts      item-kind-declared 20
+facts      items-consumed 122
+facts      items-produced 15
+facts      items-transferred 166
+facts      joined-group-activity 7
+facts      left-group-activity 17
+facts      listed 11
+facts      money-transferred 117
+facts      named 12
+facts      needs-assigned 12
+facts      needs-interactions-configured 1
+facts      nourishment-assigned 10
+facts      object-placed 4
+facts      passage-opened 8
+facts      person-entered-place 312
+facts      person-shoved 6
+facts      persona-authored 9
+facts      place-shaped 9
+facts      place-sit-points 3
+facts      relationship-changed 4
+facts      routine-assigned 12
+facts      sat-down 1
+facts      shift-ended 4
+facts      shift-started 6
+facts      shop-opened 3
+facts      sleep-interactions-configured 1
+facts      sold 113
+facts      spoke 266
+facts      stocked 39
+facts      stood-up 1
+facts      stopped-short 115
+facts      wage-due 4
+facts      walk-ended 559
+facts      walk-started 559
+facts      weather-changed 3
+facts      weather-configured 1
+facts      weather-day 3
+facts      woke 22
+activity   days 1-2  alice move 418 talk 35  bob move 451 talk 26  carol move 307 talk 32  dev move 572 talk 15  erin move 832 talk 5  felix move 445 talk 32  grace move 437 talk 35  hana move 621 talk 25  ivan move 532 talk 9  visitor move 321 talk 24  wanderer move 477 talk 28
+faults     0

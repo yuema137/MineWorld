@@ -12,6 +12,7 @@ use crate::format::{
 };
 use crate::host::{HostRecord, PacingChange, read_journal};
 use crate::input::{JournalEntry, Outcome, WorldInput, WorldRevision};
+use crate::operation::{OperationEvent, OperationRecord, read_operations};
 use crate::replay::{self, advanced, check_composition, dispatched};
 
 /// How often a persisted world writes a snapshot, unless told otherwise: every 64 revisions.
@@ -348,6 +349,29 @@ impl PersistentWorld {
     /// The host journal, in the order it was written, checked for coherence (`ARC-69` item 7).
     pub fn host_records(&self) -> Result<Vec<HostRecord>, PersistError> {
         read_journal(self.backend.as_ref(), self.revision)
+    }
+
+    /// Records one change in a host operation's lifecycle, at the head revision and the world's instant
+    /// `at` (`ARC-374`). Like a pacing change, not a revision: the world's state, its inputs, its facts
+    /// and its snapshots are untouched. Returns the record written.
+    pub fn record_operation(
+        &mut self,
+        event: OperationEvent,
+        at: WorldTime,
+    ) -> Result<OperationRecord, PersistError> {
+        self.refuse_if_ahead()?;
+        let record = OperationRecord {
+            at,
+            revision: self.revision,
+            event,
+        };
+        self.backend.append_operation_record(&record.row()?)?;
+        Ok(record)
+    }
+
+    /// The host operations, in the order written, checked for coherence (`ARC-374`).
+    pub fn operations(&self) -> Result<Vec<OperationRecord>, PersistError> {
+        read_operations(self.backend.as_ref(), self.revision)
     }
 
     fn refuse_if_ahead(&self) -> Result<(), PersistError> {

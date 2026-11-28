@@ -219,6 +219,12 @@ impl PersistenceBackend for Shared {
     fn host_records(&self) -> Result<Vec<HostRow>, PersistError> {
         self.0.host_records()
     }
+    fn append_operation_record(&mut self, _: &HostRow) -> Result<(), PersistError> {
+        unreachable!("resume never appends a host operation")
+    }
+    fn operation_records(&self) -> Result<Vec<HostRow>, PersistError> {
+        self.0.operation_records()
+    }
     fn sealed(&self) -> Result<Vec<SealedSpan>, PersistError> {
         self.0.sealed()
     }

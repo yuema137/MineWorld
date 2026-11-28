@@ -249,8 +249,10 @@ fn reexecute(
     from: WorldRevision,
 ) -> Result<Verified, PersistError> {
     let head = backend.head()?;
-    // The host journal is never re-executed (`ARC-25`, `ARC-69`); it is only checked for coherence.
+    // The host journal and the host operations are never re-executed (`ARC-25`, `ARC-69`, `ARC-374`);
+    // they are only checked for coherence.
     crate::host::read_journal(backend, head)?;
+    crate::operation::read_operations(backend, head)?;
     let mut snapshots = 0;
     let (revisions, facts) = replay_after(world, backend, from, |world, revision| {
         if let Some(stored) = backend.snapshot_at(revision)? {

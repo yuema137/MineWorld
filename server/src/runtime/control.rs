@@ -10,9 +10,10 @@ use std::num::NonZeroU32;
 use std::time::Instant;
 
 use mineworld_contracts::{EntityKey, WorldTime};
-use mineworld_persistence::{PacingChange, PersistError};
+use mineworld_persistence::{OperationId, PacingChange, PersistError};
 
 use super::WorldRuntime;
+use super::advance::{AdvanceRefusal, AdvanceRequest, AdvanceStatus};
 use crate::host::Hosted;
 use crate::protocol::{ClockState, ClosingReason, SessionId};
 use crate::seats::SeatReport;
@@ -42,6 +43,12 @@ pub(crate) enum ControlCommand {
     Clock,
     /// Change the host clock: its scale, its pause state, or both.
     Change(ClockChange),
+    /// Start a single-player advance, or answer a known one's status (`ARC-374`).
+    Advance(AdvanceRequest),
+    /// One advance's status.
+    AdvanceStatus(OperationId),
+    /// Stop a running advance, leaving the sleeper as they are.
+    AdvanceCancel(OperationId),
 }
 
 /// One seated connection as only the world thread knows it.
@@ -67,6 +74,10 @@ pub(crate) enum ControlAnswer {
     Clock(ClockState),
     UnknownSession,
     UnknownSeat,
+    /// An advance's status, or why the request about it was refused.
+    Advance(Result<AdvanceStatus, AdvanceRefusal>),
+    /// Refused: a single-player advance runs, and this command would seat, release or re-pace around it.
+    AdvanceInProgress,
 }
 
 impl WorldRuntime {
@@ -78,6 +89,9 @@ impl WorldRuntime {
     /// [`control`](Self::control) at the wall instant `wall`: the entry the tests drive with an injected clock.
     pub(crate) fn control_at(&mut self, command: ControlCommand, wall: Instant) -> ControlAnswer {
         let at = self.clock.now_at(wall);
+        if self.blocked_by_advance(&command) {
+            return ControlAnswer::AdvanceInProgress;
+        }
         match command {
             ControlCommand::Sessions => ControlAnswer::Sessions(
                 self.subscribers
@@ -114,6 +128,32 @@ impl WorldRuntime {
             }
             ControlCommand::Clock => ControlAnswer::Clock(self.clock_state(wall)),
             ControlCommand::Change(change) => self.change_clock(change, wall),
+            ControlCommand::Advance(request) => {
+                ControlAnswer::Advance(self.request_advance(request))
+            }
+            ControlCommand::AdvanceStatus(operation) => ControlAnswer::Advance(
+                self.advance_status(operation)
+                    .ok_or(AdvanceRefusal::UnknownOperation),
+            ),
+            ControlCommand::AdvanceCancel(operation) => {
+                ControlAnswer::Advance(self.cancel_advance(operation))
+            }
+        }
+    }
+
+    /// Whether a running advance refuses `command` (N2-I12): a clock change, and a kick or release of anyone
+    /// but the sleeper. Kicking or releasing the sleeper ends the advance `disconnected` instead.
+    fn blocked_by_advance(&self, command: &ControlCommand) -> bool {
+        let Some(running) = &self.advancing else {
+            return false;
+        };
+        match command {
+            ControlCommand::Change(_) => true,
+            ControlCommand::Release(seat) => seat != running.seat(),
+            ControlCommand::Kick(session) => !self.subscribers.iter().any(|subscriber| {
+                subscriber.session == *session && subscriber.subscription == running.subscription()
+            }),
+            _ => false,
         }
     }
 

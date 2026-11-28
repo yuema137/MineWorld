@@ -29,6 +29,8 @@
 //! block      encode_block, decode_journal/facts      a sealed block: rows framed and compressed
 //! sqlite     SqliteBackend, Durability               the one backend, and the one file naming SQL
 //! format     Manifest, SAVE_FORMAT                   how rows are encoded, and the version refused
+//! host       HostRecord, PacingChange                the host journal: pacing beside the save (ARC-69)
+//! operation  OperationRecord, OperationId            host operations: an advance's lifecycle (ARC-374)
 //! ```
 //!
 //! Nothing here reduces a fact, writes a component, or knows a domain concept: state is changed only
@@ -43,6 +45,7 @@ pub mod error;
 pub mod format;
 pub mod host;
 pub mod input;
+pub mod operation;
 pub mod replay;
 pub mod sqlite;
 pub mod world;
@@ -52,6 +55,9 @@ pub use error::PersistError;
 pub use format::{Manifest, SAVE_FORMAT};
 pub use host::{HostRecord, PacingChange};
 pub use input::{JournalEntry, Outcome, WorldInput, WorldRevision};
+pub use operation::{
+    AdvanceOutcome, EndReason, OperationEvent, OperationId, OperationRecord, unfinished,
+};
 pub use replay::{Verified, verify, verify_from};
 pub use sqlite::{Durability, SAVE_FILE, SqliteBackend};
 pub use world::{Creation, DEFAULT_SNAPSHOT_INTERVAL, PersistentWorld, Resumed};

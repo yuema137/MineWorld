@@ -352,6 +352,9 @@ pub enum RefusalCode {
     /// `ActionId` for it, so nothing is half-done; `retry_after_ms` says when one request will be
     /// admitted (`PROTOCOL.md` §§5.5, 8, from S27-a).
     RateLimited,
+    /// The host is running a single-player advance (`PROTOCOL.md` §11.4, `ARC-374`): no other seat may be
+    /// joined or driven until it ends. Nothing was granted or dispatched.
+    AdvanceInProgress,
 }
 
 /// One refusal, before it becomes a frame.

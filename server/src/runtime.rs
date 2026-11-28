@@ -33,6 +33,7 @@
 //! controller either: observations go out with `try_send`, and a hosted controller's `decide` is a
 //! bounded synchronous call (step-12 I-11).
 
+mod advance;
 mod control;
 mod delivery;
 mod pacing;
@@ -41,6 +42,7 @@ mod status;
 mod tests;
 mod world;
 
+pub(crate) use advance::{AdvanceRefusal, AdvanceRequest, AdvanceStatus};
 pub(crate) use control::{ClockChange, ControlAnswer, ControlCommand};
 pub(crate) use pacing::DAY_LENGTH_SCALE;
 
@@ -62,7 +64,7 @@ use crate::perception::{EventPerception, PerceivedHistory, Perception, Perceptio
 use crate::protocol::{ClockState, PerceivedJoin, Refusal, RefusalCode, WorldInstanceId};
 use crate::seats::{JoinRequest, SeatTable};
 use delivery::Subscriber;
-use mineworld_persistence::PacingChange;
+use mineworld_persistence::{AdvanceOutcome, OperationRecord, PacingChange};
 use status::first_binding;
 use world::{ActionIds, Failure, HostClock, TickStart, TickTimes};
 
@@ -101,6 +103,13 @@ pub(crate) struct WorldRuntime {
     /// The host clock's state as every session reads it: written on each pause and resume, newest
     /// wins (`PROTOCOL.md` §5.9).
     announced: watch::Sender<ClockState>,
+    /// Every host operation's records, the save's first (`ARC-374`).
+    operations: Vec<OperationRecord>,
+    /// The single-player advance that runs now, if one does (`runtime/advance.rs`).
+    advancing: Option<advance::Running>,
+    /// This thread's own command channel, for an advance's next slice (N2-I12). Weak, so it never keeps the
+    /// channel open; `None` for a runtime the tests drive by hand.
+    continuation: Option<mpsc::WeakSender<Command>>,
 }
 
 impl WorldRuntime {
@@ -116,12 +125,18 @@ impl WorldRuntime {
         config: Arc<HostConfig>,
         wall: Instant,
     ) -> Result<Self, HostError> {
-        let (instance, now, journal) = match &hosted.world {
-            Hosted::Ephemeral(_) => (WorldInstanceId::allocate(), config.epoch, Vec::new()),
+        let (instance, now, journal, operations) = match &hosted.world {
+            Hosted::Ephemeral(_) => (
+                WorldInstanceId::allocate(),
+                config.epoch,
+                Vec::new(),
+                Vec::new(),
+            ),
             Hosted::Persisted(world) => (
                 WorldInstanceId::from_raw(world.instance()),
                 world.world().now(),
                 world.host_records().map_err(HostError::build)?,
+                world.operations().map_err(HostError::build)?,
             ),
         };
         let start = pacing::resolve(config.time_scale, &journal, now);
@@ -170,6 +185,9 @@ impl WorldRuntime {
             stopped: None,
             ticks: TickTimes::default(),
             config,
+            operations,
+            advancing: None,
+            continuation: None,
         };
         if matches!(runtime.world, Hosted::Persisted(_)) {
             runtime
@@ -182,6 +200,8 @@ impl WorldRuntime {
                 )
                 .map_err(HostError::build)?;
         }
+        // An advance the previous process never ended is interrupted; nothing resumes (`ARC-374`).
+        runtime.close_interrupted().map_err(HostError::build)?;
         Ok(runtime)
     }
 
@@ -212,10 +232,12 @@ impl WorldRuntime {
                     let _ = reply.send(answer);
                 }
                 Command::Sweep => self.tick(),
+                Command::AdvanceSlice => self.advance_slice(),
                 Command::Control { command, reply } => {
                     let _ = reply.send(self.control(command));
                 }
                 Command::Shutdown(done) => {
+                    self.end_advance(AdvanceOutcome::Stopped, None);
                     self.checkpoint();
                     // After the checkpoint, with the clock's reading now: the instant a restart resumes no
                     // earlier than (`ARC-69` item 8).
@@ -255,6 +277,9 @@ impl WorldRuntime {
         perceived: Option<PerceivedJoin>,
     ) -> Result<Seated, Refusal> {
         let seat = &request.seat;
+        if self.refused_by_advance(None) {
+            return Err(advance::in_progress());
+        }
         if !self.seats.contains(seat) {
             return Err(Refusal::new(RefusalCode::UnknownSeat)
                 .detail("this world offers no such seat; GET /status lists the seats it has"));
@@ -332,6 +357,9 @@ impl WorldRuntime {
         observer: EntityId,
         request: ActionRequest,
     ) -> Result<Submitted, Refusal> {
+        if self.refused_by_advance(subscription) {
+            return Err(advance::in_progress());
+        }
         if self.clock.paused() {
             return Err(Refusal::new(RefusalCode::Paused).detail(
                 "the host has paused the world's clock; submit again after a clock frame says \
@@ -345,7 +373,12 @@ impl WorldRuntime {
                 .retry_after(wait)
                 .detail("this seat has sent more requests than the host allows; submit again after retry_after_ms"));
         }
-        let at = self.clock.now();
+        // During an advance the sleeper acts at the boundary the advance has reached (N2-I12).
+        let at = if self.advancing.is_some() {
+            self.world.world().now()
+        } else {
+            self.clock.now()
+        };
         let (submitted, recorded) = self.submit_at(observer, request, at)?;
         if let Some(subscription) = subscription {
             self.acted(subscription, submitted.action_id());
@@ -445,21 +478,32 @@ impl WorldRuntime {
     pub(crate) fn tick_at(&mut self, started: Instant) {
         let start = TickStart::at(started);
         let now = self.clock.now_at(started);
-        let running = !self.clock.paused();
+        // During an advance a sweep only sweeps: the advance alone consults and moves time (N2-I12).
+        let running = !self.clock.paused() && self.advancing.is_none();
         self.table.expire(started, now);
         if running {
-            self.consult(now);
+            self.step_to(now);
         }
         if self.stopped.is_none() {
-            if running && let Err(failure) = self.advance(now) {
-                // Counted and reported, or the world stopped; nobody is waiting for an answer.
-                let _ = self.refusal(failure);
-            }
-            if self.stopped.is_none() {
-                self.sweep();
+            self.sweep();
+            if self.advancing.is_some() {
+                self.resume_after_sweep();
             }
         }
         self.ticks.record_since(&start);
+    }
+
+    /// Moves the world to `now` as a tick does: every in-server controller due by then is consulted, then the
+    /// world catches up. One step for the ordinary tick and for each instant of an advance (N2-I5), so the two
+    /// cannot drift apart.
+    fn step_to(&mut self, now: WorldTime) {
+        self.consult(now);
+        if self.stopped.is_none()
+            && let Err(failure) = self.advance(now)
+        {
+            // Counted and reported, or the world stopped; nobody is waiting for an answer.
+            let _ = self.refusal(failure);
+        }
     }
 
     /// Consults every in-server controller due by `now`, in instant order then seat order, each at

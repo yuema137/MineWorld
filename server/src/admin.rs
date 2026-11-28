@@ -9,6 +9,9 @@
 //! GET  /admin/clock                     { at, time_scale, paused }
 //! POST /admin/clock                     { "paused": bool }, { "time_scale": n }, or both
 //! POST /admin/stop                      {} or no body: 202, then the graceful stop Ctrl-C takes (ARC-268)
+//! POST /admin/advance                   { operation, seat, until }: a single-player advance (ARC-374)
+//! GET  /admin/advance/{operation}       its status
+//! POST /admin/advance/{operation}/cancel  stop it; the sleeper stays as they are
 //! ```
 //!
 //! Mounted only when the server has an admin token ([`crate::app::Access`]); without one no `/admin`
@@ -33,6 +36,7 @@ use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use mineworld_contracts::{EntityId, EntityKey};
+use mineworld_persistence::{AdvanceOutcome, EndReason, OperationId};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use tokio::time::Instant;
@@ -42,7 +46,10 @@ use crate::admission::{
 };
 use crate::host::WorldHost;
 use crate::protocol::SessionId;
-use crate::runtime::{ClockChange, ControlAnswer, ControlCommand, DAY_LENGTH_SCALE};
+use crate::runtime::{
+    AdvanceRefusal, AdvanceRequest, AdvanceStatus, ClockChange, ControlAnswer, ControlCommand,
+    DAY_LENGTH_SCALE,
+};
 use crate::seats::SeatReport;
 use registry::Registry;
 
@@ -63,6 +70,9 @@ pub(crate) fn routes(admin: Admin) -> Router {
         .route("/admin/seats/{seat}/release", post(release))
         .route("/admin/clock", get(clock).post(set_clock))
         .route("/admin/stop", post(stop))
+        .route("/admin/advance", post(advance))
+        .route("/admin/advance/{operation}", get(advance_status))
+        .route("/admin/advance/{operation}/cancel", post(advance_cancel))
         .route_layer(middleware::from_fn_with_state(admin.clone(), permitted))
         .with_state(admin)
 }
@@ -212,6 +222,7 @@ async fn kick(State(admin): State<Admin>, Path(session): Path<String>) -> Respon
         return malformed("a session is a decimal integer");
     };
     match ask(&admin, ControlCommand::Kick(session)).await {
+        Ok(ControlAnswer::AdvanceInProgress) => advance_in_progress(),
         Ok(ControlAnswer::Kicked(SeatReport { seat, state })) => {
             let mut body = json!({ "session": session, "seat": seat });
             merge_state(&mut body, state);
@@ -232,6 +243,7 @@ async fn release(State(admin): State<Admin>, Path(seat): Path<String>) -> Respon
         return malformed("a seat is named by an entity key");
     };
     match ask(&admin, ControlCommand::Release(seat)).await {
+        Ok(ControlAnswer::AdvanceInProgress) => advance_in_progress(),
         Ok(ControlAnswer::Released { released, now }) => {
             let mut body = json!({ "seat": now.seat, "released": released });
             merge_state(&mut body, now.state);
@@ -342,7 +354,112 @@ async fn set_clock(State(admin): State<Admin>, body: Bytes) -> Response {
     };
     match ask(&admin, ControlCommand::Change(change)).await {
         Ok(ControlAnswer::Clock(state)) => Json(state).into_response(),
+        Ok(ControlAnswer::AdvanceInProgress) => advance_in_progress(),
         Ok(other) => unexpected(&other),
         Err(response) => response,
     }
+}
+
+/// `409 advance_in_progress`: a single-player advance runs, and the command would seat, release or re-pace
+/// around it (`PROTOCOL.md` §11.4).
+fn advance_in_progress() -> Response {
+    error(
+        StatusCode::CONFLICT,
+        "advance_in_progress",
+        Some("a single-player advance is running; ask again once it has ended".to_owned()),
+    )
+}
+
+/// What `POST /admin/advance` carries (`PROTOCOL.md` §11.4): no instant — the adapter says when it stops.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct AdvanceBody {
+    operation: String,
+    seat: String,
+    until: String,
+}
+
+/// An advance's status as every advance route answers it.
+#[derive(Serialize)]
+struct AdvanceView {
+    operation: OperationId,
+    seat: EntityKey,
+    until: String,
+    state: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    outcome: Option<AdvanceOutcome>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reason: Option<EndReason>,
+}
+
+impl From<AdvanceStatus> for AdvanceView {
+    fn from(status: AdvanceStatus) -> Self {
+        Self {
+            operation: status.operation,
+            seat: status.seat,
+            until: status.until,
+            state: if status.ended.is_some() {
+                "ended"
+            } else {
+                "running"
+            },
+            outcome: status.ended.map(|(outcome, _)| outcome),
+            reason: status.ended.and_then(|(_, reason)| reason),
+        }
+    }
+}
+
+/// The answer to an advance command: its status, or its refusal with the status that refusal is sent with.
+fn advance_answer(answer: Result<ControlAnswer, Response>) -> Response {
+    match answer {
+        Ok(ControlAnswer::Advance(Ok(status))) => Json(AdvanceView::from(status)).into_response(),
+        Ok(ControlAnswer::Advance(Err(refusal))) => {
+            let status = match refusal {
+                AdvanceRefusal::UnknownOperation => StatusCode::NOT_FOUND,
+                AdvanceRefusal::WorldStopped => StatusCode::SERVICE_UNAVAILABLE,
+                _ => StatusCode::CONFLICT,
+            };
+            error(status, refusal.code(), Some(refusal.detail().to_owned()))
+        }
+        Ok(other) => unexpected(&other),
+        Err(response) => response,
+    }
+}
+
+/// `400 malformed` for an operation that is not 32 hexadecimal digits.
+fn malformed_operation() -> Response {
+    malformed(mineworld_persistence::operation::MalformedOperationId.to_string())
+}
+
+async fn advance(State(admin): State<Admin>, body: Bytes) -> Response {
+    let body: AdvanceBody = match serde_json::from_slice(&body) {
+        Ok(body) => body,
+        Err(refusal) => return malformed(refusal.to_string()),
+    };
+    let Ok(operation) = body.operation.parse::<OperationId>() else {
+        return malformed_operation();
+    };
+    let Ok(seat) = EntityKey::new(&body.seat) else {
+        return malformed("a seat is named by an entity key");
+    };
+    let request = AdvanceRequest {
+        operation,
+        seat,
+        until: body.until,
+    };
+    advance_answer(ask(&admin, ControlCommand::Advance(request)).await)
+}
+
+async fn advance_status(State(admin): State<Admin>, Path(operation): Path<String>) -> Response {
+    let Ok(operation) = operation.parse::<OperationId>() else {
+        return malformed_operation();
+    };
+    advance_answer(ask(&admin, ControlCommand::AdvanceStatus(operation)).await)
+}
+
+async fn advance_cancel(State(admin): State<Admin>, Path(operation): Path<String>) -> Response {
+    let Ok(operation) = operation.parse::<OperationId>() else {
+        return malformed_operation();
+    };
+    advance_answer(ask(&admin, ControlCommand::AdvanceCancel(operation)).await)
 }
