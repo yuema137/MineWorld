@@ -453,6 +453,17 @@ impl SeatTable {
         })
     }
 
+    /// The earliest instant any hosted seat is next due, if any seat is hosted. Reads only.
+    pub(crate) fn earliest_due(&self) -> Option<WorldTime> {
+        self.seats
+            .values()
+            .filter_map(|binding| match binding {
+                Binding::Hosted(slot) => Some(slot.next()),
+                _ => None,
+            })
+            .min()
+    }
+
     /// The controller bound to a seat, if an in-server controller drives it now.
     pub(crate) fn hosted_mut(&mut self, seat: &EntityKey) -> Option<&mut HostedSlot> {
         match self.seats.get_mut(seat) {

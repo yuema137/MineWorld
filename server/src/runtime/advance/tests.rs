@@ -16,7 +16,7 @@ use mineworld_persistence::{
     AdvanceOutcome, Creation, Durability, EndReason, OperationEvent, OperationId, PersistentWorld,
     SqliteBackend,
 };
-use mineworld_sdk::advance::{AdvanceStop, StopIdentity, register_stops};
+use mineworld_sdk::advance::{AdvanceStop, StopIdentity};
 
 use super::super::{ClockChange, ControlAnswer, ControlCommand, WorldRuntime};
 use super::{AdvanceRefusal, AdvanceRequest, AdvanceStatus, Running};
@@ -41,11 +41,11 @@ impl System for Rest {
 }
 
 /// The stub adapter: a Person whose key begins `sleeper` rests, as occurrence 1, with no horizon.
-struct Resting;
+pub(super) struct Keyed;
 
-impl AdvanceStop for Resting {
+impl AdvanceStop for Keyed {
     fn name(&self) -> &'static str {
-        "rest"
+        "keyed"
     }
 
     fn system(&self) -> SystemId {
@@ -110,7 +110,7 @@ fn people(rest: bool) -> World {
 
 /// A runtime over a fresh world — persisted in `save` when given — started `--solo` or not.
 fn host(save: Option<&Path>, solo: bool, rest: bool) -> WorldRuntime {
-    register_stops(vec![Box::new(Resting)]);
+    super::town::register();
     let hosted = match save {
         None => {
             let mut world = people(rest);
@@ -185,7 +185,7 @@ fn ended(status: &AdvanceStatus) -> Option<(AdvanceOutcome, Option<EndReason>)> 
 
 /// Starts an advance and leaves it running, as the N2-C3 loop will between slices.
 fn start_running(runtime: &mut WorldRuntime, operation: u128, seated: &Seated) {
-    let asked = request(operation, "sleeper", "rest");
+    let asked = request(operation, "sleeper", "keyed");
     let running: Running = runtime.admit(&asked).expect("admitted");
     assert_eq!(running.subscription(), seated.subscription());
     runtime
@@ -205,7 +205,7 @@ fn every_refusal_is_named_and_records_nothing() {
     let mut shared = host(None, false, true);
     let _sleeper = seat(&mut shared, "sleeper", 1);
     assert_eq!(
-        advance(&mut shared, request(1, "sleeper", "rest")),
+        advance(&mut shared, request(1, "sleeper", "keyed")),
         Err(AdvanceRefusal::NotSolo),
         "a shared host never advances"
     );
@@ -213,7 +213,7 @@ fn every_refusal_is_named_and_records_nothing() {
     let mut solo = host(None, true, false);
     let _sleeper = seat(&mut solo, "sleeper", 1);
     assert_eq!(
-        advance(&mut solo, request(1, "sleeper", "rest")),
+        advance(&mut solo, request(1, "sleeper", "keyed")),
         Err(AdvanceRefusal::UnknownAdapter),
         "the adapter's system is not enabled in this world"
     );
@@ -225,14 +225,14 @@ fn every_refusal_is_named_and_records_nothing() {
         "no adapter of that name"
     );
     assert_eq!(
-        advance(&mut solo, request(1, "sleeper", "rest")),
+        advance(&mut solo, request(1, "sleeper", "keyed")),
         Err(AdvanceRefusal::SeatMismatch),
         "nobody drives the seat"
     );
     let sleeper = seat(&mut solo, "sleeper", 1);
     let awake = seat(&mut solo, "awake", 2);
     assert_eq!(
-        advance(&mut solo, request(1, "sleeper", "rest")),
+        advance(&mut solo, request(1, "sleeper", "keyed")),
         Err(AdvanceRefusal::OtherControllerConnected),
         "a second decision session"
     );
@@ -242,7 +242,7 @@ fn every_refusal_is_named_and_records_nothing() {
         time_scale: None,
     }));
     assert_eq!(
-        advance(&mut solo, request(1, "sleeper", "rest")),
+        advance(&mut solo, request(1, "sleeper", "keyed")),
         Err(AdvanceRefusal::Paused)
     );
     let _ = solo.control(ControlCommand::Change(ClockChange {
@@ -252,7 +252,7 @@ fn every_refusal_is_named_and_records_nothing() {
     solo.depart(sleeper.subscription(), Departure::Left);
     let _awake = seat(&mut solo, "awake", 3);
     assert_eq!(
-        advance(&mut solo, request(1, "awake", "rest")),
+        advance(&mut solo, request(1, "awake", "keyed")),
         Err(AdvanceRefusal::NotAsleep)
     );
     assert!(solo.operations.is_empty(), "no refusal is recorded");
@@ -271,7 +271,7 @@ fn a_held_seat_refuses_until_its_hold_ends() {
     let awake = seat(&mut solo, "awake", 2);
     solo.depart(awake.subscription(), Departure::Dropped);
     assert_eq!(
-        advance(&mut solo, request(1, "sleeper", "rest")),
+        advance(&mut solo, request(1, "sleeper", "keyed")),
         Err(AdvanceRefusal::OtherControllerConnected),
         "inside the hold window"
     );
@@ -280,7 +280,7 @@ fn a_held_seat_refuses_until_its_hold_ends() {
         std::time::Instant::now() + std::time::Duration::from_secs(31),
         now,
     );
-    let admitted = advance(&mut solo, request(1, "sleeper", "rest")).expect("admitted");
+    let admitted = advance(&mut solo, request(1, "sleeper", "keyed")).expect("admitted");
     assert_eq!(
         ended(&admitted),
         Some((AdvanceOutcome::Stopped, Some(EndReason::NotYetExecutable)))
@@ -295,7 +295,7 @@ fn an_admitted_advance_moves_no_time_and_a_repeat_is_idempotent() {
     let mut solo = host(None, true, true);
     let _sleeper = seat(&mut solo, "sleeper", 1);
     let before = solo.world.world().now();
-    let status = advance(&mut solo, request(7, "sleeper", "rest")).expect("admitted");
+    let status = advance(&mut solo, request(7, "sleeper", "keyed")).expect("admitted");
     assert_eq!(
         ended(&status),
         Some((AdvanceOutcome::Stopped, Some(EndReason::NotYetExecutable))),
@@ -304,12 +304,12 @@ fn an_admitted_advance_moves_no_time_and_a_repeat_is_idempotent() {
     assert_eq!(solo.world.world().now(), before, "no time moved");
     assert_eq!(solo.operations.len(), 2, "started, then ended");
     assert_eq!(
-        advance(&mut solo, request(7, "sleeper", "rest")),
+        advance(&mut solo, request(7, "sleeper", "keyed")),
         Ok(status.clone())
     );
     assert_eq!(solo.operations.len(), 2, "a repeat records nothing");
     assert_eq!(
-        advance(&mut solo, request(7, "awake", "rest")),
+        advance(&mut solo, request(7, "awake", "keyed")),
         Err(AdvanceRefusal::OperationConflict)
     );
     assert_eq!(
@@ -354,7 +354,7 @@ fn a_running_advance_refuses_what_would_seat_or_repace_around_it() {
         ControlAnswer::AdvanceInProgress
     );
     assert_eq!(
-        advance(&mut solo, request(10, "sleeper", "rest")),
+        advance(&mut solo, request(10, "sleeper", "keyed")),
         Err(AdvanceRefusal::Busy)
     );
     assert!(
@@ -436,7 +436,7 @@ fn a_crash_between_records_is_interrupted_at_the_next_start() {
     ));
     assert!(reopened.advancing.is_none(), "nothing resumes");
     let _sleeper = seat(&mut reopened, "sleeper", 1);
-    let status = advance(&mut reopened, request(0xabc, "sleeper", "rest")).expect("known");
+    let status = advance(&mut reopened, request(0xabc, "sleeper", "keyed")).expect("known");
     assert_eq!(ended(&status), Some((AdvanceOutcome::Interrupted, None)));
     drop(reopened);
     let verified = mineworld_persistence::verify(

@@ -340,4 +340,8 @@ impl WorldRuntime {
 }
 
 #[cfg(test)]
+mod parity;
+#[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod town;
