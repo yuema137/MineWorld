@@ -217,19 +217,32 @@ async fn dialogue(socket: &mut Socket, welcome: &Value) {
         .expect("Bob perceived");
     let target = bob["id"].clone();
     assert!(!target.is_null(), "observed Person identity");
-    let utterance = "launcher living reply witness";
-    socket.send(Message::Text(json!({"t":"submit", "token":"living-talk", "request":{
-        "actor":welcome["observer"], "action_type":"talk", "target":target,
-        "payload":{"action_type":"talk", "payload":{"utterance":utterance}}, "actor_location":null
-    }}).to_string().into())).await.unwrap();
-    let result = until(socket, |v| {
-        v["t"] == "result" && v["token"] == "living-talk"
-    })
-    .await;
-    assert!(
-        result["result"]["accepted"].is_object(),
-        "nearby talk accepted"
-    );
+    // Bob's rule answers a line with a chance (75 %), so one line alone fails about one run in four: up to four
+    // lines are said, each given a bounded wait, and any one answer passes (red-team #565).
+    for attempt in 0..4 {
+        let utterance = format!("launcher living reply witness {attempt}");
+        let token = format!("living-talk-{attempt}");
+        socket.send(Message::Text(json!({"t":"submit", "token":token, "request":{
+            "actor":welcome["observer"], "action_type":"talk", "target":target,
+            "payload":{"action_type":"talk", "payload":{"utterance":utterance}}, "actor_location":null
+        }}).to_string().into())).await.unwrap();
+        let result = until(socket, |v| v["t"] == "result" && v["token"] == token).await;
+        assert!(
+            result["result"]["accepted"].is_object(),
+            "nearby talk accepted"
+        );
+        let reply = tokio::time::timeout(
+            Duration::from_secs(15),
+            answered(socket, welcome, &target, &utterance),
+        );
+        if reply.await.is_ok() {
+            return;
+        }
+    }
+    panic!("Bob answered none of four lines");
+}
+
+async fn answered(socket: &mut Socket, welcome: &Value, target: &Value, utterance: &str) {
     until(socket, |v| {
         let body = match v["t"].as_str() {
             Some("observation") => &v["observation"],
@@ -240,7 +253,7 @@ async fn dialogue(socket: &mut Socket, welcome: &Value) {
             events.iter().any(|event| {
                 let said = &event["payload"]["payload"];
                 event["event_type"] == "spoke"
-                    && said["speaker"]["entity"] == target
+                    && said["speaker"]["entity"] == *target
                     && said["listener"]["entity"] == welcome["observer"]
                     && said["utterance"]
                         .as_str()

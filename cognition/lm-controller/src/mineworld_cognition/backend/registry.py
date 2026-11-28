@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+from mineworld_sdk.wire.ids import JsonValue
+
 from mineworld_cognition.backend.model import ModelBackend
 from mineworld_cognition.config import BackendConfig
 from mineworld_cognition.secrets import Secret
@@ -35,3 +37,25 @@ FACTORIES: dict[str, Factory] = {
 
 def build_backend(config: BackendConfig, key: Secret | None) -> ModelBackend:
     return FACTORIES[config.kind](config, key)
+
+
+def serves_model(config: BackendConfig, timeout_s: float) -> bool | None:
+    """Whether the backend's local service lists the configured model (`GET <base_url>/models`, the
+    OpenAI-compatible listing; a supervised preflight, `docs/reference/cognition-supervised.md` §3): a listing,
+    no inference. `None` for a kind with no such listing; `False` when the service does not answer."""
+    if config.kind != "openai-compatible":
+        return None
+    import json
+    import urllib.error
+    import urllib.request
+
+    url = config.base_url.rstrip("/") + "/models"
+    try:
+        with urllib.request.urlopen(url, timeout=timeout_s) as response:
+            listed: JsonValue = json.loads(response.read())
+    except (urllib.error.URLError, OSError, ValueError):
+        return False
+    models = listed.get("data") if isinstance(listed, dict) else None
+    if not isinstance(models, list):
+        return False
+    return any(isinstance(entry, dict) and entry.get("id") == config.model for entry in models)

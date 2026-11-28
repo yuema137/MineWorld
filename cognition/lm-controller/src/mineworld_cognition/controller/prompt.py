@@ -177,13 +177,17 @@ def _system(
     lines.extend(
         [
             "Rules: answer with one JSON object and nothing else.",
-            f'The object has the keys "act" ({_acts(situation, fill)}), "to" (a person from the list,'
-            ' or null), "words" (what you say, or ""), "offer" (a number from the list, or null),'
-            ' and "recalls" (a list of citation tokens you rely on, or []).',
-            'Use "say" to speak to someone you can talk to; use "attempt" only with a number listed'
-            ' under Offers. Each recall is a JSON string, a token exactly as shown, such as "[#12]".',
+            f'The object has the keys "act" ({_acts(situation, fill)}), "to" (a name copied exactly'
+            ' from "I can talk to", or null), "words" (what you say, or ""), "offer" (a number from'
+            ' the list, or null), and "recalls" (the memories you rely on, or []).',
+            'Use "say" only to speak to someone listed under "I can talk to"; when it says nobody,'
+            ' choose "nothing". When someone has just spoken to you and is listed there, answer them.'
+            ' Use "attempt" only with a number listed under Offers.',
+            'Each recall is an object {"memory": N}, where N is the number in a memory\'s token as'
+            ' shown: [#12] is {"memory": 12}; for a token [#10-14], N is any number from 10 to 14.'
+            " Never write a recall in any other form.",
             'For example: {"act": "say", "to": "<someone you can talk to>", "words": "<what you say>",'
-            ' "offer": null, "recalls": ["[#12]"]}',
+            ' "offer": null, "recalls": [{"memory": 12}]}',
             "Choose only among the people and offers listed. Never invent people, events or numbers.",
             "Cite memory only by the tokens shown.",
             "When someone speaks to you, answer them as yourself, using what you remember of them, and"

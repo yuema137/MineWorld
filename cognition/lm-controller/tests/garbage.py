@@ -42,7 +42,7 @@ GARBAGE: tuple[tuple[str, Finish], ...] = (
     # so the row was no garbage at all before D-P6b-43 made the resilience test check every draw).
     ('{"act":"attempt","to":null,"words":"","offer":99,"recalls":[]}', "complete"),
     (
-        '{"act":"nothing","to":null,"words":"","offer":null,"recalls":["9999"]}',
+        '{"act":"nothing","to":null,"words":"","offer":null,"recalls":[{"memory":9999}]}',
         "complete",
     ),  # forged_recall
     (

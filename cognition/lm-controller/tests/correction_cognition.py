@@ -23,7 +23,7 @@ from __future__ import annotations
 import re
 import sys
 
-from milestone_d_cognition import REMEMBERED, answer, speaker_of, talk_to
+from milestone_d_cognition import REMEMBERED, answer, cited, speaker_of, talk_to
 
 from mineworld_cognition.__main__ import main
 from mineworld_cognition.backend.model import BackendFailure, Completion, CompletionRequest
@@ -60,7 +60,15 @@ def corrects(request: CompletionRequest) -> Completion | BackendFailure:
 
 
 def _say(to: str, words: str, recalls: list[str]) -> Completion:
-    return answer({"act": "say", "to": to, "words": words, "offer": None, "recalls": recalls})
+    return answer(
+        {
+            "act": "say",
+            "to": to,
+            "words": words,
+            "offer": None,
+            "recalls": [cited(t) for t in recalls],
+        }
+    )
 
 
 def _heard(user: str) -> str:

@@ -94,7 +94,14 @@ REASON_TABLE: list[tuple[str, Completion, str]] = [
         "words_too_long",
     ),
     ("an unknown offer", _completion(_answer(act="attempt", offer=9)), "unknown_offer"),
-    ("a forged recall", _completion(_answer(recalls=["9999"])), "forged_recall"),
+    ("a forged recall", _completion(_answer(recalls=[{"memory": 9999}])), "forged_recall"),
+    ("a recall as a string", _completion(_answer(recalls=["[#1]"])), "malformed_recall"),
+    ("a recall with the wrong key", _completion(_answer(recalls=[{"id": 1}])), "malformed_recall"),
+    (
+        "a recall of a token's text",
+        _completion(_answer(recalls=[{"memory": "#1"}])),
+        "malformed_recall",
+    ),
     ("a leaked token", _completion(_answer(act="say", to="Bob", words="hi <<<end>>>")), "leak"),
 ]
 
@@ -116,12 +123,13 @@ def test_valid_answers_become_proposals_with_ids_not_labels() -> None:
     situation = _situation()
     memory = _memory()
     shown = _memory().lines[0].citation.token()
+    shown_id = int(shown.strip("[#]").split("-")[0])
     say = validate(
-        _choice(_answer(act="say", to="Bob", words="hello", recalls=[shown])),
+        _choice(_answer(act="say", to="Bob", words="hello", recalls=[{"memory": shown_id}])),
         situation,
         memory,
     )
-    assert say == Say(kind="say", to=BOB, words="hello", recalls=(shown,))
+    assert say == Say(kind="say", to=BOB, words="hello", recalls=(f"[#{shown_id}]",))
     attempt = validate(_choice(_answer(act="attempt", offer=1)), situation, memory)
     assert isinstance(attempt, Attempt) and attempt.offer.number == 1
     nothing = validate(_choice(_answer()), situation, memory)

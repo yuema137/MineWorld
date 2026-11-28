@@ -2,8 +2,8 @@
 
 Every rule is one row of the table in §5.2.6, applied in order for the chosen `act`. Fields that do not belong to
 the chosen act are ignored, not refused. A proposal names people and offers by id and position, never by label.
-A recall is valid only if it is a citation token shown in the memory section, or an event id inside a range the
-section cites (`forged_recall`).
+A recall is `{"memory": N}` (DM-20261128-4 A2): any other shape is `malformed_recall`, never repaired; N must be a
+shown line's id or inside a range the section cites (`forged_recall`). A valid recall is kept as the token `[#N]`.
 """
 
 from __future__ import annotations
@@ -105,11 +105,11 @@ def validate(
         if isinstance(proposal, ContentFailure):
             return proposal
     else:
-        proposal = Nothing(kind="nothing", recalls=tuple(choice.recalls))
-    forged = _forged_recall(choice.recalls, memory)
-    if forged is not None:
-        return forged
-    return _with_recalls(proposal, tuple(choice.recalls))
+        proposal = Nothing(kind="nothing", recalls=())
+    recalls = _recalls(choice.recalls, memory)
+    if isinstance(recalls, ContentFailure):
+        return recalls
+    return _with_recalls(proposal, recalls)
 
 
 def _say(choice: SocialChoice, situation: Situation) -> Say | ContentFailure:
@@ -179,23 +179,26 @@ def _fill(choice: SocialChoice, fillables: tuple[Fillable, ...]) -> Fill | Conte
     )
 
 
-def _forged_recall(recalls: list[str], memory: MemorySection) -> ContentFailure | None:
-    shown = {line.citation.token() for line in memory.lines}
+def _recalls(recalls: list[JsonValue], memory: MemorySection) -> tuple[str, ...] | ContentFailure:
+    """The recalls as `[#N]` tokens, or the first failure: a shape other than `{"memory": N}` with N a whole
+    number (`malformed_recall`), or an N that was not shown (`forged_recall`)."""
     ranges = memory.citations()
+    tokens: list[str] = []
     for recall in recalls:
-        if recall in shown:
-            continue
-        if _inside_a_cited_range(recall, ranges):
-            continue
-        return ContentFailure(
-            reason="forged_recall", detail="a recall names nothing that was shown"
-        )
-    return None
+        memory_id = recall.get("memory") if isinstance(recall, dict) and len(recall) == 1 else None
+        if not isinstance(memory_id, int) or isinstance(memory_id, bool) or memory_id < 0:
+            return ContentFailure(
+                reason="malformed_recall", detail='a recall is not {"memory": <a shown id>}'
+            )
+        if not _inside_a_cited_range(str(memory_id), ranges):
+            return ContentFailure(
+                reason="forged_recall", detail="a recall names nothing that was shown"
+            )
+        tokens.append(f"[#{memory_id}]")
+    return tuple(tokens)
 
 
 def _inside_a_cited_range(recall: str, ranges: tuple[EventRange, ...]) -> bool:
-    if not recall.isdigit():
-        return False
     key = event_key(EventId(recall))
     return any(event_key(item.first) <= key <= event_key(item.last) for item in ranges)
 

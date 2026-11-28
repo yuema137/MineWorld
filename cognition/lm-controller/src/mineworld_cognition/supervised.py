@@ -26,8 +26,6 @@ import json
 import os
 import sys
 import threading
-import urllib.error
-import urllib.request
 from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -218,24 +216,14 @@ def _check_backends(config: CognitionConfig) -> None:
 
 
 def _check_model(config: CognitionConfig) -> None:
-    """Asks each bound OpenAI-compatible local service which models it serves (`GET <base_url>/models`): no
-    inference, no download, no start. Skipped in replay mode, which reaches no backend."""
+    """Asks each bound backend's local service whether it serves the configured model (`registry.serves_model`): a
+    listing, no inference, no download, no start. Skipped in replay mode, which reaches no backend."""
     if config.recording.mode not in ("live", "record"):
         return
+    from mineworld_cognition.backend.registry import serves_model
+
     for name in config.bound_backends():
-        backend = config.backends[name]
-        if backend.kind != "openai-compatible":
-            continue
-        url = backend.base_url.rstrip("/") + "/models"
-        try:
-            with urllib.request.urlopen(url, timeout=MODEL_CHECK_S) as response:
-                listed = cast(dict[str, object], json.loads(response.read()))
-        except (urllib.error.URLError, OSError, ValueError):
-            raise Degraded(
-                "model_unavailable", f"backends.{name}: the local service did not answer"
-            ) from None
-        models = cast(list[dict[str, object]], listed.get("data", []))
-        if not any(entry.get("id") == backend.model for entry in models):
+        if serves_model(config.backends[name], MODEL_CHECK_S) is False:
             raise Degraded(
                 "model_unavailable", f"backends.{name}: the configured model is not served"
             )

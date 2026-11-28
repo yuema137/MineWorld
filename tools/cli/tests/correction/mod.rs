@@ -166,7 +166,7 @@ impl Mode {
             .collect();
         let (controller, budgets) = if self.gate() {
             (
-                "max_calls = 1\ngreet_cooldown_s = 86400\n",
+                "max_calls = 1\ngreet_cooldown_s = 86400\nfeeling = false\n",
                 format!(
                     "\n[budgets]\ncalls_per_wall_hour = {LEDGER_CALLS_PER_HOUR}\ntokens_per_wall_day = 30000\n\
                      max_in_flight = 1\nledger = \"gate-ledger.sqlite\"\n"

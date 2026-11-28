@@ -46,9 +46,14 @@ def remembers(request: CompletionRequest) -> Completion | BackendFailure:
             "to": speaker,
             "words": f'I remember you told me: "{words}"',
             "offer": None,
-            "recalls": [token],
+            "recalls": [cited(token)],
         }
     )
+
+
+def cited(token: str) -> dict[str, int]:
+    """A shown token as the answer cites it (DM-20261128-4 A2): `[#12]` and `[#12-14]` both as `{"memory": 12}`."""
+    return {"memory": int(token.strip("[#]").split("-")[0])}
 
 
 def speaker_of(user: str) -> str | None:

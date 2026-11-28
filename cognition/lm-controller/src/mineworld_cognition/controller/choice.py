@@ -32,6 +32,7 @@ ContentReason = Literal[
     "unknown_place",
     "bad_amount",
     "forged_recall",
+    "malformed_recall",
     "leak",
     "unknown_fill",
     "no_lines",
@@ -51,7 +52,8 @@ class SocialChoice(CognitionModel):
     to: str | None
     words: Annotated[str, Field(max_length=WORDS_MAX_CHARS)]
     offer: int | None
-    recalls: Annotated[list[str], Field(max_length=RECALLS_MAX)]
+    recalls: Annotated[list[JsonValue], Field(max_length=RECALLS_MAX)]
+    """Each `{"memory": N}` (DM-20261128-4 A2): the shape is judged by `validate`, never loosened here."""
     place: str | None = None
     """`go`: a place listed under "Places I can walk to" (LE-c). Absent from an answer to the base schema."""
     amount: int | None = None
@@ -68,6 +70,14 @@ class ContentFailure(CognitionModel):
     detail: str
 
 
+RECALL_SCHEMA: dict[str, JsonValue] = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["memory"],
+    "properties": {"memory": {"type": "integer"}},
+}
+"""One citation (DM-20261128-4 A2): the id of a memory line shown, or one inside a shown range."""
+
 SOCIAL_CHOICE_SCHEMA: dict[str, JsonValue] = {
     "type": "object",
     "additionalProperties": False,
@@ -77,7 +87,7 @@ SOCIAL_CHOICE_SCHEMA: dict[str, JsonValue] = {
         "to": {"type": ["string", "null"]},
         "words": {"type": "string", "maxLength": WORDS_MAX_CHARS},
         "offer": {"type": ["integer", "null"]},
-        "recalls": {"type": "array", "items": {"type": "string"}, "maxItems": RECALLS_MAX},
+        "recalls": {"type": "array", "items": RECALL_SCHEMA, "maxItems": RECALLS_MAX},
     },
 }
 """The schema every decision request carries (§5.2.5). Generated once, committed as a golden (C6)."""
@@ -103,7 +113,7 @@ def choice_schema(*, go: bool, amount: bool, sleep: bool = False) -> dict[str, J
         "to": {"type": ["string", "null"]},
         "words": {"type": "string", "maxLength": WORDS_MAX_CHARS},
         "offer": {"type": ["integer", "null"]},
-        "recalls": {"type": "array", "items": {"type": "string"}, "maxItems": RECALLS_MAX},
+        "recalls": {"type": "array", "items": RECALL_SCHEMA, "maxItems": RECALLS_MAX},
         "place": {"type": ["string", "null"]},
         "amount": {"type": ["integer", "null"]},
     }

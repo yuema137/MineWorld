@@ -873,6 +873,9 @@ def test_a_waiting_persons_words_are_never_displaced_by_another_kind_of_trigger(
     said_again = Trigger(
         event=EventId("470"), kind="spoken_to", speaker=EntityId("20"), words="Hello?"
     )
+    bob_says = Trigger(
+        event=EventId("480"), kind="spoken_to", speaker=EntityId("7"), words="Morning!"
+    )
 
     async def scenario() -> list[Trigger]:
         pending = Pending()
@@ -884,8 +887,11 @@ def test_a_waiting_persons_words_are_never_displaced_by_another_kind_of_trigger(
         pending.offer(arrived, 3, 2.0)
         pending.offer(said, 4, 3.0)
         pending.offer(said_again, 5, 4.0)
+        pending.offer(bob_says, 6, 5.0)
         taken.append((await pending.take()).trigger)
-        assert pending.superseded == 3, "a displaced arrival and a superseded line are counted"
+        assert pending.superseded == 4, (
+            "a displaced arrival, a superseded line and Bob's dropped line"
+        )
         return taken
 
     assert run(scenario()) == [said, said_again]

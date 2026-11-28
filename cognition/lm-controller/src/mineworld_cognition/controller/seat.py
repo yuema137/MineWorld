@@ -437,7 +437,7 @@ class SeatRunner:
         """The `feeling` trigger (S35 N-e, §4.7): when my needs' words change, or on waking. Its event is the newest
         fact the store holds, as `upcoming`'s is; it names no speaker. The baseline moves at each observation, so
         one change is told once."""
-        if self._store is None:
+        if self._store is None or not self._controller.feeling:
             return
         situation = Situation.of(observation, NameBook.load(self._store), stride_s=self._stride())
         now = felt_of(situation)

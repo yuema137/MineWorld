@@ -7,6 +7,6 @@
     "to": {"type": ["string", "null"]},
     "words": {"type": "string", "maxLength": 480},
     "offer": {"type": ["integer", "null"]},
-    "recalls": {"type": "array", "items": {"type": "string"}, "maxItems": 8}
+    "recalls": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["memory"], "properties": {"memory": {"type": "integer"}}}, "maxItems": 8}
   }
 }

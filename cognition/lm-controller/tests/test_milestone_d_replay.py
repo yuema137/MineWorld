@@ -3,6 +3,12 @@
 `tools/cli/tests/milestone_d.rs` (`record_the_milestone_d_cassette`) ran step-17 §3.14.2's scenario once against the
 real server and the real cognition process in `record` mode, with the admitted local model, and kept two files:
 
+**Re-recorded 2026-11-28 (DM-20261128-4, red-team #565 condition 6).** The citation format changed (`{"memory": N}`), so
+the 2026-10 recording of `qwen3.5:4b` no longer replays. It was re-recorded with the scripted model
+(`milestone_d_stub_server.py` serving `milestone_d_cognition.remembers` over loopback): no model reached, nothing paid.
+The words checked below are therefore the scripted model's, not a local model's; the live evidence of a model using
+memory is the §6 gate's (`pr-playable-dialogue-memory.md`).
+
 ```text
 tests/cassettes/milestone_d.jsonl               every model call of the run, both processes, in call order
 tests/fixtures/milestone_d.decisions.jsonl      Alice's decision log: each consult's inputs and record
@@ -108,8 +114,8 @@ def test_the_recorded_run_replays_exactly_and_the_3d_reply_was_decided_from_the_
     # AP7-4: every logged consult re-runs over the recorded cassette to the same keys, outcome and request; the 3D
     # reply was decided from a context holding both 2D lines, first, under what the visitor and Alice said before
     # (P6c, AP6c-2); the model's answer became the words Alice said; and the recorded model *used* those lines: its
-    # recalls cite one and its words mention the umbrella (AP6c-3). Before P6c, `qwen3.5:4b` did not (F-P7-5,
-    # Q-P7-2), and this clause was printed, not asserted.
+    # recalls cite one and its words mention the umbrella (AP6c-3). (Since DM-20261128-4 the recording is the scripted
+    # model's; see the module docstring.)
     report = run(replay_log(LOG, CASSETTE))
     records = read_decisions(LOG)
     assert report.checked == len(records) >= 2

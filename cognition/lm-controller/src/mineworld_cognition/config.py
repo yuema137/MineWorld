@@ -339,6 +339,13 @@ class ControllerConfig(ConfigModel):
             " part begin, from 5 to 120."
         ),
     )
+    feeling: bool = Field(
+        default=True,
+        description=(
+            "Whether a change of the seat's need words, or waking, asks the model to think (the `feeling`"
+            " trigger, S35 N-e). `false` pins it off, as a bounded live check does (DM-20261128-4 A3)."
+        ),
+    )
 
 
 TOPIC_ID = r"^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*$"
