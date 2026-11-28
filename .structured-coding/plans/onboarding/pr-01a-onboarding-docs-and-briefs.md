@@ -176,9 +176,11 @@ model later.
 
 ## 6. Evidence
 
+Implementation: branch `docs/onboarding-on-a` from `c373b802`; C1 `575a9698`, C2 `7de2768e`.
+
 | Item | Result |
 | --- | --- |
-| link check | not run |
-| reference check | not run |
-| `brief.md` ignored by loader | not run |
-| independent review | not run |
+| link check (shell loop, §3 C1) | PASS for every target except the links into `.structured-coding/plans/onboarding/`, which resolve once PR #574 merges (ON-a merges after it) |
+| reference check (subcommands named exist in `docs/reference/cli.md`) | PASS: create, validate, run, server, inspect, replay, biography, perceived, interactions, decisions, packs, reference |
+| `brief.md` ignored by loader | INCONCLUSIVE: not run (no built binary; machine load ≈ 34, R-LOAD-1). Supporting evidence only: shipped worlds carry `README.md` (`worlds/lakeside/README.md`) and validate. To run in ON-b's first round. |
+| independent review | pending (red-team) |
