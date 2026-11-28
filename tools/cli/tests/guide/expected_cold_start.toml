@@ -9,6 +9,9 @@
 [a]
 minimum_passed = 166
 not_run = [
+  "01-get-mineworld | Step 1.5 — Or download a ready-made program | operator-only",
+  "01-get-mineworld | Step 1.5 — Or download a ready-made program | operator-only",
+  "01-get-mineworld | Step 1.5 — Or download a ready-made program | operator-only",
   "06-play-it | Step 6.2 — Host the world | operator-only",
   "06-play-it | Step 6.3 — Walk around as Ben | operator-only",
   "14-play-as-an-agent | Step 14.2 — Start the world with a seat grant | operator-only",
@@ -30,7 +33,8 @@ not_run = [
 ]
 
 [b]
-minimum_passed = 0
+# Counted from the pages: chapters 02-06 hold 50 executed blocks, two of them operator-only (6.2, 6.3).
+minimum_passed = 48
 not_run = [
   "06-play-it | Step 6.2 — Host the world | operator-only",
   "06-play-it | Step 6.3 — Walk around as Ben | operator-only",

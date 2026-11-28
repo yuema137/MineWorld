@@ -274,7 +274,7 @@ fn guide_phase(config: &Config) -> Result<(), String> {
         binary: &config.binary,
         home: Some(&home),
         pages: &config.pages,
-        scratch_root: &scratch_root,
+        scratch_root: Some(&scratch_root),
         guards: config.layer == Layer::A,
         mutation: mutation.as_ref(),
     };

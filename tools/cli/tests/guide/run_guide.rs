@@ -40,8 +40,8 @@ pub struct RunOptions<'a> {
     pub home: Option<&'a Path>,
     /// The pages to run, by name; empty runs every page (§4.7 rule 7).
     pub pages: &'a [String],
-    /// The folder scratch folders are made under.
-    pub scratch_root: &'a str,
+    /// The folder scratch folders are made under; `None` is the test's own (`scratch!`, DEP-29).
+    pub scratch_root: Option<&'a str>,
     /// Whether mirror parity and links are checked (§4.7 rule 9).
     pub guards: bool,
     /// A page mutation, applied in memory (§4.7 rule 12).
@@ -57,7 +57,7 @@ impl RunOptions<'static> {
             binary: Path::new(command::BINARY),
             home: None,
             pages: &[],
-            scratch_root: env!("CARGO_TARGET_TMPDIR"),
+            scratch_root: None,
             guards: true,
             mutation: None,
         }
@@ -112,16 +112,13 @@ pub fn run_with(
             return summary;
         }
     };
-    let stopped = run_pages(
-        label,
+    let book = Book {
         guide,
-        &pages,
-        &features,
+        pages: &pages,
+        features: &features,
         repo,
-        options,
-        after_page,
-        &mut summary,
-    );
+    };
+    let stopped = run_pages(label, &book, options, after_page, &mut summary);
     if stopped {
         return summary;
     }
@@ -216,26 +213,35 @@ fn pages_in(folder: &Path, prefix: &str) -> Result<Vec<Listed>, String> {
 /// folder has its own index, under the same names.
 const INDEX: [&str; 2] = ["README.md", "README.zh-CN.md"];
 
+/// What one run reads: the guide folder, its pages in run order, its features, and the repository the
+/// committed folders of `equals` are named in.
+struct Book<'a> {
+    guide: &'a Path,
+    pages: &'a [Listed],
+    features: &'a Features,
+    repo: &'a Path,
+}
+
 /// Runs every page's executed blocks in order. A page that continues an earlier one uses its scratch folder
 /// and inherits its pending state (§5, §8.1). Returns whether `after_page` stopped the run.
 fn run_pages(
     label: &str,
-    guide: &Path,
-    pages: &[Listed],
-    features: &Features,
-    repo: &Path,
+    book: &Book,
     options: &RunOptions,
     after_page: &mut AfterPage,
     summary: &mut Summary,
 ) -> bool {
+    let Book {
+        guide,
+        pages,
+        features,
+        repo,
+    } = *book;
     // The reader's home folder, one per run: chapter 01 clones MineWorld into it, and later pages copy from
     // that clone (§4.6). A cold-start run uses the real one (§4.7 rule 1).
     let scratch_home = match options.home {
         Some(_) => None,
-        None => Some(Scratch::empty(
-            options.scratch_root,
-            format!("{label}-home"),
-        )),
+        None => Some(scratch_in(options.scratch_root, format!("{label}-home"))),
     };
     let home = options
         .home
@@ -301,7 +307,7 @@ fn run_pages(
                 }
             },
             None => {
-                let scratch = Scratch::empty(
+                let scratch = scratch_in(
                     options.scratch_root,
                     format!("{label}-{}", name.replace('/', "-")),
                 );
@@ -503,10 +509,19 @@ fn guard_pages(guide: &Path, pages: &[Listed], repo: &Path, summary: &mut Summar
     }
 }
 
+/// An empty scratch folder named `name`: under `root` when a cold-start run names one (§4.7), else the test's
+/// own (`scratch!`).
+fn scratch_in(root: Option<&str>, name: String) -> Scratch {
+    match root {
+        Some(root) => Scratch::empty(root, name),
+        None => mineworld_test_support::scratch!(empty name),
+    }
+}
+
 /// §9 rule 3: the flags against what the binary itself shows (§9.1). The evidence is asked for once, in a
 /// scratch folder of its own, so the guide folder is never written.
 fn check_features(label: &str, features: &Features, options: &RunOptions, summary: &mut Summary) {
-    let scratch = Scratch::empty(options.scratch_root, format!("{label}-probes"));
+    let scratch = scratch_in(options.scratch_root, format!("{label}-probes"));
     let binary = options.binary;
     let build = Build {
         packs: ask(binary, &scratch, &["packs", "list"]),
