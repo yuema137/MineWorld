@@ -37,3 +37,19 @@ on loopback only). The recorded run reached 02:30 on day 1 in about 30 wall seco
 item above was found in the recorded observation.
 
 A re-recording that changes these files is a reviewed change: update the hashes and say why.
+
+## `market-town-food-energy.json` (PR FE-a, `ARC-370`; added 2026-11-27)
+
+| File | What it is | sha256 |
+| --- | --- | --- |
+| `market-town-food-energy.json` | A **synthetic** food-energy copy of Market Town made by `tools/cli/tests/fixture/needs.rs::food_energy` (2 000 kcal a day, every needs person at 1 500 kcal at genesis, each item's unitless amount reused as synthetic kcal for "1 serving (synthetic)" of 100 g — test values, not retail or nutrition claims), `--town`, observed at 06:00 on day 1 by the first seat told a reserve: seat 10 (Alice), schema-2 `needs` record, `hunger_model: food-energy`, reserve 1 346 of 2 000 kcal, bar 673 of 1 000, words `ok` and `tired` (812), next part `walk` at place 3 at 14:00 | `154c05dc6db6f3f0790577ef990bf9f8f8500f0ca5be4ce7a083505f82d1d709` |
+
+Recorded by `record_market_town_food_energy` in `tools/cli/tests/needs_fixtures.rs` from the real binary built at the
+FE-a branch (`mvp0/pr-fe-a-food-energy`, head `2c930100` plus the C4 working tree), in 74 wall seconds:
+
+```sh
+MINEWORLD_WRITE_FIXTURES=1 cargo test -p mineworld-cli --test needs_fixtures -- --ignored --test-threads=1 record_market_town_food_energy
+```
+
+The earlier three recordings are schema 1 and are kept byte-identical. The rows for this file in `rows.*.txt` and
+`rows3d.*.txt` were written by hand from the recording. **Hand edits: none.**

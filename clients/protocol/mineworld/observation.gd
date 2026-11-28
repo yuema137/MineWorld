@@ -145,6 +145,26 @@ func component_value(id: String, component_type: String) -> Variant:
 	return null
 
 
+## The schema version a disclosed component's envelope states, read before its payload is decoded
+## (`ARC-370`): a whole number, `1` for an envelope that states none (every recording and frame before
+## versions mattered to a reader), or `-1` when the component was not disclosed or the version is not a
+## whole number. A reader decodes only the schemas it knows.
+func component_schema(id: String, component_type: String) -> int:
+	var components: Variant = entity(id).get("components", [])
+	if typeof(components) != TYPE_ARRAY:
+		return -1
+	for record in components:
+		if typeof(record) == TYPE_DICTIONARY \
+				and String(record.get("component_type", "")) == component_type:
+			var version: Variant = record.get("schema_version", 1)
+			if typeof(version) == TYPE_INT:
+				return version
+			if typeof(version) == TYPE_FLOAT and version == floorf(version):
+				return int(version)
+			return -1
+	return -1
+
+
 ## The payload of one component the world disclosed about the observer itself.
 ##
 ## What a client reads to show *what I have been told*: a pack that discloses a person's own state

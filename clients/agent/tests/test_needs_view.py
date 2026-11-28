@@ -164,3 +164,67 @@ def test_sleep_with_no_offer_is_the_library_not_offered_refusal(observation: Obs
     answer = run(player.sleep(SleepArgs(handle=HANDLE, minutes=480)), timeout_s=30)
     assert answer.outcome == Refused(code="not_offered")
     assert handle.sent == []
+
+
+def _with_needs_record(schema: int, food_energy: Raw | None, model: str = "food-energy") -> Raw:
+    """market-town-night with the observer's `needs` record restated as a schema-`schema` record (ARC-370)."""
+    value = needs_raw("market-town-night")
+    me = entity(value, value["observer"])
+    for record in me["components"]:
+        if record["component_type"] == "needs":
+            record["schema_version"] = schema
+            record["payload"]["hunger_model"] = model
+            record["payload"]["food_energy"] = food_energy
+    return value
+
+
+RESERVE = {
+    "unit": "kcal",
+    "available_kcal": 1500,
+    "capacity_kcal": 2000,
+    "use_kcal_per_world_day": 2000,
+    "bar": {"value": 750, "maximum": 1000},
+    "replaces_need": "hunger",
+}
+
+
+def test_a_food_energy_record_adds_my_reserve_in_kcal() -> None:
+    rendered, _ = rendered_of(_with_needs_record(2, RESERVE))
+    assert rendered.me.needs is not None
+    reserve = rendered.me.needs.food_energy
+    assert reserve is not None
+    assert (reserve.available_kcal, reserve.capacity_kcal, reserve.use_kcal_per_world_day) == (
+        1500,
+        2000,
+        2000,
+    )
+    assert [line.need for line in rendered.me.needs.needs] == ["hunger", "tiredness"]
+
+
+def test_a_unitless_or_schema_1_record_has_no_reserve() -> None:
+    rendered, _ = rendered_of(needs_raw("market-town-night"))
+    assert rendered.me.needs is not None and rendered.me.needs.food_energy is None
+    rendered, _ = rendered_of(_with_needs_record(2, None, model="unitless"))
+    assert rendered.me.needs is not None and rendered.me.needs.food_energy is None
+
+
+@pytest.mark.parametrize(
+    "broken",
+    [
+        {"available_kcal": 1500.5},
+        {"available_kcal": -1},
+        {"available_kcal": True},
+        {"available_kcal": 2001},
+        {"capacity_kcal": "2000"},
+        {"unit": "kJ"},
+        {"use_kcal_per_world_day": None},
+    ],
+)
+def test_a_malformed_reserve_reads_as_nothing(broken: Raw) -> None:
+    rendered, _ = rendered_of(_with_needs_record(2, {**RESERVE, **broken}))
+    assert rendered.me.needs is not None and rendered.me.needs.food_energy is None
+
+
+def test_an_unknown_needs_schema_is_not_read() -> None:
+    rendered, _ = rendered_of(_with_needs_record(3, RESERVE))
+    assert rendered.me.needs is None

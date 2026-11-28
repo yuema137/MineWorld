@@ -194,7 +194,11 @@ func _panel(kind: String, payload: Variant, observation: MineWorldObservation) -
 		title = "%s  ·  %s" % [title, kind]
 	var panel := {"component": kind, "title": title, "rows": rows, "payload": payload, "known": known}
 	if known and kind == "needs":
-		panel["bars"] = MineWorldNeeds.own_needs(observation).map(func(e: Dictionary) -> int: return e["level"])
+		# `[value, maximum]` per row: a deficit on the packs' scale, or a reserve's owner bar (`ARC-370`).
+		panel["bars"] = MineWorldNeeds.own_needs(observation).map(func(e: Dictionary) -> Array:
+			if e.has("reserve"):
+				return [e["reserve"]["bar"], e["reserve"]["maximum"]]
+			return [e["level"], MineWorldNeeds.LEVEL_MAX])
 	if known and kind == "asleep":
 		panel["button"] = true
 	return panel
@@ -204,7 +208,12 @@ func _panel(kind: String, payload: Variant, observation: MineWorldObservation) -
 func _rows(kind: String, payload: Variant, observation: MineWorldObservation) -> Variant:
 	if kind == "needs" and typeof(payload) == TYPE_DICTIONARY:
 		return _list(MineWorldNeeds.own_needs(observation), func(e: Dictionary) -> String:
-			return Words.text("ui.row.need", {"need": Words.word(e["need"]), "word": Words.word(e["word"])}))
+			var said := {"need": Words.word(e["need"]), "word": Words.word(e["word"])}
+			if e.has("reserve"):
+				said.merge({"available": e["reserve"]["available_kcal"], "capacity": e["reserve"]["capacity_kcal"],
+					"use": e["reserve"]["use_kcal_per_world_day"]})
+				return Words.text("ui.row.reserve", said)
+			return Words.text("ui.row.need", said))
 	if kind == "asleep" and typeof(payload) == TYPE_DICTIONARY:
 		var asleep := MineWorldNeeds.asleep_of(observation, observation.observer())
 		if asleep.is_empty():

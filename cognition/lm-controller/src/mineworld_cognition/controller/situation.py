@@ -59,6 +59,14 @@ class Feeling(CognitionModel):
     word: str
 
 
+class FoodEnergy(CognitionModel):
+    """My food-energy reserve in kcal, as `needs` computed it for me (ARC-370): passed on, never computed."""
+
+    available_kcal: int
+    capacity_kcal: int
+    use_kcal_per_world_day: int
+
+
 class Offer(CognitionModel):
     number: int
     action_type: ActionTypeId
@@ -100,6 +108,9 @@ class Situation(CognitionModel):
     walking: bool = False
     feelings: tuple[Feeling, ...] = ()
     """My needs and the pack's words for them, as `needs` discloses them to me (S35 N-e); empty when none."""
+    food_energy: FoodEnergy | None = Field(default=None, exclude_if=lambda value: value is None)
+    """My food-energy reserve, in a world whose hunger is one (ARC-370); `None` otherwise, and then left out
+    of the log so an older log reads the same."""
     asleep_since: int | None = None
     """When I fell asleep, in world seconds, while sleep discloses me as asleep; `None` when I am awake."""
     alarm: int | None = None
@@ -173,6 +184,7 @@ class Situation(CognitionModel):
             next=next_part,
             walking=_component(observation, WALKING_COMPONENT) is not None,
             feelings=_feelings(observation),
+            food_energy=_food_energy(observation),
             asleep_since=None if my_sleep is None else my_sleep.since,
             alarm=None if my_sleep is None else my_sleep.alarm,
             sleep_offered=any(
@@ -251,6 +263,39 @@ def _feelings(observation: Observation) -> tuple[Feeling, ...]:
     return tuple(
         Feeling(need=need, word=word) for need, word in words.items() if isinstance(word, str)
     )
+
+
+KCAL_MAX = 100_000
+"""The largest kcal number `needs` states (`MODULE_SPEC.md` §4.2)."""
+
+
+def _food_energy(observation: Observation) -> FoodEnergy | None:
+    """My reserve from a schema-2 food-energy `needs` record; `None` for any other schema, model or a block
+    that does not read (ARC-370). Bounds are checked; nothing is computed."""
+    schema = next(
+        (
+            record.schema_version
+            for entity in observation.entities
+            if entity.id == observation.observer
+            for record in entity.components
+            if record.component_type == NEEDS_COMPONENT
+        ),
+        None,
+    )
+    needs = _component(observation, NEEDS_COMPONENT)
+    if schema != 2 or not isinstance(needs, dict) or needs.get("hunger_model") != "food-energy":
+        return None
+    block = needs.get("food_energy")
+    if not isinstance(block, dict) or block.get("unit") != "kcal":
+        return None
+    available = _whole(block.get("available_kcal"))
+    capacity = _whole(block.get("capacity_kcal"))
+    use = _whole(block.get("use_kcal_per_world_day"))
+    if available is None or capacity is None or use is None:
+        return None
+    if not (1 <= capacity <= KCAL_MAX and 1 <= use <= KCAL_MAX and 0 <= available <= capacity):
+        return None
+    return FoodEnergy(available_kcal=available, capacity_kcal=capacity, use_kcal_per_world_day=use)
 
 
 def _next_part(

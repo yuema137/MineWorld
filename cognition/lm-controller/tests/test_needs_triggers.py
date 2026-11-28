@@ -182,3 +182,30 @@ def test_the_prompt_names_sleep_only_where_it_is_offered() -> None:
     )
     assert '"sleep"' not in request.messages[0].text
     assert "(say, attempt or nothing)" in request.messages[0].text
+
+
+def with_reserve(raw: dict[str, Any], available: int) -> dict[str, Any]:
+    """The recording with my `needs` record restated as a schema-2 food-energy record (ARC-370)."""
+    edited = copy.deepcopy(raw)
+    for record in mine(edited)["components"]:
+        if record["component_type"] == "needs":
+            record["schema_version"] = 2
+            record["payload"]["hunger_model"] = "food-energy"
+            record["payload"]["food_energy"] = {
+                "unit": "kcal",
+                "available_kcal": available,
+                "capacity_kcal": 2000,
+                "use_kcal_per_world_day": 2000,
+                "bar": {"value": available // 2, "maximum": 1000},
+                "replaces_need": "hunger",
+            }
+    return edited
+
+
+def test_a_reserve_that_changes_alone_asks_nothing() -> None:
+    """The feeling trigger reads the pack's words only: kcal falling with the words unchanged is no reason to
+    consult the model (ARC-370)."""
+    base = recorded()
+    frames = [with_reserve(base, 1500), with_reserve(base, 1499), with_reserve(base, 900)]
+    assert triggers_of(frames) == [None, None, None]
+    assert situation_of(frames[2]).food_energy is not None

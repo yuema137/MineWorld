@@ -20,10 +20,44 @@ const LATE := "late-for-shift"
 const LEVEL_MAX := 1000
 
 
+## The hunger models a schema-2 record names (`ARC-370`), and the one whose rows carry a reserve.
+const MODELS := ["unitless", "food-energy"]
+const RESERVE_MODEL := "food-energy"
+## The unit every reserve number is in, as the record states it.
+const RESERVE_UNIT := "kcal"
+## The largest kcal number the packs state (`MODULE_SPEC.md` §4.2).
+const KCAL_MAX := 100000
+
+
 ## My needs in the `words` map's order: `[{need, word, level}]`. `level` is the record's number under the
 ## need's name, or -1 when that number is missing (no bar is drawn for -1).
+##
+## The record's schema is read first (`ARC-370`): schema 1 is read as it always was; schema 2 names its
+## hunger model, and in the food-energy model the need the reserve `replaces_need` reads as a reserve row
+## `{need, word, level: -1, reserve: {available_kcal, capacity_kcal, use_kcal_per_world_day, bar,
+## maximum}}` — the owner's numbers, checked and passed through, never computed. A malformed reserve
+## drops that row (never a deficit bar in its place); the other needs still read. Any other schema reads
+## nothing.
 static func own_needs(obs: MineWorldObservation) -> Array:
+	var schema := obs.component_schema(obs.observer(), NEEDS)
 	var record := obs.own_component(NEEDS)
+	if schema == 1:
+		return _rows(record, "", {})
+	if schema != 2 or not MODELS.has(record.get("hunger_model")):
+		return []
+	if record.get("hunger_model") != RESERVE_MODEL:
+		return _rows(record, "", {})
+	var reserve := _reserve(record.get("food_energy"))
+	var replaced: Variant = record.get("food_energy", {}).get("replaces_need") \
+			if typeof(record.get("food_energy")) == TYPE_DICTIONARY else null
+	if typeof(replaced) != TYPE_STRING or String(replaced) == "":
+		return []
+	return _rows(record, String(replaced), reserve)
+
+
+## The rows of a record's `words` map; the need named `replaced` reads as `reserve`, or not at all when
+## `reserve` is empty (malformed).
+static func _rows(record: Dictionary, replaced: String, reserve: Dictionary) -> Array:
 	var words: Variant = record.get("words")
 	if typeof(words) != TYPE_DICTIONARY:
 		return []
@@ -32,9 +66,48 @@ static func own_needs(obs: MineWorldObservation) -> Array:
 		var word: Variant = words[need]
 		if typeof(word) != TYPE_STRING:
 			continue
+		if replaced != "" and String(need) == replaced:
+			if not reserve.is_empty():
+				out.append({"need": String(need), "word": String(word), "level": -1, "reserve": reserve})
+			continue
 		var level: Variant = _int(record.get(need))
 		out.append({"need": String(need), "word": String(word), "level": -1 if level == null else level})
 	return out
+
+
+## A disclosed `food_energy` block, checked by type and equality only: `{}` unless every number is
+## whole, within its bound and `unit` is kcal.
+static func _reserve(block: Variant) -> Dictionary:
+	if typeof(block) != TYPE_DICTIONARY or block.get("unit") != RESERVE_UNIT:
+		return {}
+	var bar: Variant = block.get("bar")
+	if typeof(bar) != TYPE_DICTIONARY:
+		return {}
+	var capacity: Variant = _whole(block.get("capacity_kcal"))
+	var use: Variant = _whole(block.get("use_kcal_per_world_day"))
+	var available: Variant = _whole(block.get("available_kcal"))
+	var maximum: Variant = _whole(bar.get("maximum"))
+	var value: Variant = _whole(bar.get("value"))
+	if capacity == null or use == null or available == null or maximum == null or value == null:
+		return {}
+	if capacity != clampi(capacity, 1, KCAL_MAX) or use != clampi(use, 1, KCAL_MAX):
+		return {}
+	if available != clampi(available, 0, capacity) or maximum != clampi(maximum, 1, KCAL_MAX):
+		return {}
+	if value != clampi(value, 0, maximum):
+		return {}
+	return {"available_kcal": available, "capacity_kcal": capacity, "use_kcal_per_world_day": use,
+		"bar": value, "maximum": maximum}
+
+
+## A whole number as disclosed, or null: an integer, or a double with no fraction (JSON numbers arrive as
+## doubles); never a boolean, a string or a fraction.
+static func _whole(value: Variant) -> Variant:
+	if typeof(value) == TYPE_INT:
+		return value
+	if typeof(value) == TYPE_FLOAT and value == floorf(value) and is_finite(value):
+		return int(value)
+	return null
 
 
 ## Whether `id` is asleep as the observer was told, and since when: `{since, alarm}` where `alarm` is

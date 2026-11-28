@@ -16,7 +16,7 @@ extends SceneTree
 const Readers := preload("res://scripts/hud/readers.gd")
 const Words := preload("res://scripts/hud/words.gd")
 
-const FIXTURES := ["market-town-night", "commute-late", "commute-sleeper"]
+const FIXTURES := ["market-town-night", "commute-late", "commute-sleeper", "market-town-food-energy"]
 const LOCALES := ["en", "zh_Hans"]
 
 

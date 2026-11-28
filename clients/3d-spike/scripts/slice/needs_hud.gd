@@ -69,9 +69,17 @@ static func entries(obs: MineWorldObservation, place_of: Callable) -> Array:
 		match String(record.get("component_type", "")):
 			"needs":
 				for need in MineWorldNeeds.own_needs(obs):
-					out.append({"text": MineWorldText.text("ui.row.need", {
-						"need": MineWorldText.code("word", need["need"]),
-						"word": MineWorldText.code("word", need["word"])}), "level": need["level"]})
+					var words := {"need": MineWorldText.code("word", need["need"]),
+						"word": MineWorldText.code("word", need["word"])}
+					if need.has("reserve"):
+						# The owner's reserve (`ARC-370`): its kcal and its bar, shown as disclosed.
+						var reserve: Dictionary = need["reserve"]
+						words.merge({"available": reserve["available_kcal"], "capacity": reserve["capacity_kcal"],
+							"use": reserve["use_kcal_per_world_day"]})
+						out.append({"text": MineWorldText.text("ui.row.reserve", words), "level": reserve["bar"],
+							"maximum": reserve["maximum"]})
+					else:
+						out.append({"text": MineWorldText.text("ui.row.need", words), "level": need["level"]})
 			"asleep":
 				var asleep := MineWorldNeeds.asleep_of(obs, me)
 				if asleep.is_empty():
@@ -121,7 +129,7 @@ func _render(obs: MineWorldObservation) -> void:
 		_lines[i].visible = i < rows.size()
 		if i < rows.size():
 			_lines[i].text = rows[i]["text"]
-			_show_bar(i, rows[i]["level"], _lines[i])
+			_show_bar(i, rows[i]["level"], rows[i].get("maximum", MineWorldNeeds.LEVEL_MAX), _lines[i])
 		elif _bars.has(i):
 			(_bars[i] as ProgressBar).visible = false
 	_show_asleep(obs)
@@ -141,8 +149,9 @@ func _show_asleep(obs: MineWorldObservation) -> void:
 			_wake_hint.text = MineWorldText.text("hud.asleep.move-to-wake")
 
 
-## A bar beside a need's row: the disclosed level on the pack's own scale (`MineWorldNeeds.LEVEL_MAX`).
-func _show_bar(index: int, level: int, line: Label) -> void:
+## A bar beside a need's row: the disclosed level on the pack's own scale (`MineWorldNeeds.LEVEL_MAX`), or a
+## reserve's owner bar on the maximum the owner disclosed.
+func _show_bar(index: int, level: int, maximum: int, line: Label) -> void:
 	if level < 0:
 		if _bars.has(index):
 			(_bars[index] as ProgressBar).visible = false
@@ -158,6 +167,7 @@ func _show_bar(index: int, level: int, line: Label) -> void:
 		_bars[index] = bar
 	var shown := _bars[index] as ProgressBar
 	shown.position = Vector2(BAR_X, line.position.y + BAR_Y_OFFSET)
+	shown.max_value = maximum
 	shown.value = level
 	shown.visible = true
 

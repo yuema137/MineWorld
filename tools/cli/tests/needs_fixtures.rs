@@ -316,3 +316,54 @@ async fn record_commute_sleeper() {
     );
     record("commute-sleeper", &observation);
 }
+
+/// 06:00 of day 1 in world seconds: a food-energy recording after the night's drain.
+const MORNING: i64 = 6 * 3_600;
+
+/// `market-town-food-energy.json` (FE-a, `ARC-370`): a synthetic food-energy copy of Market Town
+/// (`fixture/needs.rs`'s food-energy form: 2 000 kcal a day, every person at 1 500 kcal at genesis,
+/// synthetic kcal per serving), `--town`, at 06:00 on day 1; the first seat whose own `needs` record names
+/// the food-energy model, read as that seat was told it.
+#[tokio::test]
+#[ignore = "records the needs fixtures; run by hand with MINEWORLD_WRITE_FIXTURES=1"]
+async fn record_market_town_food_energy() {
+    let scratch = needs_fixture::food_energy(
+        "needs-fixture-food-energy",
+        Path::new(MARKET),
+        needs_fixture::FoodEnergyCopy {
+            daily_kcal: 2_000,
+            initial_kcal: 1_500,
+            whole_currency: false,
+        },
+    );
+    let copy = scratch.to_str().expect("a printable path").to_owned();
+    let pack = WorldPack::read(&copy).expect("the copy reads");
+    let arguments = [
+        "server",
+        copy.as_str(),
+        "--town",
+        "--solo",
+        "--time-scale",
+        SCALE,
+        "--cadence",
+        "1",
+        "--hold",
+        "0",
+    ];
+    let server = Server::start(&arguments).await;
+    wait_until(&server, MORNING).await;
+    for seat in pack.seats().iter().map(|seat| seat.as_str()) {
+        let mut client = Client::connect(server.address).await;
+        client.join(seat).await;
+        let observation = to_value(client.observation().await);
+        let me = observer_of(&observation);
+        if component(&observation, &me, "needs")
+            .is_some_and(|needs| needs["food_energy"]["available_kcal"].is_u64())
+        {
+            record("market-town-food-energy", &observation);
+            return;
+        }
+        client.disconnect().await;
+    }
+    panic!("no seat was told a food-energy reserve at 06:00");
+}

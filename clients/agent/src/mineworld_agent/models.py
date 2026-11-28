@@ -22,6 +22,7 @@ from typing import Annotated, Literal, Self
 from mineworld_sdk.wire.ids import JsonValue
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
+from mineworld_agent.food_energy import FoodEnergyLine
 from mineworld_agent.roles import RoleTag
 
 # ── Shared vocabulary ─────────────────────────────────────────────────────────────────────────────
@@ -491,6 +492,8 @@ class NeedsLine(AgentModel):
 
     needs: list[NeedLine]
     """Each need of my `words` map, in the record's order."""
+    food_energy: FoodEnergyLine | None = Field(default=None, exclude_if=lambda value: value is None)
+    """My food-energy reserve in kcal, only in a world whose hunger is a reserve (ARC-370)."""
 
 
 class AsleepLine(AgentModel):

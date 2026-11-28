@@ -540,15 +540,45 @@ full-workspace run.
 1. **Goal:** every view shows the owner's kcal truthfully and rejects malformed data without inventing a bar.
 2. **Scope:** paths in §4 rows Shared Godot, 2D, 3D, Wording, Agent, Agent reference, LM, LM triggers, Fixtures.
    No transport change, no generic SDK needs model, no inference policy change. Depends on C3.
-3. **Implementation:** [ ] envelope-aware selection; [ ] strict v2 + explicit v1 branch; [ ] replacement row via
-   `replaces_need`; [ ] en/zh_Hans kcal/rate/serving strings; [ ] agent `FoodEnergyLine` in its own module and
-   regenerated `docs/reference/agent-tools.{json,md}`; [ ] LM optional summary + one bounded line; [ ] ignored
-   recorder → `market-town-food-energy.json` + SOURCE.md hash; [ ] hand-built tests lacking schema state schema 1
-   explicitly; existing recorded fixture bytes untouched.
+3. **Implementation:** [x] envelope-aware selection; [x] strict v2 + explicit v1 branch; [x] replacement row via
+   `replaces_need`; [x] en/zh_Hans kcal/rate/serving strings — **partial:** kcal and daily-use strings
+   (`ui.row.reserve`); no serving string, see deviation; [x] agent `FoodEnergyLine` in its own module and
+   regenerated `docs/reference/agent-tools.{json,md}`; [x] LM optional summary + one bounded line; [x] ignored
+   recorder → `market-town-food-energy.json` + SOURCE.md hash; [x] hand-built tests lacking schema state schema 1
+   explicitly — **deviation:** a missing `schema_version` reads as 1 instead (`observation.gd::component_schema`),
+   so every older hand-built frame and recording reads unchanged; existing recorded fixture bytes untouched.
+   *Evidence:* shared `clients/protocol/mineworld/observation.gd::component_schema` (new) and `needs.gd::own_needs`
+   (schema 1 → legacy rows; schema 2 → `MODELS`; food-energy → the `replaces_need` row carries `reserve {available_kcal,
+   capacity_kcal, use_kcal_per_world_day, bar, maximum}` with `level: -1`; `_reserve` checks types and bounds with
+   `==`/`clampi` only, no `<`/`>`); 2D `readers.gd` (row text `ui.row.reserve`, bars as `[value, maximum]`) and
+   `panels.gd` (`_bar(value, maximum)`); 3D `needs_hud.gd` (`entries` adds `maximum`, `_show_bar` takes it). Strings
+   in `clients/shared/settings/locale/{en,zh_Hans}.po` + `messages.pot` — **deviation (bounded):** §4 named
+   `presentation/mineworld-default/2D/i18n/*.po`, but the existing `ui.row.need` lives in the shared client catalogs,
+   so the new key sits beside it. Agent: `clients/agent/src/mineworld_agent/food_energy.py` (`FoodEnergyLine`,
+   `food_energy()`, `NEEDS_SCHEMAS`), `models.py` +1 import and +2 field lines, `disclosed.py::needs` reads the
+   schema. LM: `situation.py::FoodEnergy` / `_food_energy`, `prompt.py` one line "My food energy: A of C kcal; I use
+   U kcal a day." omitted whole above 160 bytes; `triggers.py` unchanged. Recorder `record_market_town_food_energy`.
+   **Deviation (bounded, recorded as a limitation):** clients show no per-item serving row — no view shows per-item
+   nourishment today, and the agent schema of §3.8 excludes it; serving reaches controllers and the record.
 4. **Validation:** [ ] E6 actual 2D and 3D scenes (initial, after caloric food, after zero-kcal drink, after restart)
-   in en and zh_Hans; [ ] row probes equal hand-written literals; [ ] malformed/non-integer/negative/bool/unknown/
-   missing v2 → no energy row, no fallback; [ ] schema-1 rows and no-needs prompt golden unchanged; [ ] reserve
-   change alone triggers no LM consult; [ ] `python3 scripts/check_client_rules.py` passes unmodified.
+   in en and zh_Hans — **INCONCLUSIVE, not run** (windowed launches and screenshots not performed in this session;
+   both clients' row builders were run headless on the real recording instead, below); [x] row probes equal
+   hand-written literals; [x] malformed/non-integer/negative/bool/unknown/missing v2 → no energy row, no fallback;
+   [x] schema-1 rows and no-needs prompt golden unchanged; [x] reserve change alone triggers no LM consult;
+   [x] `python3 scripts/check_client_rules.py` passes unmodified.
+   *Evidence (working tree on `2c930100`, Godot 4.7.2):* recording: 1 passed in 73.6 s, sha256 `154c05dc…d709`,
+   seat 10, 1 346 / 2 000 kcal, bar 673, words ok/tired. `godot --headless --path clients/protocol --script
+   res://checks/needs_check.gd`: 0 failures (new: v2 reserve row, v2 unitless = v1, schema 3 and an unknown model →
+   none, ten malformed reserves (fraction, negative, bool, string, over capacity, zero capacity, kJ, bar over/without
+   maximum, no daily use) → tiredness only, no deficit bar; the recording → the owner's numbers). 2D harness
+   `needs_rows.gd` and 3D probe print `Hunger: fine — 1346 / 2000 kcal (2000 kcal a day)` / `饥饿：还好 — 1346 / 2000
+   千卡（每天 2000 千卡）`, the earlier fixtures' rows unchanged; oracle lines added by hand to `rows*.txt`;
+   `cargo test -p mineworld-cli --test needs_rows_parity -- --ignored` 1 passed (4 fixtures × 2 locales).
+   `uv run --locked pytest` agent `test_needs_view.py test_cli.py test_guide_chapter.py test_http_endpoint.py` 42
+   passed (the three HTTP tests first errored for want of a built binary — environment — and passed with
+   `MINEWORLD_BIN`); LM `test_needs_prompt.py test_needs_triggers.py test_controller_choice.py` 23 passed (no-needs
+   prompt golden unchanged; a reserve change with the same words fires no trigger). Ruff, ruff format, pyright on the
+   touched Python: clean. `check_client_rules.py`: PASS, unmodified.
 5. **Acceptance:** both clients, agent and LM views show the same disclosed kcal/day/serving; normalized hunger never
    printed as kcal; a missing Godot makes the client claim INCONCLUSIVE, never passed.
 6. **Failure/edges:** Godot JSON floats must be integral where integers are expected; booleans rejected; overlong
@@ -562,7 +592,10 @@ full-workspace run.
    `uv run --locked pytest cognition/lm-controller/tests/test_needs_prompt.py cognition/lm-controller/tests/test_needs_triggers.py`;
    ruff/pyright on touched Python per `.structured-coding/standards.md`.
 8. **Boundary:** fact rendering + typed adapters + actual client evidence; no UI redesign or model claim.
-   [ ] Implementation [ ] Validation [ ] Independent review
+   [x] Implementation [~] Validation (E6 windowed launches INCONCLUSIVE) [x] Independent review (self; the E7
+   readiness review is a separate agent): no client, agent or prompt computes kcal, a rate or a threshold; no
+   client names a need (R7); no transport change. Size: `models.py` 1 680 → 1 683 lines (new code in
+   `food_energy.py`); `needs.gd` +80; `observation.gd` +18 (shared file, S34-e lane: one additive function).
 
 ## 7. Terminal evidence
 
