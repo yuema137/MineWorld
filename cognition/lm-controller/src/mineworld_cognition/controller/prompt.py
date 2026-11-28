@@ -273,6 +273,15 @@ def _needs(situation: Situation) -> list[str]:
     if situation.feelings:
         pairs = "; ".join(f"{feeling.need}: {feeling.word}" for feeling in situation.feelings)
         lines.append(_cut(f"How I feel: {pairs}", NEED_LINE_BYTES))
+    if situation.food_energy is not None:
+        energy = situation.food_energy
+        text = (
+            f"My food energy: {energy.available_kcal} of {energy.capacity_kcal} kcal; "
+            f"I use {energy.use_kcal_per_world_day} kcal a day."
+        )
+        # Omitted whole rather than cut: a truncated number would be a misleading one (ARC-370).
+        if len(text.encode("utf-8")) <= NEED_LINE_BYTES:
+            lines.append(text)
     if situation.asleep_since is not None:
         since = clock(situation.asleep_since)
         if situation.alarm is None:

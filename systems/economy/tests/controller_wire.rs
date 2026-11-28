@@ -131,8 +131,8 @@ fn the_mirrors_read_a_shop_world_exactly_as_its_owners_wrote_it() {
     assert_eq!(mirror.listed.len(), owner.listed().len());
     for (seen, line) in mirror.listed.iter().zip(owner.listed()) {
         assert_eq!(
-            (seen.item, seen.price, seen.in_stock),
-            (line.item(), line.price(), line.in_stock())
+            (seen.item, seen.price, seen.ask, seen.in_stock),
+            (line.item(), line.price(), line.ask(), line.in_stock())
         );
     }
 

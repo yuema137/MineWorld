@@ -19,11 +19,11 @@
     "clients/3d-spike/assets/models/bar_chair_round_01/bar_chair_round_01.bin": "2bda85d89beb91097998b25293f10e72686b972aecffd2c14d1b5412cc1da276",
     "clients/3d-spike/assets/models/bar_chair_round_01/bar_chair_round_01.gltf.import": "ecd308a8c9e903333c53cbd700e76f6f37a9f8afd9c128440533ba2d377bf7bb",
     "clients/3d-spike/scripts/station/pieces.gd": "aebb795f51acc36d4edb3e8607ae0d8e022e7d2c9ba9f75d23b816617005d110",
-    "worlds/lakeside/places/bakery.yaml": "59cfa114aea21a2de783e1586628fc262deec7ccb8463fb48a3e8dabfa00b5b7",
-    "worlds/lakeside/places/pier.yaml": "9998843eb4b719461e72b3a2a588f6073cee09700d22e95b6ed611403783e36c",
-    "worlds/lakeside/places/square.yaml": "8388485ff2265e7ef4d701b6f179d9a2f265e89dfe47f68953206b048fa48bfe",
-    "worlds/lakeside/places/station.yaml": "b9e8ca89a0b90cd5fabf6136d5fe007c0f344c7731a176db332a8198518cb14e",
-    "worlds/lakeside/places/station-platform.yaml": "126b039c06319913610384463328afd309a6641263559a738c5daafa4b702ad6"
+    "worlds/lakeside/places/bakery.yaml": "4e28b7d47baa0724dba8ab842e959830c3794b23e240678c7c5896157d5b274a",
+    "worlds/lakeside/places/pier.yaml": "efead271a6431191ed5ffa7f45a2580b6aec1671975c664eb3ca860df7eab2f5",
+    "worlds/lakeside/places/square.yaml": "f4038e8450bb94270872fae12fbe3d3e227f21ba111ae0f3d631ec0918e94a22",
+    "worlds/lakeside/places/station.yaml": "9aced02badf9f14bdebaa985a5e76c4ca0597c5731ef0c4b435d29c674d9ee29",
+    "worlds/lakeside/places/station-platform.yaml": "fd56a933ff14ddf9415de3432a224fdc3254848811eb8dca6cb6c5c5836f67ad"
   },
   "measurement_artifacts_sha256": {
     "engine.gd": "733c6ec1161f53462469b63d50d32e7721f8060e10c66a10c97d6f64754853fb",
@@ -1438,14 +1438,14 @@
     }
   ],
   "legacy": {
-    "head": "4ce72437c8206826a5d5b5eba9fc3471024032c6",
+    "head": "S34-c2 (worlds/lakeside sit-points; no fallback, ARC-172)",
     "rows": [
       {
         "disclosed": [
           {
             "at": {
-              "x": 923.0,
-              "y": 963.0
+              "x": 923,
+              "y": 963
             },
             "facing": 19333,
             "key": "pier-bench.1"
@@ -1465,7 +1465,21 @@
           "prop": "bench.head",
           "seat_height_m": 0.45
         },
-        "fallback_expected": {
+        "point": "pier-bench.1",
+        "tags": [
+          "pier"
+        ],
+        "world": [
+          {
+            "at": {
+              "x": 800,
+              "y": 1010
+            },
+            "facing": 0,
+            "key": "pier-bench.1"
+          }
+        ],
+        "world_expected": {
           "at": [
             800.0,
             1010.0
@@ -1478,18 +1492,14 @@
           ],
           "prop": "bench.head",
           "seat_height_m": 0.45
-        },
-        "point": "pier-bench.1",
-        "tags": [
-          "pier"
-        ]
+        }
       },
       {
         "disclosed": [
           {
             "at": {
-              "x": 1523.0,
-              "y": 963.0
+              "x": 1523,
+              "y": 963
             },
             "facing": 19333,
             "key": "pier-bench.2"
@@ -1509,7 +1519,21 @@
           "prop": "bench.head",
           "seat_height_m": 0.45
         },
-        "fallback_expected": {
+        "point": "pier-bench.2",
+        "tags": [
+          "pier"
+        ],
+        "world": [
+          {
+            "at": {
+              "x": 1400,
+              "y": 1010
+            },
+            "facing": 0,
+            "key": "pier-bench.2"
+          }
+        ],
+        "world_expected": {
           "at": [
             1400.0,
             1010.0
@@ -1522,18 +1546,14 @@
           ],
           "prop": "bench.head",
           "seat_height_m": 0.45
-        },
-        "point": "pier-bench.2",
-        "tags": [
-          "pier"
-        ]
+        }
       },
       {
         "disclosed": [
           {
             "at": {
-              "x": 2123.0,
-              "y": 963.0
+              "x": 2123,
+              "y": 963
             },
             "facing": 19333,
             "key": "pier-bench.3"
@@ -1553,7 +1573,21 @@
           "prop": "bench.head",
           "seat_height_m": 0.45
         },
-        "fallback_expected": {
+        "point": "pier-bench.3",
+        "tags": [
+          "pier"
+        ],
+        "world": [
+          {
+            "at": {
+              "x": 2000,
+              "y": 1010
+            },
+            "facing": 0,
+            "key": "pier-bench.3"
+          }
+        ],
+        "world_expected": {
           "at": [
             2000.0,
             1010.0
@@ -1566,18 +1600,14 @@
           ],
           "prop": "bench.head",
           "seat_height_m": 0.45
-        },
-        "point": "pier-bench.3",
-        "tags": [
-          "pier"
-        ]
+        }
       },
       {
         "disclosed": [
           {
             "at": {
-              "x": 2723.0,
-              "y": 963.0
+              "x": 2723,
+              "y": 963
             },
             "facing": 19333,
             "key": "pier-bench.4"
@@ -1597,7 +1627,21 @@
           "prop": "bench.head",
           "seat_height_m": 0.45
         },
-        "fallback_expected": {
+        "point": "pier-bench.4",
+        "tags": [
+          "pier"
+        ],
+        "world": [
+          {
+            "at": {
+              "x": 2600,
+              "y": 1010
+            },
+            "facing": 0,
+            "key": "pier-bench.4"
+          }
+        ],
+        "world_expected": {
           "at": [
             2600.0,
             1010.0
@@ -1610,18 +1654,14 @@
           ],
           "prop": "bench.head",
           "seat_height_m": 0.45
-        },
-        "point": "pier-bench.4",
-        "tags": [
-          "pier"
-        ]
+        }
       },
       {
         "disclosed": [
           {
             "at": {
-              "x": 3323.0,
-              "y": 963.0
+              "x": 3323,
+              "y": 963
             },
             "facing": 19333,
             "key": "pier-bench.5"
@@ -1641,7 +1681,21 @@
           "prop": "bench.head",
           "seat_height_m": 0.45
         },
-        "fallback_expected": {
+        "point": "pier-bench.5",
+        "tags": [
+          "pier"
+        ],
+        "world": [
+          {
+            "at": {
+              "x": 3200,
+              "y": 1010
+            },
+            "facing": 0,
+            "key": "pier-bench.5"
+          }
+        ],
+        "world_expected": {
           "at": [
             3200.0,
             1010.0
@@ -1654,18 +1708,14 @@
           ],
           "prop": "bench.head",
           "seat_height_m": 0.45
-        },
-        "point": "pier-bench.5",
-        "tags": [
-          "pier"
-        ]
+        }
       },
       {
         "disclosed": [
           {
             "at": {
-              "x": 11323.0,
-              "y": 10213.0
+              "x": 11523,
+              "y": 10213
             },
             "facing": 19333,
             "key": "tree-bench-north.1"
@@ -1673,28 +1723,14 @@
         ],
         "disclosed_expected": {
           "at": [
-            11323.0,
+            11523.0,
             10213.0
           ],
           "depicted": true,
           "facing": 19333,
           "pelvis": [
-            11190.5771484375,
+            11390.5771484375,
             9835.5556640625
-          ],
-          "prop": "bench.west",
-          "seat_height_m": 0.45
-        },
-        "fallback_expected": {
-          "at": [
-            11200.0,
-            10260.0
-          ],
-          "depicted": true,
-          "facing": 0,
-          "pelvis": [
-            11200.0,
-            9860.0
           ],
           "prop": "bench.west",
           "seat_height_m": 0.45
@@ -1702,14 +1738,38 @@
         "point": "tree-bench-north.1",
         "tags": [
           "square"
-        ]
+        ],
+        "world": [
+          {
+            "at": {
+              "x": 11400,
+              "y": 10260
+            },
+            "facing": 0,
+            "key": "tree-bench-north.1"
+          }
+        ],
+        "world_expected": {
+          "at": [
+            11400.0,
+            10260.0
+          ],
+          "depicted": true,
+          "facing": 0,
+          "pelvis": [
+            11400.0,
+            9860.0
+          ],
+          "prop": "bench.west",
+          "seat_height_m": 0.45
+        }
       },
       {
         "disclosed": [
           {
             "at": {
-              "x": 11923.0,
-              "y": 10213.0
+              "x": 12123,
+              "y": 10213
             },
             "facing": 19333,
             "key": "tree-bench-north.2"
@@ -1717,28 +1777,14 @@
         ],
         "disclosed_expected": {
           "at": [
-            11923.0,
+            12123.0,
             10213.0
           ],
           "depicted": true,
           "facing": 19333,
           "pelvis": [
-            11790.5771484375,
+            11990.5771484375,
             9835.5556640625
-          ],
-          "prop": "bench.west",
-          "seat_height_m": 0.45
-        },
-        "fallback_expected": {
-          "at": [
-            11800.0,
-            10260.0
-          ],
-          "depicted": true,
-          "facing": 0,
-          "pelvis": [
-            11800.0,
-            9860.0
           ],
           "prop": "bench.west",
           "seat_height_m": 0.45
@@ -1746,58 +1792,38 @@
         "point": "tree-bench-north.2",
         "tags": [
           "square"
-        ]
-      },
-      {
-        "disclosed": [
+        ],
+        "world": [
           {
             "at": {
-              "x": 12523.0,
-              "y": 10213.0
+              "x": 12000,
+              "y": 10260
             },
-            "facing": 19333,
-            "key": "tree-bench-north.3"
+            "facing": 0,
+            "key": "tree-bench-north.2"
           }
         ],
-        "disclosed_expected": {
+        "world_expected": {
           "at": [
-            12523.0,
-            10213.0
-          ],
-          "depicted": true,
-          "facing": 19333,
-          "pelvis": [
-            12390.5771484375,
-            9835.5556640625
-          ],
-          "prop": "bench.west",
-          "seat_height_m": 0.45
-        },
-        "fallback_expected": {
-          "at": [
-            12400.0,
+            12000.0,
             10260.0
           ],
           "depicted": true,
           "facing": 0,
           "pelvis": [
-            12400.0,
+            12000.0,
             9860.0
           ],
           "prop": "bench.west",
           "seat_height_m": 0.45
-        },
-        "point": "tree-bench-north.3",
-        "tags": [
-          "square"
-        ]
+        }
       },
       {
         "disclosed": [
           {
             "at": {
-              "x": 13383.0,
-              "y": 8353.0
+              "x": 13383,
+              "y": 8353
             },
             "facing": 109333,
             "key": "tree-bench-east.1"
@@ -1817,7 +1843,21 @@
           "prop": "bench.east",
           "seat_height_m": 0.45
         },
-        "fallback_expected": {
+        "point": "tree-bench-east.1",
+        "tags": [
+          "square"
+        ],
+        "world": [
+          {
+            "at": {
+              "x": 13260,
+              "y": 8400
+            },
+            "facing": 90000,
+            "key": "tree-bench-east.1"
+          }
+        ],
+        "world_expected": {
           "at": [
             13260.0,
             8400.0
@@ -1830,18 +1870,14 @@
           ],
           "prop": "bench.east",
           "seat_height_m": 0.45
-        },
-        "point": "tree-bench-east.1",
-        "tags": [
-          "square"
-        ]
+        }
       },
       {
         "disclosed": [
           {
             "at": {
-              "x": 13383.0,
-              "y": 8953.0
+              "x": 13383,
+              "y": 8953
             },
             "facing": 109333,
             "key": "tree-bench-east.2"
@@ -1861,7 +1897,21 @@
           "prop": "bench.east",
           "seat_height_m": 0.45
         },
-        "fallback_expected": {
+        "point": "tree-bench-east.2",
+        "tags": [
+          "square"
+        ],
+        "world": [
+          {
+            "at": {
+              "x": 13260,
+              "y": 9000
+            },
+            "facing": 90000,
+            "key": "tree-bench-east.2"
+          }
+        ],
+        "world_expected": {
           "at": [
             13260.0,
             9000.0
@@ -1874,18 +1924,14 @@
           ],
           "prop": "bench.east",
           "seat_height_m": 0.45
-        },
-        "point": "tree-bench-east.2",
-        "tags": [
-          "square"
-        ]
+        }
       },
       {
         "disclosed": [
           {
             "at": {
-              "x": 13383.0,
-              "y": 9553.0
+              "x": 13383,
+              "y": 9553
             },
             "facing": 109333,
             "key": "tree-bench-east.3"
@@ -1905,7 +1951,21 @@
           "prop": "bench.east",
           "seat_height_m": 0.45
         },
-        "fallback_expected": {
+        "point": "tree-bench-east.3",
+        "tags": [
+          "square"
+        ],
+        "world": [
+          {
+            "at": {
+              "x": 13260,
+              "y": 9600
+            },
+            "facing": 90000,
+            "key": "tree-bench-east.3"
+          }
+        ],
+        "world_expected": {
           "at": [
             13260.0,
             9600.0
@@ -1918,18 +1978,14 @@
           ],
           "prop": "bench.east",
           "seat_height_m": 0.45
-        },
-        "point": "tree-bench-east.3",
-        "tags": [
-          "square"
-        ]
+        }
       },
       {
         "disclosed": [
           {
             "at": {
-              "x": 1783.0,
-              "y": 1753.0
+              "x": 1783,
+              "y": 1753
             },
             "facing": 289333,
             "key": "long-table.1"
@@ -1949,7 +2005,21 @@
           "prop": "long-table.chair-1",
           "seat_height_m": 0.45
         },
-        "fallback_expected": {
+        "point": "long-table.1",
+        "tags": [
+          "bakery"
+        ],
+        "world": [
+          {
+            "at": {
+              "x": 1660,
+              "y": 1800
+            },
+            "facing": 270000,
+            "key": "long-table.1"
+          }
+        ],
+        "world_expected": {
           "at": [
             1660.0,
             1800.0
@@ -1962,18 +2032,14 @@
           ],
           "prop": "long-table.chair-1",
           "seat_height_m": 0.45
-        },
-        "point": "long-table.1",
-        "tags": [
-          "bakery"
-        ]
+        }
       },
       {
         "disclosed": [
           {
             "at": {
-              "x": 1783.0,
-              "y": 2353.0
+              "x": 1783,
+              "y": 2353
             },
             "facing": 289333,
             "key": "long-table.2"
@@ -1993,7 +2059,21 @@
           "prop": "long-table.chair-2",
           "seat_height_m": 0.45
         },
-        "fallback_expected": {
+        "point": "long-table.2",
+        "tags": [
+          "bakery"
+        ],
+        "world": [
+          {
+            "at": {
+              "x": 1660,
+              "y": 2400
+            },
+            "facing": 270000,
+            "key": "long-table.2"
+          }
+        ],
+        "world_expected": {
           "at": [
             1660.0,
             2400.0
@@ -2006,18 +2086,14 @@
           ],
           "prop": "long-table.chair-2",
           "seat_height_m": 0.45
-        },
-        "point": "long-table.2",
-        "tags": [
-          "bakery"
-        ]
+        }
       },
       {
         "disclosed": [
           {
             "at": {
-              "x": 1783.0,
-              "y": 2953.0
+              "x": 1783,
+              "y": 2953
             },
             "facing": 289333,
             "key": "long-table.3"
@@ -2037,7 +2113,21 @@
           "prop": "long-table.chair-3",
           "seat_height_m": 0.45
         },
-        "fallback_expected": {
+        "point": "long-table.3",
+        "tags": [
+          "bakery"
+        ],
+        "world": [
+          {
+            "at": {
+              "x": 1660,
+              "y": 3000
+            },
+            "facing": 270000,
+            "key": "long-table.3"
+          }
+        ],
+        "world_expected": {
           "at": [
             1660.0,
             3000.0
@@ -2050,18 +2140,14 @@
           ],
           "prop": "long-table.chair-3",
           "seat_height_m": 0.45
-        },
-        "point": "long-table.3",
-        "tags": [
-          "bakery"
-        ]
+        }
       },
       {
         "disclosed": [
           {
             "at": {
-              "x": 1783.0,
-              "y": 3553.0
+              "x": 1783,
+              "y": 3553
             },
             "facing": 289333,
             "key": "long-table.4"
@@ -2081,7 +2167,21 @@
           "prop": "long-table.chair-4",
           "seat_height_m": 0.45
         },
-        "fallback_expected": {
+        "point": "long-table.4",
+        "tags": [
+          "bakery"
+        ],
+        "world": [
+          {
+            "at": {
+              "x": 1660,
+              "y": 3600
+            },
+            "facing": 270000,
+            "key": "long-table.4"
+          }
+        ],
+        "world_expected": {
           "at": [
             1660.0,
             3600.0
@@ -2094,18 +2194,14 @@
           ],
           "prop": "long-table.chair-4",
           "seat_height_m": 0.45
-        },
-        "point": "long-table.4",
-        "tags": [
-          "bakery"
-        ]
+        }
       },
       {
         "disclosed": [
           {
             "at": {
-              "x": 1783.0,
-              "y": 4153.0
+              "x": 1783,
+              "y": 4153
             },
             "facing": 289333,
             "key": "long-table.5"
@@ -2125,7 +2221,21 @@
           "prop": "long-table.chair-5",
           "seat_height_m": 0.45
         },
-        "fallback_expected": {
+        "point": "long-table.5",
+        "tags": [
+          "bakery"
+        ],
+        "world": [
+          {
+            "at": {
+              "x": 1660,
+              "y": 4200
+            },
+            "facing": 270000,
+            "key": "long-table.5"
+          }
+        ],
+        "world_expected": {
           "at": [
             1660.0,
             4200.0
@@ -2138,18 +2248,14 @@
           ],
           "prop": "long-table.chair-5",
           "seat_height_m": 0.45
-        },
-        "point": "long-table.5",
-        "tags": [
-          "bakery"
-        ]
+        }
       },
       {
         "disclosed": [
           {
             "at": {
-              "x": 2323.0,
-              "y": 663.0
+              "x": 2023,
+              "y": 663
             },
             "facing": 19333,
             "key": "wall-bench.1"
@@ -2157,28 +2263,14 @@
         ],
         "disclosed_expected": {
           "at": [
-            2323.0,
+            2023.0,
             663.0
           ],
           "depicted": true,
           "facing": 19333,
           "pelvis": [
-            2174.02392578125,
+            1874.02392578125,
             238.375305175781
-          ],
-          "prop": "bench.south",
-          "seat_height_m": 0.45
-        },
-        "fallback_expected": {
-          "at": [
-            2200.0,
-            710.0
-          ],
-          "depicted": true,
-          "facing": 0,
-          "pelvis": [
-            2200.0,
-            260.0
           ],
           "prop": "bench.south",
           "seat_height_m": 0.45
@@ -2186,14 +2278,38 @@
         "point": "wall-bench.1",
         "tags": [
           "station"
-        ]
+        ],
+        "world": [
+          {
+            "at": {
+              "x": 1900,
+              "y": 710
+            },
+            "facing": 0,
+            "key": "wall-bench.1"
+          }
+        ],
+        "world_expected": {
+          "at": [
+            1900.0,
+            710.0
+          ],
+          "depicted": true,
+          "facing": 0,
+          "pelvis": [
+            1900.0,
+            260.0
+          ],
+          "prop": "bench.south",
+          "seat_height_m": 0.45
+        }
       },
       {
         "disclosed": [
           {
             "at": {
-              "x": 2923.0,
-              "y": 663.0
+              "x": 2623,
+              "y": 663
             },
             "facing": 19333,
             "key": "wall-bench.2"
@@ -2201,28 +2317,14 @@
         ],
         "disclosed_expected": {
           "at": [
-            2923.0,
+            2623.0,
             663.0
           ],
           "depicted": true,
           "facing": 19333,
           "pelvis": [
-            2774.02392578125,
+            2474.02392578125,
             238.375305175781
-          ],
-          "prop": "bench.south",
-          "seat_height_m": 0.45
-        },
-        "fallback_expected": {
-          "at": [
-            2800.0,
-            710.0
-          ],
-          "depicted": true,
-          "facing": 0,
-          "pelvis": [
-            2800.0,
-            260.0
           ],
           "prop": "bench.south",
           "seat_height_m": 0.45
@@ -2230,14 +2332,38 @@
         "point": "wall-bench.2",
         "tags": [
           "station"
-        ]
+        ],
+        "world": [
+          {
+            "at": {
+              "x": 2500,
+              "y": 710
+            },
+            "facing": 0,
+            "key": "wall-bench.2"
+          }
+        ],
+        "world_expected": {
+          "at": [
+            2500.0,
+            710.0
+          ],
+          "depicted": true,
+          "facing": 0,
+          "pelvis": [
+            2500.0,
+            260.0
+          ],
+          "prop": "bench.south",
+          "seat_height_m": 0.45
+        }
       },
       {
         "disclosed": [
           {
             "at": {
-              "x": 3523.0,
-              "y": 663.0
+              "x": 3223,
+              "y": 663
             },
             "facing": 19333,
             "key": "wall-bench.3"
@@ -2245,28 +2371,14 @@
         ],
         "disclosed_expected": {
           "at": [
-            3523.0,
+            3223.0,
             663.0
           ],
           "depicted": true,
           "facing": 19333,
           "pelvis": [
-            3374.02392578125,
+            3074.02392578125,
             238.375305175781
-          ],
-          "prop": "bench.south",
-          "seat_height_m": 0.45
-        },
-        "fallback_expected": {
-          "at": [
-            3400.0,
-            710.0
-          ],
-          "depicted": true,
-          "facing": 0,
-          "pelvis": [
-            3400.0,
-            260.0
           ],
           "prop": "bench.south",
           "seat_height_m": 0.45
@@ -2274,14 +2386,38 @@
         "point": "wall-bench.3",
         "tags": [
           "station"
-        ]
+        ],
+        "world": [
+          {
+            "at": {
+              "x": 3100,
+              "y": 710
+            },
+            "facing": 0,
+            "key": "wall-bench.3"
+          }
+        ],
+        "world_expected": {
+          "at": [
+            3100.0,
+            710.0
+          ],
+          "depicted": true,
+          "facing": 0,
+          "pelvis": [
+            3100.0,
+            260.0
+          ],
+          "prop": "bench.south",
+          "seat_height_m": 0.45
+        }
       },
       {
         "disclosed": [
           {
             "at": {
-              "x": 4123.0,
-              "y": 663.0
+              "x": 3823,
+              "y": 663
             },
             "facing": 19333,
             "key": "wall-bench.4"
@@ -2289,28 +2425,14 @@
         ],
         "disclosed_expected": {
           "at": [
-            4123.0,
+            3823.0,
             663.0
           ],
           "depicted": true,
           "facing": 19333,
           "pelvis": [
-            3974.02392578125,
+            3674.02392578125,
             238.375305175781
-          ],
-          "prop": "bench.south",
-          "seat_height_m": 0.45
-        },
-        "fallback_expected": {
-          "at": [
-            4000.0,
-            710.0
-          ],
-          "depicted": true,
-          "facing": 0,
-          "pelvis": [
-            4000.0,
-            260.0
           ],
           "prop": "bench.south",
           "seat_height_m": 0.45
@@ -2318,14 +2440,38 @@
         "point": "wall-bench.4",
         "tags": [
           "station"
-        ]
+        ],
+        "world": [
+          {
+            "at": {
+              "x": 3700,
+              "y": 710
+            },
+            "facing": 0,
+            "key": "wall-bench.4"
+          }
+        ],
+        "world_expected": {
+          "at": [
+            3700.0,
+            710.0
+          ],
+          "depicted": true,
+          "facing": 0,
+          "pelvis": [
+            3700.0,
+            260.0
+          ],
+          "prop": "bench.south",
+          "seat_height_m": 0.45
+        }
       },
       {
         "disclosed": [
           {
             "at": {
-              "x": 4723.0,
-              "y": 663.0
+              "x": 4423,
+              "y": 663
             },
             "facing": 19333,
             "key": "wall-bench.5"
@@ -2333,28 +2479,14 @@
         ],
         "disclosed_expected": {
           "at": [
-            4723.0,
+            4423.0,
             663.0
           ],
           "depicted": true,
           "facing": 19333,
           "pelvis": [
-            4574.02392578125,
+            4274.02392578125,
             238.375305175781
-          ],
-          "prop": "bench.south",
-          "seat_height_m": 0.45
-        },
-        "fallback_expected": {
-          "at": [
-            4600.0,
-            710.0
-          ],
-          "depicted": true,
-          "facing": 0,
-          "pelvis": [
-            4600.0,
-            260.0
           ],
           "prop": "bench.south",
           "seat_height_m": 0.45
@@ -2362,14 +2494,38 @@
         "point": "wall-bench.5",
         "tags": [
           "station"
-        ]
+        ],
+        "world": [
+          {
+            "at": {
+              "x": 4300,
+              "y": 710
+            },
+            "facing": 0,
+            "key": "wall-bench.5"
+          }
+        ],
+        "world_expected": {
+          "at": [
+            4300.0,
+            710.0
+          ],
+          "depicted": true,
+          "facing": 0,
+          "pelvis": [
+            4300.0,
+            260.0
+          ],
+          "prop": "bench.south",
+          "seat_height_m": 0.45
+        }
       },
       {
         "disclosed": [
           {
             "at": {
-              "x": 5323.0,
-              "y": 663.0
+              "x": 5023,
+              "y": 663
             },
             "facing": 19333,
             "key": "wall-bench.6"
@@ -2377,28 +2533,14 @@
         ],
         "disclosed_expected": {
           "at": [
-            5323.0,
+            5023.0,
             663.0
           ],
           "depicted": true,
           "facing": 19333,
           "pelvis": [
-            5174.02392578125,
+            4874.02392578125,
             238.375305175781
-          ],
-          "prop": "bench.south",
-          "seat_height_m": 0.45
-        },
-        "fallback_expected": {
-          "at": [
-            5200.0,
-            710.0
-          ],
-          "depicted": true,
-          "facing": 0,
-          "pelvis": [
-            5200.0,
-            260.0
           ],
           "prop": "bench.south",
           "seat_height_m": 0.45
@@ -2406,14 +2548,38 @@
         "point": "wall-bench.6",
         "tags": [
           "station"
-        ]
+        ],
+        "world": [
+          {
+            "at": {
+              "x": 4900,
+              "y": 710
+            },
+            "facing": 0,
+            "key": "wall-bench.6"
+          }
+        ],
+        "world_expected": {
+          "at": [
+            4900.0,
+            710.0
+          ],
+          "depicted": true,
+          "facing": 0,
+          "pelvis": [
+            4900.0,
+            260.0
+          ],
+          "prop": "bench.south",
+          "seat_height_m": 0.45
+        }
       },
       {
         "disclosed": [
           {
             "at": {
-              "x": 5923.0,
-              "y": 663.0
+              "x": 5623,
+              "y": 663
             },
             "facing": 19333,
             "key": "wall-bench.7"
@@ -2421,28 +2587,14 @@
         ],
         "disclosed_expected": {
           "at": [
-            5923.0,
+            5623.0,
             663.0
           ],
           "depicted": true,
           "facing": 19333,
           "pelvis": [
-            5774.02392578125,
+            5474.02392578125,
             238.375305175781
-          ],
-          "prop": "bench.south",
-          "seat_height_m": 0.45
-        },
-        "fallback_expected": {
-          "at": [
-            5800.0,
-            710.0
-          ],
-          "depicted": true,
-          "facing": 0,
-          "pelvis": [
-            5800.0,
-            260.0
           ],
           "prop": "bench.south",
           "seat_height_m": 0.45
@@ -2450,14 +2602,92 @@
         "point": "wall-bench.7",
         "tags": [
           "station"
-        ]
+        ],
+        "world": [
+          {
+            "at": {
+              "x": 5500,
+              "y": 710
+            },
+            "facing": 0,
+            "key": "wall-bench.7"
+          }
+        ],
+        "world_expected": {
+          "at": [
+            5500.0,
+            710.0
+          ],
+          "depicted": true,
+          "facing": 0,
+          "pelvis": [
+            5500.0,
+            260.0
+          ],
+          "prop": "bench.south",
+          "seat_height_m": 0.45
+        }
       },
       {
         "disclosed": [
           {
             "at": {
-              "x": -3117.0,
-              "y": -5647.0
+              "x": 6223,
+              "y": 663
+            },
+            "facing": 19333,
+            "key": "wall-bench.8"
+          }
+        ],
+        "disclosed_expected": {
+          "at": [
+            6223.0,
+            663.0
+          ],
+          "depicted": true,
+          "facing": 19333,
+          "pelvis": [
+            6074.02392578125,
+            238.375305175781
+          ],
+          "prop": "bench.south",
+          "seat_height_m": 0.45
+        },
+        "point": "wall-bench.8",
+        "tags": [
+          "station"
+        ],
+        "world": [
+          {
+            "at": {
+              "x": 6100,
+              "y": 710
+            },
+            "facing": 0,
+            "key": "wall-bench.8"
+          }
+        ],
+        "world_expected": {
+          "at": [
+            6100.0,
+            710.0
+          ],
+          "depicted": true,
+          "facing": 0,
+          "pelvis": [
+            6100.0,
+            260.0
+          ],
+          "prop": "bench.south",
+          "seat_height_m": 0.45
+        }
+      },
+      {
+        "disclosed": [
+          {
+            "at": {
+              "x": -3117,
+              "y": -5647
             },
             "facing": 109333,
             "key": "platform-bench-s.1"
@@ -2477,7 +2707,21 @@
           "prop": "bench.south",
           "seat_height_m": 0.45
         },
-        "fallback_expected": {
+        "point": "platform-bench-s.1",
+        "tags": [
+          "platform"
+        ],
+        "world": [
+          {
+            "at": {
+              "x": -3240,
+              "y": -5600
+            },
+            "facing": 90000,
+            "key": "platform-bench-s.1"
+          }
+        ],
+        "world_expected": {
           "at": [
             -3240.0,
             -5600.0
@@ -2490,18 +2734,14 @@
           ],
           "prop": "bench.south",
           "seat_height_m": 0.45
-        },
-        "point": "platform-bench-s.1",
-        "tags": [
-          "platform"
-        ]
+        }
       },
       {
         "disclosed": [
           {
             "at": {
-              "x": -3117.0,
-              "y": -5047.0
+              "x": -3117,
+              "y": -5047
             },
             "facing": 109333,
             "key": "platform-bench-s.2"
@@ -2521,7 +2761,21 @@
           "prop": "bench.south",
           "seat_height_m": 0.45
         },
-        "fallback_expected": {
+        "point": "platform-bench-s.2",
+        "tags": [
+          "platform"
+        ],
+        "world": [
+          {
+            "at": {
+              "x": -3240,
+              "y": -5000
+            },
+            "facing": 90000,
+            "key": "platform-bench-s.2"
+          }
+        ],
+        "world_expected": {
           "at": [
             -3240.0,
             -5000.0
@@ -2534,18 +2788,14 @@
           ],
           "prop": "bench.south",
           "seat_height_m": 0.45
-        },
-        "point": "platform-bench-s.2",
-        "tags": [
-          "platform"
-        ]
+        }
       },
       {
         "disclosed": [
           {
             "at": {
-              "x": -3117.0,
-              "y": -4447.0
+              "x": -3117,
+              "y": -4447
             },
             "facing": 109333,
             "key": "platform-bench-s.3"
@@ -2565,7 +2815,21 @@
           "prop": "bench.south",
           "seat_height_m": 0.45
         },
-        "fallback_expected": {
+        "point": "platform-bench-s.3",
+        "tags": [
+          "platform"
+        ],
+        "world": [
+          {
+            "at": {
+              "x": -3240,
+              "y": -4400
+            },
+            "facing": 90000,
+            "key": "platform-bench-s.3"
+          }
+        ],
+        "world_expected": {
           "at": [
             -3240.0,
             -4400.0
@@ -2578,18 +2842,14 @@
           ],
           "prop": "bench.south",
           "seat_height_m": 0.45
-        },
-        "point": "platform-bench-s.3",
-        "tags": [
-          "platform"
-        ]
+        }
       },
       {
         "disclosed": [
           {
             "at": {
-              "x": -3117.0,
-              "y": 4353.0
+              "x": -3117,
+              "y": 4353
             },
             "facing": 109333,
             "key": "platform-bench-n.1"
@@ -2609,7 +2869,21 @@
           "prop": "bench.north",
           "seat_height_m": 0.45
         },
-        "fallback_expected": {
+        "point": "platform-bench-n.1",
+        "tags": [
+          "platform"
+        ],
+        "world": [
+          {
+            "at": {
+              "x": -3240,
+              "y": 4400
+            },
+            "facing": 90000,
+            "key": "platform-bench-n.1"
+          }
+        ],
+        "world_expected": {
           "at": [
             -3240.0,
             4400.0
@@ -2622,18 +2896,14 @@
           ],
           "prop": "bench.north",
           "seat_height_m": 0.45
-        },
-        "point": "platform-bench-n.1",
-        "tags": [
-          "platform"
-        ]
+        }
       },
       {
         "disclosed": [
           {
             "at": {
-              "x": -3117.0,
-              "y": 4953.0
+              "x": -3117,
+              "y": 4953
             },
             "facing": 109333,
             "key": "platform-bench-n.2"
@@ -2653,7 +2923,21 @@
           "prop": "bench.north",
           "seat_height_m": 0.45
         },
-        "fallback_expected": {
+        "point": "platform-bench-n.2",
+        "tags": [
+          "platform"
+        ],
+        "world": [
+          {
+            "at": {
+              "x": -3240,
+              "y": 5000
+            },
+            "facing": 90000,
+            "key": "platform-bench-n.2"
+          }
+        ],
+        "world_expected": {
           "at": [
             -3240.0,
             5000.0
@@ -2666,18 +2950,14 @@
           ],
           "prop": "bench.north",
           "seat_height_m": 0.45
-        },
-        "point": "platform-bench-n.2",
-        "tags": [
-          "platform"
-        ]
+        }
       },
       {
         "disclosed": [
           {
             "at": {
-              "x": -3117.0,
-              "y": 5553.0
+              "x": -3117,
+              "y": 5553
             },
             "facing": 109333,
             "key": "platform-bench-n.3"
@@ -2697,7 +2977,21 @@
           "prop": "bench.north",
           "seat_height_m": 0.45
         },
-        "fallback_expected": {
+        "point": "platform-bench-n.3",
+        "tags": [
+          "platform"
+        ],
+        "world": [
+          {
+            "at": {
+              "x": -3240,
+              "y": 5600
+            },
+            "facing": 90000,
+            "key": "platform-bench-n.3"
+          }
+        ],
+        "world_expected": {
           "at": [
             -3240.0,
             5600.0
@@ -2710,11 +3004,7 @@
           ],
           "prop": "bench.north",
           "seat_height_m": 0.45
-        },
-        "point": "platform-bench-n.3",
-        "tags": [
-          "platform"
-        ]
+        }
       }
     ]
   },
@@ -2838,7 +3128,7 @@
       "place": "square",
       "point": "tree-bench-north.1",
       "pose_mm": [
-        11200.0,
+        11400.0,
         9860.0
       ],
       "authored_height_m": 0.45,
@@ -2861,30 +3151,7 @@
       "place": "square",
       "point": "tree-bench-north.2",
       "pose_mm": [
-        11800.0,
-        9860.0
-      ],
-      "authored_height_m": 0.45,
-      "sample_over_candidate_seat": true,
-      "surface_height_m": 0.45,
-      "height_gap_mm": 0.0,
-      "primitive": "solid-sized continuous top",
-      "support_rectangle_mm": [
-        {
-          "x": 10900,
-          "y": 9600
-        },
-        {
-          "x": 12500,
-          "y": 10000
-        }
-      ]
-    },
-    {
-      "place": "square",
-      "point": "tree-bench-north.3",
-      "pose_mm": [
-        12400.0,
+        12000.0,
         9860.0
       ],
       "authored_height_m": 0.45,
@@ -3061,7 +3328,7 @@
       "place": "station",
       "point": "wall-bench.1",
       "pose_mm": [
-        2200.0,
+        1900.0,
         259.99999999999994
       ],
       "authored_height_m": 0.45,
@@ -3070,7 +3337,7 @@
       "height_gap_mm": 2.500000000000002,
       "primitive": "three slats",
       "local_xz_m": [
-        -1.7999999999999998,
+        -2.1,
         -0.03499999999999995
       ],
       "slat_z_intervals_m": [
@@ -3094,7 +3361,7 @@
       "place": "station",
       "point": "wall-bench.2",
       "pose_mm": [
-        2800.0,
+        2500.0,
         259.99999999999994
       ],
       "authored_height_m": 0.45,
@@ -3103,7 +3370,7 @@
       "height_gap_mm": 2.500000000000002,
       "primitive": "three slats",
       "local_xz_m": [
-        -1.2000000000000002,
+        -1.5,
         -0.03499999999999995
       ],
       "slat_z_intervals_m": [
@@ -3120,14 +3387,14 @@
           0.20900000000000002
         ]
       ],
-      "armrest_above_sample": true,
-      "armrest_top_m": 0.69
+      "armrest_above_sample": false,
+      "armrest_top_m": null
     },
     {
       "place": "station",
       "point": "wall-bench.3",
       "pose_mm": [
-        3400.0,
+        3100.0,
         259.99999999999994
       ],
       "authored_height_m": 0.45,
@@ -3136,7 +3403,7 @@
       "height_gap_mm": 2.500000000000002,
       "primitive": "three slats",
       "local_xz_m": [
-        -0.6000000000000001,
+        -0.8999999999999999,
         -0.03499999999999995
       ],
       "slat_z_intervals_m": [
@@ -3160,7 +3427,7 @@
       "place": "station",
       "point": "wall-bench.4",
       "pose_mm": [
-        4000.0,
+        3700.0,
         259.99999999999994
       ],
       "authored_height_m": 0.45,
@@ -3169,7 +3436,7 @@
       "height_gap_mm": 2.500000000000002,
       "primitive": "three slats",
       "local_xz_m": [
-        0.0,
+        -0.2999999999999998,
         -0.03499999999999995
       ],
       "slat_z_intervals_m": [
@@ -3186,14 +3453,14 @@
           0.20900000000000002
         ]
       ],
-      "armrest_above_sample": true,
-      "armrest_top_m": 0.69
+      "armrest_above_sample": false,
+      "armrest_top_m": null
     },
     {
       "place": "station",
       "point": "wall-bench.5",
       "pose_mm": [
-        4600.0,
+        4300.0,
         259.99999999999994
       ],
       "authored_height_m": 0.45,
@@ -3202,7 +3469,7 @@
       "height_gap_mm": 2.500000000000002,
       "primitive": "three slats",
       "local_xz_m": [
-        0.5999999999999996,
+        0.2999999999999998,
         -0.03499999999999995
       ],
       "slat_z_intervals_m": [
@@ -3226,7 +3493,7 @@
       "place": "station",
       "point": "wall-bench.6",
       "pose_mm": [
-        5200.0,
+        4900.0,
         259.99999999999994
       ],
       "authored_height_m": 0.45,
@@ -3235,7 +3502,7 @@
       "height_gap_mm": 2.500000000000002,
       "primitive": "three slats",
       "local_xz_m": [
-        1.2000000000000002,
+        0.9000000000000004,
         -0.03499999999999995
       ],
       "slat_z_intervals_m": [
@@ -3252,14 +3519,14 @@
           0.20900000000000002
         ]
       ],
-      "armrest_above_sample": true,
-      "armrest_top_m": 0.69
+      "armrest_above_sample": false,
+      "armrest_top_m": null
     },
     {
       "place": "station",
       "point": "wall-bench.7",
       "pose_mm": [
-        5800.0,
+        5500.0,
         259.99999999999994
       ],
       "authored_height_m": 0.45,
@@ -3268,7 +3535,40 @@
       "height_gap_mm": 2.500000000000002,
       "primitive": "three slats",
       "local_xz_m": [
-        1.7999999999999998,
+        1.5,
+        -0.03499999999999995
+      ],
+      "slat_z_intervals_m": [
+        [
+          -0.199,
+          -0.07100000000000002
+        ],
+        [
+          -0.05900000000000001,
+          0.06899999999999996
+        ],
+        [
+          0.08100000000000003,
+          0.20900000000000002
+        ]
+      ],
+      "armrest_above_sample": false,
+      "armrest_top_m": null
+    },
+    {
+      "place": "station",
+      "point": "wall-bench.8",
+      "pose_mm": [
+        6100.0,
+        259.99999999999994
+      ],
+      "authored_height_m": 0.45,
+      "sample_over_candidate_seat": true,
+      "surface_height_m": 0.4475,
+      "height_gap_mm": 2.500000000000002,
+      "primitive": "three slats",
+      "local_xz_m": [
+        2.0999999999999996,
         -0.03499999999999995
       ],
       "slat_z_intervals_m": [

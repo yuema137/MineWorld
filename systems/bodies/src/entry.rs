@@ -19,6 +19,7 @@ use crate::footprint::{Footprint, Placed};
 use crate::geometry::{GAP, LATTICE, PERSON_RADIUS, Point, Room, distance2};
 use crate::rapier::{Against, Scene};
 use crate::resolve::{Answer, Here, Outcome, Route};
+use crate::route::Starts;
 use crate::stride::{Candidate, nudge, verifies};
 
 /// Whether a person's disc at `p` keeps a radius from every footprint.
@@ -61,7 +62,9 @@ pub(crate) fn entry(here: &Here, target: Point) -> Answer {
             target,
             Point::new(1, 0),
             Against::Walls,
-        ) {
+        )
+        .and_then(|nudged| nudged.startable(&Starts::new(room, &placed)))
+        {
             let candidate = Candidate {
                 walker: target,
                 displaced: nudged.moved,
@@ -133,6 +136,28 @@ pub(crate) fn nearest_free(
     target: Point,
     free: &impl Fn(Point) -> bool,
 ) -> Option<Point> {
+    nearest(room, target, None, free)
+}
+
+/// [`nearest_free`] among the points within `within` mm of `target` only: the same point when the
+/// nearest free point lies that near, else [`None`] — and the search stops at the first ring wholly
+/// beyond `within`, so a point with no free point near does not scan the whole floor.
+pub(crate) fn nearest_free_within(
+    room: &Room,
+    target: Point,
+    within: i64,
+    free: &impl Fn(Point) -> bool,
+) -> Option<Point> {
+    nearest(room, target, Some(within), free)
+}
+
+/// The search of [`nearest_free`], bounded by `within` when given.
+fn nearest(
+    room: &Room,
+    target: Point,
+    within: Option<i64>,
+    free: &impl Fn(Point) -> bool,
+) -> Option<Point> {
     let (margin, step) = (PERSON_RADIUS.value(), i64::from(LATTICE.value()));
     let floor = room.floor;
     let (x0, y0) = (
@@ -167,16 +192,17 @@ pub(crate) fn nearest_free(
         }
         let p = point(i, j);
         let key = (distance2(p, target), p.y, p.x);
-        if best.is_none_or(|kept| key < kept) && free(p) {
+        let near = within.is_none_or(|limit| key.0 <= limit * limit);
+        if near && best.is_none_or(|kept| key < kept) && free(p) {
             *best = Some(key);
         }
     };
     for k in 0..=last_ring {
-        if let Some((kept, _, _)) = best {
-            let reach = (k * step - m).max(0);
-            if reach * reach > kept {
-                break;
-            }
+        let reach = (k * step - m).max(0);
+        if best.is_some_and(|(kept, _, _)| reach * reach > kept)
+            || within.is_some_and(|limit| reach > limit)
+        {
+            break;
         }
         if k == 0 {
             consider(&mut best, ci, cj);

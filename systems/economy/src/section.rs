@@ -19,6 +19,7 @@ use crate::code::{
 use crate::codec;
 use crate::component::MAX_KEEPERS;
 use crate::event::{Funded, Listed, ReferenceDeclared, ShopOpened};
+use crate::hours::Hours;
 use crate::money::{is_holder, price_in_range};
 use crate::system::EconomySystem;
 
@@ -32,6 +33,8 @@ use crate::system::EconomySystem;
 ///     at: store                     # a place key: the shop is there
 ///     prices: { apple: 100 }        # item key → asking price, 1 … 10^12
 ///     keepers: [felix]              # people who may change its prices while in the shop
+///     hours:                        # optional: when it sells, daily; left out, always open
+///       - { from: "06:00", until: "23:00" }
 /// economy: { wallet: 20000, asks: { flowers: 450 } }    # a person, selling for itself
 /// economy: { reference: 300 }                           # an item kind: its typical worth
 /// ```
@@ -79,6 +82,13 @@ pub struct AuthoredShop {
     #[serde(default)]
     #[schemars(with = "Vec<mineworld_authoring::schema::Key>")]
     keepers: Vec<EntityKey>,
+    /// When the shop sells, every day: up to 8 intervals `{ from: "HH:MM", until: "HH:MM" }`, each
+    /// open from `from` up to but not including `until`; an interval whose `until` is earlier runs past
+    /// midnight. Leave it out and the shop is always open; `[]` closes it all day. An empty interval
+    /// (`from` = `until`) or two that overlap are refused, naming the interval's index. Unattended: no
+    /// keeper needs to be there. Outside its hours every way of buying is refused `shop-closed`.
+    #[serde(default)]
+    hours: Option<Hours>,
 }
 
 impl AuthoredEconomy {
@@ -270,7 +280,12 @@ fn seed_shop(
         .collect::<Result<Vec<_>, Rejection>>()?;
     let mut facts = vec![
         Emission::new::<ShopOpened>(
-            codec::encode(&ShopOpened::new(place, operator, keepers)),
+            codec::encode(&ShopOpened::new(
+                place,
+                operator,
+                keepers,
+                shop.hours.clone(),
+            )),
             Visibility::Public,
         )
         .about(vec![place.entity_id(), subject])

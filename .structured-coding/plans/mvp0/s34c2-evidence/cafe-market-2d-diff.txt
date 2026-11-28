@@ -1,0 +1,7 @@
+2D stills before (2D change stashed) and after (head), the same drive (steps-cafe.json, seat alice), town set:
+pixels differing by more than 30 (sum of RGB), and their bounding box (x0, y0, x1, y1)
+social-cafe cafe     865  (341, 60, 484, 70)
+social-cafe station  865  (341, 60, 484, 70)
+market-town cafe     652  (350, 60, 484, 70)
+market-town station  652  (350, 60, 484, 70)
+The only difference is the HUD's world-instance id (y 60-70); every furnishing pixel is equal.

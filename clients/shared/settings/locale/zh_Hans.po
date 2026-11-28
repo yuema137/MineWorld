@@ -832,6 +832,9 @@ msgstr "钱不够"
 msgid "reason.out-of-stock"
 msgstr "已售完"
 
+msgid "reason.shop-closed"
+msgstr "店铺已打烊"
+
 msgid "reason.cannot-carry"
 msgstr "你拿不下了"
 
@@ -887,6 +890,9 @@ msgstr "睡眠中"
 
 msgid "ui.row.need"
 msgstr "{need}：{word}"
+
+msgid "ui.row.reserve"
+msgstr "{need}：{word} — {available} / {capacity} 千卡（每天 {use} 千卡）"
 
 msgid "ui.row.asleep"
 msgstr "自 {since} 起在睡，闹钟 {alarm}"
@@ -1007,3 +1013,30 @@ msgstr "对{target}说："
 
 msgid "ui.input.hint"
 msgstr "Enter 发送  ·  Esc 取消"
+
+msgid "loading.quit"
+msgstr "退出（Esc）"
+
+msgid "loading.layout"
+msgstr "正在读取世界布局……"
+
+msgid "loading.world"
+msgstr "正在构建世界……"
+
+msgid "loading.people"
+msgstr "正在准备居民……"
+
+msgid "loading.light"
+msgstr "正在准备光照……"
+
+msgid "loading.player"
+msgstr "正在准备你的角色……"
+
+msgid "loading.graphics"
+msgstr "正在准备图形……（首次启动可能需要几分钟）"
+
+msgid "loading.connecting"
+msgstr "正在进入世界……"
+
+msgid "loading.ready"
+msgstr "正在绘制世界……"

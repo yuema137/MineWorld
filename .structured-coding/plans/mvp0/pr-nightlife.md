@@ -15,7 +15,7 @@ Start condition (N2):   N1 merged; N2-C1 … N2-C3 then start on main; N2-C4 add
 Execution contract:     .structured-coding/plans/mvp0/pr-nightlife-contract.md (contracts N1 and N2)
 Parent:                 operator-playable-mvp-20261123.md §§2–5 (requirements); overall.md
 Supersedes as authority: the recovered Codex drafts listed in §1.5 (evidence only, not ledgers)
-Lifecycle:              FROZEN (2026-11-27); implementation not yet started
+Lifecycle:              FROZEN (2026-11-27); N1 implementation in progress (mvp0/pr-nightlife-n1, §11); N2 not started
 ```
 
 ## 0. Operator rulings (2026-11-27)
@@ -305,26 +305,62 @@ residents eat across a night/morning, and save/restart reproduces the hours.
    (type-only `mineworld-schedule`), economy pack documentation, regenerated
    `docs/reference/schema/section-economy.schema.json`. Non-goals: sale semantics (C2), content (C3), staffing.
 3. **Implementation.**
-   - [ ] `Hours` type: 0…8 `[from, until)` intervals of `TimeOfDay`, normalised across midnight; `open_at(WorldTime)`.
-   - [ ] `AuthoredShop.hours: Option<Vec<…>>`; refusals naming the source file and interval index.
-   - [ ] Thread through `ShopOpened` → `Shop` reducer; decide additive-optional vs version bump (N1-I4) and record.
-   - [ ] Determine whether hours reach a resume-compared configuration fact and record the N1-I8 branch.
-   - [ ] Regenerate the schema; document defaults and refusals in the pack's module docs.
-4. **Validation.** [ ] authoring+seeding integration for absent, `[]`, ordinary, overnight (22:00–06:00), equal
-   endpoints, overlap after midnight, ninth interval, malformed `"7:00"`; [ ] save → reopen → equal `Shop` terms;
-   [ ] a pre-N1 save fixture (existing economy persistence fixtures) decodes as always-open; [ ] a pre-N1 Market Town
+   - [x] `Hours` type: 0…8 `[from, until)` intervals of `TimeOfDay`, normalised across midnight; `open_at(WorldTime)`.
+         → `systems/economy/src/hours.rs` (`Hours`, `Opening`, `HoursError`, `MAX_OPENINGS`); `Hours::new` refuses a
+         ninth, an empty interval and an overlap after splitting a wrapping interval into `[from, 86 400) ∪ [0, until)`;
+         valid on every decode (`Deserialize` re-runs `new`), the `Segments` pattern of schedule.
+   - [x] `AuthoredShop.hours: Option<Vec<…>>`; refusals naming the source file and interval index.
+         → `AuthoredShop.hours: Option<Hours>`; refused at decode (serde custom error: "hours interval 1 opens and
+         closes at 09:00", "hours intervals 0 and 1 overlap", "at most 8 intervals, but these have 9", schedule's
+         `"7:00"` message); the loader names the file (asserted: `day-co.yaml`).
+   - [x] Thread through `ShopOpened` → `Shop` reducer; decide additive-optional vs version bump (N1-I4) and record.
+         → **Additive-optional, no bump** (decision D-N1-1 in §11). `ShopOpened` (schema 2) and `Shop` (schema 2) gain
+         `#[serde(default, skip_serializing_if = "Option::is_none")] hours`, the `adjustments` precedent (added by WE-a
+         C4 `4dca8647` without a bump). Economy `SystemVersion` stays 5. A shop without hours encodes byte-identically
+         to the pre-N1 encoding, so worlds without hours keep their digests.
+   - [x] Determine whether hours reach a resume-compared configuration fact and record the N1-I8 branch.
+         → They do **not**: hours are an organization's `economy:` **section** (content), seeded as `shop-opened`;
+         economy's `configuration_facts` are `currency-declared` and `economy-configured` only (`system.rs` `FACTS`).
+         `ARC-61` item 7 compares configuration facts only, and its "Accepted limitations" state content drift is
+         not checked. **N1-I8 branch: the save keeps exactly its genesis terms (always open).**
+   - [x] Regenerate the schema; document defaults and refusals in the pack's module docs.
+         → `mineworld reference --out docs/reference` (section-economy.schema.json +62, sections.md +28: `hours`,
+         `Hours`, `Opening`, `TimeOfDay`); `section.rs`/`lib.rs` docs, `systems/economy/README.md`,
+         `docs/MODULE_SPEC.md` economy row.
+4. **Validation.** [x] authoring+seeding integration for absent, `[]`, ordinary, overnight (22:00–06:00), equal
+   endpoints, overlap after midnight, ninth interval, malformed `"7:00"`; [x] save → reopen → equal `Shop` terms;
+   [x] a pre-N1 save fixture (existing economy persistence fixtures) decodes as always-open; [x] a pre-N1 Market Town
    save resumed with the N1 binary and pack: the N1-I8 outcome (named drift refusal, or old terms kept) asserted;
-   [ ] a test-fixture world authoring *different* hours (e.g. a 24 h shop and a split 08:00–12:00/14:00–18:00 shop)
+   [x] a test-fixture world authoring *different* hours (e.g. a 24 h shop and a split 08:00–12:00/14:00–18:00 shop)
    loads and judges correctly with no code change (operator acceptance 8, F14).
+   Evidence: `systems/economy/tests/hours.rs` (4 tests, real loader + real SQLite):
+   `authored_hours_reach_every_shop_and_judge_its_day` (always/[]/06–23/22–06/split, 9 hand-computed instants on
+   day 0 and day 7); `malformed_hours_stop_the_load_naming_the_file_and_the_interval` (equal, overlap after
+   midnight, ninth, `"7:00"`, unknown key); `hours_are_the_same_after_save_and_reopen`;
+   `a_save_from_before_hours_resumes_with_its_shops_always_open` (a save created from the pack without hours —
+   byte-identical to a pre-N1 save, since an hours-less shop encodes as before — passes `check_configuration`
+   against the pack *with* hours, resumes, and sells at 23:30 in the shop the pack now closes at 23:00). No economy
+   persistence fixture existed (bounded deviation D-N1-2): the pre-N1 save is produced in-test. The Market Town
+   variant of the N1-I8 check runs in N1-C3 (`tools/cli`). Unit: `hours::tests` (boundaries 05:59:59 / 06:00:00 /
+   23:59:59 / 00:00:00; overlap after wrap; touching intervals allowed).
 5. **Acceptance.** 22:00–06:00 is open at 23:59:59 and 00:00:00, closed at 06:00:00; every malformed form fails load
-   naming file and index; absent hours change no existing economy test outcome.
+   naming file and index; absent hours change no existing economy test outcome. **Met** (unit + integration above;
+   all 16 pre-existing economy test targets unchanged and passing).
 6. **Failure/edges.** Invalid hours stop world load (never silently always-open); an unsupported old payload is a
    named version refusal; no runtime System dependency on schedule (type-only, checked in `declaration`).
+   **Met**: `EconomySystem::declaration` unchanged (`depending_on([Inventory, Presence])`); `mineworld-schedule` is a
+   type-only Cargo dependency, as employment's.
 7. **Commands/evidence.** `cargo test -p mineworld-economy` (owning crate only; `R-LOAD-1`: no local full workspace),
    `cargo fmt --all --check`, `cargo clippy -p mineworld-economy -- -D warnings`, `mineworld reference --check
-   docs/reference`. NOT RUN (design). Record counts, wall time, schema diff.
-8. **Boundary.** Typed configuration and persistence only. [ ] independent logic review of normalisation and
-   migration; [ ] staged diff and ledger recorded before commit.
+   docs/reference`. **Run 2026-11-27 on the C1 tree (local, macOS arm64, debug-optimized test profile)**: economy
+   17 targets PASS (5 lib + 64 integration tests incl. 4 new); clippy `--all-targets -D warnings` PASS; fmt PASS;
+   `reference --check` PASS (46 files). Mutation: removing the overlap check fails
+   `overlap_is_judged_after_wrapping…` (caught).
+8. **Boundary.** Typed configuration and persistence only. [x] logic review of normalisation and migration
+   (author self-review at commit: adjacent-pair overlap after sorting is complete because any overlap of span *i*
+   with a later *j* implies *i*'s successor starts before *i* ends; a wrap's two pieces are disjoint; no version
+   bump is safe because decode re-validates and absent hours skip serialization. The independent review of the
+   whole PR is recorded in §11); [x] staged diff and ledger recorded before commit.
 
 ### N1-C2 — one availability judgement and disclosure
 
@@ -332,25 +368,59 @@ residents eat across a night/morning, and save/restart reproduces the hours.
 2. **Scope.** `systems/economy/src/{sale,haggle,offer,code,component}.rs` (`ShopStock` computation), economy
    sale/haggle integration tests. Depends on C1.
 3. **Implementation.**
-   - [ ] `judge_open(world, &sale)` for Shop sellers, called first inside `judge_exchange`.
-   - [ ] Call it in `haggle.rs::judge_proposal` (which does not use `judge_exchange`).
-   - [ ] New code `shop-closed` in `code.rs`; offers carry it.
-   - [ ] `ShopStock`: closed shop ⇒ `stocked: []`; update its documented meaning (N1-I6).
-   - [ ] Audit every other `Seller::Shop` consumer (`buys`, `settle_buy`, listing, price-survey reads) and record.
-4. **Validation.** [ ] hand-computed boundaries (open, `from`, `until`, overnight) through the `buy` offer, direct
-   `buy`, `propose-price`, `accept-proposal` offer and accepted settlement; [ ] proposal made open, accepted closed ⇒
-   refused; [ ] balances, `Holdings`, absence of `sold` unchanged on refusal; [ ] reopen succeeds; [ ] closed shop with
-   zero stock reports `shop-closed`, not `out-of-stock`; [ ] person-to-person sale unaffected; [ ] `shop-stock` for a
+   - [x] `judge_open(world, &sale)` for Shop sellers, called first inside `judge_exchange`.
+         → `sale.rs::judge_open` ("step 4½"): a `Seller::Shop` whose `Shop::open_at(world.at())` is false →
+         `shop-closed`; a person seller has no hours; a shop that is gone falls through to the existing steps.
+         `judge_exchange` = `judge_open` → `judge_self_trade` → `judge_goods`; `judge_sale` keeps `price-changed`
+         before it, so the N1-I3 precedence holds for `buy`.
+   - [x] Call it in `haggle.rs::judge_proposal` (which does not use `judge_exchange`).
+         → after `resolve_seller` and the price range, before self-trade and the limits (N1-I3 for propose).
+   - [x] New code `shop-closed` in `code.rs`; offers carry it.
+         → `code::SHOP_CLOSED`. `buy` offers carry it through `judge_sale`; the `accept-proposal` offer through
+         `judge_exchange`; the shop-directed `propose-price` offer explicitly (`haggle::offers`, closed before the
+         keeper/self-trade refusal, the dispatch's order).
+   - [x] `ShopStock`: closed shop ⇒ `stocked: []`; update its documented meaning (N1-I6).
+         → `offer.rs::shop_stock` reads `world.at()` (the observation's read is at the world's now); doc on
+         `component.rs::ShopStock`: "asks, holds at least one of, and has on sale now". Schema 1 unchanged.
+   - [x] Audit every other `Seller::Shop` consumer (`buys`, `settle_buy`, listing, price-survey reads) and record.
+         → `buys` and `validate` → `judge_sale` (covered); `settle_buy` re-judges `judge_sale` at the resolution's
+         instant (covered); accepted-proposal settlement → `judge_acceptance` → `judge_exchange` (covered);
+         `listing.rs` (list/set-price/withdraw) judges seller authority only — unchanged by design (N1-I5);
+         the shop `Listing` disclosure (operator, prices, stock) is unchanged: prices in a window are still
+         readable while closed, and `price-survey` (`judge.rs` reads `Listing`) surveys asks, never buys —
+         unaffected. No other crate reads `Shop` to sell (`git grep mineworld_economy::` outside economy:
+         price-survey only).
+4. **Validation.** [x] hand-computed boundaries (open, `from`, `until`, overnight) through the `buy` offer, direct
+   `buy`, `propose-price`, `accept-proposal` offer and accepted settlement; [x] proposal made open, accepted closed ⇒
+   refused; [x] balances, `Holdings`, absence of `sold` unchanged on refusal; [x] reopen succeeds; [x] closed shop with
+   zero stock reports `shop-closed`, not `out-of-stock`; [x] person-to-person sale unaffected; [x] `shop-stock` for a
    closed shop is empty, open shop unchanged. Negative: no test merely restates getters.
+   Evidence: `systems/economy/tests/closed.rs` (5 tests): `every_way_of_buying_agrees_at_the_open_and_close_instants`
+   (08:00–20:00 at 07:59:59 / 08:00:00 / 19:59:59 / 20:00:00 and 22:00–06:00 at 21:59:59 / 23:59:59 / 00:00:00 /
+   06:00:00: `buy` offer, `propose-price` offer, `shop-stock`, direct `buy` with state/wallet/holdings unchanged and
+   no facts on refusal, direct `propose-price`); `a_proposal_made_open_cannot_be_accepted_after_closing` (19:50
+   proposal accepted 19:55 settles; accepted 20:02 refused in offer and dispatch, nothing moves; next day 08:00 a
+   buy sells); `closed_comes_after_the_seller_and_price_and_before_funds_and_stock` (out-of-stock and
+   insufficient-funds become shop-closed when closed; not-for-sale and price-changed precede it);
+   `a_person_still_sells_and_a_keeper_still_reprices_in_a_closed_shop`; `a_shop_without_hours_is_always_open`.
+   `hours.rs::hours_are_the_same_after_save_and_reopen` now also asserts the reopened save refuses `shop-closed`.
 5. **Acceptance.** All Shop paths agree exactly at the close instant; accepted haggles cannot bypass hours; keepers
-   still re-price closed shops.
+   still re-price closed shops. **Met** (above).
 6. **Failure/edges.** Removed shop/stale seller keeps existing precedence; same-instant close vs accept follows the
-   kernel's instant order (judged at `world.at()`); no client-only refusal exists.
+   kernel's instant order (judged at `world.at()`); no client-only refusal exists. **Met**: `judge_open` answers
+   `Ok` when the `Shop` component is gone; every judgement reads `world.at()`; no client or controller code changed.
 7. **Commands/evidence.** `cargo test -p mineworld-economy --test buy --test sale --test haggle --test
-   haggle_settlement --test settlement` plus the new boundary target; `cargo test -p mineworld-price-survey`. NOT RUN.
-8. **Boundary.** One sale rule with evidence. [ ] independent caller-path review covering `judge_proposal`;
-   [ ] staged diff/ledger before commit.
-
+   haggle_settlement --test settlement` plus the new boundary target; `cargo test -p mineworld-price-survey`.
+   **Run 2026-11-27 on the C2 tree (local, macOS arm64)**: `cargo test -p mineworld-economy -p
+   mineworld-price-survey` — every target PASS (economy 18 targets incl. `closed` 5/5 and `hours` 4/4;
+   price-survey all PASS); clippy `-p mineworld-economy --all-targets -D warnings` PASS; fmt PASS.
+   Mutations (each reverted): M1 drop `judge_open` from `judge_proposal` → `every_way…` FAILS (caught);
+   M2 drop it from `judge_exchange` → 3 tests FAIL (caught); M3 move it after `judge_goods` →
+   `closed_comes_after…` FAILS (caught); M4 `shop_stock` ignores hours → `every_way…` FAILS (caught).
+8. **Boundary.** One sale rule with evidence. [x] caller-path review covering `judge_proposal` (author's
+   caller-path audit in item 3; every `judge_self_trade` / `judge_goods` caller now has `judge_open` before it:
+   `judge_exchange` and `judge_proposal` are the only two — `git grep judge_goods` — independent PR review in
+   §11); [x] staged diff/ledger before commit.
 ### N1-C3 — Market Town hours, residents' night, decision record
 
 1. **Goal.** Configured closures in the reference town without breaking residents' food access or S35 rhythm.
@@ -358,32 +428,55 @@ residents eat across a night/morning, and save/restart reproduces the hours.
    only if N1-I7 fails; Market Town baselines (`scripts/baselines.txt [world market-town]`) re-recorded under the
    golden-token rule; new `docs/decisions/ARC-<next>.md` (shop hours) and `docs/DECISIONS.md`/INDEX row; this ledger.
 3. **Implementation.**
-   - [ ] Author Q-L1 intervals; keep prices, nutrition, wages, shared apartments.
-   - [ ] Bounded headless night scenario (CLI `run`, Market Town, 1 night + morning).
-   - [ ] If walks/refusals exceed N1-I7, correct the owning controller and add its regression.
-   - [ ] Decision record (states the value-type extension of `ARC-28`); amend `operator-playable-mvp-20261123.md` §3
-         "Shop hours" row to point here.
-   - [ ] Record citations for the ruled hours as evidence (published hours of comparable cafés, convenience stores and
-         station newsstands). The values are operator-ruled content; a source that contradicts them is reported, not
-         acted on (realistic-defaults rule, F14).
-4. **Validation.** [ ] scenario: a purchase before close, `shop-closed` after, breakfast after opening, at least one
-   resident home → sleep → wake → work; [ ] N1-I7 counts from the event log; [ ] Social Café unchanged (removal
-   witness, absent hours); [ ] save/reopen reproduces hours; [ ] packaged launcher night check when P1 has landed
-   (Gate2, one heavy slot, ≤ 10 min).
-   **Long records (F7):** [ ] re-record `scripts/baselines.txt [world market-town]` (`summary-300`, `summary-1000`,
-   `facts-300s`, `journal-300s`, `sealed-300s`) and [ ] run AC-S35-8 (`tools/cli/tests/rhythm.rs`, `--ignored`,
-   release, 30 days × seeds {1, 7, 42}) **once each on the final head**, in the primary-assigned heavy slot (one
-   heavy job at a time; projection recorded before launch; ≤ 60 min wall in total for N1; exceeding it is a material
-   stop). The measured AC-S35-8 values are recorded in this ledger; "not relaxed" is a measured PASS, never a claim.
-   If CI gains a nightly long-record job on the exact head, its result may replace the local run, recorded as remote.
+   - [x] Author Q-L1 intervals; keep prices, nutrition, wages, shared apartments.
+         → `worlds/market-town/organizations/{cafe-company,corner-store,station-news}.yaml`: one `hours` line each
+         (05:30–22:00, 06:00–23:00, 06:00–18:00); nothing else changed.
+   - [x] Bounded headless night scenario (CLI `run`, Market Town, 1 night + morning).
+         → `tools/cli/tests/shop_hours.rs`: `mineworld run worlds/market-town --headless --seed 7 --days 2 --save <scratch>`
+         (command fixed in the test), under `rule` (default) and under every seat `motivated`
+         (`--decisions cognition/motivated/examples/social-cafe-all-motivated.yaml`).
+   - [x] If walks/refusals exceed N1-I7, correct the owning controller and add its regression.
+         → **Not exceeded; no controller edited.** rule: 0 `shop-closed` refusals; closed-shop entries
+         `{(person #10, place #2, night 0): 1, (…, night 1): 1}` — one entry per night into one shop before it opens,
+         the pattern of the café employee's punctual pre-05:30 arrival. motivated: identical entries, 0 refusals,
+         0 purchases — `motivated` makes no purchase in this 2-day Market Town window on the base content either
+         (same 5 492 facts with and without hours; pre-existing behaviour of that model, not N1's). The motivated
+         run stays as a regression (`motivated_residents_do_not_haunt_closed_shops`).
+   - [x] Decision record (states the value-type extension of `ARC-28`); amend `operator-playable-mvp-20261123.md` §3
+         "Shop hours" row to point here. → `docs/decisions/ARC-364.md` (item 7 states the `ARC-28` value-type
+         extension) + INDEX row; dated note on `ARC-360` (shop-stock meaning, N1-I6); the reconciliation row amended.
+   - [x] Record citations for the ruled hours as evidence. → In each organization file: café — US coffeehouse
+         chains commonly open 05:30–06:00 and close 20:00–22:00 (Starbucks general hours, about.starbucks.com /
+         store locator); store — 7-Eleven named in 1946 for its 07:00–23:00 day (Britannica, "7-Eleven",
+         https://www.britannica.com/money/7-Eleven); newsstand — no independent source recorded (operator-ruled
+         content, stated so). No source contradicts the ruled values.
+4. **Validation.** [x] scenario: a purchase before close, `shop-closed` after, breakfast after opening, at least one
+   resident home → sleep → wake → work; [x] N1-I7 counts from the event log; [x] Social Café unchanged (removal
+   witness, absent hours); [x] save/reopen reproduces hours; [ ] packaged launcher night check when P1 has landed
+   (Gate2, one heavy slot, ≤ 10 min) — **INCONCLUSIVE — prerequisite P1** (launcher lane; not run).
+   Evidence (local, 2026-11-27, macOS arm64): `cargo test -p mineworld-cli --test shop_hours` 3/3 PASS —
+   ruled hours read back from `shop-opened`; 98 shop sales, none outside its shop's hours (hours parsed in-test
+   from the fact, independent of economy's code); 29 evening sales (16:00–22:00), 15 day-1 breakfast sales
+   (05:30–10:00); a resident woke on day 1 then started a shift present. "`shop-closed` after": no resident
+   attempted a closed shop in this window (residents see the sign through `shop-stock`); the refusal itself is
+   proven on every path in `systems/economy/tests/closed.rs`. N1-I7 entries are counted from the stored
+   `person-entered-place` facts; refusals from the run report (aggregated by code, format-checked). Social Café
+   and Bodies Yard author no hours and their files are untouched; an hours-less shop encodes byte-identically
+   (D-N1-1), so their histories cannot move. Save/reopen: `hours.rs::hours_are_the_same_after_save_and_reopen`;
+   pre-N1 Market Town save: `shop_hours.rs::a_market_town_save_from_before_hours_resumes_without_drift`.
+   Behaviour is otherwise unchanged in this window: the same request counts with and without hours (rule,
+   seed 7, 2 days: buy 98, eat 92, sleep 33 …); only the genesis `shop-opened` bytes differ.
+   **Long records (F7):** [ ] re-record `scripts/baselines.txt [world market-town]` — **NOT DONE: deferred to the
+   primary** (dispatch rule "report before re-recording any world golden"). Every Market Town key will move
+   (genesis `shop-opened` bytes); the baselines are read by the nightly, not by `fast`. [ ] AC-S35-8 — see §11.
 5. **Acceptance.** Sales close at authored times; residents eat across the night/morning; AC-S35-8 measured PASS on
-   the final head — a violation is corrected in content with evidence or escalated, never relaxed.
-6. **Failure/edges.** Closure that starves a routine is a content defect; absence of the launcher prerequisite blocks
-   only the packaged check, which is recorded `INCONCLUSIVE — prerequisite`, never PASS.
-7. **Commands/evidence.** Exact CLI scenario command recorded before running; targeted `mineworld-cli` tests
-   (`market_town`, `market_settlement`); CI on exact head is the full gate. NOT RUN.
-8. **Boundary.** Completes N1's checkpoint. [ ] independent review of food access and removal witnesses;
-   [ ] maintainability review (§7); [ ] staged diff/ledger before commit.
+   the final head — see §11.
+6. **Failure/edges.** Closure that starves a routine is a content defect (none observed: every routine visits shops
+   inside the hours, §2.3); absence of the launcher prerequisite blocks only the packaged check, recorded
+   `INCONCLUSIVE — prerequisite`.
+7. **Commands/evidence.** See item 4 and §11 (targeted `mineworld-cli` run).
+8. **Boundary.** Completes N1's checkpoint. [x] independent review (red-team subagent, read-only, §11 R-1…R-8);
+   [x] maintainability review (§11); [x] staged diff/ledger before commit.
 
 ## 6. PR N2 — sleep-until and single-player advance
 
@@ -565,3 +658,206 @@ None of the corrections changes an operator ruling; each is a bounded design cor
 | F13 — stale claims | Fixed: HostClock location (§2.2), all twelve routines (§2.3), full refusal precedence (N1-I3), `ARC-28` value-type extension stated |
 | F14 — speed bound, references, variant world, restamp | Fixed: N2-C3 speed acceptance; citations as evidence in N1-C3/N2-C1; N1-C1 variant-hours fixture; N2 `unknown-adapter` test; header restamped to `8c971f0f` |
 | F15 — confirmed sound | No action |
+
+## 11. N1 execution ledger (implementation session, 2026-11-27)
+
+```text
+Branch / worktree:   mvp0/pr-nightlife-n1 @ /Users/yuema137/mineworld-worktrees/impl-nightlife-n1
+                     (the contract names feat/nightlife-n1-shop-hours; the primary's dispatch named
+                     mvp0/pr-nightlife-n1 — bounded deviation D-N1-0, name only)
+Implementation base: origin/main 8c971f0f (freeze base) at start; origin/main c161c120 merged in 2026-11-27
+                     (after #537 merged; 50 commits, none in economy, market-town organizations or §2.2 seams' N1 paths)
+Ledger carriage:     PR #537 (this design, docs-only) was not merged at the start; this PR carries the frozen
+                     design and contract byte-identical to 86e65cf6 plus the N1 evidence, so the ledger lives
+                     with the code it records. Whichever of #537 / N1 merges second takes the other's text.
+Scope:               N1-C1, N1-C2, N1-C3 (N1-C3's packaged launcher check waits for P1). N2 not started.
+```
+
+### Decisions and bounded deviations
+
+| ID | Question | Evidence | Decision |
+| --- | --- | --- | --- |
+| D-N1-0 | Branch name | dispatch from the primary | `mvp0/pr-nightlife-n1`, one worktree, one session |
+| D-N1-1 | N1-I4: additive-optional or a version bump | `component.rs` `Shop.adjustments` added by WE-a C4 (`4dca8647`) with `serde(default, skip_serializing_if)` and no schema bump; `codec` decodes the payload with serde | Additive-optional; `ShopOpened` stays schema 2, `Shop` schema 2, economy `SystemVersion` 5. Hours are re-validated on every decode, so a stored invalid value is refused, never read as always-open |
+| D-N1-2 | "Existing economy persistence fixtures" for a pre-N1 save | none exist (`persistence/tests/fixtures` holds format-2/3 only; economy tests build saves in-test) | The pre-N1 save is created in-test from the same pack without hours; it is byte-identical to a pre-N1 binary's save of that pack because an hours-less shop encodes exactly as before |
+| D-N1-3 | N1-I8 branch | §5 N1-C1 item 4 above (hours are content; `ARC-61` compares configuration facts only) | "the save keeps exactly its genesis terms (always open)", asserted |
+
+### Progress
+
+| Checkpoint | Commit | State |
+| --- | --- | --- |
+| Frozen design + contract carried | `953f3331` (#537 later merged the same bytes; main merged in, no force-push) | done |
+| N1-C1 typed, persistent shop hours | `39e9b0cd` | done |
+| N1-C2 one availability judgement and disclosure | `d102ab5c` | done |
+| N1-C3 Market Town hours, scenario, ARC-364 | `d0381dd2` (+ merge `4807b618`) | done |
+| Hidden consumers: midnight-hosted buys, fact mirror | (this commit) | test adaptations; Godot client tests escalated (D-N1-4) |
+
+### Independent review (red-team subagent, read-only, on the C1+C2 commits and the C3 working tree)
+
+Verdict READY-AFTER-FIXES. Confirmed sound: every Shop sale path passes `judge_open` with the N1-I3
+precedence; `Hours` normalisation and overlap completeness; additive-optional persistence and the N1-I8 branch;
+`shop-stock` reads the same instant as the offers. Findings and disposition:
+
+| # | Finding | Disposition |
+| --- | --- | --- |
+| R-1 MAJOR | C3 uncommitted; baselines untouched although Market Town genesis bytes move; AC-S35-8 unmeasured | C3 committed here; AC-S35-8 run on the final head (below); baselines **deferred to the primary** by the dispatch rule (report before re-recording a world golden) — open item, nightly-only |
+| R-2 MINOR | N1-I7 refusal bound aggregate, interval count off by the day-0 morning, stdout parse could silently read 0 | Bound corrected to 3 × (nights + 1); every refused-buy line must parse its count (format change fails loudly); per-shop keying not possible from the run report — recorded limitation; the per-path refusal is proven in `closed.rs` |
+| R-3 MINOR | CLI resume test cannot fail on behaviour | Its doc now states the discriminating part (a drift refusal would fail the resume) and points to `hours.rs`, which asserts the sale after the new closing time on a real save |
+| R-4 MINOR | closed vs self-trade untested | Added to `closed.rs`: Felix's `propose-price` and `buy` offers are `shop-closed` at 23:00 and `PreconditionFailed` at 09:00 |
+| R-5 NIT | byte-identity not golden-tested | Covered by the unchanged Social Café / Bodies Yard / Lakeside histories (their files untouched; the nightly baselines compare them) |
+| R-6 NIT | MODULE_SPEC wording | Reworded |
+| R-7 NIT | observation instant assumption | Stated in `offer.rs::shop_stock`'s doc |
+| R-8 NIT | `haggle.rs` 564 lines (> 500 trigger) | Existing debt (558 on main); +6 lines here. No business-hours logic outside economy |
+
+### Maintainability review (§7)
+
+New: `hours.rs` (≈ 250 lines incl. tests, one concept); `sale.rs` +15, `haggle.rs` +6, `offer.rs` +6,
+`component.rs` +20. No function over 50 lines added; no new abstraction beyond the `Hours` value type; ownership
+unchanged (economy alone); kernel, clients and controllers untouched. Existing debt `haggle.rs` > 500 noted, not grown
+materially.
+
+### Discovery D-N1-4 — hosted Market Town begins at 00:00, when every authored shop is closed
+
+```text
+Previous assumption (§2.3):
+  Closures are safe because every resident routine visits shops inside the hours.
+Audit evidence:
+  The targeted mineworld-cli run (below) failed ac5_takeover, ac7_many_players and milestone_c: each hosts
+  Market Town and has a player buy at the café right after genesis or at the 2-day head — both midnight
+  (instant 0 is local midnight, INV-TW-4). The buy offer is (correctly) refused `shop-closed`; the tests wait
+  20 s for an available buy and fail. market_town, market_settlement, milestone_c and newsstand also failed on
+  the test-side `shop-opened` mirror (`tests/market/mod.rs`), which refuses unknown fields by design.
+Corrected understanding:
+  Hosted play — tests and the packaged game — starts the town at midnight, so a player cannot buy anything
+  for 5.5 world hours (≈ 27 wall minutes at scale 12). This is what Q-L1's hours mean; it was not visible in
+  the residents-only audit.
+Implementation consequence (bounded, test-only):
+  - the mirror accepts the optional `hours` field (shape check stays strict);
+  - `market::AlwaysOpen` — a scratch copy of Market Town with no `hours` lines — for the three default-run
+    tests whose subject is takeover / many players / work-earn-buy, not hours. Their assertions are unchanged.
+Not done (escalated): the Godot client acceptance tests that buy at the café in hosted Market Town at start
+  (`client_3d_market`, `client_2d_interact`, `ac13_clients`, `demo_a`; `#[ignore]`d locally, run by the client
+  lanes) will meet the same closed café. They belong to the active client lane (S34-e) and the packaged
+  first-minute experience is a product decision (start the hosted day later, give the opening scene an
+  open shop, or adapt the tests as above) — for the primary/operator.
+Validation consequence:
+  ac5_takeover 2/2, ac7_many_players 1/1, milestone_c 1/1, market_settlement 3/3 (+1 ignored), market_town 1/1,
+  newsstand 6/6 PASS after the adaptations (local).
+```
+
+### Validation record (local, macOS arm64, 2026-11-27)
+
+| Check | Head | Result |
+| --- | --- | --- |
+| `cargo test -p mineworld-economy -p mineworld-price-survey` | C2 tree | PASS (all targets) |
+| `cargo clippy -p mineworld-economy -p mineworld-cli --all-targets -D warnings`, `cargo fmt --all --check`, `mineworld reference --check` | final tree | PASS |
+| `shop_hours` 3/3 | C3 tree | PASS |
+| Targeted `mineworld-cli` (21 targets touching Market Town, `--no-fail-fast`) | 4807b618 | 5 targets FAILED (D-N1-4); after the adaptations each of the 5 re-run PASS; the other 16 PASS (Godot client targets are `#[ignore]` locally — not run) |
+| **AC-S35-8** (`needs_town::the_towns_sleep_at_night_and_eat_at_meal_times`, release, `--ignored`, 30 days × seeds 1/7/42, Market Town + Commute Town; projection ≤ 15 min, actual 924 s wall incl. slot wait and release build, 67 s test) | 4807b618 | **PASS** every row. Market Town: asleep 03:00 1000 ‰ (all seeds); 14:00 0 ‰; sleep 7.45 / 7.43 / 7.47 h; TV(food, ATUS) 275 / 275 / 273 ‰; longest famished 15.8 / 5.8 / 7.0 h. Later commits are test-only, so the measurement stands for the final head's behaviour |
+| `scripts/baselines.txt [world market-town]` re-record | — | NOT DONE — deferred to the primary (dispatch rule); every Market Town key moves (genesis `shop-opened` bytes) |
+| Packaged launcher night check (Gate2) | — | INCONCLUSIVE — prerequisite P1 |
+| CI `fast` | 4807b618 | PASS (run 46081089009); re-run on the final head below |
+
+### Coordinator rulings (2026-11-27, after the first hand-back)
+
+1. Re-record `scripts/baselines.txt [world market-town]` in this PR (the genesis `shop-opened` change is the frozen
+   design's own consequence); Market Town only; Lakeside was re-recorded by #553 and is not touched.
+2. D-N1-4 (hosted day starts at 00:00 with every shop closed) goes to the operator; no product change here. The
+   always-open test copies stay. **Follow-up for the client lane (S34-e):** the Godot acceptance tests that buy at
+   the café in hosted Market Town at start will meet `shop-closed` — `tools/cli/tests/client_3d_market.rs`,
+   `client_2d_interact.rs`, `ac13_clients.rs`, `demo_a.rs` (all `#[ignore]` locally; run by the client lanes).
+   `market::AlwaysOpen` (in `tools/cli/tests/market/mod.rs`) is available to them if the operator keeps 00:00.
+3. `fast` green on the final head.
+
+### Market Town baselines re-recorded (coordinator ruling 1)
+
+```text
+Run:     ci_parity.py record --binary target/release/mineworld --root <root> --profile long, where <root> holds only
+         worlds/market-town (+ entities, presentation/mineworld-default) as links into this checkout; commit 9af926e7
+         (merge with main 29401a26); Darwin/arm64; 1 401 s in the shared heavy slot (projection ≤ 40 min, budget 60).
+Write:   ci_parity.py baseline write <record> <copy of baselines.txt>; only the [world market-town] keys spliced back,
+         with a reason line; Social Café, Bodies Yard and Lakeside untouched (Lakeside: #553).
+Check:   baseline check <record> scripts/baselines.txt — market-town's 6 keys equal; the only failures are the three
+         worlds the single-world record does not carry (expected).
+```
+
+| Key | Before (milestone F) | After (9af926e7) |
+| --- | --- | --- |
+| summary-300 | 399 4a7c7a1d… | 401 bb959647… |
+| summary-1000 | 1123 4448c2d4… | 1127 8d27edd3… |
+| summary-300s | 398 5074ddc0… | 400 c43a95c0… |
+| facts-300s | 6135 460d89d0… | 6032 0bb704b8… |
+| journal-300s | 4540 c19fd50b… | 4170 b825bc57… |
+| sealed-300s | 528 e97e994d… | 263 9e90d6b6… |
+
+The before keys date from the milestone F re-record (2026-10-20); the after keys therefore also absorb main's
+Market Town drift since then (summaries +2/+4 lines), not only N1's genesis `shop-opened` bytes. A full-world
+nightly record on the merged head is the cross-check.
+
+### Review minors (coordinator, red-team `_reviews/pr552.md`)
+
+- **N1-I7 now met, not just absent**: `shop_hours.rs::residents_meet_a_lunchtime_closure_and_neither_buy_there_nor_haunt_it`
+  — a copy of Market Town with the café closed 12:00–14:00: 8 entries into the closed café over 2 days, 0 sales
+  and 0 `shop-closed` refusals inside the window, 16 café sales 14:00–22:00. Mutation M5 (drop `judge_open`):
+  the test fails ("sold at shop 2 at 49502 s, outside its hours") — caught. `motivated` buys nothing in Market
+  Town on base content either (7 days: no `buy`, no `eat` request), so its run remains a bound on walks; a
+  purchase cannot be attempted by that model without changing it (out of N1 scope).
+- **Helpers deduplicated**: `tools/cli/tests/market/mod.rs::MarketCopy` (`always_open`, `with_hours`) replaces
+  `AlwaysOpen` and `shop_hours.rs`'s private copy-and-strip.
+- **Locale**: `reason.shop-closed` in `clients/shared/settings/locale/en.po` ("the shop is closed") and
+  `zh_Hans.po` ("店铺已打烊"); `messages.pot` regenerated (`MINEWORLD_WRITE_POT=1`); `mineworld-acceptance
+  --test client_text` 6/6 PASS.
+
+### Operator ruling on D-N1-4 (2026-11-27, relayed by the coordinator) — audit and material stop
+
+Ruling: "新世界早上 7 点开始" — new worlds begin at 07:00, not 00:00.
+
+**Audit (head 125b98fc, main a8a74659).** The genesis instant is not authored anywhere: every host hard-codes
+`WorldTime::EPOCH` (instant 0 = local midnight of the calendar epoch, `INV-TW-4`) — `tools/cli/src/run.rs`
+`Begun::new` (l. 318), `server/src/host/config.rs` `HostConfig::epoch` default (l. 96, used by `serve.rs` to create
+a save and to load an ephemeral world), `tools/cli/src/create.rs` l. 72, and the inspection paths
+(`main.rs` l. 776, `biography.rs`, `packs.rs`, `perceived.rs`). Resume reads genesis from the save. `run --days N`
+already counts from genesis (`run.rs` l. 132). `world.yaml`'s only time key is `hosting: time_scale` (host
+pacing, "never seeded, ignored by `run`", `ARC-69` item 9), so a start time does not belong there.
+
+**Smallest correct change (proposed, not implemented).**
+1. A new optional `world.yaml` key `begins: "HH:MM"` (schedule's `TimeOfDay` convention), the time of day of
+   genesis on day 0; absent = `"00:00"` (today's behaviour, no world's bytes move). Owned by `worldpack`
+   (`format.rs` field + `WorldPack::begins()`), documented in `MODULE_SPEC.md` beside `hosting:`, recorded as a
+   new ARC (amends no invariant: midnights stay multiples of 86 400 s; genesis simply need not be one).
+2. Every host that **creates** a world uses `pack.begins()` instead of `WorldTime::EPOCH`: `run.rs`,
+   `serve.rs`/`HostConfig` (when creating or loading ephemeral), `create.rs`; the inspection paths likewise.
+3. Content: `worlds/{market-town,social-cafe,lakeside}/world.yaml` `begins: "07:00"`; Bodies Yard unchanged.
+
+**Why this stops here (contract N1 MATERIAL STOP; CLAUDE.md §2.2, §3.1).**
+- It adds a public `world.yaml` contract outside N1's frozen scope (N1-C1…C3 touch economy and Market Town
+  organizations only); a contract addition needs its design text and ARC before code.
+- Ripple measured by audit: three worlds' baselines move (three long records ≈ 25 min each ≈ 75 min, above N1's
+  60-min heavy budget); tests that assert a quiet first hour after genesis (`ac5_takeover`, `milestone_c` via
+  `fixture::assert_quiet_in(…, 0, 3600)`) break at 07:00, where Bob, Grace, Carol and Ivan's routine boundaries
+  fall, and need reworking, not a constant change; AC-S35-8 must be re-measured (the first night is gone);
+  ~30 test files load worlds at `EPOCH` in memory and need a per-file audit; the Godot café-buy tests
+  (`client_3d_market`, `client_2d_interact`, `ac13_clients`, `demo_a`) are the ruling's beneficiaries and must be
+  run in a heavy slot.
+- Recommendation: merge N1 as is (its `MarketCopy` test copies keep the three Rust tests honest), and open a
+  small follow-up PR "world start time" with the design above (one commit for the key + hosts, one for content
+  and goldens), budget ≈ 2 h heavy. Alternative, if the operator wants it inside #552: approve the scope and a
+  2 h heavy budget, and this session continues.
+
+### Merge with main a2be71e4 (after #553 Lakeside, #555 FE-a needs v2, #544 …) — Market Town re-recorded again
+
+Merged without conflict (no rebase). Other worlds' sections are main's. `[world market-town]` re-recorded from a
+long-profile record of the merged tree (`ae34d202`, Market Town only, 1 674 s) and written by `baseline write`:
+
+| Key | #552 before merge | After merge (ae34d202) |
+| --- | --- | --- |
+| summary-300 | 401 bb959647… | 401 65c42943… |
+| summary-1000 | 1127 8d27edd3… | 1127 0264a9eb… |
+| summary-300s | 400 c43a95c0… | 400 a357530d… |
+| facts-300s | 6032 0bb704b8… | unchanged |
+| journal-300s | 4170 b825bc57… | unchanged |
+| sealed-300s | 263 9e90d6b6… | 263 6867e8ea… |
+
+On the merged tree: economy `closed` 5/5, `hours` 4/4; `shop_hours` 4/4; `ac5_takeover` 2/2, `ac7_many_players`
+1/1, `milestone_c` 1/1, `newsstand` 6/6 PASS. AC-S35-8 re-run (release, `ae34d202`): PASS, every row as before
+(Market Town 1000 ‰ at 03:00, 0 ‰ at 14:00, 7.45 / 7.43 / 7.47 h, TV 275 / 275 / 273 ‰; Commute Town PASS).

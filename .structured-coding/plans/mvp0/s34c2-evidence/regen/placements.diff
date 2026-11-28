@@ -1,0 +1,4 @@
+22c22
+<  d=places[name];f=next(f for f in d['body']['furnishings'] if f['key']==p['prop']);b=bindings[f['kind']];a=xy(p['fallback']['at']);yaw=math.radians(p['fallback']['facing']/1000);pose=a-np.array([math.sin(yaw),math.cos(yaw)])*p['seat_offset_m'];surface=None;support=False;detail={}
+---
+>  d=places[name];f=next(f for f in d['body']['furnishings'] if f['key']==p['prop']);b=bindings[f['kind']];w=next(s for s in d['sit-points'] if s['key']==p['point']);a=xy(w['at']);yaw=math.radians(w['facing']/1000);pose=a-np.array([math.sin(yaw),math.cos(yaw)])*p['seat_offset_m'];surface=None;support=False;detail={}

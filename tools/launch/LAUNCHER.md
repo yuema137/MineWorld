@@ -13,11 +13,15 @@ a failure.
 
 It never reads world state; the only thing it reads from the server is the join line
 (`server/PROTOCOL.md` §4.1). It holds no world rule, opens no window of its own, makes no network connection,
-and stops only the processes it started. No language model is involved anywhere.
+and stops only the processes it started. The launcher itself invokes no model provider. The bundled
+default towns have no decision list and use in-process rule controllers without model or network
+services; a separately configured World Pack retains its own authored decision policy.
 
 ## 2. Entry points
 
-One crate, `tools/launch` (`mineworld-launch`), standard library only. Three binaries, each a one-line
+One crate, `tools/launch` (`mineworld-launch`), using the standard library and the workspace
+`getrandom` dependency for a private local host capability (ARC-78 amendment, 2026-11-23).
+Three binaries, each a one-line
 `main` naming its mode:
 
 | Binary | Mode | Default world | Seats |
@@ -26,8 +30,10 @@ One crate, `tools/launch` (`mineworld-launch`), standard library only. Three bin
 | `mineworld-3d-launch` | `3d` | `social-cafe` | 3D client as `visitor` |
 | `mineworld-both-launch` | `both` | `social-cafe` | 2D client as `visitor`, 3D client as `wanderer` (`AC-15`'s two players) |
 
-Every mode drives `alice` with the in-server rule controller (`--agent alice`), as the repository's root
-launchers do. The bundle presents them as "MineWorld 2D", "MineWorld 3D" and "MineWorld 2D + 3D": macOS
+Every played mode starts `--town`: unoccupied seats use the world's resolved decision models
+(default in-process paced rule controllers for the bundled towns), without pinning Alice to a
+reactive-only controller. Scripted smoke retains `--agent alice`, without `--town`. Smoke verifies
+its scripted fixture, not living-town behavior. The bundle presents them as "MineWorld 2D", "MineWorld 3D" and "MineWorld 2D + 3D": macOS
 `.app` wrappers, Windows `.exe` files, Linux executables with `.desktop` files (the assembling script's
 concern, `scripts/package.py`).
 
@@ -121,10 +127,11 @@ seat is not checked by the launcher: the server refuses an unknown seat to the c
 2  play: saves/<world>/ (deleted first with --fresh); smoke: scratch/<run>/
 3  start the server:
      runtime/mineworld server runtime/worlds/<world> --listen 127.0.0.1:0 --save <save>
-                      --agent alice --stop-on-stdin-eof
+                      [play: --town; smoke: --agent alice] --stop-on-stdin-eof
      standard input: a pipe the launcher holds
      standard output and error: logs/<run>-server.log
-     environment: the launcher's, without MINEWORLD_INVITE and MINEWORLD_ADMIN_TOKEN
+     environment: the launcher's without MINEWORLD_INVITE; private played-run
+                  MINEWORLD_ADMIN_TOKEN, or no admin token in smoke
 4  read the join line from the server's log, every 100 ms for up to 60 s:
      [mineworld] invite <token> — join with: <address> seat=<seat> invite=<token>
    the token follows "invite " up to the next space; the address follows " join with: " up to the next
@@ -135,6 +142,7 @@ seat is not checked by the launcher: the server refuses an unknown seat to the c
                  --world-key=<world> [probe]
      (--world-key names the world the client draws; a joining client refuses to enter without it, RL-e0)
      standard output and error: logs/<run>-client-<2d|3d>.log
+     environment: the same private played-run MINEWORLD_ADMIN_TOKEN; removed in smoke
 6  wait until every client has exited
 7  stop the server (§8)
 ```
@@ -148,6 +156,23 @@ seat is not checked by the launcher: the server refuses an unknown seat to the c
 
 The invite is passed to the client on its command line, as the root launchers do; it is never written to the
 launcher's own log. The server's log holds it, once, in the join line, as `server/PROTOCOL.md` §4.1 allows.
+
+### 7.1 Local host capability
+
+Before starting a played server, the launcher generates 16 bytes using the operating system
+random source through `getrandom`, encoding them as 32 hex characters. Failure to obtain randomness
+fails the run before a child starts. The capability is independent of the server-generated invite.
+Only the owned server and clients receive it, in their environment; it is never put in an argument,
+log, file or parent environment. Inherited admin capabilities are replaced in played runs and
+removed from both child types in smoke runs. The server mounts its existing loopback admin
+surface; the client's existing World tab controls pause/resume and day length (4/2/1 hours).
+The server remains the clock authority. No world schema or saved composition changes.
+
+The supervisor deliberately passes neither `--hosted-here` nor `--solo`. A bundled client
+therefore exposes clock controls but not the shell launcher's Keep Running preference. Both mode
+never obtains solo fast-forward permission. Closing one client leaves the other connected;
+all clients must exit before the supervisor stops the server. The shutdown contract below
+continues to use stdin EOF, independently of the admin surface.
 
 ## 8. Stopping
 

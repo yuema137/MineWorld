@@ -167,6 +167,10 @@ func sprite_by_id(id: String) -> Dictionary:
 		# a seated sheet's seat surface, in metres (S34-e §5.4); null for every other sprite
 		"seat_height_m": spec.get("seat_height_m"),
 		"faces": String(spec.get("faces", "right")),
+		# a furnishing sprite's orientation (PRESENTATION.md §5): the plan facing its drawn front faces,
+		# in millidegrees, or null; and the sprite drawing the same piece from its other side, or ""
+		"front_md": spec.get("front_md"),
+		"reverse": String(spec.get("reverse", "")),
 		# a walk sheet's layout (PRESENTATION.md §3), or null for a single picture
 		"sheet": spec.get("sheet"),
 	}

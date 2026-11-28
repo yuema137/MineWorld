@@ -339,7 +339,11 @@ impl System for EconomySystem {
             }
             world.insert(
                 place,
-                Shop::new(opened.operator(), opened.keepers().to_vec()),
+                Shop::new(
+                    opened.operator(),
+                    opened.keepers().to_vec(),
+                    opened.hours().cloned(),
+                ),
             )?;
         } else if *kind == Listed::EVENT_TYPE {
             let listed: Listed = codec::event_payload(event.payload())?;

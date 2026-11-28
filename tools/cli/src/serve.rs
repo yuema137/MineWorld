@@ -513,16 +513,20 @@ fn persisted(
         );
         return Ok((world, composed.providers));
     }
-    let backend = SqliteBackend::create(save, Durability::PowerLoss).map_err(HostError::build)?;
+    // The save is made only once the world has assembled and begun in memory (`ARC-370`): a pack
+    // whose genesis is refused leaves no save behind to be resumed by the next launch.
     let assembled = pack.assemble().map_err(HostError::build)?;
-    let (world, began) = PersistentWorld::create(
-        Box::new(backend),
+    let (world, began) = PersistentWorld::create_with_backend(
         assembled.world,
         Creation {
             instance: WorldInstanceId::allocate().raw(),
             pack: pack.id().to_owned(),
             at: epoch,
             facts: assembled.facts,
+        },
+        || {
+            let backend = SqliteBackend::create(save, Durability::PowerLoss)?;
+            Ok(Box::new(backend) as Box<dyn PersistenceBackend>)
         },
     )
     .map_err(HostError::build)?;

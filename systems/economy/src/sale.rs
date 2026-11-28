@@ -18,7 +18,7 @@ use mineworld_presence::{Offer, Presence};
 
 use crate::action::{Buy, buy_requirement, person_buy_requirement};
 use crate::code::{
-    self, CANNOT_CARRY, INSUFFICIENT_FUNDS, NOT_FOR_SALE, OUT_OF_STOCK, PRICE_CHANGED,
+    self, CANNOT_CARRY, INSUFFICIENT_FUNDS, NOT_FOR_SALE, OUT_OF_STOCK, PRICE_CHANGED, SHOP_CLOSED,
 };
 use crate::codec;
 use crate::component::{Asks, Shop};
@@ -108,6 +108,21 @@ pub(crate) fn resolve_seller(
     Ok((seller, price))
 }
 
+/// Step 4½ (`ARC-364`, N1-I3): a shop sells only inside its hours, judged at the instant of the read —
+/// the dispatch's, the resolution's or the observation's, never a stored flag. A person seller has no
+/// hours. A shop that is gone keeps the existing precedence: the later steps answer for it.
+pub(crate) fn judge_open(world: &WorldRead<'_>, sale: &Sale) -> Result<(), Rejection> {
+    let closed = sale.seller.shop_place().is_some_and(|place| {
+        world
+            .component::<Shop>(place.entity_id())
+            .is_some_and(|shop| !shop.open_at(world.at()))
+    });
+    if closed {
+        return Err(code::refusal(SHOP_CLOSED));
+    }
+    Ok(())
+}
+
 /// Step 5: the buyer is not the seller, nor a keeper of the shop that sells.
 pub(crate) fn judge_self_trade(world: &WorldRead<'_>, sale: &Sale) -> Result<(), Rejection> {
     let keeper = sale.seller.shop_place().is_some_and(|place| {
@@ -141,9 +156,11 @@ pub(crate) fn judge_goods(world: &WorldRead<'_>, sale: &Sale) -> Result<(), Reje
     mineworld_inventory::admit_transfer(world, from, buyer, sale.item, 1)
 }
 
-/// Steps 5–9 (§5.6): everything a sale at `sale.price` needs, whatever price was agreed and however.
-/// `buy` and an accepted proposal both run it.
+/// Steps 4½–9 (§5.6): everything a sale at `sale.price` needs, whatever price was agreed and however —
+/// the shop open now first, so a closed shop never reports funds or stock. `buy` and an accepted
+/// proposal both run it.
 pub(crate) fn judge_exchange(world: &WorldRead<'_>, sale: &Sale) -> Result<(), Rejection> {
+    judge_open(world, sale)?;
     judge_self_trade(world, sale)?;
     judge_goods(world, sale)
 }

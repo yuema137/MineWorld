@@ -863,6 +863,9 @@ msgstr "not enough money"
 msgid "reason.out-of-stock"
 msgstr "sold out"
 
+msgid "reason.shop-closed"
+msgstr "the shop is closed"
+
 msgid "reason.cannot-carry"
 msgstr "you cannot carry any more"
 
@@ -918,6 +921,9 @@ msgstr "Asleep"
 
 msgid "ui.row.need"
 msgstr "{need}: {word}"
+
+msgid "ui.row.reserve"
+msgstr "{need}: {word} — {available} / {capacity} kcal ({use} kcal a day)"
 
 msgid "ui.row.asleep"
 msgstr "Asleep since {since}, alarm at {alarm}"
@@ -1042,3 +1048,30 @@ msgstr "Say to {target}:"
 
 msgid "ui.input.hint"
 msgstr "Enter sends  ·  Esc cancels"
+
+msgid "loading.quit"
+msgstr "Quit (Esc)"
+
+msgid "loading.layout"
+msgstr "Reading world layout..."
+
+msgid "loading.world"
+msgstr "Building the world..."
+
+msgid "loading.people"
+msgstr "Preparing people..."
+
+msgid "loading.light"
+msgstr "Preparing lighting..."
+
+msgid "loading.player"
+msgstr "Preparing your character..."
+
+msgid "loading.graphics"
+msgstr "Preparing graphics... (the first launch can take a few minutes)"
+
+msgid "loading.connecting"
+msgstr "Joining the world..."
+
+msgid "loading.ready"
+msgstr "Drawing the world..."

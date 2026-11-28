@@ -27,6 +27,7 @@ func _init() -> void:
 	_next_part()
 	_lateness()
 	_recorded()
+	_food_energy()
 	_nothing_disclosed()
 	print("[needs] %s — %d failure(s)" % ["PASS" if _failures == 0 else "FAIL", _failures])
 	quit(0 if _failures == 0 else 1)
@@ -53,12 +54,12 @@ func _event(event_type: String, payload: Dictionary, id: String) -> Dictionary:
 
 
 func _own_needs() -> void:
-	var ana := _observation([{"component_type": "needs", "payload": {"hunger": 640, "tiredness": 120,
+	var ana := _observation([{"component_type": "needs", "schema_version": 1, "payload": {"hunger": 640, "tiredness": 120,
 		"words": {"hunger": "hungry", "tiredness": "ok"}, "asleep": false}}])
 	_claim("own needs in the words map's order", Needs.own_needs(ana), [
 		{"need": "hunger", "word": "hungry", "level": 640},
 		{"need": "tiredness", "word": "ok", "level": 120}])
-	var third := _observation([{"component_type": "needs", "payload": {"hunger": "x", "tiredness": 300,
+	var third := _observation([{"component_type": "needs", "schema_version": 1, "payload": {"hunger": "x", "tiredness": 300,
 		"words": {"hunger": "peckish", "tiredness": "sleepy", "thirst": "peckish", "odd": 5}}}])
 	_claim("a level that is not a number reads -1; a word that is not text is skipped; a third need reads",
 		Needs.own_needs(third), [
@@ -141,6 +142,12 @@ func _recorded() -> void:
 	_claim("commute sleeper: Ana asleep since 315 s, with no alarm for me", Needs.asleep_of(sleeper, "7"),
 		{"since": 315, "alarm": null})
 	_claim("commute sleeper: I am awake", Needs.asleep_of(sleeper, "8"), {})
+	var energy := _fixture(directory, "market-town-food-energy")
+	_claim("food energy (schema 2): my reserve as the owner disclosed it, tiredness as before",
+		Needs.own_needs(energy), [
+		{"need": "hunger", "word": "ok", "level": -1, "reserve": {"available_kcal": 1346,
+			"capacity_kcal": 2000, "use_kcal_per_world_day": 2000, "bar": 673, "maximum": 1000}},
+		{"need": "tiredness", "word": "tired", "level": 812}])
 
 
 func _fixture(directory: String, name: String) -> Observation:
@@ -157,3 +164,53 @@ func _nothing_disclosed() -> void:
 	_claim("a frame with no pack: needs", Needs.own_needs(bare), [])
 	_claim("a frame with no pack: next part", Needs.next_part(bare), {})
 	_claim("a frame with no pack: lateness", Needs.lateness(bare), [])
+
+
+## A schema-2 food-energy record (`ARC-370`), as `needs` discloses it, with the envelope's schema.
+func _energy_frame(schema: Variant, food_energy: Variant, model: Variant = "food-energy") -> Observation:
+	var record := {"component_type": "needs", "payload": {"hunger_model": model, "hunger": 250,
+		"tiredness": 700, "words": {"hunger": "ok", "tiredness": "tired"}, "asleep": false,
+		"food_energy": food_energy}}
+	if schema != null:
+		record["schema_version"] = schema
+	return _observation([record])
+
+
+func _good_reserve() -> Dictionary:
+	return {"unit": "kcal", "available_kcal": 1500, "capacity_kcal": 2000, "use_kcal_per_world_day": 2000,
+		"bar": {"value": 750, "maximum": 1000}, "replaces_need": "hunger"}
+
+
+func _food_energy() -> void:
+	_claim("schema 2 food energy: the reserve replaces its need's row; tiredness reads as before",
+		Needs.own_needs(_energy_frame(2, _good_reserve())), [
+		{"need": "hunger", "word": "ok", "level": -1, "reserve": {"available_kcal": 1500,
+			"capacity_kcal": 2000, "use_kcal_per_world_day": 2000, "bar": 750, "maximum": 1000}},
+		{"need": "tiredness", "word": "tired", "level": 700}])
+	_claim("schema 2 unitless reads as schema 1", Needs.own_needs(_energy_frame(2, null, "unitless")), [
+		{"need": "hunger", "word": "ok", "level": 250},
+		{"need": "tiredness", "word": "tired", "level": 700}])
+	_claim("an unknown schema reads nothing", Needs.own_needs(_energy_frame(3, _good_reserve())), [])
+	_claim("a record with no schema_version reads nothing (never a deficit bar)",
+		Needs.own_needs(_energy_frame(null, _good_reserve())), [])
+	_claim("an unknown model reads nothing", Needs.own_needs(_energy_frame(2, _good_reserve(), "kilojoule")), [])
+	var tiredness_only := [{"need": "tiredness", "word": "tired", "level": 700}]
+	var broken := {
+		"a fractional kcal": {"available_kcal": 1500.5},
+		"a negative kcal": {"available_kcal": -1},
+		"a boolean kcal": {"available_kcal": true},
+		"a string capacity": {"capacity_kcal": "2000"},
+		"more available than capacity": {"available_kcal": 2001},
+		"a zero capacity": {"capacity_kcal": 0},
+		"another unit": {"unit": "kJ"},
+		"a bar over its maximum": {"bar": {"value": 1001, "maximum": 1000}},
+		"a bar with no maximum": {"bar": {"value": 10}},
+		"no daily use": {"use_kcal_per_world_day": null},
+	}
+	for name in broken:
+		var reserve := _good_reserve()
+		reserve.merge(broken[name], true)
+		_claim("malformed (%s): no reserve row and no deficit bar in its place" % name,
+			Needs.own_needs(_energy_frame(2, reserve)), tiredness_only)
+	_claim("a food-energy record with no reserve block: no reserve row",
+		Needs.own_needs(_energy_frame(2, null)), [])

@@ -410,7 +410,8 @@ ruled measurement, `posture_life -- --include-ignored` (8 passed, 598 s):
 
 The Social Café 30-day decisions golden and `docs/reference` re-captured again (`sit accepted 732`, `stand`
 none). The Social Café and Market Town long-run baselines in this branch are from the pre-ruling head and are
-stale: they are re-recorded once the storage question below is settled.
+stale: the merge with main @ 2026-11-28 takes main's `scripts/baselines.txt` whole (N1 #552 re-recorded Market
+Town), and both towns are re-recorded from this PR's head once the storage question below is settled.
 
 #### Storage finding (coordinator request 2026-11-27): ASRB-1 over budget with #557; cannot fit inside the frozen design
 

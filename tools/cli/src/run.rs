@@ -332,16 +332,19 @@ impl Begun {
         };
         let file = SqliteBackend::file(save).display().to_string();
         if !SqliteBackend::exists(save) {
-            let backend = SqliteBackend::create(save, Durability::ProcessCrash).map_err(stopped)?;
+            // The save is made only once the world has assembled and begun in memory (`ARC-370`).
             let assembled = pack.assemble().map_err(described)?;
-            let (world, began) = PersistentWorld::create(
-                Box::new(backend),
+            let (world, began) = PersistentWorld::create_with_backend(
                 assembled.world,
                 Creation {
                     instance: WorldInstanceId::allocate().raw(),
                     pack: pack.id().to_owned(),
                     at,
                     facts: assembled.facts,
+                },
+                || {
+                    let backend = SqliteBackend::create(save, Durability::ProcessCrash)?;
+                    Ok(Box::new(backend) as Box<dyn PersistenceBackend>)
                 },
             )
             .map_err(stopped)?;
